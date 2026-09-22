@@ -3,35 +3,38 @@ services:
     name: iddun-web
     runtime: python
     region: virginia
-    plan: 0.5c-512mb
+    plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt
-    preDeployCommand: flask --app run:app db upgrade
+
+    # No plano gratuito, a migração fica no build.
+    buildCommand: pip install -r requirements.txt && flask --app run:app db upgrade
+
     startCommand: gunicorn --workers 2 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT run:app
     healthCheckPath: /health
     autoDeployTrigger: commit
+
     envVars:
       - key: APP_ENV
         value: production
+
       - key: DATABASE_URL
         fromDatabase:
           name: iddun-db
           property: connectionString
+
       - key: SECRET_KEY
         generateValue: true
+
       - key: TOKEN_ENCRYPTION_KEY
         generateValue: true
+
       - key: UPLOAD_FOLDER
         value: /opt/render/project/src/app/static/uploads
-    disk:
-      name: iddun-uploads
-      mountPath: /opt/render/project/src/app/static/uploads
-      sizeGB: 5
 
 databases:
   - name: iddun-db
     region: virginia
-    plan: 0.1c-256mb
+    plan: free
     databaseName: iddun
     user: iddun_app
     postgresMajorVersion: "18"
