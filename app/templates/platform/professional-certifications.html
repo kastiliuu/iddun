@@ -1,0 +1,56 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+{% block title %}Certificações | IDDUN Pro{% endblock %}
+{% block body_class %}platform-page platform-editor-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block content %}
+<section class="platform-editor">
+  <div class="container platform-editor__layout">
+    <header class="platform-editor__head">
+      <a class="platform-back-link" href="{{ url_for('professional.dashboard') }}">{{ icon('arrow-left') }} IDDUN Pro</a>
+      <span class="platform-kicker">FORMAÇÃO & CREDIBILIDADE</span>
+      <h1>Certificações profissionais.</h1>
+      <p>Cadastre formações que ajudem clientes e empresas a entender sua trajetória. Nesta fase os certificados são declarados pelo profissional; verificação IDDUN virá depois.</p>
+    </header>
+
+    <section class="platform-panel">
+      <header class="platform-panel__head"><div><span class="platform-kicker">SEUS CERTIFICADOS</span><h2>{{ profile.certifications|length }} cadastrados</h2></div></header>
+      {% if profile.certifications %}
+      <div class="platform-certification-list">
+        {% for item in profile.certifications %}
+        <article class="platform-certification-item">
+          <span class="platform-certification-icon">{{ icon('award') }}</span>
+          <div><strong>{{ item.title }}</strong><span>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</span>{% if item.credential_id %}<small>Credencial {{ item.credential_id }}</small>{% endif %}</div>
+          <div class="platform-certification-actions">
+            {% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% endif %}
+            {% if item.document_url %}<a href="{{ item.document_url|media_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}
+            <form method="post" action="{{ url_for('professional.remove_certification', certification_id=item.id) }}" onsubmit="return confirm('Remover esta certificação?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Remover</button></form>
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}<div class="platform-empty">Nenhuma certificação cadastrada ainda.</div>{% endif %}
+    </section>
+
+    <form class="platform-editor-form" method="post" enctype="multipart/form-data" novalidate>
+      {{ form.hidden_tag() }}
+      <section class="platform-panel">
+        <header class="platform-panel__head"><div><span class="platform-kicker">NOVA CERTIFICAÇÃO</span><h2>Adicione uma formação</h2></div></header>
+        <div class="platform-form-grid">
+          <div class="platform-field">{{ form.title.label(class_='platform-label') }}{{ form.title(class_='platform-input') }}{{ field_errors(form.title) }}</div>
+          <div class="platform-field">{{ form.issuer.label(class_='platform-label') }}{{ form.issuer(class_='platform-input') }}{{ field_errors(form.issuer) }}</div>
+          <div class="platform-field">{{ form.issued_at.label(class_='platform-label') }}{{ form.issued_at(class_='platform-input') }}{{ field_errors(form.issued_at) }}</div>
+          <div class="platform-field">{{ form.expires_at.label(class_='platform-label') }}{{ form.expires_at(class_='platform-input') }}{{ field_errors(form.expires_at) }}</div>
+          <div class="platform-field">{{ form.credential_id.label(class_='platform-label') }}{{ form.credential_id(class_='platform-input') }}{{ field_errors(form.credential_id) }}</div>
+          <div class="platform-field">{{ form.verification_url.label(class_='platform-label') }}{{ form.verification_url(class_='platform-input', placeholder='https://...') }}{{ field_errors(form.verification_url) }}</div>
+          <div class="platform-field platform-field--wide">{{ form.document_file.label(class_='platform-label') }}{{ form.document_file(class_='platform-input', accept='.pdf,image/jpeg,image/png,image/webp') }}<small class="platform-help">PDF ou imagem, até 8 MB.</small>{{ field_errors(form.document_file) }}</div>
+          <div class="platform-field platform-field--wide platform-checkbox-field">{{ form.is_public() }} {{ form.is_public.label(class_='platform-label') }}</div>
+        </div>
+      </section>
+      <div class="platform-editor-actions">{{ form.submit(class_='btn btn-primary') }}<a class="btn btn-outline" href="{{ url_for('public.professional_detail', slug=profile.slug) }}" target="_blank">Ver perfil público</a></div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+{% block mobile_bottom_nav %}{% endblock %}

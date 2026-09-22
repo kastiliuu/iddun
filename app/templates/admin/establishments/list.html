@@ -1,0 +1,24 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Estabelecimentos{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--compact">
+  <div><span class="admin-eyebrow">REDE IDDUN</span><h1>Estabelecimentos</h1><p>Salões, studios e espaços onde as experiências acontecem.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('admin.establishment_create') }}">{{ icon('store') }} Novo estabelecimento</a>
+</header>
+<section class="admin-panel admin-list-panel">
+  <div class="admin-list-head"><strong>{{ establishments|length }} locais</strong><span>Base operacional do piloto</span></div>
+  {% if establishments %}
+  <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Estabelecimento</th><th>Região</th><th>Profissionais</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for item in establishments %}
+  <tr>
+    <td data-label="Estabelecimento"><div class="admin-table-person"><span class="admin-avatar admin-avatar--square">{{ item.name[:1]|upper }}</span><div><strong>{{ item.name }}</strong><small>iddun.com/{{ item.slug }}</small></div></div></td>
+    <td data-label="Região">{{ item.neighborhood or '—' }}{% if item.city %} · {{ item.city }}{% endif %}</td>
+    <td data-label="Profissionais">{{ item.memberships|selectattr('status', 'equalto', 'active')|list|length }}</td>
+    <td data-label="Status"><span class="admin-status {% if item.is_active %}admin-status--published{% else %}admin-status--archived{% endif %}">{% if item.is_active %}Ativo{% else %}Inativo{% endif %}</span>{% if item.is_verified %}<span class="admin-mini-verified">{{ icon('shield-check') }}</span>{% endif %}</td>
+    <td class="admin-table-action"><div class="admin-table-actions"><a href="{{ url_for('admin.establishment_dashboard', item_id=item.id) }}">{{ icon('home') }} Dashboard</a><a href="{{ url_for('admin.establishment_edit', item_id=item.id) }}">{{ icon('edit') }} Editar</a></div></td>
+  </tr>
+  {% endfor %}</tbody></table></div>
+  {% else %}<div class="admin-empty"><span>{{ icon('store') }}</span><h3>Nenhum local cadastrado.</h3><p>Adicione um salão ou studio para depois vinculá-lo aos profissionais.</p><a class="btn btn-dark" href="{{ url_for('admin.establishment_create') }}">Cadastrar estabelecimento</a></div>{% endif %}
+</section>
+{% endblock %}

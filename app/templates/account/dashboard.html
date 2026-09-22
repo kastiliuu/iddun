@@ -1,0 +1,212 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% block title %}Minha conta | IDDUN{% endblock %}
+{% block body_class %}account-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="account-hero">
+  <div class="container account-hero__inner" data-reveal>
+    <div class="account-identity">
+      <div class="account-avatar {% if profile.avatar_url %}account-avatar--photo{% endif %}" {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %} aria-hidden="true">{% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}</div>
+      <div>
+        <span class="account-kicker">SEU ESPAÇO IDDUN</span>
+        <h1>Olá, {{ current_user.name.split()[0] }}.</h1>
+        <p>Cuide do seu perfil e acompanhe sua jornada de beleza em um só lugar.</p>
+      </div>
+    </div>
+
+    <a class="account-discover-btn" href="{{ url_for('public.experiences') }}">
+      {{ icon('compass', 'account-discover-btn__icon') }}
+      <span>Descobrir experiências</span>
+      {{ icon('chevron-right', 'account-discover-btn__arrow') }}
+    </a>
+  </div>
+</section>
+
+<section class="account-content">
+  <div class="container account-layout">
+    <div class="account-main">
+      <section class="account-progress-card" data-reveal aria-labelledby="profile-progress-title">
+        <div class="account-progress-card__head">
+          <div>
+            <span class="account-section-kicker">PERFIL</span>
+            <h2 id="profile-progress-title">Complete seu perfil</h2>
+            <p>Alguns dados ajudam a tornar futuras reservas mais rápidas.</p>
+          </div>
+          <strong>{{ completion }}%</strong>
+        </div>
+        <div class="account-progress" aria-label="Perfil {{ completion }}% completo">
+          <span style="--profile-progress: {{ completion }}%"></span>
+        </div>
+      </section>
+
+      <section class="account-quick-grid" data-reveal-stagger aria-label="Atalhos da conta">
+        <a class="account-quick-card" href="{{ url_for('public.experiences') }}">
+          <span class="account-quick-card__icon">{{ icon('sparkles') }}</span>
+          <div>
+            <strong>Experiências</strong>
+            <span>Encontre sua próxima descoberta</span>
+          </div>
+          {{ icon('chevron-right', 'account-quick-card__arrow') }}
+        </a>
+
+        <div class="account-quick-card account-quick-card--future" aria-disabled="true">
+          <span class="account-quick-card__icon">{{ icon('bookmark') }}</span>
+          <div>
+            <strong>Favoritos</strong>
+            <span>Em breve, salvos na sua conta</span>
+          </div>
+          <span class="account-coming-soon">EM BREVE</span>
+        </div>
+
+        <a class="account-quick-card" href="{{ url_for('bookings.mine') }}">
+          <span class="account-quick-card__icon">{{ icon('clock') }}</span>
+          <div>
+            <strong>Reservas</strong>
+            <span>Acompanhe seus horários IDDUN</span>
+          </div>
+          {{ icon('chevron-right', 'account-quick-card__arrow') }}
+        </a>
+      </section>
+
+      <section class="account-context-section" data-reveal>
+        <div class="account-context-section__head">
+          <div>
+            <span class="account-section-kicker">SEUS AMBIENTES</span>
+            <h2>Use a mesma conta em contextos diferentes.</h2>
+          </div>
+          <a href="{{ url_for('professional.start') }}">Adicionar contexto</a>
+        </div>
+
+        <div class="account-context-grid">
+          <a class="account-context-card" href="{{ url_for('public.experiences') }}">
+            <span class="account-context-card__icon">{{ icon('compass') }}</span>
+            <span><strong>Cliente</strong><small>Descobrir, reservar e acompanhar experiências.</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+
+          {% if current_user.professional_profile %}
+          <a class="account-context-card account-context-card--pro" href="{{ url_for('professional.dashboard') }}">
+            <span class="account-context-card__icon">{{ icon('user') }}</span>
+            <span><strong>IDDUN Pro</strong><small>{{ current_user.professional_profile.display_name }} · {{ current_user.professional_profile.profile_completion }}% completo</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+          {% else %}
+          <a class="account-context-card account-context-card--ghost" href="{{ url_for('professional.start') }}">
+            <span class="account-context-card__icon">{{ icon('plus') }}</span>
+            <span><strong>Criar perfil profissional</strong><small>Portfólio, reputação e presença própria.</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+          {% endif %}
+
+          {% for access in business_accesses %}
+          <a class="account-context-card account-context-card--business" href="{{ url_for('business.dashboard', slug=access.establishment.slug) }}">
+            <span class="account-context-card__icon">{{ icon('store') }}</span>
+            <span><strong>{{ access.establishment.name }}</strong><small>IDDUN Business · {{ access.role|title }}</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="account-profile-card" data-reveal id="dados-pessoais">
+        <div class="account-profile-card__head">
+          <div>
+            <span class="account-section-kicker">DADOS PESSOAIS</span>
+            <h2>Seu perfil</h2>
+          </div>
+          <span class="account-profile-card__secure">{{ icon('shield-check') }} Dados protegidos</span>
+        </div>
+
+        <form class="account-form" method="post" enctype="multipart/form-data" novalidate>
+          {{ form.hidden_tag() }}
+
+
+          <div class="account-field account-field--wide account-avatar-upload">
+            {{ form.avatar_file.label(class_='account-label') }}
+            <label class="account-upload" data-client-image-upload>
+              {{ form.avatar_file(class_='account-file-input', accept='image/jpeg,image/png,image/webp', data_client_image_input='') }}
+              <span class="account-upload__preview {% if profile.avatar_url %}has-image{% endif %}" data-client-image-preview {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>{{ icon('upload') }}</span>
+              <span><strong>Escolher foto</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
+            </label>
+            {{ field_errors(form.avatar_file) }}
+          </div>
+          <div class="account-field account-field--wide">
+            {{ form.name.label(class_='account-label') }}
+            {{ form.name(class_='account-input', autocomplete='name', placeholder='Seu nome completo') }}
+            {{ field_errors(form.name) }}
+          </div>
+
+          <div class="account-field account-field--wide">
+            <label class="account-label" for="account-email">E-mail</label>
+            <input id="account-email" class="account-input" value="{{ current_user.email }}" disabled aria-describedby="email-help">
+            <span id="email-help" class="account-help">O e-mail da conta será editável em uma etapa de segurança futura.</span>
+          </div>
+
+          <div class="account-field">
+            {{ form.phone.label(class_='account-label') }}
+            {{ form.phone(class_='account-input', autocomplete='tel', inputmode='tel', placeholder='(41) 99999-9999') }}
+            {{ field_errors(form.phone) }}
+          </div>
+
+          <div class="account-field">
+            {{ form.birth_date.label(class_='account-label') }}
+            {{ form.birth_date(class_='account-input', autocomplete='bday') }}
+            {{ field_errors(form.birth_date) }}
+          </div>
+
+          <div class="account-field">
+            {{ form.city.label(class_='account-label') }}
+            {{ form.city(class_='account-input', autocomplete='address-level2', placeholder='Curitiba') }}
+            {{ field_errors(form.city) }}
+          </div>
+
+          <div class="account-field">
+            {{ form.state.label(class_='account-label') }}
+            {{ form.state(class_='account-input', autocomplete='address-level1', inputmode='text', maxlength='2', placeholder='PR') }}
+            {{ field_errors(form.state) }}
+          </div>
+
+          <div class="account-form__actions">
+            {{ form.submit(class_='btn btn-primary account-save') }}
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <aside class="account-side" data-reveal-stagger aria-label="Informações da conta">
+      <section class="account-side-card account-side-card--premium">
+        <span class="account-side-card__icon">{{ icon('diamond') }}</span>
+        <span class="account-section-kicker">IDDUN</span>
+        <h2>Descubra algo novo.</h2>
+        <p>Experiências selecionadas para conhecer profissionais e serviços de um jeito mais simples.</p>
+        <a href="{{ url_for('public.experiences') }}">Explorar agora {{ icon('chevron-right') }}</a>
+      </section>
+
+      <section class="account-side-card">
+        <span class="account-section-kicker">CONTA</span>
+        <dl class="account-details">
+          <div><dt>Conta</dt><dd>IDDUN</dd></div>
+          <div><dt>Status</dt><dd class="account-status"><span></span> Ativa</dd></div>
+          <div><dt>Membro desde</dt><dd>{{ current_user.created_at.strftime('%m/%Y') }}</dd></div>
+        </dl>
+      </section>
+
+      <form class="account-logout" action="{{ url_for('auth.logout') }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Sair da conta</button>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/account.js') }}" defer></script>
+{% endblock %}

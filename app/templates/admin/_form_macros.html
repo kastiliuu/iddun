@@ -1,0 +1,109 @@
+{% from 'components/icon.html' import icon %}
+
+{% macro errors(field) -%}
+  {% if field.errors %}
+    <div class="admin-field-errors" role="alert">
+      {% for error in field.errors %}<span>{{ error }}</span>{% endfor %}
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro label_with_info(field, info='') -%}
+  <div class="admin-label-row">
+    {{ field.label(class_='admin-label') }}
+    {% if info %}
+      <button class="admin-info-trigger" type="button" aria-label="Entenda este campo" data-info-trigger aria-expanded="false">
+        {{ icon('info') }}
+        <span class="admin-info-popover" role="tooltip">{{ info }}</span>
+      </button>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
+{% macro field(field, placeholder='', class_name='', info='') -%}
+  <div class="admin-field {{ class_name }} {% if field.errors %}has-error{% endif %}">
+    {{ label_with_info(field, info) }}
+    {{ field(class_='admin-input', placeholder=placeholder) }}
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro number_stepper(field, placeholder='', class_name='', info='') -%}
+  <div class="admin-field admin-field--stepper {{ class_name }} {% if field.errors %}has-error{% endif %}" data-number-stepper>
+    {{ label_with_info(field, info) }}
+    <div class="admin-number-control">
+      {{ field(class_='admin-input admin-number-input', placeholder=placeholder) }}
+      <div class="admin-number-actions" aria-hidden="false">
+        <button class="admin-control-button" type="button" data-step="down" aria-label="Diminuir valor">{{ icon('minus', 'admin-control-button__icon') }}</button>
+        <button class="admin-control-button" type="button" data-step="up" aria-label="Aumentar valor">{{ icon('plus', 'admin-control-button__icon') }}</button>
+      </div>
+    </div>
+    <small class="admin-field-hint {% if not field.description %}admin-field-hint--empty{% endif %}">{% if field.description %}{{ field.description }}{% else %}&nbsp;{% endif %}</small>
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro textarea(field, placeholder='', class_name='', info='') -%}
+  <div class="admin-field {{ class_name }} {% if field.errors %}has-error{% endif %}">
+    {{ label_with_info(field, info) }}
+    {{ field(class_='admin-textarea', placeholder=placeholder, rows=5) }}
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro select(field, class_name='', info='') -%}
+  <div class="admin-field {{ class_name }} {% if field.errors %}has-error{% endif %}">
+    {{ label_with_info(field, info) }}
+    {{ field(class_='admin-select') }}
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro handle_field(field, current_id='', resource_type='professional', class_name='') -%}
+  <div class="admin-field {{ class_name }} {% if field.errors %}has-error{% endif %}" data-handle-field data-handle-type="{{ resource_type }}" data-current-id="{{ current_id or '' }}">
+    {{ field.label(class_='admin-label') }}
+    <div class="admin-handle-control">
+      <span>iddun.com/</span>
+      {{ field(class_='admin-input', placeholder='camila-rocha', autocomplete='off', spellcheck='false', data_handle_input='') }}
+    </div>
+    <small class="admin-field-hint">Use letras, números e hífen. Sem espaços. Se deixar vazio, o IDDUN gera automaticamente.</small>
+    <div class="admin-handle-status" data-handle-status aria-live="polite"></div>
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro upload_field(field, current_url='', class_name='', shape='wide', title='Escolher imagem', focus_x_field=None, focus_y_field=None, crop_ratio='4 / 3') -%}
+  <div class="admin-field {{ class_name }} {% if field.errors %}has-error{% endif %}" data-image-upload>
+    {{ field.label(class_='admin-label') }}
+    <label class="admin-upload admin-upload--{{ shape }}" tabindex="0">
+      <input type="file" name="{{ field.name }}" id="{{ field.id }}" accept="image/jpeg,image/png,image/webp" data-image-input>
+      <span class="admin-upload__preview {% if current_url %}has-image{% endif %}" data-image-preview {% if current_url %}style="background-image:url('{{ current_url|media_url }}')"{% endif %}>
+        <span class="admin-upload__icon">{{ icon('upload') }}</span>
+      </span>
+      <span class="admin-upload__copy"><strong>{{ title }}</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
+    </label>
+    {% if focus_x_field and focus_y_field %}
+      <div class="admin-crop-editor {% if current_url %}has-image{% endif %}" data-crop-editor data-crop-ratio="{{ crop_ratio }}" data-crop-x-id="{{ focus_x_field.id }}" data-crop-y-id="{{ focus_y_field.id }}">
+        <div class="admin-crop-editor__head">
+          <div><strong>Ajustar enquadramento</strong><small>Arraste ou toque na foto para definir a área principal que deve permanecer visível nos cards.</small></div>
+          <button type="button" class="admin-crop-reset" data-crop-reset>Centralizar</button>
+        </div>
+        <div class="admin-crop-stage" style="aspect-ratio: {{ crop_ratio }};" data-crop-stage>
+          <img data-crop-image {% if current_url %}src="{{ current_url|media_url }}"{% endif %} alt="Prévia do enquadramento" style="object-position: {{ focus_x_field.data if focus_x_field.data not in (none, '') else 50 }}% {{ focus_y_field.data if focus_y_field.data not in (none, '') else 50 }}%;">
+          <span class="admin-crop-target" data-crop-target aria-hidden="true"></span>
+          <span class="admin-crop-frame" aria-hidden="true"></span>
+        </div>
+        <div class="admin-crop-editor__foot"><span>Enquadramento dos cards</span><output data-crop-output>{{ focus_x_field.data if focus_x_field.data not in (none, '') else 50 }}% · {{ focus_y_field.data if focus_y_field.data not in (none, '') else 50 }}%</output></div>
+      </div>
+    {% endif %}
+    {{ errors(field) }}
+  </div>
+{%- endmacro %}
+
+{% macro toggle(field, hint='') -%}
+  <label class="admin-toggle">
+    {{ field() }}
+    <span class="admin-toggle__control" aria-hidden="true"></span>
+    <span class="admin-toggle__copy"><strong>{{ field.label.text }}</strong>{% if hint %}<small>{{ hint }}</small>{% endif %}</span>
+  </label>
+{%- endmacro %}

@@ -1,0 +1,121 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% block title %}IDDUN Business | {{ establishment.name }}{% endblock %}
+{% block body_class %}platform-page platform-dashboard-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-dashboard-hero platform-dashboard-hero--business">
+  <div class="container platform-dashboard-hero__inner">
+    <div class="platform-dashboard-identity">
+      <div class="platform-dashboard-avatar platform-dashboard-avatar--business {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{{ establishment.name[:1]|upper }}</div>
+      <div>
+        <span class="platform-kicker">IDDUN BUSINESS · {{ establishment.plan_tier|upper }}</span>
+        <h1>{{ establishment.name }}</h1>
+        <p>{{ establishment.neighborhood or establishment.category|title }}{% if establishment.city %} · {{ establishment.city }}{% endif %}</p>
+      </div>
+    </div>
+    <div class="platform-dashboard-hero__actions">
+      <a class="btn btn-outline" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" target="_blank">Ver como cliente {{ icon('chevron-right') }}</a>
+      <a class="btn btn-primary" href="{{ url_for('business.edit', slug=establishment.slug) }}">Editar empresa</a>
+    </div>
+  </div>
+</section>
+
+<section class="platform-dashboard-content">
+  <div class="container platform-dashboard-grid">
+    <main class="platform-dashboard-main">
+      <section class="platform-completion-card" data-reveal>
+        <div><span class="platform-kicker">PRESENÇA DA MARCA</span><h2>Página {{ establishment.profile_completion }}% completa.</h2><p>A empresa conecta a marca ao quadro de profissionais, sem misturar identidades.</p></div>
+        <strong>{{ establishment.profile_completion }}%</strong>
+        <div class="platform-progress__bar"><span style="width:{{ establishment.profile_completion }}%"></span></div>
+      </section>
+
+      <section class="platform-metric-grid" data-reveal-stagger>
+        <article><span>{{ icon('users') }}</span><strong>{{ establishment.active_memberships|length }}</strong><small>profissionais na equipe</small></article>
+        <article><span>{{ icon('star') }}</span><strong>{{ reputation.average_label }}</strong><small>{% if reputation.count %}{{ reputation.count }} avaliações verificadas{% else %}sem avaliações ainda{% endif %}</small></article>
+        <article><span>{{ icon('check') }}</span><strong>{% if reputation.recommendation_percent is not none %}{{ reputation.recommendation_percent }}%{% else %}—{% endif %}</strong><small>clientes que recomendam</small></article>
+        <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
+      </section>
+
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head">
+          <div><span class="platform-kicker">EQUIPE</span><h2>Quadro de profissionais</h2><p>Convide quem já possui perfil profissional. A pessoa precisa aceitar antes de aparecer publicamente.</p></div>
+        </header>
+
+        {% if establishment.pending_memberships %}
+        <div class="platform-pending-team">
+          <span class="platform-status-badge">{{ establishment.pending_memberships|length }} convite(s) aguardando resposta</span>
+          {% for membership in establishment.pending_memberships %}
+          <div class="platform-team-member platform-team-member--pending">
+            <span class="platform-team-member__identity"><span class="platform-team-avatar {% if membership.professional.avatar_url %}has-image{% endif %}" {% if membership.professional.avatar_url %}style="background-image:url('{{ membership.professional.avatar_url|media_url }}')"{% endif %}>{{ membership.professional.display_name[:1] }}</span><span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }} · aguardando aceite</small></span></span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if establishment.active_memberships %}
+        <div class="platform-team-list">
+          {% for membership in establishment.active_memberships %}
+          <div class="platform-team-member">
+            <a href="{{ url_for('public.professional_detail', slug=membership.professional.slug) }}" class="platform-team-member__identity">
+              <span class="platform-team-avatar {% if membership.professional.avatar_url %}has-image{% endif %}" {% if membership.professional.avatar_url %}style="background-image:url('{{ membership.professional.avatar_url|media_url }}')"{% endif %}>{{ membership.professional.display_name[:1] }}</span>
+              <span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }}{% if membership.is_primary %} · local principal{% endif %}</small></span>
+            </a>
+            <form method="post" action="{{ url_for('business.remove_team_member', slug=establishment.slug, membership_id=membership.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="platform-inline-danger">Remover</button>
+            </form>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+          {% if not establishment.pending_memberships %}<div class="platform-empty">Sua equipe ainda está vazia. Envie o primeiro convite usando o e-mail da conta IDDUN do profissional.</div>{% endif %}
+        {% endif %}
+
+        <form method="post" class="platform-team-form" novalidate>
+          {{ team_form.hidden_tag() }}
+          <div class="platform-field">{{ team_form.email.label(class_='platform-label') }}{{ team_form.email(class_='platform-input', placeholder='profissional@email.com') }}{{ field_errors(team_form.email) }}</div>
+          <div class="platform-field">{{ team_form.role_name.label(class_='platform-label') }}{{ team_form.role_name(class_='platform-input', placeholder='Ex.: Hair Stylist') }}{{ field_errors(team_form.role_name) }}</div>
+          <div class="platform-team-form__action">{{ team_form.submit(class_='btn btn-primary') }}</div>
+        </form>
+      </section>
+
+
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head"><div><span class="platform-kicker">REPUTAÇÃO DA EMPRESA</span><h2>Avaliações verificadas</h2><p>A nota do estabelecimento é separada da reputação dos profissionais da equipe.</p></div></header>
+        {% if establishment.reviews_received %}<div class="platform-review-list">{% for review in establishment.reviews_received[:3] %}{% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda o estabelecimento{% else %}sem recomendação{% endif %}</small></article>{% endif %}{% endfor %}</div>{% else %}<div class="platform-empty">As avaliações da empresa aparecerão depois de atendimentos concluídos.</div>{% endif %}
+      </section>
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>O espaço em imagens</h2></div><a href="{{ url_for('business.edit', slug=establishment.slug) }}">Gerenciar</a></header>
+        {% if establishment.gallery_items %}
+        <div class="platform-portfolio-strip">
+          {% for item in establishment.gallery_items[:6] %}<img src="{{ item.image_url|media_url }}" alt="{{ establishment.name }}" loading="lazy">{% endfor %}
+        </div>
+        {% else %}<div class="platform-empty">Adicione fotos para transformar a página em uma apresentação visual da marca.</div>{% endif %}
+      </section>
+    </main>
+
+    <aside class="platform-dashboard-side">
+      <section class="platform-panel platform-panel--dark">
+        <span class="platform-kicker">ATALHOS</span>
+        <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa {{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }} Página pública {{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('public.professionals') }}">{{ icon('users') }} Encontrar profissionais {{ icon('chevron-right') }}</a>
+      </section>
+      <section class="platform-panel"><span class="platform-kicker">PLANO</span><h3>IDDUN Business Free</h3><p>Empresas entram gratuitamente nesta fase. A base já diferencia Business Free de planos pagos futuros.</p></section>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="platform-mobile-nav" aria-label="IDDUN Business">
+  <a class="is-active" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('home') }}<span>Visão geral</span></a>
+  <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }}<span>Empresa</span></a>
+  <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar</span></a>
+  <a href="{{ url_for('account.dashboard') }}">{{ icon('compass') }}<span>Cliente</span></a>
+</nav>
+{% endblock %}

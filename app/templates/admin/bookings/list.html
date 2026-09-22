@@ -1,0 +1,30 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Reservas{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head"><div><span class="admin-eyebrow">OPERAÇÃO</span><h1>Reservas</h1><p>Acompanhe o que saiu do marketplace e o status de cada atendimento.</p></div></header>
+
+{% if rows %}
+<div class="admin-booking-grid">
+  {% for row in rows %}
+    {% set item = row.booking %}
+    <article class="admin-booking-card">
+      <div class="admin-booking-card__head"><span class="admin-status admin-status--{{ item.status }}">{{ item.status_label }}</span><small>#{{ '%04d'|format(item.id) }}</small></div>
+      <div class="admin-booking-card__date"><strong>{{ row.local_start.strftime('%H:%M') }}</strong><span>{{ row.local_start.strftime('%d/%m/%Y') }}</span></div>
+      <div class="admin-booking-card__copy"><h2>{{ item.experience.title }}</h2><p>{{ item.client.user.name }} · {{ item.professional.display_name }}</p></div>
+      <div class="admin-booking-card__actions">
+        {% if item.status == BookingStatus.CONFIRMED %}
+          <form method="post" action="{{ url_for('admin.booking_complete', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Concluir</button></form>
+          <form method="post" action="{{ url_for('admin.booking_no_show', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">No-show</button></form>
+          <form method="post" action="{{ url_for('admin.booking_cancel_admin', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Cancelar</button></form>
+        {% elif item.status == BookingStatus.PENDING %}
+          <form method="post" action="{{ url_for('admin.booking_cancel_admin', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Cancelar hold</button></form>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="admin-empty"><span>{{ icon('calendar') }}</span><h3>Ainda não há reservas.</h3><p>Quando um cliente confirmar uma oportunidade IDDUN, ela aparecerá aqui.</p></div>
+{% endif %}
+{% endblock %}

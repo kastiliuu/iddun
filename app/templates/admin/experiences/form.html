@@ -1,0 +1,18 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'admin/_form_macros.html' import field, textarea, select, toggle, upload_field, number_stepper %}
+{% block admin_title %}{{ 'Editar experiência' if item else 'Nova experiência' }}{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--form"><div><a class="admin-back" href="{{ url_for('admin.experiences') }}">{{ icon('arrow-left') }} Experiências</a><span class="admin-eyebrow">CATÁLOGO REAL</span><h1>{{ 'Editar experiência' if item else 'Nova experiência' }}</h1><p>Monte uma oferta clara, premium e pronta para ser descoberta pelo cliente.</p></div></header>
+<form class="admin-form-layout" method="post" enctype="multipart/form-data" novalidate>
+{{ form.hidden_tag() }}
+<div class="admin-form-main">
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('sparkles') }}</span><div><h2>Proposta da experiência</h2><p>O cliente precisa entender valor em poucos segundos.</p></div></div><div class="admin-form-grid">
+{{ field(form.title, 'Ex.: Hair Experience', 'admin-field--wide') }}{{ field(form.slug, 'Gerado automaticamente') }}{{ select(form.category) }}{{ field(form.short_description, 'Ex.: Tratamento + corte + finalização', 'admin-field--wide') }}{{ textarea(form.description, 'Detalhes, o que está incluso e para quem esta experiência faz sentido.', 'admin-field--wide') }}{{ field(form.badge, 'Ex.: Primeira vez') }}{{ upload_field(form.image_file, item.image_url if item else '', 'admin-field--wide', 'wide', 'Escolher imagem da experiência', form.image_focus_x, form.image_focus_y, '16 / 10') }}
+</div></section>
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('users') }}</span><div><h2>Quem entrega</h2><p>Profissional e local responsáveis pela experiência.</p></div></div><div class="admin-form-grid">{{ select(form.professional_id) }}{{ select(form.establishment_id) }}</div></section>
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('diamond') }}</span><div><h2>Preço e duração</h2><p>Posicione a oportunidade sem comunicar liquidação.</p></div></div><div class="admin-form-grid">{{ field(form.regular_price, '350,00') }}{{ field(form.price, '249,00') }}{{ number_stepper(form.duration_minutes, '90') }}{{ number_stepper(form.booking_cutoff_minutes, 'Ex.: 60', '', 'Se preenchido, substitui a antecedência padrão do profissional apenas para esta experiência.') }}</div></section>
+</div>
+<aside class="admin-form-side"><section class="admin-form-card admin-form-card--sticky"><span class="admin-eyebrow">PUBLICAÇÃO</span>{{ select(form.status) }}{{ toggle(form.is_featured, 'Prioriza a experiência em áreas de destaque.') }}{{ toggle(form.is_first_experience, 'Indica oportunidade para primeira experiência.') }}<div class="admin-form-actions">{{ form.submit(class_='btn btn-primary') }}<a class="btn admin-btn-ghost" href="{{ url_for('admin.experiences') }}">Cancelar</a></div>{% if item and item.status == 'published' %}<a class="admin-preview-link" href="{{ url_for('public.experience_detail', slug=item.slug) }}" target="_blank">Ver no marketplace {{ icon('chevron-right') }}</a>{% endif %}</section></aside>
+</form>
+{% endblock %}

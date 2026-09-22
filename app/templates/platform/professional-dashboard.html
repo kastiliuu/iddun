@@ -1,0 +1,139 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}IDDUN Pro | {{ profile.display_name }}{% endblock %}
+{% block body_class %}platform-page platform-dashboard-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-dashboard-hero">
+  <div class="container platform-dashboard-hero__inner">
+    <div class="platform-dashboard-identity">
+      <div class="platform-dashboard-avatar {% if profile.avatar_url %}has-image{% endif %}" {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>{{ profile.display_name[:1]|upper }}</div>
+      <div>
+        <span class="platform-kicker">IDDUN PRO · {{ profile.plan_tier|upper }}</span>
+        <h1>Olá, {{ profile.display_name.split()[0] }}.</h1>
+        <p>Seu trabalho, sua reputação e seus vínculos profissionais em um só lugar.</p>
+      </div>
+    </div>
+    <div class="platform-dashboard-hero__actions">
+      <a class="btn btn-outline" href="{{ url_for('public.professional_detail', slug=profile.slug) }}" target="_blank">Ver como cliente {{ icon('chevron-right') }}</a>
+      <a class="btn btn-primary" href="{{ url_for('professional.edit_profile') }}">Editar perfil</a>
+    </div>
+  </div>
+</section>
+
+<section class="platform-dashboard-content">
+  <div class="container platform-dashboard-grid">
+    <main class="platform-dashboard-main">
+      <section class="platform-completion-card" data-reveal>
+        <div>
+          <span class="platform-kicker">PRESENÇA NO IDDUN</span>
+          <h2>Seu perfil está {{ profile.profile_completion }}% completo.</h2>
+          <p>{% if profile.ready_to_publish %}Seu perfil já possui o mínimo de qualidade para aparecer publicamente.{% else %}Complete os itens pendentes para voltar a publicar seu perfil.{% endif %}</p>
+        </div>
+        <strong>{{ profile.profile_completion }}%</strong>
+        <div class="platform-progress__bar"><span style="width:{{ profile.profile_completion }}%"></span></div>
+      </section>
+
+      <section class="platform-metric-grid" data-reveal-stagger>
+        <article><span>{{ icon('star') }}</span><strong>{{ reputation.average_label }}</strong><small>{% if reputation.count %}{{ reputation.count }} avaliações verificadas{% else %}sem avaliações ainda{% endif %}</small></article>
+        <article><span>{{ icon('check') }}</span><strong>{% if reputation.recommendation_percent is not none %}{{ reputation.recommendation_percent }}%{% else %}—{% endif %}</strong><small>clientes que recomendam</small></article>
+        <article><span>{{ icon('award') }}</span><strong>{{ profile.certifications|length }}</strong><small>certificações cadastradas</small></article>
+        <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
+      </section>
+
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head">
+          <div><span class="platform-kicker">PORTFÓLIO</span><h2>Seu trabalho em destaque</h2></div>
+          <a href="{{ url_for('professional.edit_profile') }}">Gerenciar</a>
+        </header>
+        {% if profile.portfolio_items %}
+        <div class="platform-portfolio-strip">
+          {% for item in profile.portfolio_items[:6] %}
+            <img src="{{ item.image_url|media_url }}" alt="Trabalho de {{ profile.display_name }}" loading="lazy">
+          {% endfor %}
+        </div>
+        {% else %}
+          <div class="platform-empty">Adicione trabalhos para transformar o perfil em uma vitrine.</div>
+        {% endif %}
+      </section>
+
+
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head">
+          <div><span class="platform-kicker">REPUTAÇÃO</span><h2>Avaliações verificadas</h2><p>Só clientes com atendimento concluído podem avaliar seu trabalho.</p></div>
+        </header>
+        {% if profile.reviews_received %}
+          <div class="platform-review-list">
+          {% for review in profile.reviews_received[:3] %}
+            {% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda você{% else %}sem recomendação{% endif %}</small></article>{% endif %}
+          {% endfor %}
+          </div>
+        {% else %}<div class="platform-empty">Quando um atendimento for concluído e avaliado, sua reputação começa a aparecer aqui.</div>{% endif %}
+      </section>
+
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head"><div><span class="platform-kicker">CERTIFICAÇÕES</span><h2>Formação & credibilidade</h2></div><a href="{{ url_for('professional.certifications') }}">Gerenciar</a></header>
+        {% if profile.certifications %}<div class="platform-certification-preview">{% for item in profile.certifications[:4] %}<article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small></div></article>{% endfor %}</div>{% else %}<div class="platform-empty">Adicione cursos e certificações para fortalecer seu perfil profissional.</div>{% endif %}
+      </section>
+      <section class="platform-panel" data-reveal>
+        <header class="platform-panel__head">
+          <div><span class="platform-kicker">ONDE VOCÊ ATENDE</span><h2>Estabelecimentos vinculados</h2></div>
+        </header>
+        {% if profile.pending_memberships %}
+        <div class="platform-invitation-list" aria-label="Convites pendentes">
+          {% for membership in profile.pending_memberships %}
+          <article class="platform-invitation-card">
+            <div><span class="platform-status-badge">Convite pendente</span><strong>{{ membership.establishment.name }}</strong><small>{{ membership.role_name or profile.primary_specialty }} · confirme se você realmente trabalha neste local</small></div>
+            <div class="platform-invitation-actions">
+              <form method="post" action="{{ url_for('professional.reject_membership', membership_id=membership.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline" type="submit">Recusar</button></form>
+              <form method="post" action="{{ url_for('professional.accept_membership', membership_id=membership.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary" type="submit">Aceitar vínculo</button></form>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if profile.active_memberships %}
+        <div class="platform-workplace-list">
+          {% for membership in profile.active_memberships %}
+          <a href="{{ url_for('public.establishment_detail', slug=membership.establishment.slug) }}" class="platform-workplace-item">
+            <span class="platform-workplace-logo {% if membership.establishment.logo_url %}has-image{% endif %}" {% if membership.establishment.logo_url %}style="background-image:url('{{ membership.establishment.logo_url|media_url }}')"{% endif %}>{{ membership.establishment.name[:1] }}</span>
+            <span><strong>{{ membership.establishment.name }}</strong><small>{{ membership.role_name or profile.primary_specialty }}{% if membership.is_primary %} · Local principal{% endif %}</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+          {% endfor %}
+        </div>
+        {% else %}
+          {% if not profile.pending_memberships %}<div class="platform-empty">Quando uma empresa convidar você para a equipe, o pedido aparecerá aqui para sua aprovação.</div>{% endif %}
+        {% endif %}
+      </section>
+    </main>
+
+    <aside class="platform-dashboard-side">
+      <section class="platform-panel platform-panel--dark">
+        <span class="platform-kicker">ATALHOS</span>
+        <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }} Editar meu perfil {{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('professional.certifications') }}">{{ icon('award') }} Certificações {{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }} Perfil público {{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('bookings.mine') }}">{{ icon('clock') }} Reservas {{ icon('chevron-right') }}</a>
+      </section>
+
+      <section class="platform-panel">
+        <span class="platform-kicker">PLANO</span>
+        <h3>IDDUN Pro Free</h3>
+        <p>Nesta fase inicial, o acesso profissional está liberado gratuitamente. A estrutura já nasce pronta para Free e Pro no futuro.</p>
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="platform-mobile-nav" aria-label="IDDUN Pro">
+  <a class="is-active" href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Visão geral</span></a>
+  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }}<span>Perfil</span></a>
+  <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }}<span>Editar</span></a>
+  <a href="{{ url_for('account.dashboard') }}">{{ icon('compass') }}<span>Cliente</span></a>
+</nav>
+{% endblock %}

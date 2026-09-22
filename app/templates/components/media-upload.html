@@ -1,0 +1,33 @@
+{% from 'components/icon.html' import icon %}
+
+{% macro media_upload(field, focus_x, focus_y, kind='avatar', existing_url=None, title='Escolher imagem', help_text='JPG, PNG ou WEBP · até 5 MB') -%}
+<div class="platform-media-control" data-media-control>
+  <label class="platform-image-upload platform-image-upload--{{ kind }}" data-image-upload>
+    {{ field(class_='platform-file-input', accept='image/jpeg,image/png,image/webp', data_image_input='') }}
+    <span
+      class="platform-image-upload__preview{% if existing_url %} has-image{% endif %}"
+      data-image-preview
+      {% if existing_url %}style="background-image:url('{{ existing_url|media_url }}');background-position:{{ focus_x.data if focus_x.data is not none else 50 }}% {{ focus_y.data if focus_y.data is not none else 50 }}%"{% endif %}
+    >{{ icon('upload') }}</span>
+    <span><strong>{{ title }}</strong><small>{{ help_text }}</small></span>
+  </label>
+  {{ focus_x(data_focus_x='') }}
+  {{ focus_y(data_focus_y='') }}
+  <div class="platform-focus-control" data-focus-control {% if not existing_url %}hidden{% endif %}>
+    <span>Enquadramento</span>
+    <label>Horizontal <input type="range" min="0" max="100" value="{{ focus_x.data if focus_x.data is not none else 50 }}" data-focus-range-x></label>
+    <label>Vertical <input type="range" min="0" max="100" value="{{ focus_y.data if focus_y.data is not none else 50 }}" data-focus-range-y></label>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro multi_upload(field, title, help_text, existing_count=0) -%}
+<label class="platform-dropzone" data-multi-upload>
+  {{ field(class_='platform-file-input', accept='image/jpeg,image/png,image/webp', multiple=true, data_multi_input='') }}
+  <span class="platform-dropzone__icon">{{ icon('upload') }}</span>
+  <strong>{{ title }}</strong>
+  <span>{{ help_text }}</span>
+  {% if existing_count %}<small>{{ existing_count }} imagem(ns) já publicada(s)</small>{% endif %}
+</label>
+<div class="platform-upload-grid" data-multi-preview aria-live="polite"></div>
+{%- endmacro %}

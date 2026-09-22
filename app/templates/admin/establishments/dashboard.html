@@ -1,0 +1,31 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}{{ item.name }} · Dashboard{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head">
+  <div><a class="admin-back" href="{{ url_for('admin.establishments') }}">{{ icon('arrow-left') }} Estabelecimentos</a><span class="admin-eyebrow">DASHBOARD DO ESTABELECIMENTO</span><h1>{{ item.name }}</h1><p>{{ item.neighborhood or 'Região não definida' }}{% if item.city %} · {{ item.city }}{% endif %} · acompanhe equipe, oferta e reservas do espaço.</p></div>
+  <a class="btn admin-btn-ghost" href="{{ url_for('admin.establishment_edit', item_id=item.id) }}">{{ icon('edit') }} Editar estabelecimento</a>
+</header>
+<section class="admin-metric-grid">
+  <article class="admin-metric"><span>{{ icon('users') }}</span><div><strong>{{ counts.professionals }}</strong><small>Profissionais ativos</small></div></article>
+  <article class="admin-metric"><span>{{ icon('sparkles') }}</span><div><strong>{{ counts.experiences }}</strong><small>Experiências</small></div></article>
+  <article class="admin-metric admin-metric--accent"><span>{{ icon('calendar') }}</span><div><strong>{{ counts.available_slots }}</strong><small>Oportunidades livres</small></div></article>
+  <article class="admin-metric"><span>{{ icon('clock') }}</span><div><strong>{{ counts.confirmed_bookings }}</strong><small>Reservas confirmadas</small></div></article>
+</section>
+<div class="admin-dashboard-grid">
+  <section class="admin-panel">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">PRÓXIMOS ATENDIMENTOS</span><h2>Reservas IDDUN</h2></div></div>
+    {% if upcoming %}
+      <div class="admin-activity-list">
+      {% for row in upcoming %}
+        <div class="admin-activity-row"><span class="admin-activity-icon">{{ icon('clock') }}</span><div><strong>{{ row.booking.experience.title }}</strong><small>{{ row.booking.professional.display_name }} · {{ row.local_start.strftime('%d/%m às %H:%M') }}</small></div><span class="admin-status admin-status--confirmed">Confirmada</span></div>
+      {% endfor %}
+      </div>
+    {% else %}<div class="admin-empty admin-empty--compact"><h3>Nenhuma reserva confirmada.</h3><p>Quando uma oportunidade deste estabelecimento for reservada, ela aparece aqui.</p></div>{% endif %}
+  </section>
+  <section class="admin-panel">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">EQUIPE</span><h2>Profissionais vinculados</h2></div></div>
+    {% if active_memberships %}<div class="admin-people-list">{% for membership in active_memberships %}<a class="admin-person-row" href="{{ url_for('admin.professional_edit', item_id=membership.professional.id) }}"><span class="admin-avatar">{{ membership.professional.display_name[:1]|upper }}</span><div><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty or 'Profissional' }}</small></div>{% if membership.is_primary %}<span class="admin-status admin-status--published">Principal</span>{% endif %}</a>{% endfor %}</div>{% else %}<div class="admin-empty admin-empty--compact"><h3>Sem equipe ativa.</h3><a href="{{ url_for('admin.membership_create') }}">Criar vínculo</a></div>{% endif %}
+  </section>
+</div>
+{% endblock %}

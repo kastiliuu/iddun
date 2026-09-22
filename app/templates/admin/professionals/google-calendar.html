@@ -1,0 +1,54 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'admin/_form_macros.html' import select, toggle %}
+{% block admin_title %}Google Calendar · {{ professional.display_name }}{% endblock %}
+{% block admin_content %}
+<a href="{{ url_for('admin.professional_edit', item_id=professional.id) }}" class="admin-back">{{ icon('arrow-left') }} {{ professional.display_name }}</a>
+<header class="admin-page-head admin-page-head--form">
+  <div><span class="admin-eyebrow">INTEGRAÇÃO DE AGENDA</span><h1>Google Calendar</h1><p>O IDDUN usa a agenda conectada para retirar automaticamente oportunidades que deixaram de estar livres e criar eventos após reservas confirmadas.</p></div>
+</header>
+
+{% if not google_configured %}
+<section class="admin-panel admin-calendar-setup">
+  <span class="admin-calendar-brand">G</span>
+  <div><h2>Credenciais OAuth ainda não configuradas</h2><p>Adicione <code>GOOGLE_CLIENT_ID</code>, <code>GOOGLE_CLIENT_SECRET</code> e <code>GOOGLE_OAUTH_REDIRECT_URI</code> ao seu <code>.env</code>. Depois volte aqui para conectar.</p></div>
+</section>
+{% elif not connection %}
+<section class="admin-panel admin-calendar-connect">
+  <div class="admin-calendar-connect__icon">G</div>
+  <span class="admin-eyebrow">GOOGLE WORKSPACE</span>
+  <h2>Conectar agenda de {{ professional.display_name }}</h2>
+  <p>O IDDUN solicitará apenas as permissões necessárias para consultar disponibilidade e criar eventos de reservas.</p>
+  <a class="btn btn-primary" href="{{ url_for('calendar.google_connect', professional_id=professional.id) }}">{{ icon('link') }} Conectar Google Calendar</a>
+  <small>A conta Google continua sob controle do profissional e pode ser desconectada a qualquer momento.</small>
+</section>
+{% else %}
+<div class="admin-calendar-grid">
+  <section class="admin-panel admin-calendar-status">
+    <div class="admin-calendar-status__head"><span class="admin-calendar-brand">G</span><div><strong>Google conectado</strong><small>{{ connection.account_email or connection.calendar_name or 'Conta autorizada' }}</small></div><span class="admin-status admin-status--published">Ativo</span></div>
+    <div class="admin-calendar-facts">
+      <div><small>Agenda monitorada</small><strong>{{ connection.calendar_name or 'Selecione abaixo' }}</strong></div>
+      <div><small>Última sincronização</small><strong>{% if connection.last_synced_at %}{{ connection.last_synced_at.strftime('%d/%m %H:%M') }}{% else %}Ainda não sincronizada{% endif %}</strong></div>
+      <div><small>Status</small><strong>{{ 'Sincronizada' if connection.last_sync_status == 'success' else ('Atenção necessária' if connection.last_sync_status == 'error' else 'Pronta') }}</strong></div>
+    </div>
+    {% if connection.last_sync_error %}<div class="admin-calendar-error">{{ connection.last_sync_error }}</div>{% endif %}
+    <form action="{{ url_for('calendar.google_sync', professional_id=professional.id) }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary" type="submit">{{ icon('refresh') }} Sincronizar agora</button></form>
+  </section>
+
+  <form class="admin-form-card" method="post" novalidate>
+    {{ form.hidden_tag() }}
+    <span class="admin-eyebrow">PREFERÊNCIAS</span>
+    <h2 class="admin-card-title">Como o IDDUN usa esta agenda</h2>
+    {% if form.calendar_id.choices %}{{ select(form.calendar_id) }}{% else %}<p class="admin-muted-copy">Não foi possível carregar a lista de agendas. Tente sincronizar novamente.</p>{% endif %}
+    <div class="admin-toggle-block">{{ toggle(form.sync_enabled, 'Quando o Google indicar um conflito, só aquele slot sai do marketplace.') }}</div>
+    <div class="admin-toggle-block">{{ toggle(form.create_booking_events, 'Ao confirmar uma reserva, o IDDUN cria um evento na agenda escolhida.') }}</div>
+    {% if form.calendar_id.choices %}<div class="admin-form-actions admin-form-actions--row">{{ form.submit(class_='btn btn-primary') }}</div>{% endif %}
+  </form>
+</div>
+
+<section class="admin-panel admin-danger-zone">
+  <div><strong>Desconectar Google Calendar</strong><p>As oportunidades deixam de ser protegidas por esta agenda. Reservas já existentes continuam no IDDUN.</p></div>
+  <form action="{{ url_for('calendar.google_disconnect', professional_id=professional.id) }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn admin-btn-ghost" type="submit">Desconectar</button></form>
+</section>
+{% endif %}
+{% endblock %}

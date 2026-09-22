@@ -1,0 +1,41 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Oportunidades{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head">
+  <div><span class="admin-eyebrow">CAPACIDADE IDDUN</span><h1>Oportunidades</h1><p>Gerencie apenas os horários separados para o marketplace. A agenda principal do profissional continua independente.</p></div>
+  <a class="btn btn-primary admin-head-cta" href="{{ url_for('admin.opportunity_create') }}">{{ icon('calendar') }} Publicar horários</a>
+</header>
+
+<section class="admin-panel admin-opportunity-intro">
+  <div class="admin-opportunity-intro__icon">{{ icon('calendar') }}</div>
+  <div><strong>Motor de disponibilidade V1</strong><p>O cutoff expira horários automaticamente. O botão “Simular Google” existe só para QA enquanto a integração OAuth real não entra.</p></div>
+</section>
+
+{% if rows %}
+<div class="admin-opportunity-grid">
+  {% for row in rows %}
+    {% set item = row.slot %}
+    <article class="admin-opportunity-card admin-opportunity-card--{{ item.status }}">
+      <div class="admin-opportunity-card__head">
+        <span class="admin-status admin-status--{{ item.status }}">{{ item.status_label }}</span>
+        <small>#{{ item.id }}</small>
+      </div>
+      <div class="admin-opportunity-card__time"><strong>{{ row.local_start.strftime('%H:%M') }}</strong><span>{{ row.local_start.strftime('%d/%m/%Y') }}</span></div>
+      <div class="admin-opportunity-card__copy"><h2>{{ item.experience.title }}</h2><p>{{ item.professional.display_name }}{% if item.establishment %} · {{ item.establishment.name }}{% endif %}</p></div>
+      <div class="admin-opportunity-card__meta"><span>Até {{ row.local_end.strftime('%H:%M') }}</span><span>{{ item.experience.duration_minutes }} min</span></div>
+      <div class="admin-opportunity-card__actions">
+        {% if item.status == SlotStatus.AVAILABLE %}
+          <form method="post" action="{{ url_for('admin.opportunity_block', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Bloquear</button></form>
+          <form method="post" action="{{ url_for('admin.opportunity_simulate_external_conflict', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Simular Google</button></form>
+        {% elif item.status in [SlotStatus.BLOCKED_MANUAL, SlotStatus.BLOCKED_EXTERNAL, SlotStatus.EXPIRED] %}
+          <form method="post" action="{{ url_for('admin.opportunity_reopen', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Recalcular disponibilidade</button></form>
+        {% endif %}
+      </div>
+    </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="admin-empty"><span>{{ icon('calendar') }}</span><h3>Nenhuma oportunidade publicada.</h3><p>Escolha uma experiência e libere os primeiros horários IDDUN.</p><a class="btn btn-dark" href="{{ url_for('admin.opportunity_create') }}">Publicar horários</a></div>
+{% endif %}
+{% endblock %}

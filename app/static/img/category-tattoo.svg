@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-labelledby="title desc">
+  <title id="title">Tatuagem</title>
+  <desc id="desc">Ilustração abstrata de uma máquina de tatuagem em tons grafite e dourado.</desc>
+  <defs>
+    <radialGradient id="bg" cx="72%" cy="22%" r="95%">
+      <stop offset="0" stop-color="#9b7450"/>
+      <stop offset=".48" stop-color="#302a26"/>
+      <stop offset="1" stop-color="#11100f"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#f0d49b"/>
+      <stop offset="1" stop-color="#a77736"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="320" fill="url(#bg)"/>
+  <circle cx="75" cy="68" r="86" fill="none" stroke="#d8ae70" stroke-opacity=".18" stroke-width="2"/>
+  <g transform="translate(70 54) rotate(-18 90 105)" fill="none" stroke="url(#gold)" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M61 54h86l17 29-27 34H72L45 83Z" stroke-width="13"/>
+    <path d="M82 35v36M128 35v36M72 116l-13 43M137 116l-7 43" stroke-width="10"/>
+    <path d="M59 159h71l-13 27H68Z" stroke-width="9"/>
+    <path d="M92 186v48" stroke-width="8"/>
+    <path d="M92 234l-8 23" stroke-width="4"/>
+    <path d="M152 67c24-27 33-36 49-38" stroke-width="7"/>
+  </g>
+  <path d="M245 239c-18-12-32-8-41 12-7 16-20 22-39 17" fill="none" stroke="#f1dfbd" stroke-opacity=".38" stroke-width="3"/>
+</svg>

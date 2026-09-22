@@ -1,0 +1,82 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Profissionais | IDDUN{% endblock %}
+{% block body_class %}professionals-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/professionals.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="professionals-hero">
+  <div class="container professionals-hero__inner">
+    <div data-reveal>
+      <span class="professionals-kicker">TALENTO QUE VOCÊ PODE DESCOBRIR</span>
+      <h1>Encontre profissionais que combinam com você.</h1>
+      <p>Conheça especialidades, regiões e trabalhos selecionados para sua próxima experiência.</p>
+    </div>
+    <form class="professionals-search" data-reveal action="{{ url_for('public.experiences') }}" method="get">
+      {{ icon('search', 'professionals-search__icon') }}
+      <input name="q" type="search" placeholder="Busque por serviço ou profissional" aria-label="Buscar por serviço ou profissional">
+      <button type="submit">Buscar</button>
+    </form>
+  </div>
+</section>
+
+<section class="professionals-content">
+  <div class="container">
+    <div class="professionals-head" data-reveal>
+      <div>
+        <span class="professionals-section-kicker">CURADORIA IDDUN</span>
+        <h2>Profissionais em destaque</h2>
+      </div>
+      <span>{{ professionals|length }} perfis nesta prévia</span>
+    </div>
+
+    <div class="professionals-directory" data-reveal-stagger>
+      {% for professional in professionals %}
+      <article class="professional-profile-card">
+        <div class="professional-profile-card__photo">
+          <img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position: {{ professional.get('image_position', '50% 50%') }};">
+          <span class="professional-profile-card__verified">{{ icon('shield-check') }} Curadoria IDDUN</span>
+        </div>
+        <div class="professional-profile-card__body">
+          <div class="professional-profile-card__top">
+            <div>
+              <h3>{{ professional.name }}</h3>
+              <p>{{ professional.role }}</p>
+            </div>
+            <button type="button" class="professional-profile-card__favorite" aria-label="Favoritar {{ professional.name }}" aria-pressed="false" data-favorite data-active="false">
+              <span class="icon-state icon-state--off">{{ icon('heart') }}</span>
+              <span class="icon-state icon-state--on">{{ icon('heart-filled') }}</span>
+            </button>
+          </div>
+
+          <div class="professional-profile-card__meta">
+            {% if professional.reviews|int > 0 %}
+              <span>{{ icon('star') }} {{ professional.rating }} <small>({{ professional.reviews }})</small></span>
+            {% else %}
+              <span>{{ icon('sparkles') }} Novo</span>
+            {% endif %}
+            <span>{{ icon('map-pin') }} {{ professional.location }}</span>
+          </div>
+
+          <div class="professional-profile-card__tags">
+            {% for specialty in professional.specialties %}<span>{{ specialty }}</span>{% endfor %}
+          </div>
+
+          <a href="{{ url_for('public.professional_detail', slug=professional.slug) }}" class="professional-profile-card__cta">
+            Ver perfil {{ icon('chevron-right') }}
+          </a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/professionals.js') }}" defer></script>
+{% endblock %}

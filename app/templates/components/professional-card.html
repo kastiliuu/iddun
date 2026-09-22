@@ -1,0 +1,28 @@
+{% from 'components/icon.html' import icon %}
+{% macro professional_card(item) -%}
+<article class="professional-card card">
+  <a href="{{ url_for('public.professional_detail', slug=item.slug) }}" aria-label="Ver perfil de {{ item.name }}">
+    <img class="professional-card__photo" src="{{ item.image|media_url }}" alt="{{ item.name }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+  </a>
+
+  <div class="professional-card__body">
+    <div class="professional-card__head">
+      <div>
+        <a href="{{ url_for('public.professional_detail', slug=item.slug) }}"><strong>{{ item.name }}</strong></a>
+        <span>{{ item.role }}</span>
+      </div>
+      <button class="icon-button" type="button" aria-label="Favoritar {{ item.name }}" aria-pressed="false" data-favorite data-active="false">
+        <span class="icon-state icon-state--off">{{ icon('heart', 'favorite-icon') }}</span>
+        <span class="icon-state icon-state--on">{{ icon('heart-filled', 'favorite-icon') }}</span>
+      </button>
+    </div>
+
+    {% if item.reviews|int > 0 %}
+      <span class="professional-card__rating">{{ icon('star', 'inline-icon inline-icon--star') }} {{ item.rating }} <small>({{ item.reviews }})</small></span>
+    {% else %}
+      <span class="professional-card__rating">{{ icon('sparkles', 'inline-icon inline-icon--star') }} Novo</span>
+    {% endif %}
+    <span class="professional-card__location">{{ icon('map-pin', 'inline-icon') }} {{ item.location }}</span>
+  </div>
+</article>
+{%- endmacro %}

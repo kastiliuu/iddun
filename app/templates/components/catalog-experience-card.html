@@ -1,0 +1,107 @@
+{% from 'components/icon.html' import icon %}
+
+{% macro favorite_button(item, featured=false) -%}
+<button
+  class="catalog-card__favorite icon-button icon-button--glass{% if featured %} catalog-featured__favorite{% endif %}"
+  type="button"
+  aria-label="Favoritar {{ item.title }}"
+  aria-pressed="false"
+  data-favorite
+  data-favorite-id="{{ item.slug }}"
+  data-favorite-title="{{ item.title }}"
+  data-active="false"
+>
+  <span class="icon-state icon-state--off">{{ icon('heart', 'favorite-icon') }}</span>
+  <span class="icon-state icon-state--on">{{ icon('heart-filled', 'favorite-icon') }}</span>
+</button>
+{%- endmacro %}
+
+{% macro rating(item) -%}
+  {% if item.reviews %}
+    <span class="catalog-card__rating">{{ icon('star', 'inline-icon inline-icon--star') }} {{ '%.1f'|format(item.rating)|replace('.', ',') }} <small>({{ item.reviews }})</small></span>
+  {% else %}
+    <span class="catalog-card__rating">{{ icon('sparkles', 'inline-icon inline-icon--star') }} Novo</span>
+  {% endif %}
+{%- endmacro %}
+
+{% macro price(item, class_name='') -%}
+<div class="catalog-card__price {{ class_name }}">
+  <div class="catalog-card__price-before">
+    {% if item.regular_price > item.price %}<s>R$ {{ item.regular_price }}</s>{% endif %}
+    {% if item.discount_percent %}<span class="catalog-card__discount">-{{ item.discount_percent }}%</span>{% endif %}
+  </div>
+  <strong>R$ {{ item.price }}</strong>
+</div>
+{%- endmacro %}
+
+{% macro catalog_experience_card(item) -%}
+<article class="catalog-card card" data-experience-card data-category="{{ item.category }}" data-title="{{ item.title }}">
+  <div class="catalog-card__media">
+    <a class="catalog-card__media-link" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Ver detalhes de {{ item.title }}">
+      <img loading="lazy" src="{{ item.image|media_url }}" alt="{{ item.title }} com {{ item.professional }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+    </a>
+    <span class="catalog-card__badge badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}">{{ item.badge }}</span>
+    {{ favorite_button(item) }}
+  </div>
+
+  <div class="catalog-card__body">
+    <div class="catalog-card__eyebrow">
+      <span>{{ item.category_label }}</span>
+      {{ rating(item) }}
+    </div>
+
+    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="catalog-card__title"><h3>{{ item.title }}</h3></a>
+    <p class="catalog-card__description">{{ item.description }}</p>
+
+    <div class="catalog-card__facts" aria-label="Informações da experiência">
+      <span>{{ icon('clock', 'inline-icon') }} {{ item.duration_label }}</span>
+      <span>{{ icon('calendar', 'inline-icon') }} {{ item.next_available_label }}</span>
+    </div>
+
+    <div class="catalog-card__professional">
+      <img loading="lazy" src="{{ item.avatar|media_url }}" alt="Foto de {{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
+      <div><strong>{{ item.professional }}</strong><span>{{ item.professional_role }}</span></div>
+      <span class="catalog-card__location">{{ icon('map-pin', 'inline-icon') }} {{ item.location }}</span>
+    </div>
+
+    <div class="catalog-card__footer">
+      {{ price(item) }}
+      <a class="btn catalog-card__cta" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Agendar {{ item.title }}">Agendar {{ icon('chevron-right') }}</a>
+    </div>
+  </div>
+</article>
+{%- endmacro %}
+
+{% macro catalog_featured_card(item) -%}
+<article class="catalog-featured" data-experience-card data-category="{{ item.category }}" data-title="{{ item.title }}">
+  <div class="catalog-featured__media">
+    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Ver destaque {{ item.title }}">
+      <img src="{{ item.image|media_url }}" alt="{{ item.title }}, destaque com {{ item.professional }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+    </a>
+    <span class="catalog-featured__label">✦ Destaque da semana</span>
+    {{ favorite_button(item, true) }}
+  </div>
+
+  <div class="catalog-featured__content">
+    <div class="catalog-card__eyebrow"><span>{{ item.category_label }}</span>{{ rating(item) }}</div>
+    <span class="catalog-featured__badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}">{{ item.badge }}</span>
+    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="catalog-featured__title"><h2>{{ item.title }}</h2></a>
+    <p>{{ item.description }}</p>
+
+    <div class="catalog-card__facts catalog-featured__facts">
+      <span>{{ icon('clock', 'inline-icon') }} {{ item.duration_label }}</span>
+      <span>{{ icon('calendar', 'inline-icon') }} {{ item.next_available_label }}</span>
+    </div>
+
+    <div class="catalog-featured__professional">
+      <img src="{{ item.avatar|media_url }}" alt="Foto de {{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
+      <div><strong>{{ item.professional }}</strong><span>{{ item.professional_role }} · {{ item.location }}</span></div>
+    </div>
+
+    <div class="catalog-featured__footer">
+      {{ price(item, 'catalog-featured__price') }}
+      <a class="btn catalog-featured__cta" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Agendar {{ item.title }}">Agendar agora {{ icon('chevron-right') }}</a>
+    </div>
+  </div>
+</article>
+{%- endmacro %}

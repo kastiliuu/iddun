@@ -1,0 +1,98 @@
+{% from 'components/icon.html' import icon %}
+<header class="site-header" data-site-header>
+  <div class="container header-inner">
+    <a href="{{ url_for('public.home') }}" class="brand" aria-label="IDDUN - início">
+      <img
+        class="brand-logo"
+        src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}"
+        alt="IDDUN"
+        width="200"
+        height="67"
+      >
+      {% if current_page != 'home' %}
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-tagline">Beleza move pessoas</span>
+      {% endif %}
+    </a>
+
+    <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
+      {% if current_page == 'home' %}
+        <a href="#inicio" class="nav-link is-active" aria-current="page">Início</a>
+        <a href="{{ url_for('public.experiences') }}" class="nav-link">Descobrir</a>
+        <a href="#profissionais" class="nav-link">Profissionais</a>
+        <a href="#estudios" class="nav-link">Estúdios</a>
+        <a href="#categorias" class="nav-link">Categorias</a>
+      {% else %}
+        <a href="{{ url_for('public.experiences') }}" class="nav-link{% if current_page == 'experiences' %} is-active{% endif %}" {% if current_page == 'experiences' %}aria-current="page"{% endif %}>Experiências</a>
+        <a href="{{ url_for('public.professionals') }}" class="nav-link{% if current_page == 'professionals' %} is-active{% endif %}" {% if current_page == 'professionals' %}aria-current="page"{% endif %}>Profissionais</a>
+        <a href="{{ url_for('public.establishments') }}" class="nav-link{% if current_page == 'establishments' %} is-active{% endif %}" {% if current_page == 'establishments' %}aria-current="page"{% endif %}>Estabelecimentos</a>
+        <a href="{{ url_for('public.for_professionals') }}" class="nav-link{% if current_page == 'for-professionals' %} is-active{% endif %}" {% if current_page == 'for-professionals' %}aria-current="page"{% endif %}>Para profissionais</a>
+        <a href="{{ url_for('public.home') }}#como-funciona" class="nav-link">Como funciona</a>
+      {% endif %}
+      {% if current_user.is_authenticated %}
+        {% if current_user.role == 'admin' %}<a href="{{ url_for('admin.dashboard') }}" class="nav-link nav-admin-link">Admin</a>{% endif %}
+        <a href="{{ url_for('account.dashboard') }}" class="nav-link nav-account-link">Minha conta</a>
+      {% endif %}
+    </nav>
+
+    <div class="header-actions">
+      <button
+        class="header-search-trigger"
+        type="button"
+        aria-label="Abrir busca"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        data-header-search-open
+      >
+        {{ icon('search') }}
+      </button>
+
+      {% if current_user.is_authenticated %}
+        <a class="header-user-name" href="{{ url_for('account.dashboard') }}" title="Abrir minha conta">
+          Olá, {{ current_user.name.split()[0] }}
+        </a>
+        <form class="header-logout-form" action="{{ url_for('auth.logout') }}" method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-outline header-login" type="submit">Sair</button>
+        </form>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline header-login">Entrar</a>
+        <a href="{% if current_page == 'home' %}{{ url_for('public.experiences') }}{% else %}{{ url_for('auth.register') }}{% endif %}" class="btn btn-primary header-signup">{% if current_page == 'home' %}Agendar agora {{ icon('chevron-right') }}{% else %}Criar minha conta{% endif %}</a>
+      {% endif %}
+
+      <button class="mobile-menu" type="button" aria-label="Abrir menu" aria-controls="main-nav" aria-expanded="false" data-mobile-menu>
+        {{ icon('menu', 'mobile-menu-icon') }}
+      </button>
+    </div>
+  </div>
+</header>
+
+<dialog class="header-search-dialog" data-header-search-dialog aria-labelledby="header-search-title">
+  <div class="header-search-dialog__surface">
+    <div class="header-search-dialog__head">
+      <div>
+        <span class="header-search-dialog__eyebrow">✦ Descobrir</span>
+        <h2 id="header-search-title">O que você procura?</h2>
+      </div>
+      <button class="header-search-dialog__close" type="button" data-header-search-close aria-label="Fechar busca">
+        {{ icon('x') }}
+      </button>
+    </div>
+    <form class="header-search-dialog__form" aria-label="Buscar experiências" action="{{ url_for('public.experiences') }}" method="get" role="search">
+      <label class="header-search-dialog__field">
+        <span class="sr-only">Serviço, profissional ou bairro</span>
+        {{ icon('search') }}
+        <input
+          data-header-search-input
+          name="q"
+          type="search"
+          value="{{ request.args.get('q', '') }}"
+          placeholder="Serviço, profissional ou bairro"
+          autocomplete="off"
+        >
+      </label>
+      <button class="btn btn-primary" type="submit">Buscar</button>
+    </form>
+    <p class="header-search-dialog__hint">Experimente “corte”, “unhas” ou o nome do seu bairro.</p>
+  </div>
+</dialog>

@@ -1,0 +1,54 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% block title %}Começar no IDDUN | Profissionais{% endblock %}
+{% block body_class %}platform-page platform-start-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="platform-entry">
+  <div class="container platform-entry__inner">
+    <header class="platform-entry__head" data-reveal>
+      <span class="platform-kicker">IDDUN PARA QUEM FAZ A BELEZA ACONTECER</span>
+      <h1>Como você trabalha hoje?</h1>
+      <p>Escolha o seu ponto de partida. Sua conta continua sendo a mesma e, no futuro, você poderá usar mais de um ambiente.</p>
+    </header>
+
+    <form method="post" class="platform-mode-form" data-mode-form data-reveal>
+      {{ form.hidden_tag() }}
+      <div class="platform-mode-grid">
+        {% for value, label in form.mode.choices %}
+        <label class="platform-mode-card" data-mode-card>
+          <input type="radio" name="{{ form.mode.name }}" value="{{ value }}" {% if form.mode.data == value %}checked{% endif %}>
+          <span class="platform-mode-card__icon">{{ icon('user' if value == 'professional' else 'store') }}</span>
+          <span class="platform-mode-card__content">
+            <strong>{{ label }}</strong>
+            {% if value == 'professional' %}
+              <span>Crie sua identidade profissional, portfólio e presença própria no IDDUN.</span>
+              <small>IDDUN Pro · grátis nesta fase</small>
+            {% else %}
+              <span>Crie a página da sua marca, monte a equipe e conecte profissionais ao estabelecimento.</span>
+              <small>IDDUN Business · grátis nesta fase</small>
+            {% endif %}
+          </span>
+          <span class="platform-mode-card__check">{{ icon('check') }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {{ field_errors(form.mode) }}
+
+      <div class="platform-entry__actions">
+        {{ form.submit(class_='btn btn-primary platform-primary-action') }}
+        <a href="{{ url_for('account.dashboard') }}" class="platform-text-link">Voltar para minha conta</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/platform.js') }}" defer></script>{% endblock %}

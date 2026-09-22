@@ -1,0 +1,33 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Profissionais{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--compact">
+  <div><span class="admin-eyebrow">CURADORIA</span><h1>Profissionais</h1><p>Perfis persistidos no PostgreSQL e prontos para receber vínculos e experiências.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('admin.professional_create') }}">{{ icon('users') }} Novo profissional</a>
+</header>
+
+<section class="admin-panel admin-list-panel">
+  <div class="admin-list-head"><strong>{{ professionals|length }} perfis</strong><span>Cadastro manual do MVP</span></div>
+  {% if professionals %}
+  <div class="admin-table-wrap">
+    <table class="admin-table">
+      <thead><tr><th>Profissional</th><th>Especialidade</th><th>Local</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for item in professionals %}
+        <tr>
+          <td data-label="Profissional"><div class="admin-table-person"><span class="admin-avatar">{{ item.display_name[:1]|upper }}</span><div><strong>{{ item.display_name }}</strong><small>iddun.com/{{ item.slug }}</small></div></div></td>
+          <td data-label="Especialidade">{{ item.primary_specialty or '—' }}</td>
+          <td data-label="Local">{% set primary = item.memberships|selectattr('is_primary')|first %}{{ primary.establishment.name if primary else 'Sem vínculo principal' }}</td>
+          <td data-label="Status"><span class="admin-status {% if item.is_active %}admin-status--published{% else %}admin-status--archived{% endif %}">{% if item.is_active %}Ativo{% else %}Inativo{% endif %}</span>{% if item.is_verified %}<span class="admin-mini-verified">{{ icon('shield-check') }}</span>{% endif %}</td>
+          <td class="admin-table-action"><div class="admin-table-actions"><a href="{{ url_for('calendar.google_settings', professional_id=item.id) }}" aria-label="Agenda de {{ item.display_name }}">{{ icon('calendar') }} Agenda</a><a href="{{ url_for('admin.professional_edit', item_id=item.id) }}" aria-label="Editar {{ item.display_name }}">{{ icon('edit') }} Editar</a></div></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="admin-empty"><span>{{ icon('users') }}</span><h3>A curadoria ainda está vazia.</h3><p>Cadastre o primeiro profissional parceiro para começar.</p><a class="btn btn-dark" href="{{ url_for('admin.professional_create') }}">Cadastrar profissional</a></div>
+  {% endif %}
+</section>
+{% endblock %}

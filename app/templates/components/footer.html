@@ -1,0 +1,60 @@
+{% if current_page == 'home' %}
+<footer class="site-footer home-footer">
+  <div class="container home-footer__grid">
+    <div class="home-footer__brand">
+      <a href="#inicio" class="home-footer__wordmark" aria-label="IDDUN - voltar ao início">
+        <img
+          src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}"
+          alt="IDDUN"
+          width="184"
+          height="61"
+        >
+      </a>
+      <span>Beauty for a brighter you</span>
+    </div>
+
+    <nav class="home-footer__column" aria-label="Navegação do rodapé">
+      <strong>Navegação</strong>
+      <div>
+        <a href="#inicio">Início</a>
+        <a href="{{ url_for('public.experiences') }}">Descobrir</a>
+        <a href="#profissionais">Profissionais</a>
+        <a href="#estudios">Estúdios</a>
+        <a href="#categorias">Categorias</a>
+      </div>
+    </nav>
+
+    <nav class="home-footer__column" aria-label="Links de suporte">
+      <strong>Para você</strong>
+      <div>
+        <a href="#buscar">Como funciona</a>
+        <a href="{{ url_for('public.experiences') }}">Central de ajuda</a>
+        <a href="{{ url_for('public.experiences') }}">Segurança</a>
+        <a href="{{ url_for('public.experiences') }}">Termos de uso</a>
+      </div>
+    </nav>
+
+    <div class="home-footer__column home-footer__contact">
+      <strong>Conecte-se</strong>
+      <div class="home-footer__socials" aria-label="Redes sociais">
+        <a href="#" aria-label="Instagram">IG</a>
+        <a href="#" aria-label="TikTok">TT</a>
+        <a href="#" aria-label="YouTube">YT</a>
+        <a href="#" aria-label="LinkedIn">IN</a>
+      </div>
+      <a href="mailto:contato@iddun.com.br">contato@iddun.com.br</a>
+    </div>
+
+    <div class="home-footer__signature" aria-label="Assinatura IDDUN">
+      <span>Beleza</span><span>move</span><span>pessoas.</span>
+    </div>
+  </div>
+</footer>
+{% else %}
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <span class="site-footer__brand">IDDUN</span>
+    <span>Beleza conecta. Pessoas transformam.</span>
+  </div>
+</footer>
+{% endif %}

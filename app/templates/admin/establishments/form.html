@@ -1,0 +1,22 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'admin/_form_macros.html' import field, textarea, select, toggle, handle_field, upload_field %}
+{% block admin_title %}{{ 'Editar estabelecimento' if item else 'Novo estabelecimento' }}{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--form"><div><a class="admin-back" href="{{ url_for('admin.establishments') }}">{{ icon('arrow-left') }} Estabelecimentos</a><span class="admin-eyebrow">REDE IDDUN</span><h1>{{ 'Editar estabelecimento' if item else 'Novo estabelecimento' }}</h1><p>Cadastre o espaço sem amarrar permanentemente a identidade do profissional.</p></div></header>
+<form class="admin-form-layout" method="post" enctype="multipart/form-data" novalidate>
+{{ form.hidden_tag() }}
+<div class="admin-form-main">
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('store') }}</span><div><h2>Identidade do espaço</h2><p>Informações principais do estabelecimento.</p></div></div><div class="admin-form-grid">
+{{ field(form.name, 'Ex.: Studio Aurora', 'admin-field--wide') }}
+{{ handle_field(form.slug, item.id if item else '', 'establishment', 'admin-field--wide') }}
+{{ upload_field(form.logo_file, item.logo_url if item else '', 'admin-field--wide', 'square', 'Escolher logo ou imagem') }}
+{{ field(form.instagram, '@studio') }}{{ textarea(form.description, 'Conte a proposta do espaço.', 'admin-field--wide') }}{{ field(form.phone, '(41) 99999-9999') }}{{ field(form.email, 'contato@studio.com') }}
+</div></section>
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('map-pin') }}</span><div><h2>Endereço</h2><p>Usado na descoberta e nas futuras reservas.</p></div></div><div class="admin-form-grid">
+{{ field(form.address_line1, 'Rua, número', 'admin-field--wide') }}{{ field(form.address_line2, 'Sala, andar, referência') }}{{ field(form.neighborhood, 'Batel') }}{{ field(form.city, 'Curitiba') }}{{ field(form.state, 'PR') }}{{ field(form.postal_code, '80000-000') }}{{ select(form.timezone, 'admin-field--wide') }}
+</div></section>
+</div>
+<aside class="admin-form-side"><section class="admin-form-card admin-form-card--sticky"><span class="admin-eyebrow">STATUS</span>{{ toggle(form.is_active, 'Locais inativos ficam fora da operação.') }}{{ toggle(form.is_verified, 'Marca que o espaço passou pela curadoria.') }}<div class="admin-form-actions">{{ form.submit(class_='btn btn-primary') }}<a class="btn admin-btn-ghost" href="{{ url_for('admin.establishments') }}">Cancelar</a></div>{% if item %}<a class="admin-preview-link" href="{{ url_for('admin.establishment_dashboard', item_id=item.id) }}">Abrir dashboard {{ icon('chevron-right') }}</a>{% endif %}</section></aside>
+</form>
+{% endblock %}

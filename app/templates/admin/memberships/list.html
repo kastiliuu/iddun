@@ -1,0 +1,27 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Vínculos{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--compact">
+  <div><span class="admin-eyebrow">REDE PROFISSIONAL</span><h1>Vínculos</h1><p>Controle onde cada profissional atua sem perder a identidade dele na plataforma.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('admin.membership_create') }}">{{ icon('briefcase') }} Novo vínculo</a>
+</header>
+<section class="admin-panel admin-list-panel">
+  <div class="admin-list-head"><strong>{{ memberships|length }} vínculos</strong><span>Histórico profissional preservado</span></div>
+  {% if memberships %}
+  <div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Profissional</th><th>Estabelecimento</th><th>Função</th><th>Status</th><th></th></tr></thead><tbody>
+  {% for item in memberships %}
+    <tr>
+      <td data-label="Profissional"><strong>{{ item.professional.display_name }}</strong>{% if item.is_primary %}<small class="admin-primary-label">Principal</small>{% endif %}</td>
+      <td data-label="Estabelecimento">{{ item.establishment.name }}</td>
+      <td data-label="Função">{{ item.role_name or '—' }}</td>
+      <td data-label="Status"><span class="admin-status {% if item.status == 'active' %}admin-status--published{% else %}admin-status--archived{% endif %}">{% if item.status == 'pending' %}Pendente{% elif item.status == 'active' %}Ativo{% elif item.status == 'rejected' %}Recusado{% else %}Inativo{% endif %}</span></td>
+      <td class="admin-table-action"><a href="{{ url_for('admin.membership_edit', item_id=item.id) }}">{{ icon('edit') }} Editar</a></td>
+    </tr>
+  {% endfor %}
+  </tbody></table></div>
+  {% else %}
+  <div class="admin-empty"><span>{{ icon('briefcase') }}</span><h3>Nenhum vínculo cadastrado.</h3><p>Conecte um profissional a um estabelecimento para organizar a operação.</p><a class="btn btn-dark" href="{{ url_for('admin.membership_create') }}">Criar vínculo</a></div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends 'admin/layout.html' %}
+{% from 'admin/_form_macros.html' import select, textarea, field, number_stepper %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Nova oportunidade{% endblock %}
+{% block admin_content %}
+<a href="{{ url_for('admin.opportunities') }}" class="admin-back">{{ icon('arrow-left') }} Voltar às oportunidades</a>
+<header class="admin-page-head admin-page-head--form"><div><span class="admin-eyebrow">PUBLICAÇÃO DE HORÁRIOS</span><h1>Libere capacidade ociosa.</h1><p>Publique apenas os horários que deseja ofertar. O IDDUN protege sobreposições e respeita a antecedência mínima.</p></div></header>
+<form class="admin-form-card admin-opportunity-form" method="post" novalidate>
+  {{ form.hidden_tag() }}
+  <div class="admin-form-grid">
+    {{ select(form.experience_id, 'admin-field--wide') }}
+    {{ field(form.slot_date) }}
+    {{ number_stepper(form.booking_cutoff_minutes, 'Ex.: 60', '', 'Define quanto tempo antes destes horários a oportunidade deixa de ser comprável. Se ficar vazio, o IDDUN usa a regra da experiência e depois o padrão do profissional.') }}
+    {{ textarea(form.times, '10:00, 11:30, 14:00, 16:00', 'admin-field--wide') }}
+  </div>
+  <div class="admin-form-note"><strong>Como funciona</strong><span>Se deixar a antecedência em branco, vale a regra da experiência; se ela também estiver vazia, vale o padrão do profissional.</span></div>
+  <div class="admin-form-actions admin-form-actions--split"><a class="btn admin-btn-ghost" href="{{ url_for('admin.opportunities') }}">Cancelar</a>{{ form.submit(class_='btn btn-primary') }}</div>
+</form>
+{% endblock %}

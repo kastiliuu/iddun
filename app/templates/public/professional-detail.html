@@ -1,0 +1,99 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}{{ professional.name }} | IDDUN{% endblock %}
+{% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-profile.css') }}">{% endblock %}
+
+{% block content %}
+<section class="public-profile-hero" data-profile-theme="{{ professional.theme }}">
+  <div class="public-profile-hero__cover">
+    {% if professional.cover %}<img src="{{ professional.cover|media_url }}" alt="Capa de {{ professional.name }}" style="object-position:{{ professional.cover_position or '50% 50%' }}">{% else %}<div class="public-profile-hero__cover-fallback" aria-hidden="true"></div>{% endif %}
+    <div class="public-profile-hero__shade"></div>
+  </div>
+  <div class="container public-profile-hero__inner">
+    <div class="public-profile-identity">
+      <div class="public-profile-avatar"><img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position:{{ professional.avatar_position or '50% 50%' }}"></div>
+      <div class="public-profile-identity__copy">
+        <span class="public-profile-kicker">{{ professional.role }}</span>
+        <h1>{{ professional.name }}</h1>
+        {% if professional.headline %}<p>{{ professional.headline }}</p>{% endif %}
+        <div class="public-profile-meta">
+          {% if professional.reputation.count %}
+            <span>{{ icon('star') }} {{ professional.reputation.average_label }} <small>({{ professional.reputation.count }} avaliações verificadas)</small></span>
+            <span>{{ icon('check') }} {{ professional.reputation.recommendation_label }}</span>
+          {% else %}<span>{{ icon('sparkles') }} Novo no IDDUN</span>{% endif %}
+          <span>{{ icon('map-pin') }} {{ professional.location }}</span>
+          {% if professional.verified %}<span>{{ icon('shield-check') }} Perfil verificado</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="public-profile-hero__actions">
+      <button class="btn btn-outline" type="button" data-favorite aria-pressed="false">{{ icon('heart') }} Seguir</button>
+      {% if professional.whatsapp_available %}<a class="btn btn-whatsapp" href="{{ url_for('public.professional_whatsapp', slug=professional.slug) }}" target="_blank" rel="noopener">{{ icon('message-circle') }} WhatsApp</a>{% endif %}
+      {% if professional.experiences %}<a class="btn btn-primary" href="#experiencias">Ver experiências</a>{% else %}<a class="btn btn-primary" href="#portfolio">Ver trabalho</a>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="public-profile-content">
+  <div class="container public-profile-layout">
+    <main class="public-profile-main">
+      <section class="public-profile-section" data-reveal>
+        <span class="public-profile-section__kicker">SOBRE</span>
+        <h2>Conheça {{ professional.name.split()[0] }}.</h2>
+        <p>{{ professional.bio or 'Este profissional está construindo sua apresentação no IDDUN.' }}</p>
+        {% if professional.specialties %}<div class="public-profile-tags">{% for item in professional.specialties %}<span>{{ item }}</span>{% endfor %}</div>{% endif %}
+      </section>
+
+      <section class="public-profile-section" id="portfolio" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">PORTFÓLIO</span><h2>Trabalhos recentes</h2></div>{% if professional.portfolio|length > 1 %}<div class="public-profile-gallery-nav"><button type="button" data-gallery-prev aria-label="Trabalho anterior">‹</button><button type="button" data-gallery-next aria-label="Próximo trabalho">›</button></div>{% endif %}</div>
+        {% if professional.portfolio %}<div class="public-profile-portfolio" data-gallery-track tabindex="0" aria-label="Galeria de trabalhos de {{ professional.name }}">{% for item in professional.portfolio %}<figure><img src="{{ item.image_url|media_url }}" alt="Trabalho {{ loop.index }} de {{ professional.name }}" loading="lazy">{% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">O portfólio deste perfil será publicado em breve.</div>{% endif %}
+      </section>
+
+      <section class="public-profile-section" id="experiencias" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">EXPERIÊNCIAS</span><h2>O que você pode reservar</h2></div></div>
+        {% if professional.experiences %}<div class="public-profile-experience-list">{% for item in professional.experiences %}<a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="public-profile-experience"><div>{% if item.image_url %}<img src="{{ item.image_url|media_url }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="public-profile-experience__placeholder">{{ icon('sparkles') }}</span>{% endif %}</div><span><small>{{ item.category_label }}</small><strong>{{ item.title }}</strong><em>{{ item.duration_minutes }} min</em></span><span class="public-profile-experience__price">R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} {{ icon('chevron-right') }}</span></a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Nenhuma experiência publicada por enquanto.</div>{% endif %}
+      </section>
+
+      <section class="public-profile-section" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">FORMAÇÃO & CERTIFICAÇÕES</span><h2>Conhecimento que acompanha o trabalho</h2></div></div>
+        {% if professional.certifications %}
+          <div class="public-profile-certifications">
+            {% for item in professional.certifications %}
+            <article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small>{% if item.credential_id %}<em>Credencial {{ item.credential_id }}</em>{% endif %}</div>{% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% elif item.document_url %}<a href="{{ item.document_url|media_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}</article>
+            {% endfor %}
+          </div>
+        {% else %}<div class="public-profile-placeholder">Este profissional ainda não publicou certificações.</div>{% endif %}
+      </section>
+
+      <section class="public-profile-section" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">AVALIAÇÕES & RECOMENDAÇÕES</span><h2>Experiências verificadas</h2></div>{% if professional.reputation.count %}<div class="public-profile-score"><strong>{{ professional.reputation.average_label }}</strong><span>★</span><small>{{ professional.reputation.recommendation_label }}</small></div>{% endif %}</div>
+        {% if professional.review_items %}
+        <div class="public-profile-reviews">
+          {% for review in professional.review_items[:6] %}
+          <article><header><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{% for _ in range(review.rating) %}★{% endfor %}</span></div><small>{{ icon('shield-check') }} Atendimento verificado</small></header>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<footer>{% if review.recommended %}✓ Recomenda este profissional{% else %}Avaliação sem recomendação{% endif %}</footer></article>
+          {% endfor %}
+        </div>
+        {% else %}<div class="public-profile-placeholder">As avaliações aparecem aqui depois de atendimentos concluídos pelo IDDUN.</div>{% endif %}
+      </section>
+
+      <section class="public-profile-section" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">ONDE ATENDE</span><h2>Locais conectados ao perfil</h2></div></div>
+        {% if professional.workplaces %}<div class="public-profile-workplaces">{% for establishment in professional.workplaces %}<a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" class="public-profile-workplace"><span class="public-profile-workplace__logo {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{{ establishment.name[:1] }}</span><span><strong>{{ establishment.name }}</strong><small>{{ establishment.neighborhood or establishment.category|title }}{% if establishment.city %} · {{ establishment.city }}{% endif %}</small></span>{{ icon('chevron-right') }}</a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Atendimento independente ou local ainda não informado.</div>{% endif %}
+      </section>
+    </main>
+
+    <aside class="public-profile-side">
+      <section class="public-profile-sticky-card">
+        <span class="public-profile-section__kicker">PERFIL IDDUN</span><h3>{{ professional.name }}</h3><p>{{ professional.role }}{% if professional.location %} · {{ professional.location }}{% endif %}</p>
+        {% if professional.reputation.count %}<div class="public-profile-mini-reputation"><strong>{{ professional.reputation.average_label }} ★</strong><span>{{ professional.reputation.count }} avaliações</span><small>{{ professional.reputation.recommendation_label }}</small></div>{% endif %}
+        {% if professional.experiences %}<a class="btn btn-primary" href="#experiencias">Escolher experiência</a>{% endif %}
+        {% if professional.whatsapp_available %}<a class="btn btn-whatsapp btn-whatsapp--full" href="{{ url_for('public.professional_whatsapp', slug=professional.slug) }}" target="_blank" rel="noopener">{{ icon('message-circle') }} Falar no WhatsApp</a>{% endif %}
+        {% if professional.instagram %}<span class="public-profile-contact">Instagram · {{ professional.instagram }}</span>{% endif %}
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/professionals.js') }}" defer></script>{% endblock %}

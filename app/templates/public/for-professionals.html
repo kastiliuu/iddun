@@ -1,0 +1,54 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Para profissionais | IDDUN{% endblock %}
+{% block body_class %}pro-value-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/professionals.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="pro-value-hero">
+  <div class="container pro-value-hero__inner">
+    <div class="pro-value-copy" data-reveal>
+      <span class="professionals-kicker">IDDUN PARA PROFISSIONAIS E EMPRESAS</span>
+      <h1>Seu trabalho merece um lugar próprio para ser descoberto.</h1>
+      <p>Crie uma presença profissional, mostre seu portfólio, conecte-se a estabelecimentos e transforme disponibilidade em novas experiências.</p>
+      <div class="pro-value-actions">
+        <a class="btn btn-primary" href="{{ url_for('professional.start') }}">Começar grátis</a>
+        <a class="btn btn-outline" href="{{ url_for('public.professionals') }}">Ver perfis no IDDUN</a>
+      </div>
+      <small class="pro-value-free-note">Nesta fase inicial, IDDUN Pro e IDDUN Business são gratuitos.</small>
+    </div>
+
+    <div class="pro-value-panel" aria-label="Ambientes IDDUN" data-reveal>
+      <span class="pro-value-panel__eyebrow">UMA CONTA · CONTEXTOS DIFERENTES</span>
+      <div class="pro-value-panel__item">{{ icon('user') }} <div><strong>IDDUN Pro</strong><span>Identidade profissional, portfólio, experiências e reputação próprias.</span></div></div>
+      <div class="pro-value-panel__item">{{ icon('store') }} <div><strong>IDDUN Business</strong><span>Marca, galeria, equipe, experiências e presença da empresa.</span></div></div>
+      <div class="pro-value-panel__item">{{ icon('link') }} <div><strong>Conexões reais</strong><span>Empresa encontra profissionais; profissional mostra onde atende.</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="pro-value-content" id="como-entrar">
+  <div class="container pro-value-steps">
+    <div class="pro-value-steps__intro" data-reveal>
+      <span class="professionals-section-kicker">COMO FUNCIONA</span>
+      <h2>O perfil nasce pronto para apresentar você ao cliente.</h2>
+      <p>Em vez de um cadastro burocrático, o IDDUN conduz você por identidade, atuação, apresentação e imagens. No final, você já vê a página que o cliente encontrará.</p>
+    </div>
+
+    <div class="pro-value-step-grid" data-reveal-stagger>
+      <article><span>01</span><h3>Escolha seu contexto</h3><p>Atenda como profissional ou crie a presença da sua empresa.</p></article>
+      <article><span>02</span><h3>Construa a apresentação</h3><p>Foto, informações e portfólio formam uma página com cara de marca, não de ficha cadastral.</p></article>
+      <article><span>03</span><h3>Conecte a rede</h3><p>Profissionais e estabelecimentos passam a se descobrir nos dois sentidos dentro do IDDUN.</p></article>
+    </div>
+
+    <div class="pro-value-note" data-reveal>
+      {{ icon('diamond') }}
+      <div><strong>Freemium vem depois da validação.</strong><span>A estrutura já separa Free e Pro/Business, mas o lançamento inicial será gratuito para ganhar oferta, qualidade e uso real.</span></div>
+    </div>
+  </div>
+</section>
+{% endblock %}

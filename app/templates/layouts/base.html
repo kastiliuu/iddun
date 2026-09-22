@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0B0F">
+  <title>{% block title %}IDDUN{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}">
+  {% block styles %}{% endblock %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/visual-v2.css') }}">
+  {% block styles_after %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  {% block site_header %}
+    {% include 'components/header.html' %}
+  {% endblock %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack" aria-live="polite" aria-atomic="true">
+        {% for category, message in messages %}
+          <div class="flash-message flash-message--{{ category }}" role="status" data-flash-message>
+            <span>{{ message }}</span>
+            <button class="flash-message__close" type="button" aria-label="Fechar mensagem" data-flash-close>×</button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  {% block site_footer %}
+    {% include 'components/footer.html' %}
+  {% endblock %}
+
+  {% block mobile_bottom_nav %}
+  {% include 'components/mobile-bottom-nav.html' %}
+  {% endblock %}
+
+  <script src="{{ url_for('static', filename='js/navigation.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/feedback.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

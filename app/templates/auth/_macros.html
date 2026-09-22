@@ -1,0 +1,9 @@
+{% macro field_errors(field) %}
+  {% if field.errors %}
+    <div class="auth-field-errors" id="{{ field.id }}-errors" aria-live="polite">
+      {% for error in field.errors %}
+        <span><strong aria-hidden="true">!</strong>{{ error }}</span>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}

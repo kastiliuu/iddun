@@ -1,0 +1,43 @@
+{% from 'components/icon.html' import icon %}
+{% macro experience_card(item) -%}
+<article class="experience-card card">
+  <div class="experience-card__media">
+    <img src="{{ item.image|media_url }}" alt="{{ item.title }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+  </div>
+
+  <div class="experience-card__body">
+    <span class="badge">{{ item.badge }}</span>
+
+    <div class="experience-card__copy">
+      <h3>{{ item.title }}</h3>
+      <p>{{ item.description }}</p>
+    </div>
+
+    <div class="experience-card__professional">
+      <img src="{{ item.avatar|media_url }}" alt="{{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
+      <div>
+        <strong>{{ item.professional }}</strong>
+        {% if item.reviews %}
+          <span class="rating-line">{{ icon('star', 'inline-icon inline-icon--star') }} {{ item.rating }} <small>({{ item.reviews }})</small></span>
+        {% else %}
+          <span class="rating-line">{{ icon('sparkles', 'inline-icon inline-icon--star') }} Novo</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="experience-card__meta">
+      {{ icon('map-pin', 'inline-icon') }}
+      <span>{{ item.location }}</span>
+      {% if item.source == 'database' %}<small>{{ item.available_slots_count }} horário{% if item.available_slots_count != 1 %}s{% endif %}</small>{% endif %}
+    </div>
+
+    <div class="experience-card__footer">
+      <div class="experience-card__price">
+        <span>{{ item.regular_price }}</span>
+        <strong>{{ item.price }}</strong>
+      </div>
+      <a class="btn btn-dark btn-sm" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Ver experiência {{ icon('chevron-right', 'btn-icon') }}</a>
+    </div>
+  </div>
+</article>
+{%- endmacro %}

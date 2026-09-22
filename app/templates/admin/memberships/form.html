@@ -1,0 +1,15 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'admin/_form_macros.html' import field, select, toggle %}
+{% block admin_title %}{{ 'Editar vínculo' if item else 'Novo vínculo' }}{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--form"><div><a class="admin-back" href="{{ url_for('admin.memberships') }}">{{ icon('arrow-left') }} Vínculos</a><span class="admin-eyebrow">REDE PROFISSIONAL</span><h1>{{ 'Editar vínculo' if item else 'Novo vínculo' }}</h1><p>O vínculo registra onde o profissional atua sem transformar o salão em dono da identidade dele.</p></div></header>
+<form class="admin-form-layout admin-form-layout--single" method="post" novalidate>
+{{ form.hidden_tag() }}
+<div class="admin-form-main">
+<section class="admin-form-card"><div class="admin-form-card__head"><span>{{ icon('briefcase') }}</span><div><h2>Relação profissional</h2><p>Escolha o perfil e o local correspondente.</p></div></div><div class="admin-form-grid">
+{{ select(form.professional_id) }}{{ select(form.establishment_id) }}{{ field(form.role_name, 'Ex.: Cabeleireira') }}{{ select(form.status) }}{{ field(form.started_at) }}{{ field(form.ended_at) }}
+</div><div class="admin-toggle-block">{{ toggle(form.is_primary, 'Marque quando este for o local principal do profissional.') }}</div><div class="admin-form-actions admin-form-actions--row">{{ form.submit(class_='btn btn-primary') }}<a class="btn admin-btn-ghost" href="{{ url_for('admin.memberships') }}">Cancelar</a></div></section>
+</div>
+</form>
+{% endblock %}

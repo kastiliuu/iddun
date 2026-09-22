@@ -1,0 +1,20 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% block title %}{{ experience.title }} | IDDUN{% endblock %}
+{% block body_class %}placeholder-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/marketplace.css') }}">{% endblock %}
+{% block content %}
+<section class="detail-placeholder">
+  <div class="container detail-placeholder__inner">
+    <a href="{{ url_for('public.experiences') }}" class="detail-placeholder__back">{{ icon('arrow-left') }} Voltar às experiências</a>
+    <img src="{{ experience.image|media_url }}" alt="{{ experience.title }}">
+    <div>
+      <span class="badge">{{ experience.badge }}</span>
+      <h1>{{ experience.title }}</h1>
+      <p>{{ experience.description }}</p>
+      <strong>R$ {{ experience.price }}</strong>
+      <p class="detail-placeholder__note">A página completa desta experiência é a próxima etapa do IDDUN.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}

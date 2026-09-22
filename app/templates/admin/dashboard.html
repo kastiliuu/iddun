@@ -1,0 +1,67 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Visão geral{% endblock %}
+
+{% block admin_content %}
+<header class="admin-page-head" data-reveal>
+  <div>
+    <span class="admin-eyebrow">OPERAÇÃO IDDUN</span>
+    <h1>Bom trabalho, {{ current_user.name.split()[0] }}.</h1>
+    <p>Cadastre a oferta, libere capacidade ociosa e acompanhe as reservas que chegam pelo marketplace.</p>
+  </div>
+  <a class="btn btn-primary admin-head-cta" href="{{ url_for('admin.opportunity_create') }}">{{ icon('calendar') }} Publicar horários</a>
+</header>
+
+<section class="admin-metric-grid" data-reveal-stagger aria-label="Resumo do catálogo">
+  <article class="admin-metric"><span>{{ icon('users') }}</span><div><strong>{{ counts.professionals }}</strong><small>Profissionais</small></div></article>
+  <article class="admin-metric"><span>{{ icon('store') }}</span><div><strong>{{ counts.establishments }}</strong><small>Estabelecimentos</small></div></article>
+  <article class="admin-metric"><span>{{ icon('sparkles') }}</span><div><strong>{{ counts.experiences }}</strong><small>Experiências</small></div></article>
+  <article class="admin-metric admin-metric--accent"><span>{{ icon('calendar') }}</span><div><strong>{{ counts.available_slots }}</strong><small>Horários disponíveis</small></div></article>
+  <article class="admin-metric"><span>{{ icon('clock') }}</span><div><strong>{{ counts.confirmed_bookings }}</strong><small>Reservas confirmadas</small></div></article>
+  <article class="admin-metric"><span>{{ icon('check') }}</span><div><strong>{{ counts.published }}</strong><small>Experiências publicadas</small></div></article>
+</section>
+
+<section class="admin-quick-actions" data-reveal-stagger>
+  <a href="{{ url_for('admin.professional_create') }}"><span>{{ icon('users') }}</span><div><strong>Novo profissional</strong><small>Crie um perfil curado</small></div>{{ icon('chevron-right') }}</a>
+  <a href="{{ url_for('admin.establishment_create') }}"><span>{{ icon('store') }}</span><div><strong>Novo estabelecimento</strong><small>Cadastre salão ou studio</small></div>{{ icon('chevron-right') }}</a>
+  <a href="{{ url_for('admin.membership_create') }}"><span>{{ icon('briefcase') }}</span><div><strong>Criar vínculo</strong><small>Ligue profissional ao local</small></div>{{ icon('chevron-right') }}</a>
+  <a href="{{ url_for('admin.opportunity_create') }}"><span>{{ icon('calendar') }}</span><div><strong>Publicar oportunidades</strong><small>Libere horários IDDUN</small></div>{{ icon('chevron-right') }}</a>
+  <a href="{{ url_for('admin.bookings') }}"><span>{{ icon('clock') }}</span><div><strong>Acompanhar reservas</strong><small>Veja os próximos atendimentos</small></div>{{ icon('chevron-right') }}</a>
+</section>
+
+<div class="admin-dashboard-grid" data-reveal-stagger>
+  <section class="admin-panel">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">CATÁLOGO</span><h2>Experiências recentes</h2></div><a href="{{ url_for('admin.experiences') }}">Ver todas</a></div>
+    {% if recent_experiences %}
+      <div class="admin-activity-list">
+        {% for item in recent_experiences %}
+        <a href="{{ url_for('admin.experience_edit', item_id=item.id) }}" class="admin-activity-row">
+          <span class="admin-activity-icon">{{ icon('sparkles') }}</span>
+          <div><strong>{{ item.title }}</strong><small>{{ item.professional.display_name }} · {{ item.category|capitalize }}</small></div>
+          <span class="admin-status admin-status--{{ item.status }}">{{ item.status_label }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="admin-empty"><span>{{ icon('sparkles') }}</span><h3>Seu catálogo começa aqui.</h3><p>Crie a primeira experiência real do IDDUN.</p><a class="btn btn-dark" href="{{ url_for('admin.experience_create') }}">Criar experiência</a></div>
+    {% endif %}
+  </section>
+
+  <section class="admin-panel">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">CURADORIA</span><h2>Profissionais recentes</h2></div><a href="{{ url_for('admin.professionals') }}">Ver todos</a></div>
+    {% if recent_professionals %}
+      <div class="admin-people-list">
+        {% for item in recent_professionals %}
+        <a href="{{ url_for('admin.professional_edit', item_id=item.id) }}" class="admin-person-row">
+          <span class="admin-avatar">{{ item.display_name[:1]|upper }}</span>
+          <div><strong>{{ item.display_name }}</strong><small>{{ item.primary_specialty or 'Especialidade não definida' }}</small></div>
+          {% if item.is_verified %}<span class="admin-verified">{{ icon('shield-check') }} Verificado</span>{% endif %}
+        </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="admin-empty admin-empty--compact"><h3>Nenhum profissional real ainda.</h3><a href="{{ url_for('admin.professional_create') }}">Cadastrar primeiro perfil</a></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

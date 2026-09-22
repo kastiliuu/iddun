@@ -1,0 +1,86 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+{% block title %}Avaliar experiência | IDDUN{% endblock %}
+{% block body_class %}booking-review-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">{% endblock %}
+
+{% block content %}
+<section class="booking-review-hero">
+  <div class="container booking-review-hero__inner">
+    <a href="{{ url_for('bookings.mine') }}" class="booking-confirm-back">{{ icon('arrow-left') }} Minhas reservas</a>
+    <span class="experience-detail-eyebrow">AVALIAÇÃO VERIFICADA IDDUN</span>
+    <h1>Como foi sua experiência?</h1>
+    <p>{{ booking.experience.title }} com {{ booking.professional.display_name }}{% if booking.establishment %} em {{ booking.establishment.name }}{% endif %}.</p>
+  </div>
+</section>
+
+<section class="booking-review-content">
+  <div class="container booking-review-layout">
+    <form method="post" class="booking-review-form" novalidate>
+      {{ form.hidden_tag() }}
+
+      <section class="booking-review-card">
+        <header>
+          <span class="booking-review-avatar {% if booking.professional.avatar_url %}has-image{% endif %}" {% if booking.professional.avatar_url %}style="background-image:url('{{ booking.professional.avatar_url|media_url }}')"{% endif %}>{{ booking.professional.display_name[:1] }}</span>
+          <div><small>PROFISSIONAL</small><h2>{{ booking.professional.display_name }}</h2><p>{{ booking.professional.primary_specialty or 'Profissional IDDUN' }}</p></div>
+        </header>
+        <div class="booking-review-field">
+          <span class="booking-review-label">{{ form.professional_rating.label.text }}</span>
+          <div class="booking-star-choice">
+            {% for subfield in form.professional_rating %}
+              <label>{{ subfield }}<span aria-hidden="true">★</span><em>{{ subfield.label.text }}</em></label>
+            {% endfor %}
+          </div>
+          {{ field_errors(form.professional_rating) }}
+        </div>
+        <div class="booking-review-field">
+          <span class="booking-review-label">{{ form.professional_recommended.label.text }}</span>
+          <div class="booking-recommend-choice">
+            {% for subfield in form.professional_recommended %}<label>{{ subfield }}<span>{{ subfield.label.text }}</span></label>{% endfor %}
+          </div>
+          {{ field_errors(form.professional_recommended) }}
+        </div>
+        <div class="booking-review-field">
+          {{ form.professional_comment.label(class_='booking-review-label') }}
+          {{ form.professional_comment(class_='booking-review-textarea', rows='5', placeholder='Conte o que mais marcou você neste atendimento...') }}
+          {{ field_errors(form.professional_comment) }}
+        </div>
+      </section>
+
+      {% if booking.establishment %}
+      <section class="booking-review-card booking-review-card--optional">
+        <header>
+          <span class="booking-review-avatar booking-review-avatar--business {% if booking.establishment.logo_url %}has-image{% endif %}" {% if booking.establishment.logo_url %}style="background-image:url('{{ booking.establishment.logo_url|media_url }}')"{% endif %}>{{ booking.establishment.name[:1] }}</span>
+          <div><small>ESTABELECIMENTO · OPCIONAL</small><h2>{{ booking.establishment.name }}</h2><p>Avalie separadamente o local da experiência.</p></div>
+        </header>
+        <div class="booking-review-field">
+          <span class="booking-review-label">{{ form.establishment_rating.label.text }}</span>
+          <div class="booking-star-choice">
+            {% for subfield in form.establishment_rating %}<label>{{ subfield }}<span aria-hidden="true">★</span><em>{{ subfield.label.text }}</em></label>{% endfor %}
+          </div>
+          {{ field_errors(form.establishment_rating) }}
+        </div>
+        <div class="booking-review-field">
+          <span class="booking-review-label">{{ form.establishment_recommended.label.text }}</span>
+          <div class="booking-recommend-choice">
+            {% for subfield in form.establishment_recommended %}<label>{{ subfield }}<span>{{ subfield.label.text }}</span></label>{% endfor %}
+          </div>
+          {{ field_errors(form.establishment_recommended) }}
+        </div>
+        <div class="booking-review-field">
+          {{ form.establishment_comment.label(class_='booking-review-label') }}
+          {{ form.establishment_comment(class_='booking-review-textarea', rows='4', placeholder='Ambiente, atendimento da equipe, estrutura...') }}
+          {{ field_errors(form.establishment_comment) }}
+        </div>
+      </section>
+      {% endif %}
+
+      <div class="booking-review-submit">
+        <div>{{ icon('shield-check') }} <span>Somente clientes com atendimento concluído podem publicar esta avaliação.</span></div>
+        {{ form.submit(class_='btn btn-primary') }}
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% from 'components/icon.html' import icon %}
+<nav class="mobile-bottom-nav" aria-label="Navegação principal do aplicativo" data-mobile-bottom-nav>
+  <a href="{{ url_for('public.home') }}" class="mobile-bottom-nav__item {% if current_page == 'home' %}is-active{% endif %}" {% if current_page == 'home' %}aria-current="page"{% endif %}>
+    {{ icon('home', 'mobile-bottom-nav__icon') }}
+    <span>Início</span>
+  </a>
+  <a href="{{ url_for('public.experiences') }}" class="mobile-bottom-nav__item {% if current_page == 'experiences' %}is-active{% endif %}" {% if current_page == 'experiences' %}aria-current="page"{% endif %}>
+    {{ icon('compass', 'mobile-bottom-nav__icon') }}
+    <span>Explorar</span>
+  </a>
+  <a href="{{ url_for('public.professionals') }}" class="mobile-bottom-nav__item {% if current_page == 'professionals' %}is-active{% endif %}" {% if current_page == 'professionals' %}aria-current="page"{% endif %}>
+    {{ icon('users', 'mobile-bottom-nav__icon') }}
+    <span>Profissionais</span>
+  </a>
+  {% if current_user.is_authenticated %}
+    <a href="{{ url_for('account.dashboard') }}" class="mobile-bottom-nav__item {% if current_page == 'account' %}is-active{% endif %}" {% if current_page == 'account' %}aria-current="page"{% endif %}>
+      {{ icon('user', 'mobile-bottom-nav__icon') }}
+      <span>Conta</span>
+    </a>
+  {% else %}
+    <a href="{{ url_for('auth.login', next=url_for('account.dashboard')) }}" class="mobile-bottom-nav__item">
+      {{ icon('user', 'mobile-bottom-nav__icon') }}
+      <span>Entrar</span>
+    </a>
+  {% endif %}
+</nav>

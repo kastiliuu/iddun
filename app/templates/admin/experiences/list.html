@@ -1,0 +1,40 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{% block admin_title %}Experiências{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head admin-page-head--compact">
+  <div><span class="admin-eyebrow">CATÁLOGO REAL</span><h1>Experiências</h1><p>Crie, revise e publique o inventário que aparece no marketplace.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('admin.experience_create') }}">{{ icon('sparkles') }} Nova experiência</a>
+</header>
+<section class="admin-panel admin-list-panel">
+  <div class="admin-list-head"><strong>{{ experiences|length }} experiências</strong><span>Rascunho → publicação → marketplace</span></div>
+  {% if experiences %}
+  <div class="admin-experience-admin-grid">
+    {% for item in experiences %}
+    <article class="admin-experience-card">
+      <div class="admin-experience-card__media">
+        <img src="{{ (item.image_url or ('img/exp-' ~ ('barber' if item.category == 'barbearia' else ('nails' if item.category == 'unhas' else 'hair')) ~ '.jpg'))|media_url }}" alt="" style="object-position: {{ item.image_focus_x if item.image_focus_x is not none else 50 }}% {{ item.image_focus_y if item.image_focus_y is not none else 50 }}%;">
+        <span class="admin-status admin-status--{{ item.status }}">{{ item.status_label }}</span>
+      </div>
+      <div class="admin-experience-card__body">
+        <span class="admin-eyebrow">{{ item.category_label|upper }}</span>
+        <h2>{{ item.title }}</h2>
+        <p>{{ item.professional.display_name }}{% if item.establishment %} · {{ item.establishment.name }}{% endif %}</p>
+        <div class="admin-experience-card__meta"><span>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</span><span>{{ item.duration_minutes }} min</span>{% if item.is_featured %}<span>Destaque</span>{% endif %}</div>
+        <div class="admin-experience-card__actions">
+          <a class="admin-action-button" href="{{ url_for('admin.experience_edit', item_id=item.id) }}">{{ icon('edit') }} Editar</a>
+          {% if item.status != ExperienceStatus.PUBLISHED %}
+          <form action="{{ url_for('admin.experience_publish', item_id=item.id) }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button" type="submit">{{ icon('check') }} Publicar</button></form>
+          {% else %}
+          <form action="{{ url_for('admin.experience_pause', item_id=item.id) }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button" type="submit">{{ icon('clock') }} Pausar</button></form>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="admin-empty"><span>{{ icon('sparkles') }}</span><h3>Nenhuma experiência real cadastrada.</h3><p>O marketplace continua exibindo mocks, mas a partir daqui você pode substituir isso por dados reais.</p><a class="btn btn-dark" href="{{ url_for('admin.experience_create') }}">Criar primeira experiência</a></div>
+  {% endif %}
+</section>
+{% endblock %}
