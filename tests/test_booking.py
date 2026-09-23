@@ -158,6 +158,23 @@ def test_real_experience_detail_shows_available_slot(app, client):
     assert "Disponibilidade protegida" in html
 
 
+def test_my_bookings_empty_state_keeps_navigation_and_explains_the_flow(app, client):
+    user_id, _ = _client_user(app, "empty-bookings@example.com")
+    _login_session(client, user_id)
+
+    response = client.get("/minhas-reservas")
+
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Sua primeira experiência começa aqui." in html
+    assert "Explorar experiências" in html
+    assert "Minha conta" in html
+    assert "Descubra" in html
+    assert "Escolha" in html
+    assert "Reserve" in html
+    assert 'href="/experiencias"' in html
+
+
 def test_booking_http_flow_confirms_and_appears_in_my_bookings(app, client):
     _, slot_ids = _catalog(app, slot_count=1)
     user_id, profile_id = _client_user(app)
@@ -184,6 +201,7 @@ def test_booking_http_flow_confirms_and_appears_in_my_bookings(app, client):
     html = response.get_data(as_text=True)
     assert "Hair Experience Booking" in html
     assert "Confirmada" in html
+    assert "Cancelar reserva" in html
 
 
 def test_external_conflict_cancels_pending_hold(app):
