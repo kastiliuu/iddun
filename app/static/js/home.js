@@ -35,6 +35,16 @@
       else favorites.delete(id);
       syncFavorite(button, active);
 
+      /* Reaplica a classe para que o pop aconteça a cada novo favorito. */
+      if (active && !reducedMotion) {
+        button.classList.remove('is-popping');
+        void button.offsetWidth;
+        button.classList.add('is-popping');
+        button.addEventListener('animationend', () => {
+          button.classList.remove('is-popping');
+        }, { once: true });
+      }
+
       try {
         window.localStorage.setItem(FAVORITES_KEY, JSON.stringify([...favorites]));
       } catch (_) {
@@ -51,6 +61,8 @@
   const searchEmpty = searchRoot?.querySelector('[data-search-empty]');
   const suggestions = [...(searchRoot?.querySelectorAll('[data-search-suggestion]') || [])];
   let activeIndex = -1;
+  let searchCloseTimer = 0;
+  let searchOpenFrame = 0;
 
   const visibleSuggestions = () => suggestions.filter((item) => !item.hidden);
 
@@ -76,15 +88,31 @@
 
   const openSuggestions = () => {
     if (!searchPanel || !searchInput) return;
+    window.clearTimeout(searchCloseTimer);
+    window.cancelAnimationFrame(searchOpenFrame);
     searchPanel.hidden = false;
     searchInput.setAttribute('aria-expanded', 'true');
+    searchOpenFrame = window.requestAnimationFrame(() => {
+      searchPanel.classList.add('is-open');
+      searchOpenFrame = 0;
+    });
   };
 
   const closeSuggestions = () => {
     if (!searchPanel || !searchInput) return;
-    searchPanel.hidden = true;
+    window.clearTimeout(searchCloseTimer);
+    window.cancelAnimationFrame(searchOpenFrame);
+    searchOpenFrame = 0;
+    searchPanel.classList.remove('is-open');
     searchInput.setAttribute('aria-expanded', 'false');
     clearActiveSuggestion();
+    if (reducedMotion) {
+      searchPanel.hidden = true;
+      return;
+    }
+    searchCloseTimer = window.setTimeout(() => {
+      searchPanel.hidden = true;
+    }, 220);
   };
 
   const filterSuggestions = () => {
@@ -170,6 +198,7 @@
 
   /* Horizontal rails used by professionals and studios. */
   const railControls = [...document.querySelectorAll('[data-rail-control]')];
+  const railProgresses = [...document.querySelectorAll('[data-rail-progress]')];
 
   const syncRailControls = (rail) => {
     const maxScroll = Math.max(rail.scrollWidth - rail.clientWidth, 0);
@@ -181,6 +210,16 @@
           ? rail.scrollLeft <= 2
           : rail.scrollLeft >= maxScroll - 2 || maxScroll === 0;
       });
+
+    /* A barra dá contexto de posição sem competir com o conteúdo. */
+    const progress = railProgresses.find((item) => item.dataset.railFor === rail.id);
+    if (progress) {
+      const percentage = maxScroll > 0
+        ? Math.min(100, Math.max(0, (rail.scrollLeft / maxScroll) * 100))
+        : 100;
+      progress.style.setProperty('--rail-progress', `${percentage}%`);
+      progress.setAttribute('aria-valuenow', String(Math.round(percentage)));
+    }
   };
 
   railControls.forEach((control) => {
@@ -195,7 +234,14 @@
   });
 
   document.querySelectorAll('[data-horizontal-rail]').forEach((rail) => {
-    const sync = () => syncRailControls(rail);
+    let railFrame = 0;
+    const sync = () => {
+      if (railFrame) return;
+      railFrame = window.requestAnimationFrame(() => {
+        syncRailControls(rail);
+        railFrame = 0;
+      });
+    };
     rail.addEventListener('scroll', sync, { passive: true });
     rail.addEventListener('keydown', (event) => {
       if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
@@ -239,29 +285,55 @@
   }
 
   /* Restrained pointer parallax for the hero portrait. */
-  if (reducedMotion || window.matchMedia('(pointer: coarse)').matches) return;
-  const hero = document.querySelector('[data-hero]');
-  const portrait = hero?.querySelector('[data-parallax-media]');
-  if (!hero || !portrait) return;
+  if (!reducedMotion && !window.matchMedia('(pointer: coarse)').matches) {
+    const hero = document.querySelector('[data-hero]');
+    const portrait = hero?.querySelector('[data-parallax-media]');
 
-  let frame = 0;
-  let targetX = 0;
-  let targetY = 0;
-  const paint = () => {
-    portrait.style.setProperty('--hero-shift-x', `${targetX.toFixed(2)}px`);
-    portrait.style.setProperty('--hero-shift-y', `${targetY.toFixed(2)}px`);
-    frame = 0;
-  };
+    if (hero && portrait) {
+      let frame = 0;
+      let targetX = 0;
+      let targetY = 0;
+      const paint = () => {
+        portrait.style.setProperty('--hero-shift-x', `${targetX.toFixed(2)}px`);
+        portrait.style.setProperty('--hero-shift-y', `${targetY.toFixed(2)}px`);
+        frame = 0;
+      };
 
-  hero.addEventListener('pointermove', (event) => {
-    const rect = hero.getBoundingClientRect();
-    targetX = (((event.clientX - rect.left) / Math.max(rect.width, 1)) - .5) * -7;
-    targetY = (((event.clientY - rect.top) / Math.max(rect.height, 1)) - .5) * -5;
-    if (!frame) frame = requestAnimationFrame(paint);
-  });
-  hero.addEventListener('pointerleave', () => {
-    targetX = 0;
-    targetY = 0;
-    if (!frame) frame = requestAnimationFrame(paint);
-  });
+      hero.addEventListener('pointermove', (event) => {
+        const rect = hero.getBoundingClientRect();
+        targetX = (((event.clientX - rect.left) / Math.max(rect.width, 1)) - .5) * -7;
+        targetY = (((event.clientY - rect.top) / Math.max(rect.height, 1)) - .5) * -5;
+        if (!frame) frame = requestAnimationFrame(paint);
+      });
+      hero.addEventListener('pointerleave', () => {
+        targetX = 0;
+        targetY = 0;
+        if (!frame) frame = requestAnimationFrame(paint);
+      });
+    }
+  }
+
+  /* Profundidade sutil no mockup do app, usando somente transform em rAF. */
+  const appVisual = document.querySelector('[data-app-parallax]');
+  const appSection = appVisual?.closest('.home-v4-app');
+  if (!reducedMotion && appVisual && appSection) {
+    let appFrame = 0;
+    const paintAppParallax = () => {
+      const rect = appSection.getBoundingClientRect();
+      const viewport = window.innerHeight || 1;
+      const centerDelta = ((rect.top + rect.height / 2) - viewport / 2) / viewport;
+      const progress = Math.max(-1, Math.min(1, centerDelta));
+      appVisual.style.setProperty('--phone-shift-front', `${(progress * -10).toFixed(2)}px`);
+      appVisual.style.setProperty('--phone-shift-back', `${(progress * 7).toFixed(2)}px`);
+      appFrame = 0;
+    };
+    const requestAppParallax = () => {
+      if (appFrame) return;
+      appFrame = window.requestAnimationFrame(paintAppParallax);
+    };
+
+    paintAppParallax();
+    window.addEventListener('scroll', requestAppParallax, { passive: true });
+    window.addEventListener('resize', requestAppParallax, { passive: true });
+  }
 })();

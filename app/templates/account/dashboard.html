@@ -10,14 +10,54 @@
 {% endblock %}
 
 {% block content %}
-<section class="account-hero">
-  <div class="container account-hero__inner" data-reveal>
-    <div class="account-identity">
-      <div class="account-avatar {% if profile.avatar_url %}account-avatar--photo{% endif %}" {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %} aria-hidden="true">{% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}</div>
-      <div>
-        <span class="account-kicker">SEU ESPAÇO IDDUN</span>
-        <h1>Olá, {{ current_user.name.split()[0] }}.</h1>
-        <p>Cuide do seu perfil e acompanhe sua jornada de beleza em um só lugar.</p>
+<section class="account-profile-hero">
+  <div class="account-cover" aria-hidden="true">
+    <span class="account-cover__orb account-cover__orb--one"></span>
+    <span class="account-cover__orb account-cover__orb--two"></span>
+    <span class="account-cover__mark">✦</span>
+  </div>
+
+  <div class="container account-profile-hero__content" data-reveal>
+    <div class="account-avatar-shell">
+      <div
+        class="account-avatar {% if profile.avatar_url %}account-avatar--photo{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+        data-account-hero-avatar
+        aria-label="Foto de perfil de {{ current_user.name }}"
+      >
+        {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+      </div>
+      <button
+        class="account-avatar-edit"
+        type="button"
+        aria-label="Alterar foto de perfil"
+        aria-controls="{{ form.avatar_file.id }}"
+        data-account-avatar-edit
+      >
+        {{ icon('edit') }}
+      </button>
+    </div>
+
+    <div class="account-profile-summary">
+      <div class="account-profile-summary__status">
+        <span class="account-status-pill">{{ icon('shield-check') }} Conta ativa</span>
+        <span class="account-profile-summary__eyebrow">SEU ESPAÇO IDDUN</span>
+      </div>
+      <h1>{{ current_user.name }}</h1>
+      <p class="account-profile-summary__meta">
+        {{ icon('map-pin') }}
+        {% if profile.city and profile.state %}
+          {{ profile.city }}, {{ profile.state }}
+        {% elif profile.city %}
+          {{ profile.city }}
+        {% else %}
+          Adicione sua cidade para personalizar suas descobertas
+        {% endif %}
+      </p>
+      <div class="account-context-badges" aria-label="Contextos disponíveis nesta conta">
+        <span>Cliente</span>
+        {% if current_user.professional_profile %}<span>IDDUN Pro</span>{% endif %}
+        {% if business_accesses %}<span>{{ business_accesses|length }} IDDUN Business</span>{% endif %}
       </div>
     </div>
 
@@ -32,54 +72,52 @@
 <section class="account-content">
   <div class="container account-layout">
     <div class="account-main">
-      <section class="account-progress-card" data-reveal aria-labelledby="profile-progress-title">
-        <div class="account-progress-card__head">
+      <section class="account-panel account-activity" data-reveal aria-labelledby="account-activity-title">
+        <div class="account-panel__head">
           <div>
-            <span class="account-section-kicker">PERFIL</span>
-            <h2 id="profile-progress-title">Complete seu perfil</h2>
-            <p>Alguns dados ajudam a tornar futuras reservas mais rápidas.</p>
+            <span class="account-section-kicker">ATIVIDADE</span>
+            <h2 id="account-activity-title">Sua jornada no IDDUN</h2>
+            <p>Acesse suas descobertas e acompanhe o que já faz parte da sua conta.</p>
           </div>
-          <strong>{{ completion }}%</strong>
         </div>
-        <div class="account-progress" aria-label="Perfil {{ completion }}% completo">
-          <span style="--profile-progress: {{ completion }}%"></span>
-        </div>
-      </section>
 
-      <section class="account-quick-grid" data-reveal-stagger aria-label="Atalhos da conta">
-        <a class="account-quick-card" href="{{ url_for('public.experiences') }}">
-          <span class="account-quick-card__icon">{{ icon('sparkles') }}</span>
-          <div>
+        <div class="account-activity-grid" data-reveal-stagger>
+          <a class="account-activity-card" href="{{ url_for('public.experiences') }}">
+            <span class="account-activity-card__icon">{{ icon('sparkles') }}</span>
+            <span class="account-activity-card__value">Explorar</span>
             <strong>Experiências</strong>
-            <span>Encontre sua próxima descoberta</span>
-          </div>
-          {{ icon('chevron-right', 'account-quick-card__arrow') }}
-        </a>
+            <small>Encontre sua próxima descoberta</small>
+            {{ icon('chevron-right', 'account-activity-card__arrow') }}
+          </a>
 
-        <div class="account-quick-card account-quick-card--future" aria-disabled="true">
-          <span class="account-quick-card__icon">{{ icon('bookmark') }}</span>
-          <div>
+          <div class="account-activity-card account-activity-card--future" aria-disabled="true">
+            <span class="account-activity-card__icon">{{ icon('bookmark') }}</span>
+            <span class="account-activity-card__value">✦</span>
             <strong>Favoritos</strong>
-            <span>Em breve, salvos na sua conta</span>
+            <small>Seus salvos chegarão em breve</small>
+            <span class="account-coming-soon">EM BREVE</span>
           </div>
-          <span class="account-coming-soon">EM BREVE</span>
-        </div>
 
-        <a class="account-quick-card" href="{{ url_for('bookings.mine') }}">
-          <span class="account-quick-card__icon">{{ icon('clock') }}</span>
-          <div>
+          <a class="account-activity-card" href="{{ url_for('bookings.mine') }}">
+            <span class="account-activity-card__icon">{{ icon('clock') }}</span>
+            <span class="account-activity-card__value">{{ booking_count }}</span>
             <strong>Reservas</strong>
-            <span>Acompanhe seus horários IDDUN</span>
-          </div>
-          {{ icon('chevron-right', 'account-quick-card__arrow') }}
-        </a>
+            {% if booking_count %}
+              <small>{{ active_booking_count }} ativa{% if active_booking_count != 1 %}s{% endif %} · {{ completed_booking_count }} concluída{% if completed_booking_count != 1 %}s{% endif %}</small>
+            {% else %}
+              <small>Você ainda não tem experiências agendadas</small>
+            {% endif %}
+            {{ icon('chevron-right', 'account-activity-card__arrow') }}
+          </a>
+        </div>
       </section>
 
-      <section class="account-context-section" data-reveal>
-        <div class="account-context-section__head">
+      <section class="account-panel account-context-section" data-reveal aria-labelledby="account-context-title">
+        <div class="account-panel__head account-context-section__head">
           <div>
             <span class="account-section-kicker">SEUS AMBIENTES</span>
-            <h2>Use a mesma conta em contextos diferentes.</h2>
+            <h2 id="account-context-title">Uma conta, diferentes formas de viver o IDDUN.</h2>
+            <p>Alterne entre cliente, profissional e negócio sem criar outro acesso.</p>
           </div>
           <a href="{{ url_for('professional.start') }}">Adicionar contexto</a>
         </div>
@@ -115,11 +153,12 @@
         </div>
       </section>
 
-      <section class="account-profile-card" data-reveal id="dados-pessoais">
-        <div class="account-profile-card__head">
+      <section class="account-panel account-profile-card" data-reveal id="dados-pessoais" aria-labelledby="account-data-title">
+        <div class="account-panel__head account-profile-card__head">
           <div>
-            <span class="account-section-kicker">DADOS PESSOAIS</span>
-            <h2>Seu perfil</h2>
+            <span class="account-section-kicker">PERFIL E CONTA</span>
+            <h2 id="account-data-title">Suas informações</h2>
+            <p>Organizamos identidade e dados de conta sem mudar as regras atuais do perfil.</p>
           </div>
           <span class="account-profile-card__secure">{{ icon('shield-check') }} Dados protegidos</span>
         </div>
@@ -127,51 +166,71 @@
         <form class="account-form" method="post" enctype="multipart/form-data" novalidate>
           {{ form.hidden_tag() }}
 
+          <fieldset class="account-form-section">
+            <legend>
+              <span class="account-form-section__icon">{{ icon('user') }}</span>
+              <span><strong>Identidade da conta</strong><small>Foto e nome usados para reconhecer você no IDDUN.</small></span>
+            </legend>
 
-          <div class="account-field account-field--wide account-avatar-upload">
-            {{ form.avatar_file.label(class_='account-label') }}
-            <label class="account-upload" data-client-image-upload>
-              {{ form.avatar_file(class_='account-file-input', accept='image/jpeg,image/png,image/webp', data_client_image_input='') }}
-              <span class="account-upload__preview {% if profile.avatar_url %}has-image{% endif %}" data-client-image-preview {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>{{ icon('upload') }}</span>
-              <span><strong>Escolher foto</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
-            </label>
-            {{ field_errors(form.avatar_file) }}
-          </div>
-          <div class="account-field account-field--wide">
-            {{ form.name.label(class_='account-label') }}
-            {{ form.name(class_='account-input', autocomplete='name', placeholder='Seu nome completo') }}
-            {{ field_errors(form.name) }}
-          </div>
+            <div class="account-field account-field--wide account-avatar-upload">
+              {{ form.avatar_file.label(class_='account-label') }}
+              <label class="account-upload" data-client-image-upload>
+                {{ form.avatar_file(class_='account-file-input', accept='image/jpeg,image/png,image/webp', data_client_image_input='') }}
+                <span
+                  class="account-upload__preview {% if profile.avatar_url %}has-image{% endif %}"
+                  data-client-image-preview
+                  {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+                >{{ icon('upload') }}</span>
+                <span><strong>Escolher foto</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
+              </label>
+              {{ field_errors(form.avatar_file) }}
+            </div>
 
-          <div class="account-field account-field--wide">
-            <label class="account-label" for="account-email">E-mail</label>
-            <input id="account-email" class="account-input" value="{{ current_user.email }}" disabled aria-describedby="email-help">
-            <span id="email-help" class="account-help">O e-mail da conta será editável em uma etapa de segurança futura.</span>
-          </div>
+            <div class="account-field account-field--wide">
+              {{ form.name.label(class_='account-label') }}
+              {{ form.name(class_='account-input', autocomplete='name', placeholder='Seu nome completo') }}
+              {{ field_errors(form.name) }}
+            </div>
+          </fieldset>
 
-          <div class="account-field">
-            {{ form.phone.label(class_='account-label') }}
-            {{ form.phone(class_='account-input', autocomplete='tel', inputmode='tel', placeholder='(41) 99999-9999') }}
-            {{ field_errors(form.phone) }}
-          </div>
+          <fieldset class="account-form-section">
+            <legend>
+              <span class="account-form-section__icon">{{ icon('shield-check') }}</span>
+              <span><strong>Dados da conta</strong><small>Informações privadas usadas na sua experiência e nas reservas.</small></span>
+            </legend>
 
-          <div class="account-field">
-            {{ form.birth_date.label(class_='account-label') }}
-            {{ form.birth_date(class_='account-input', autocomplete='bday') }}
-            {{ field_errors(form.birth_date) }}
-          </div>
+            <div class="account-form-grid">
+              <div class="account-field account-field--wide">
+                <label class="account-label" for="account-email">E-mail</label>
+                <input id="account-email" class="account-input" value="{{ current_user.email }}" disabled aria-describedby="email-help">
+                <span id="email-help" class="account-help">O e-mail da conta será editável em uma etapa de segurança futura.</span>
+              </div>
 
-          <div class="account-field">
-            {{ form.city.label(class_='account-label') }}
-            {{ form.city(class_='account-input', autocomplete='address-level2', placeholder='Curitiba') }}
-            {{ field_errors(form.city) }}
-          </div>
+              <div class="account-field">
+                {{ form.phone.label(class_='account-label') }}
+                {{ form.phone(class_='account-input', autocomplete='tel', inputmode='tel', placeholder='(41) 99999-9999') }}
+                {{ field_errors(form.phone) }}
+              </div>
 
-          <div class="account-field">
-            {{ form.state.label(class_='account-label') }}
-            {{ form.state(class_='account-input', autocomplete='address-level1', inputmode='text', maxlength='2', placeholder='PR') }}
-            {{ field_errors(form.state) }}
-          </div>
+              <div class="account-field">
+                {{ form.birth_date.label(class_='account-label') }}
+                {{ form.birth_date(class_='account-input', autocomplete='bday') }}
+                {{ field_errors(form.birth_date) }}
+              </div>
+
+              <div class="account-field">
+                {{ form.city.label(class_='account-label') }}
+                {{ form.city(class_='account-input', autocomplete='address-level2', placeholder='Curitiba') }}
+                {{ field_errors(form.city) }}
+              </div>
+
+              <div class="account-field">
+                {{ form.state.label(class_='account-label') }}
+                {{ form.state(class_='account-input', autocomplete='address-level1', inputmode='text', maxlength='2', placeholder='PR') }}
+                {{ field_errors(form.state) }}
+              </div>
+            </div>
+          </fieldset>
 
           <div class="account-form__actions">
             {{ form.submit(class_='btn btn-primary account-save') }}
@@ -180,7 +239,34 @@
       </section>
     </div>
 
-    <aside class="account-side" data-reveal-stagger aria-label="Informações da conta">
+    <aside class="account-side" data-reveal-stagger aria-label="Informações e ações da conta">
+      <section class="account-side-card account-completion-card" aria-labelledby="profile-progress-title">
+        <div class="account-completion-card__top">
+          <span class="account-side-card__icon">{{ icon('award') }}</span>
+          <strong>{{ completion }}%</strong>
+        </div>
+        <span class="account-section-kicker">SEU PERFIL</span>
+        <h2 id="profile-progress-title">Complete seu perfil</h2>
+        <p>
+          {% if completion_missing %}
+            Próximo passo: adicionar {{ completion_missing[0] }}.
+          {% else %}
+            Tudo certo. Seu perfil está completo.
+          {% endif %}
+        </p>
+        <div
+          class="account-progress"
+          role="progressbar"
+          aria-label="Perfil {{ completion }}% completo"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="{{ completion }}"
+        >
+          <span data-account-progress data-progress="{{ completion }}"></span>
+        </div>
+        <a class="account-side-card__cta" href="#dados-pessoais">Completar perfil {{ icon('chevron-right') }}</a>
+      </section>
+
       <section class="account-side-card account-side-card--premium">
         <span class="account-side-card__icon">{{ icon('diamond') }}</span>
         <span class="account-section-kicker">IDDUN</span>
@@ -189,8 +275,11 @@
         <a href="{{ url_for('public.experiences') }}">Explorar agora {{ icon('chevron-right') }}</a>
       </section>
 
-      <section class="account-side-card">
-        <span class="account-section-kicker">CONTA</span>
+      <section class="account-side-card account-trust-card">
+        <div class="account-trust-card__title">
+          <span class="account-side-card__icon">{{ icon('shield-check') }}</span>
+          <div><span class="account-section-kicker">CONTA</span><strong>Informações da conta</strong></div>
+        </div>
         <dl class="account-details">
           <div><dt>Conta</dt><dd>IDDUN</dd></div>
           <div><dt>Status</dt><dd class="account-status"><span></span> Ativa</dd></div>

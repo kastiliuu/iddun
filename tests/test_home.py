@@ -36,6 +36,10 @@ def test_home_exposes_new_brand_interactions_and_accessible_states(client):
     assert 'data-favorite-id=' in text
     assert 'data-avatar-image' in text
     assert 'data-horizontal-rail' in text
+    assert 'data-rail-progress' in text
+    assert 'data-rail-skeleton-template' in text
+    assert 'data-hero-item' in text
+    assert 'data-app-parallax' in text
     assert "Avaliações confiáveis" in text
 
 
