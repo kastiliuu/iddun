@@ -1,9 +1,36 @@
 CATEGORIES = [
-    {"value": "cabelo", "label": "Cabelo", "icon": "scissors"},
-    {"value": "unhas", "label": "Unhas", "icon": "nails"},
-    {"value": "barbearia", "label": "Barbearia", "icon": "razor"},
-    {"value": "tatuagem", "label": "Tatuagem", "icon": "sparkles"},
+    {
+        "value": "cabelo",
+        "label": "Cabelo",
+        "icon": "scissors",
+    },
+    {
+        "value": "unhas",
+        "label": "Unhas",
+        "icon": "nails",
+    },
+    {
+        "value": "barbearia",
+        "label": "Barbearia",
+        "icon": "razor",
+    },
+    {
+        "value": "estetica",
+        "label": "Estética",
+        "icon": "diamond",
+    },
+    {
+        "value": "tatuagem",
+        "label": "Tatuagem",
+        "icon": "sparkles",
+    },
+    {
+        "value": "sobrancelhas",
+        "label": "Sobrancelhas",
+        "icon": "sparkles",
+    },
 ]
+
 
 LOCATIONS = [
     "Batel",
@@ -12,6 +39,7 @@ LOCATIONS = [
     "Juvevê",
     "Cabral",
 ]
+
 
 EXPERIENCE_CATALOG = [
     {

@@ -38,6 +38,186 @@ def test_experiences_can_filter_category(
     )
 
 
+def test_experiences_exposes_official_categories(
+    client,
+):
+    response = client.get(
+        "/experiencias"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        'data-category-filter="cabelo"'
+        in html
+    )
+
+    assert (
+        'data-category-filter="unhas"'
+        in html
+    )
+
+    assert (
+        'data-category-filter="barbearia"'
+        in html
+    )
+
+    assert (
+        'data-category-filter="estetica"'
+        in html
+    )
+
+    assert (
+        'data-category-filter="tatuagem"'
+        in html
+    )
+
+    assert (
+        'data-category-filter="sobrancelhas"'
+        in html
+    )
+
+    assert "Cabelo" in html
+    assert "Unhas" in html
+    assert "Barbearia" in html
+    assert "Estética" in html
+    assert "Tatuagem" in html
+    assert "Sobrancelhas" in html
+
+
+def test_experiences_accepts_city_as_location_filter(
+    client,
+):
+    response = client.get(
+        "/experiencias?bairro=Curitiba"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    # The location field promises "Cidade ou bairro".
+    # Curitiba must therefore return experiences whose city
+    # matches, even when they also have a neighborhood.
+    assert (
+        "Hair Experience"
+        in html
+    )
+
+    assert (
+        "Nail Experience"
+        in html
+    )
+
+    assert (
+        "Corte + Barba"
+        in html
+    )
+
+
+def test_experiences_accepts_neighborhood_as_location_filter(
+    client,
+):
+    response = client.get(
+        "/experiencias?bairro=Batel"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "Hair Experience"
+        in html
+    )
+
+    assert (
+        "Corte &amp; Styling"
+        in html
+        or "Corte & Styling"
+        in html
+    )
+
+    assert (
+        "Executive Barber"
+        in html
+    )
+
+    # Experiences from other neighborhoods must not leak into
+    # the filtered result.
+    assert (
+        "Nail Experience"
+        not in html
+    )
+
+    assert (
+        "Corte + Barba"
+        not in html
+    )
+
+
+def test_experiences_location_filter_ignores_accents(
+    client,
+):
+    response = client.get(
+        "/experiencias?bairro=Agua+Verde"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    # "Agua Verde" must match the stored "Água Verde".
+    assert (
+        "Nail Experience"
+        in html
+    )
+
+    assert (
+        "Nail Art Signature"
+        in html
+    )
+
+    assert (
+        "Hair Experience"
+        not in html
+    )
+
+
+def test_experiences_search_ignores_accents(
+    client,
+):
+    response = client.get(
+        "/experiencias?q=Agua+Verde"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        "Nail Experience"
+        in html
+    )
+
+    assert (
+        "Nail Art Signature"
+        in html
+    )
+
+
 def test_experience_detail_returns_200(
     client,
 ):
@@ -133,6 +313,32 @@ def test_experiences_empty_state_is_available_for_no_results(
 
     assert (
         "Ver tudo"
+        in html
+    )
+
+
+def test_empty_official_category_keeps_marketplace_available(
+    client,
+):
+    response = client.get(
+        "/experiencias?categoria=estetica"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    # Estética is officially supported even when the current
+    # prototype catalog has no item in that category yet.
+    assert (
+        'data-category-filter="estetica"'
+        in html
+    )
+
+    assert (
+        "Ainda não encontramos algo para essa busca."
         in html
     )
 
