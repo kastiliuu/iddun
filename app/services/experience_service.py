@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
+from flask import current_app
 from sqlalchemy import select
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
@@ -15,6 +16,7 @@ from app.models.experience import (
 )
 from app.models.professional import ProfessionalProfile
 from app.services.booking_service import available_slots_for_experience
+from app.services.reputation_service import reputation_summary
 from app.services.time_service import to_local, utcnow
 
 
@@ -243,6 +245,15 @@ def _db_item(experience):
         experience.establishment
     )
 
+    professional_reputation = reputation_summary(
+        professional.reviews_received
+    )
+    establishment_reputation = (
+        reputation_summary(establishment.reviews_received)
+        if establishment is not None
+        else None
+    )
+
     neighborhood = (
         establishment.neighborhood
         if establishment
@@ -325,10 +336,18 @@ def _db_item(experience):
             professional.slug
         ),
 
-        # Reputation will be connected to the real reputation
-        # service in a dedicated step.
-        "rating": 0.0,
-        "reviews": 0,
+        "rating": professional_reputation["average"] or 0.0,
+        "reviews": professional_reputation["count"],
+        "establishment_rating": (
+            establishment_reputation["average"]
+            if establishment_reputation
+            else None
+        ),
+        "establishment_reviews": (
+            establishment_reputation["count"]
+            if establishment_reputation
+            else 0
+        ),
 
         "neighborhood": (
             neighborhood
@@ -618,6 +637,11 @@ def _catalog():
     database_items = (
         _published_db_experiences()
     )
+
+    # The prototype is useful locally, but production must only
+    # advertise experiences backed by actual database records.
+    if current_app.config["APP_ENV"] == "production":
+        return database_items
 
     db_slugs = {
         item["slug"]
@@ -941,6 +965,9 @@ def get_experience_by_slug(
             db_item
         )
 
+    if current_app.config["APP_ENV"] == "production":
+        return None
+
     item = next(
         (
             item
@@ -975,8 +1002,10 @@ def list_locations():
     because its interface is specifically a neighborhood
     filter. City searching is supported through `location`.
     """
-    locations = set(
-        LOCATIONS
+    locations = (
+        set()
+        if current_app.config["APP_ENV"] == "production"
+        else set(LOCATIONS)
     )
 
     rows = db.session.scalars(
@@ -989,6 +1018,11 @@ def list_locations():
     ).all()
 
     for item in rows:
+        if not item.professional.is_active or (
+            item.establishment is not None
+            and not item.establishment.is_active
+        ):
+            continue
         if (
             item.establishment
             and item.establishment.neighborhood

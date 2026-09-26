@@ -3,6 +3,8 @@ import React, {
   useState,
 } from "react";
 import {
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -25,7 +27,6 @@ import {
 } from "@/mocks/data";
 
 import {
-  store,
   useStoreVersion,
 } from "@/store/local";
 
@@ -44,6 +45,12 @@ type BookingStep =
   | "time"
   | "confirm"
   | "success";
+
+const WEB_CATALOG_URL =
+  (process.env.EXPO_PUBLIC_WEB_URL ||
+    "https://iddun-web.onrender.com"
+  ).replace(/\/+$/, "") +
+  "/experiencias";
 
 type BookingDate = {
   date: Date;
@@ -259,9 +266,6 @@ export default function BookingScreen() {
       null,
     );
 
-  const user =
-    store.getUser();
-
   const selectedDate =
     availableDates.find(
       (item) =>
@@ -408,45 +412,16 @@ export default function BookingScreen() {
 
   const handleConfirm =
     async () => {
-      if (
-        !selectedTime ||
-        !selectedDate
-      ) {
-        return;
-      }
-
-      if (!user) {
-        router.push(
-          "/login",
+      try {
+        await Linking.openURL(
+          WEB_CATALOG_URL,
         );
-
-        return;
+      } catch {
+        Alert.alert(
+          "Não foi possível abrir o site",
+          "Acesse iddun-web.onrender.com/experiencias para consultar horários reais.",
+        );
       }
-
-      Haptics.notificationAsync(
-        Haptics
-          .NotificationFeedbackType
-          .Success,
-      ).catch(() => {});
-
-      /*
-       * MOCK APENAS.
-       *
-       * Na integração real:
-       *
-       * 1. POST /bookings
-       * 2. backend valida:
-       *    - disponibilidade
-       *    - conflito
-       *    - preço
-       *    - profissional
-       *    - data/hora
-       * 3. somente após HTTP 2xx
-       *    mostramos sucesso.
-       */
-      setStep(
-        "success",
-      );
     };
 
   const stepNumber =
@@ -558,6 +533,18 @@ export default function BookingScreen() {
           </View>
         ) : null}
 
+        <View style={styles.loginWarning}>
+          <Icon name="alert-circle" size={18} color={colors.plum} />
+          <View style={styles.loginWarningContent}>
+            <Text style={styles.loginWarningTitle}>
+              Prévia de agendamento
+            </Text>
+            <Text style={styles.loginWarningText}>
+              As datas, os horários e os preços aqui são ilustrativos. Consulte a disponibilidade real e reserve pelo site IDDUN.
+            </Text>
+          </View>
+        </View>
+
         {step ===
         "date" ? (
           <>
@@ -587,7 +574,7 @@ export default function BookingScreen() {
                   styles.description
                 }
               >
-                Primeiro selecione a data. Depois mostramos os horários disponíveis.
+                Selecione uma data para explorar a prévia. Os horários reais estão no site.
               </Text>
             </View>
 
@@ -895,7 +882,7 @@ export default function BookingScreen() {
                   styles.eyebrow
                 }
               >
-                CONFIRMAR
+                PRÉVIA
               </Text>
 
               <Text
@@ -911,7 +898,7 @@ export default function BookingScreen() {
                   styles.description
                 }
               >
-                Revise seu agendamento antes de confirmar.
+                Confira a prévia e consulte os horários reais no site.
               </Text>
             </View>
 
@@ -1132,44 +1119,6 @@ export default function BookingScreen() {
               </View>
             </View>
 
-            {!user ? (
-              <View
-                style={
-                  styles.loginWarning
-                }
-              >
-                <Icon
-                  name="user"
-                  size={18}
-                  color={
-                    colors.plum
-                  }
-                />
-
-                <View
-                  style={
-                    styles.loginWarningContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.loginWarningTitle
-                    }
-                  >
-                    Entre para confirmar
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.loginWarningText
-                    }
-                  >
-                    Você pode explorar como visitante, mas precisa de uma conta para concluir um agendamento.
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
             <View
               style={
                 styles.priceSummary
@@ -1180,7 +1129,7 @@ export default function BookingScreen() {
                   styles.priceSummaryLabel
                 }
               >
-                Total
+                Preço ilustrativo
               </Text>
 
               <Text
@@ -1233,7 +1182,7 @@ export default function BookingScreen() {
                 styles.successTitle
               }
             >
-              Agendamento confirmado.
+              Prévia concluída.
             </Text>
 
             <Text
@@ -1241,7 +1190,7 @@ export default function BookingScreen() {
                 styles.successDescription
               }
             >
-              Seu horário foi reservado. Quando conectarmos o backend real, esta confirmação só será exibida depois da resposta do servidor.
+              Consulte os horários reais no site IDDUN para fazer uma reserva.
             </Text>
 
             <View
@@ -1330,7 +1279,7 @@ export default function BookingScreen() {
                     styles.stickyLabel
                   }
                 >
-                  Total
+                  Preço ilustrativo
                 </Text>
 
                 <Text
@@ -1346,11 +1295,7 @@ export default function BookingScreen() {
 
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={
-                  user
-                    ? "Confirmar agendamento"
-                    : "Entrar para confirmar agendamento"
-                }
+                accessibilityLabel="Consultar horários reais no site"
                 onPress={
                   handleConfirm
                 }
@@ -1367,17 +1312,11 @@ export default function BookingScreen() {
                     styles.confirmButtonText
                   }
                 >
-                  {user
-                    ? "Confirmar"
-                    : "Entrar"}
+                  Consultar no site
                 </Text>
 
                 <Icon
-                  name={
-                    user
-                      ? "check"
-                      : "log-in"
-                  }
+                  name="external-link"
                   size={15}
                   color={
                     colors

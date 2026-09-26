@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+from flask import current_app
 from sqlalchemy import select
 
 from app.data.mock_professionals import PROFESSIONAL_CATALOG
@@ -54,6 +55,9 @@ def list_professionals():
             .order_by(ProfessionalProfile.is_verified.desc(), ProfessionalProfile.created_at.desc())
         ).all()
     ]
+    if current_app.config["APP_ENV"] == "production":
+        return database_items
+
     db_slugs = {item["slug"] for item in database_items}
     mocks = []
     for source in deepcopy(PROFESSIONAL_CATALOG):
@@ -121,6 +125,9 @@ def get_professional_public_view(slug):
             "certifications": [item for item in profile.certifications if item.is_public],
             "review_items": [item for item in profile.reviews_received if item.is_visible],
         }
+
+    if current_app.config["APP_ENV"] == "production":
+        return None
 
     mock = next((deepcopy(item) for item in PROFESSIONAL_CATALOG if item["slug"] == slug), None)
     if mock is None:

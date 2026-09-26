@@ -131,6 +131,14 @@ def test_completed_booking_can_create_verified_professional_and_business_reviews
         assert reputation_summary(business.reviews_received)["average"] == 4
         assert reputation_summary(pro.reviews_received)["recommendation_percent"] == 100
 
+        from app.services.experience_service import get_experience_by_slug
+
+        catalog_item = get_experience_by_slug("experiencia-review")
+        assert catalog_item["rating"] == 5
+        assert catalog_item["reviews"] == 1
+        assert catalog_item["establishment_rating"] == 4
+        assert catalog_item["establishment_reviews"] == 1
+
 
 def test_non_completed_booking_cannot_be_reviewed(app, client):
     user_id, booking_id, _, _ = _completed_booking(app)
