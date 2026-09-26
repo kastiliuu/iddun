@@ -1,107 +1,585 @@
 {% from 'components/icon.html' import icon %}
 
+
+{# ============================================================
+   FAVORITE BUTTON
+   ============================================================ #}
+
 {% macro favorite_button(item, featured=false) -%}
+
 <button
   class="catalog-card__favorite icon-button icon-button--glass{% if featured %} catalog-featured__favorite{% endif %}"
   type="button"
-  aria-label="Favoritar {{ item.title }}"
+  aria-label="Favoritar experiência {{ item.title }}"
   aria-pressed="false"
   data-favorite
   data-favorite-id="{{ item.slug }}"
   data-favorite-title="{{ item.title }}"
   data-active="false"
 >
-  <span class="icon-state icon-state--off">{{ icon('heart', 'favorite-icon') }}</span>
-  <span class="icon-state icon-state--on">{{ icon('heart-filled', 'favorite-icon') }}</span>
+
+  <span
+    class="icon-state icon-state--off"
+    aria-hidden="true"
+  >
+    {{ icon(
+      'heart',
+      'favorite-icon'
+    ) }}
+  </span>
+
+
+  <span
+    class="icon-state icon-state--on"
+    aria-hidden="true"
+  >
+    {{ icon(
+      'heart-filled',
+      'favorite-icon'
+    ) }}
+  </span>
+
 </button>
+
 {%- endmacro %}
+
+
+{# ============================================================
+   RATING
+   ============================================================ #}
 
 {% macro rating(item) -%}
-  {% if item.reviews %}
-    <span class="catalog-card__rating">{{ icon('star', 'inline-icon inline-icon--star') }} {{ '%.1f'|format(item.rating)|replace('.', ',') }} <small>({{ item.reviews }})</small></span>
+
+  {% if item.reviews|int > 0 %}
+
+    <span
+      class="catalog-card__rating"
+      aria-label="{{ '%.1f'|format(item.rating|float)|replace('.', ',') }} de 5, com {{ item.reviews }} avaliações"
+    >
+
+      {{ icon(
+        'star',
+        'inline-icon inline-icon--star'
+      ) }}
+
+      {{ '%.1f'|format(item.rating|float)|replace('.', ',') }}
+
+      <small>
+        ({{ item.reviews }})
+      </small>
+
+    </span>
+
   {% else %}
-    <span class="catalog-card__rating">{{ icon('sparkles', 'inline-icon inline-icon--star') }} Novo</span>
+
+    <span
+      class="catalog-card__rating"
+      aria-label="Novo no IDDUN"
+    >
+
+      {{ icon(
+        'sparkles',
+        'inline-icon inline-icon--star'
+      ) }}
+
+      Novo
+
+    </span>
+
   {% endif %}
+
 {%- endmacro %}
+
+
+{# ============================================================
+   PRICE
+   ============================================================ #}
 
 {% macro price(item, class_name='') -%}
-<div class="catalog-card__price {{ class_name }}">
+
+<div
+  class="catalog-card__price{% if class_name %} {{ class_name }}{% endif %}"
+>
+
   <div class="catalog-card__price-before">
-    {% if item.regular_price > item.price %}<s>R$ {{ item.regular_price }}</s>{% endif %}
-    {% if item.discount_percent %}<span class="catalog-card__discount">-{{ item.discount_percent }}%</span>{% endif %}
+
+    {% if item.regular_price|float > item.price|float %}
+
+      <s>
+        R$
+        {{ '%.2f'|format(item.regular_price|float)|replace('.', ',') }}
+      </s>
+
+    {% endif %}
+
+
+    {% if item.discount_percent|int > 0 %}
+
+      <span class="catalog-card__discount">
+        -{{ item.discount_percent }}%
+      </span>
+
+    {% endif %}
+
   </div>
-  <strong>R$ {{ item.price }}</strong>
+
+
+  <strong>
+    R$
+    {{ '%.2f'|format(item.price|float)|replace('.', ',') }}
+  </strong>
+
 </div>
+
 {%- endmacro %}
+
+
+{# ============================================================
+   PROFESSIONAL DESCRIPTION
+   ============================================================ #}
+
+{% macro professional_subtitle(item) -%}
+
+  {{ item.professional_role }}
+
+  {% if item.establishment %}
+    · {{ item.establishment }}
+  {% endif %}
+
+{%- endmacro %}
+
+
+{# ============================================================
+   STANDARD EXPERIENCE CARD
+   ============================================================ #}
 
 {% macro catalog_experience_card(item) -%}
-<article class="catalog-card card" data-experience-card data-category="{{ item.category }}" data-title="{{ item.title }}">
+
+<article
+  class="catalog-card card"
+  data-experience-card
+  data-category="{{ item.category }}"
+  data-title="{{ item.title }}"
+>
+
+  <!-- ========================================================
+       MEDIA
+       ======================================================== -->
+
   <div class="catalog-card__media">
-    <a class="catalog-card__media-link" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Ver detalhes de {{ item.title }}">
-      <img loading="lazy" src="{{ item.image|media_url }}" alt="{{ item.title }} com {{ item.professional }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+
+    <a
+      class="catalog-card__media-link"
+      href="{{ url_for(
+        'public.experience_detail',
+        slug=item.slug
+      ) }}"
+      aria-label="Ver experiência {{ item.title }}"
+    >
+
+      <img
+        src="{{ item.image|media_url }}"
+        alt="{{ item.title }} com {{ item.professional }}"
+        style="object-position: {{ item.get(
+          'image_position',
+          '50% 50%'
+        ) }};"
+        loading="lazy"
+        decoding="async"
+      >
+
     </a>
-    <span class="catalog-card__badge badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}">{{ item.badge }}</span>
+
+
+    {% if item.badge %}
+
+      <span
+        class="catalog-card__badge badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}"
+      >
+        {{ item.badge }}
+      </span>
+
+    {% endif %}
+
+
     {{ favorite_button(item) }}
+
   </div>
+
+
+  <!-- ========================================================
+       CONTENT
+       ======================================================== -->
 
   <div class="catalog-card__body">
+
+
+    <!-- Category + rating -->
     <div class="catalog-card__eyebrow">
-      <span>{{ item.category_label }}</span>
+
+      <span>
+        {{ item.category_label }}
+      </span>
+
+
       {{ rating(item) }}
+
     </div>
 
-    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="catalog-card__title"><h3>{{ item.title }}</h3></a>
-    <p class="catalog-card__description">{{ item.description }}</p>
 
-    <div class="catalog-card__facts" aria-label="Informações da experiência">
-      <span>{{ icon('clock', 'inline-icon') }} {{ item.duration_label }}</span>
-      <span>{{ icon('calendar', 'inline-icon') }} {{ item.next_available_label }}</span>
+    <!-- Title -->
+    <a
+      href="{{ url_for(
+        'public.experience_detail',
+        slug=item.slug
+      ) }}"
+      class="catalog-card__title"
+      aria-label="Abrir {{ item.title }}"
+    >
+      <h3>
+        {{ item.title }}
+      </h3>
+    </a>
+
+
+    <!-- Description -->
+    {% if item.description %}
+
+      <p class="catalog-card__description">
+        {{ item.description }}
+      </p>
+
+    {% endif %}
+
+
+    <!-- ======================================================
+         EXPERIENCE FACTS
+         ====================================================== -->
+
+    <div
+      class="catalog-card__facts"
+      aria-label="Duração e disponibilidade"
+    >
+
+      <span>
+
+        {{ icon(
+          'clock',
+          'inline-icon'
+        ) }}
+
+        {{ item.duration_label }}
+
+      </span>
+
+
+      <span>
+
+        {{ icon(
+          'calendar',
+          'inline-icon'
+        ) }}
+
+        {{ item.next_available_label }}
+
+      </span>
+
     </div>
+
+
+    <!-- ======================================================
+         PROFESSIONAL
+         ====================================================== -->
 
     <div class="catalog-card__professional">
-      <img loading="lazy" src="{{ item.avatar|media_url }}" alt="Foto de {{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
-      <div><strong>{{ item.professional }}</strong><span>{{ item.professional_role }}</span></div>
-      <span class="catalog-card__location">{{ icon('map-pin', 'inline-icon') }} {{ item.location }}</span>
+
+      <img
+        src="{{ item.avatar|media_url }}"
+        alt="Foto de {{ item.professional }}"
+        style="object-position: {{ item.get(
+          'avatar_position',
+          '50% 50%'
+        ) }};"
+        loading="lazy"
+        decoding="async"
+      >
+
+
+      <div>
+
+        <strong>
+          {{ item.professional }}
+        </strong>
+
+        <span>
+          {{ professional_subtitle(item) }}
+        </span>
+
+      </div>
+
+
+      <span class="catalog-card__location">
+
+        {{ icon(
+          'map-pin',
+          'inline-icon'
+        ) }}
+
+        {{ item.location }}
+
+      </span>
+
     </div>
+
+
+    <!-- ======================================================
+         FOOTER
+         ====================================================== -->
 
     <div class="catalog-card__footer">
+
       {{ price(item) }}
-      <a class="btn catalog-card__cta" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Agendar {{ item.title }}">Agendar {{ icon('chevron-right') }}</a>
+
+
+      <a
+        class="btn catalog-card__cta"
+        href="{{ url_for(
+          'public.experience_detail',
+          slug=item.slug
+        ) }}"
+        aria-label="Ver experiência {{ item.title }}"
+      >
+        Ver experiência
+
+        {{ icon(
+          'chevron-right'
+        ) }}
+      </a>
+
     </div>
+
   </div>
+
 </article>
+
 {%- endmacro %}
 
+
+{# ============================================================
+   FEATURED EXPERIENCE CARD
+   ============================================================ #}
+
 {% macro catalog_featured_card(item) -%}
-<article class="catalog-featured" data-experience-card data-category="{{ item.category }}" data-title="{{ item.title }}">
+
+<article
+  class="catalog-featured"
+  data-experience-card
+  data-category="{{ item.category }}"
+  data-title="{{ item.title }}"
+>
+
+  <!-- ========================================================
+       MEDIA
+       ======================================================== -->
+
   <div class="catalog-featured__media">
-    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Ver destaque {{ item.title }}">
-      <img src="{{ item.image|media_url }}" alt="{{ item.title }}, destaque com {{ item.professional }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
+
+    <a
+      href="{{ url_for(
+        'public.experience_detail',
+        slug=item.slug
+      ) }}"
+      aria-label="Ver experiência em destaque {{ item.title }}"
+    >
+
+      <img
+        src="{{ item.image|media_url }}"
+        alt="{{ item.title }} com {{ item.professional }}"
+        style="object-position: {{ item.get(
+          'image_position',
+          '50% 50%'
+        ) }};"
+        loading="lazy"
+        decoding="async"
+      >
+
     </a>
-    <span class="catalog-featured__label">✦ Destaque da semana</span>
-    {{ favorite_button(item, true) }}
+
+
+    <span class="catalog-featured__label">
+      <span aria-hidden="true">
+        ✦
+      </span>
+
+      Destaque IDDUN
+    </span>
+
+
+    {{ favorite_button(
+      item,
+      true
+    ) }}
+
   </div>
+
+
+  <!-- ========================================================
+       CONTENT
+       ======================================================== -->
 
   <div class="catalog-featured__content">
-    <div class="catalog-card__eyebrow"><span>{{ item.category_label }}</span>{{ rating(item) }}</div>
-    <span class="catalog-featured__badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}">{{ item.badge }}</span>
-    <a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="catalog-featured__title"><h2>{{ item.title }}</h2></a>
-    <p>{{ item.description }}</p>
 
-    <div class="catalog-card__facts catalog-featured__facts">
-      <span>{{ icon('clock', 'inline-icon') }} {{ item.duration_label }}</span>
-      <span>{{ icon('calendar', 'inline-icon') }} {{ item.next_available_label }}</span>
+
+    <!-- Category + rating -->
+    <div class="catalog-card__eyebrow">
+
+      <span>
+        {{ item.category_label }}
+      </span>
+
+
+      {{ rating(item) }}
+
     </div>
+
+
+    <!-- Badge -->
+    {% if item.badge %}
+
+      <span
+        class="catalog-featured__badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}"
+      >
+        {{ item.badge }}
+      </span>
+
+    {% endif %}
+
+
+    <!-- Title -->
+    <a
+      href="{{ url_for(
+        'public.experience_detail',
+        slug=item.slug
+      ) }}"
+      class="catalog-featured__title"
+      aria-label="Abrir {{ item.title }}"
+    >
+      <h2>
+        {{ item.title }}
+      </h2>
+    </a>
+
+
+    <!-- Description -->
+    {% if item.description %}
+
+      <p>
+        {{ item.description }}
+      </p>
+
+    {% endif %}
+
+
+    <!-- ======================================================
+         FACTS
+         ====================================================== -->
+
+    <div
+      class="catalog-card__facts catalog-featured__facts"
+      aria-label="Duração e disponibilidade"
+    >
+
+      <span>
+
+        {{ icon(
+          'clock',
+          'inline-icon'
+        ) }}
+
+        {{ item.duration_label }}
+
+      </span>
+
+
+      <span>
+
+        {{ icon(
+          'calendar',
+          'inline-icon'
+        ) }}
+
+        {{ item.next_available_label }}
+
+      </span>
+
+    </div>
+
+
+    <!-- ======================================================
+         PROFESSIONAL
+         ====================================================== -->
 
     <div class="catalog-featured__professional">
-      <img src="{{ item.avatar|media_url }}" alt="Foto de {{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
-      <div><strong>{{ item.professional }}</strong><span>{{ item.professional_role }} · {{ item.location }}</span></div>
+
+      <img
+        src="{{ item.avatar|media_url }}"
+        alt="Foto de {{ item.professional }}"
+        style="object-position: {{ item.get(
+          'avatar_position',
+          '50% 50%'
+        ) }};"
+        loading="lazy"
+        decoding="async"
+      >
+
+
+      <div>
+
+        <strong>
+          {{ item.professional }}
+        </strong>
+
+        <span>
+          {{ professional_subtitle(item) }}
+          · {{ item.location }}
+        </span>
+
+      </div>
+
     </div>
 
+
+    <!-- ======================================================
+         FOOTER
+         ====================================================== -->
+
     <div class="catalog-featured__footer">
-      {{ price(item, 'catalog-featured__price') }}
-      <a class="btn catalog-featured__cta" href="{{ url_for('public.experience_detail', slug=item.slug) }}" aria-label="Agendar {{ item.title }}">Agendar agora {{ icon('chevron-right') }}</a>
+
+      {{ price(
+        item,
+        'catalog-featured__price'
+      ) }}
+
+
+      <a
+        class="btn catalog-featured__cta"
+        href="{{ url_for(
+          'public.experience_detail',
+          slug=item.slug
+        ) }}"
+        aria-label="Ver experiência {{ item.title }}"
+      >
+        Ver experiência
+
+        {{ icon(
+          'chevron-right'
+        ) }}
+      </a>
+
     </div>
+
   </div>
+
 </article>
+
 {%- endmacro %}

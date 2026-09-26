@@ -1,214 +1,1180 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 
-{% block title %}IDDUN | Descubra sua próxima experiência em beleza{% endblock %}
-{% block body_class %}home-page visual-v2-page home-v4-page{% endblock %}
+{% block title %}IDDUN | Descubra beleza, profissionais e experiências{% endblock %}
 
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css') }}">
+{% block body_class %}
+home-page visual-v2-page home-v4-page
 {% endblock %}
 
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/home.css') }}"
+>
+{% endblock %}
+
+
 {% block content %}
-<!-- HERO — composição editorial da referência -->
-<section class="home-v4-hero" id="inicio" data-hero data-parallax-root>
-  <div class="home-v4-hero__media" aria-hidden="true">
-    <img src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}" alt="" fetchpriority="high" data-parallax-media>
-    <span class="home-v4-hero__violet home-v4-hero__violet--one"></span>
-    <span class="home-v4-hero__violet home-v4-hero__violet--two"></span>
+
+<!-- ==========================================================
+     HERO
+     ========================================================== -->
+
+<section
+  class="home-v4-hero"
+  id="inicio"
+  data-hero
+  data-parallax-root
+>
+
+  <!-- Hero media -->
+  <div
+    class="home-v4-hero__media"
+    aria-hidden="true"
+  >
+    <img
+      src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}"
+      alt=""
+      fetchpriority="high"
+      data-parallax-media
+    >
+
+    <span
+      class="home-v4-hero__violet home-v4-hero__violet--one"
+    ></span>
+
+    <span
+      class="home-v4-hero__violet home-v4-hero__violet--two"
+    ></span>
   </div>
 
+
   <div class="container home-v4-hero__content">
-    <div class="home-v4-hero__copy" data-hero-sequence>
-      <span class="home-v4-kicker" data-hero-item><span class="home-v4-brand-star" aria-hidden="true">✦</span>Beleza<br>conecta<br>pessoas</span>
-      <h1 data-hero-item>Descubra sua<br>próxima experiência<br>em beleza.</h1>
-      <p data-hero-item>Um marketplace que conecta você a profissionais e estúdios de beleza reais, para experiências que te fazem bem.</p>
+
+    <!-- Hero copy -->
+    <div
+      class="home-v4-hero__copy"
+      data-hero-sequence
+    >
+
+      <span
+        class="home-v4-kicker"
+        data-hero-item
+      >
+        <span
+          class="home-v4-brand-star"
+          aria-hidden="true"
+        >
+          ✦
+        </span>
+
+        Beleza<br>
+        conecta<br>
+        pessoas
+      </span>
+
+
+      <h1 data-hero-item>
+        Descubra sua<br>
+        próxima experiência<br>
+        em beleza.
+      </h1>
+
+
+      <p data-hero-item>
+        Encontre profissionais, estabelecimentos e serviços
+        que combinam com você — em um só lugar.
+      </p>
+
     </div>
 
-    <aside class="home-v4-hero__statement" aria-label="Manifesto IDDUN" data-hero-item>
+
+    <!-- Manifesto -->
+    <aside
+      class="home-v4-hero__statement"
+      aria-label="Manifesto IDDUN"
+      data-hero-item
+    >
       <span></span>
-      <p>Mais que beleza.<br>Conexões reais.</p>
+
+      <p>
+        Mais que beleza.<br>
+        Conexões reais.
+      </p>
+
       <span></span>
     </aside>
 
-    <div class="home-v4-finder" id="buscar" data-search-root data-hero-item>
-      <form action="{{ url_for('public.experiences') }}" method="get" aria-label="Buscar experiências de beleza" data-home-search autocomplete="off">
-        <label class="home-v4-finder__field home-v4-finder__field--service" for="home-search-input">
-          <span class="home-v4-finder__icon">{{ icon('search') }}</span>
-          <span><strong>Qual serviço você procura?</strong><small>Ex: corte, manicure, massagem...</small></span>
-          <input id="home-search-input" name="q" type="search" inputmode="search" aria-label="Serviço desejado" aria-autocomplete="list" aria-controls="home-search-suggestions" aria-expanded="false" role="combobox" data-search-input>
+
+    <!-- ======================================================
+         SEARCH
+         ====================================================== -->
+
+    <div
+      class="home-v4-finder"
+      id="buscar"
+      data-search-root
+      data-hero-item
+    >
+
+      <form
+        action="{{ url_for('public.experiences') }}"
+        method="get"
+        aria-label="Buscar no IDDUN"
+        data-home-search
+        autocomplete="off"
+      >
+
+        <!-- Search query -->
+        <label
+          class="home-v4-finder__field home-v4-finder__field--service"
+          for="home-search-input"
+        >
+
+          <span class="home-v4-finder__icon">
+            {{ icon('search') }}
+          </span>
+
+          <span>
+            <strong>
+              O que você procura?
+            </strong>
+
+            <small>
+              Serviço, profissional ou estabelecimento
+            </small>
+          </span>
+
+          <input
+            id="home-search-input"
+            name="q"
+            type="search"
+            inputmode="search"
+            aria-label="Buscar serviço, profissional ou estabelecimento"
+            aria-autocomplete="list"
+            aria-controls="home-search-suggestions"
+            aria-expanded="false"
+            role="combobox"
+            data-search-input
+          >
+
         </label>
 
-        <label class="home-v4-finder__field" for="home-location-input">
-          <span class="home-v4-finder__icon">{{ icon('map-pin') }}</span>
-          <span><strong>Onde?</strong><small>Cidade ou bairro</small></span>
-          <input id="home-location-input" name="bairro" type="text" autocomplete="address-level2" aria-label="Cidade ou bairro">
+
+        <!-- Location -->
+        <label
+          class="home-v4-finder__field"
+          for="home-location-input"
+        >
+
+          <span class="home-v4-finder__icon">
+            {{ icon('map-pin') }}
+          </span>
+
+          <span>
+            <strong>
+              Onde?
+            </strong>
+
+            <small>
+              Cidade ou bairro
+            </small>
+          </span>
+
+          <input
+            id="home-location-input"
+            name="bairro"
+            type="text"
+            autocomplete="address-level2"
+            aria-label="Cidade ou bairro"
+          >
+
         </label>
 
-        <label class="home-v4-finder__field" for="home-date-input">
-          <span class="home-v4-finder__icon">{{ icon('calendar') }}</span>
-          <span><strong>Quando?</strong><small data-date-label>Selecione uma data</small></span>
-          <input id="home-date-input" name="data" type="date" aria-label="Data desejada" data-date-input>
+
+        <!-- Availability information -->
+        <label
+          class="home-v4-finder__field"
+          for="home-availability-info"
+        >
+
+          <span class="home-v4-finder__icon">
+            {{ icon('calendar') }}
+          </span>
+
+          <span>
+            <strong>
+              Quando?
+            </strong>
+
+            <small>
+              Escolha o horário na próxima etapa
+            </small>
+          </span>
+
+          <!--
+            The current public catalog does not filter by date.
+            Keep this field disabled so the UI does not suggest
+            functionality that the backend does not yet provide.
+          -->
+          <input
+            id="home-availability-info"
+            type="text"
+            value=""
+            disabled
+            aria-hidden="true"
+            tabindex="-1"
+          >
+
         </label>
 
-        <button type="submit" class="home-v4-finder__submit">Buscar</button>
+
+        <!-- Submit -->
+        <button
+          type="submit"
+          class="home-v4-finder__submit"
+        >
+          Buscar
+        </button>
+
       </form>
 
-      <div class="home-v4-search-panel" id="home-search-suggestions" role="listbox" aria-label="Sugestões de busca" hidden data-search-panel>
-        <button type="button" role="option" data-search-suggestion data-search-value="Corte e tratamento">{{ icon('scissors') }}<span><strong>Corte e tratamento</strong><small>Cabelo</small></span></button>
-        <button type="button" role="option" data-search-suggestion data-search-value="Manicure e nail art">{{ icon('nails') }}<span><strong>Manicure e nail art</strong><small>Unhas</small></span></button>
-        <button type="button" role="option" data-search-suggestion data-search-value="Corte e barba">{{ icon('razor') }}<span><strong>Corte e barba</strong><small>Barbearia</small></span></button>
-        <button type="button" role="option" data-search-suggestion data-search-value="Design de sobrancelhas">{{ icon('sparkles') }}<span><strong>Design de sobrancelhas</strong><small>Estética</small></span></button>
-        <div class="home-v4-search-empty" role="status" hidden data-search-empty><span aria-hidden="true">✦</span><p>Nenhuma sugestão imediata. Pressione Enter para buscar.</p></div>
+
+      <!-- ====================================================
+           SEARCH SUGGESTIONS
+           ==================================================== -->
+
+      <div
+        class="home-v4-search-panel"
+        id="home-search-suggestions"
+        role="listbox"
+        aria-label="Sugestões de busca"
+        hidden
+        data-search-panel
+      >
+
+        <button
+          type="button"
+          role="option"
+          aria-selected="false"
+          data-search-suggestion
+          data-search-value="Corte e tratamento"
+        >
+          {{ icon('scissors') }}
+
+          <span>
+            <strong>
+              Corte e tratamento
+            </strong>
+
+            <small>
+              Cabelo
+            </small>
+          </span>
+        </button>
+
+
+        <button
+          type="button"
+          role="option"
+          aria-selected="false"
+          data-search-suggestion
+          data-search-value="Manicure e nail art"
+        >
+          {{ icon('nails') }}
+
+          <span>
+            <strong>
+              Manicure e nail art
+            </strong>
+
+            <small>
+              Unhas
+            </small>
+          </span>
+        </button>
+
+
+        <button
+          type="button"
+          role="option"
+          aria-selected="false"
+          data-search-suggestion
+          data-search-value="Corte e barba"
+        >
+          {{ icon('razor') }}
+
+          <span>
+            <strong>
+              Corte e barba
+            </strong>
+
+            <small>
+              Barbearia
+            </small>
+          </span>
+        </button>
+
+
+        <button
+          type="button"
+          role="option"
+          aria-selected="false"
+          data-search-suggestion
+          data-search-value="Design de sobrancelhas"
+        >
+          {{ icon('sparkles') }}
+
+          <span>
+            <strong>
+              Design de sobrancelhas
+            </strong>
+
+            <small>
+              Estética
+            </small>
+          </span>
+        </button>
+
+
+        <div
+          class="home-v4-search-empty"
+          role="status"
+          hidden
+          data-search-empty
+        >
+          <span aria-hidden="true">
+            ✦
+          </span>
+
+          <p>
+            Nenhuma sugestão imediata.
+            Pressione Enter para buscar.
+          </p>
+        </div>
+
       </div>
+
     </div>
 
-    <p class="home-v4-hero__footnote" data-hero-item>Beleza <span>✦</span> Pessoas <span>✦</span> Experiências reais</p>
+
+    <!-- Hero footer -->
+    <p
+      class="home-v4-hero__footnote"
+      data-hero-item
+    >
+      Beleza
+
+      <span>✦</span>
+
+      Pessoas
+
+      <span>✦</span>
+
+      Novas experiências
+    </p>
+
   </div>
 </section>
 
-<!-- DESCOBERTA POR CATEGORIA -->
-<section class="home-v4-section home-v4-categories" id="categorias" aria-labelledby="categories-title">
-  <span id="descobrir" class="home-v4-anchor" aria-hidden="true"></span>
-  <div class="container">
-    <header class="home-v4-section-head" data-reveal>
-      <div><h2 id="categories-title">Explore por categoria</h2></div>
-      <a href="{{ url_for('public.experiences') }}">Ver todas as categorias {{ icon('chevron-right') }}</a>
-    </header>
 
-    <div class="home-v4-category-grid" data-reveal-stagger>
-      {% for category in categories %}
-      <a class="home-v4-category-card" href="{{ url_for('public.experiences', categoria=category.value) }}" aria-label="Explorar {{ category.name }}">
-        <img src="{{ category.image|media_url }}" alt="{{ category.name }}: {{ category.subtitle }}" style="object-position: {{ category.position }};" loading="lazy">
-        <span class="home-v4-category-card__shade"></span>
-        <span class="home-v4-category-card__content"><strong>{{ category.name }}</strong><small>{{ category.subtitle }}</small></span>
-        <span class="home-v4-round-arrow" aria-hidden="true">{{ icon('chevron-right') }}</span>
+<!-- ==========================================================
+     CATEGORIES
+     ========================================================== -->
+
+<section
+  class="home-v4-section home-v4-categories"
+  id="categorias"
+  aria-labelledby="categories-title"
+>
+
+  <span
+    id="descobrir"
+    class="home-v4-anchor"
+    aria-hidden="true"
+  ></span>
+
+
+  <div class="container">
+
+    <header
+      class="home-v4-section-head"
+      data-reveal
+    >
+
+      <div>
+        <h2 id="categories-title">
+          Explore por categoria
+        </h2>
+      </div>
+
+
+      <a href="{{ url_for('public.experiences') }}">
+        Ver todas as categorias
+
+        {{ icon('chevron-right') }}
       </a>
-      {% endfor %}
-    </div>
-  </div>
-</section>
 
-<!-- PROFISSIONAIS -->
-<section class="home-v4-section home-v4-professionals" id="profissionais" aria-labelledby="professionals-title">
-  <div class="container">
-    <header class="home-v4-section-head" data-reveal>
-      <div><h2 id="professionals-title">Profissionais em destaque</h2><p>Talentos reais. Experiências extraordinárias.</p></div>
-      <div class="home-v4-section-head__actions">
-        <a href="{{ url_for('public.professionals') }}">Ver todos os profissionais {{ icon('chevron-right') }}</a>
-        <button type="button" aria-label="Profissionais anteriores" data-rail-control data-rail-target="professionals-rail" data-rail-direction="-1">{{ icon('arrow-left') }}</button>
-        <button type="button" aria-label="Próximos profissionais" data-rail-control data-rail-target="professionals-rail" data-rail-direction="1">{{ icon('chevron-right') }}</button>
-      </div>
     </header>
 
-    <div class="home-v4-professional-rail" id="professionals-rail" data-horizontal-rail data-reveal-stagger tabindex="0" aria-label="Profissionais em destaque">
-      {% for professional in professionals %}
-      <article class="home-v4-professional-card">
-        <a class="home-v4-professional-card__image" href="{{ url_for('public.professional_detail', slug=professional.slug) }}" aria-label="Ver perfil de {{ professional.name }}">
-          <span class="home-v4-avatar-fallback" aria-hidden="true">{{ professional.name.split()[0][0] }}{{ professional.name.split()[-1][0] }}</span>
-          <img src="{{ professional.image|media_url }}" alt="Retrato de {{ professional.name }}" style="object-position: {{ professional.get('image_position', '50% 50%') }};" loading="lazy" data-avatar-image>
+
+    <div
+      class="home-v4-category-grid"
+      data-reveal-stagger
+    >
+
+      {% for category in categories %}
+
+        <a
+          class="home-v4-category-card"
+          href="{{ url_for(
+            'public.experiences',
+            categoria=category.value
+          ) }}"
+          aria-label="Explorar {{ category.name }}"
+        >
+
+          <img
+            src="{{ category.image|media_url }}"
+            alt="{{ category.name }}: {{ category.subtitle }}"
+            style="object-position: {{ category.position }};"
+            loading="lazy"
+          >
+
+
+          <span
+            class="home-v4-category-card__shade"
+            aria-hidden="true"
+          ></span>
+
+
+          <span class="home-v4-category-card__content">
+
+            <strong>
+              {{ category.name }}
+            </strong>
+
+            <small>
+              {{ category.subtitle }}
+            </small>
+
+          </span>
+
+
+          <span
+            class="home-v4-round-arrow"
+            aria-hidden="true"
+          >
+            {{ icon('chevron-right') }}
+          </span>
+
         </a>
-        <div class="home-v4-professional-card__body">
-          <button type="button" class="home-v4-favorite" aria-label="Favoritar {{ professional.name }}" aria-pressed="false" data-favorite data-favorite-id="professional-{{ professional.slug }}" data-favorite-name="{{ professional.name }}">{{ icon('heart') }}</button>
-          <h3>{{ professional.name }}</h3>
-          <span class="home-v4-rating">{{ icon('star') }} {{ professional.rating }} <small>({{ professional.reviews }})</small></span>
-          <p>{{ professional.role }} especialista em experiências personalizadas.</p>
-          <span class="home-v4-location">{{ icon('map-pin') }} {{ professional.location }}</span>
-          <a class="home-v4-profile-button" href="{{ url_for('public.professional_detail', slug=professional.slug) }}">Ver perfil</a>
-        </div>
-      </article>
+
       {% endfor %}
+
     </div>
-    <div class="home-v4-rail-progress" data-rail-progress data-rail-for="professionals-rail" role="progressbar" aria-label="Posição na lista de profissionais" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <span data-rail-progress-value></span>
-    </div>
-    {# Pronto para uso futuro caso este rail passe a ser preenchido via fetch. #}
-    <template data-rail-skeleton-template data-rail-skeleton-for="professionals-rail">
-      <article class="home-v4-skeleton-card" aria-hidden="true"><span></span><i></i><i></i><i></i></article>
-    </template>
+
   </div>
 </section>
 
-<!-- ESTÚDIOS -->
-<section class="home-v4-section home-v4-studios" id="estudios" aria-labelledby="studios-title">
+
+<!-- ==========================================================
+     PROFESSIONALS
+     ========================================================== -->
+
+<section
+  class="home-v4-section home-v4-professionals"
+  id="profissionais"
+  aria-labelledby="professionals-title"
+>
+
   <div class="container">
-    <header class="home-v4-section-head" data-reveal>
-      <div><h2 id="studios-title">Salões e estúdios</h2><p>Espaços incríveis para viver sua melhor versão.</p></div>
-      <div class="home-v4-section-head__actions">
-        <a href="{{ url_for('public.establishments') }}">Ver todos os estúdios {{ icon('chevron-right') }}</a>
-        <button type="button" aria-label="Estúdios anteriores" data-rail-control data-rail-target="studios-rail" data-rail-direction="-1">{{ icon('arrow-left') }}</button>
-        <button type="button" aria-label="Próximos estúdios" data-rail-control data-rail-target="studios-rail" data-rail-direction="1">{{ icon('chevron-right') }}</button>
+
+    <header
+      class="home-v4-section-head"
+      data-reveal
+    >
+
+      <div>
+
+        <h2 id="professionals-title">
+          Profissionais em destaque
+        </h2>
+
+        <p>
+          Descubra talentos, especialidades e novas experiências.
+        </p>
+
       </div>
+
+
+      <div class="home-v4-section-head__actions">
+
+        <a href="{{ url_for('public.professionals') }}">
+          Ver todos os profissionais
+
+          {{ icon('chevron-right') }}
+        </a>
+
+
+        <button
+          type="button"
+          aria-label="Profissionais anteriores"
+          data-rail-control
+          data-rail-target="professionals-rail"
+          data-rail-direction="-1"
+        >
+          {{ icon('arrow-left') }}
+        </button>
+
+
+        <button
+          type="button"
+          aria-label="Próximos profissionais"
+          data-rail-control
+          data-rail-target="professionals-rail"
+          data-rail-direction="1"
+        >
+          {{ icon('chevron-right') }}
+        </button>
+
+      </div>
+
     </header>
 
-    <div class="home-v4-studio-rail" id="studios-rail" data-horizontal-rail data-reveal-stagger tabindex="0" aria-label="Salões e estúdios em destaque">
-      {% for studio in studios %}
-      <article class="home-v4-studio-card">
-        <div class="home-v4-studio-card__image">
-          <a href="{% if studio.slug %}{{ url_for('public.establishment_detail', slug=studio.slug) }}{% else %}{{ url_for('public.establishments') }}{% endif %}" aria-label="Conhecer {{ studio.name }}">
-            <img src="{{ studio.image|media_url }}" alt="Ambiente de {{ studio.name }}" style="object-position: {{ studio.image_position }};" loading="lazy">
+
+    <div
+      class="home-v4-professional-rail"
+      id="professionals-rail"
+      data-horizontal-rail
+      data-reveal-stagger
+      tabindex="0"
+      aria-label="Profissionais em destaque"
+    >
+
+      {% for professional in professionals %}
+
+        <article class="home-v4-professional-card">
+
+          <!-- Professional image -->
+          <a
+            class="home-v4-professional-card__image"
+            href="{{ url_for(
+              'public.professional_detail',
+              slug=professional.slug
+            ) }}"
+            aria-label="Ver perfil de {{ professional.name }}"
+          >
+
+            <span
+              class="home-v4-avatar-fallback"
+              aria-hidden="true"
+            >
+              {{ professional.name.split()[0][0] }}{{ professional.name.split()[-1][0] }}
+            </span>
+
+
+            <img
+              src="{{ professional.image|media_url }}"
+              alt="Retrato de {{ professional.name }}"
+              style="object-position: {{ professional.get(
+                'image_position',
+                '50% 50%'
+              ) }};"
+              loading="lazy"
+              data-avatar-image
+            >
+
           </a>
-          <button type="button" class="home-v4-favorite" aria-label="Favoritar {{ studio.name }}" aria-pressed="false" data-favorite data-favorite-id="studio-{{ studio.name|lower|replace(' ', '-') }}" data-favorite-name="{{ studio.name }}">{{ icon('heart') }}</button>
-        </div>
-        <div class="home-v4-studio-card__body">
-          <h3>{{ studio.name }}</h3>
-          <div class="home-v4-studio-card__meta"><span class="home-v4-rating">{{ icon('star') }} {{ studio.rating }} <small>({{ studio.reviews }})</small></span><span class="home-v4-location">{{ icon('map-pin') }} {{ studio.location }}</span></div>
-          <div class="home-v4-tags">{% for tag in studio.tags[:3] %}<span>{{ tag }}</span>{% endfor %}</div>
-        </div>
-      </article>
+
+
+          <!-- Professional content -->
+          <div class="home-v4-professional-card__body">
+
+            <button
+              type="button"
+              class="home-v4-favorite"
+              aria-label="Favoritar {{ professional.name }}"
+              aria-pressed="false"
+              data-favorite
+              data-favorite-id="professional-{{ professional.slug }}"
+              data-favorite-name="{{ professional.name }}"
+            >
+              {{ icon('heart') }}
+            </button>
+
+
+            <h3>
+              {{ professional.name }}
+            </h3>
+
+
+            {% if professional.reviews|int > 0 %}
+
+              <span class="home-v4-rating">
+                {{ icon('star') }}
+
+                {{ professional.rating }}
+
+                <small>
+                  ({{ professional.reviews }})
+                </small>
+              </span>
+
+            {% else %}
+
+              <span class="home-v4-rating">
+                {{ icon('sparkles') }}
+
+                Novo
+              </span>
+
+            {% endif %}
+
+
+            <p>
+              {{ professional.role }}
+
+              {% if professional.verified %}
+                · Perfil verificado
+              {% endif %}
+            </p>
+
+
+            <span class="home-v4-location">
+              {{ icon('map-pin') }}
+
+              {{ professional.location }}
+            </span>
+
+
+            <a
+              class="home-v4-profile-button"
+              href="{{ url_for(
+                'public.professional_detail',
+                slug=professional.slug
+              ) }}"
+            >
+              Ver perfil
+            </a>
+
+          </div>
+
+        </article>
+
       {% endfor %}
+
     </div>
-    <div class="home-v4-rail-progress" data-rail-progress data-rail-for="studios-rail" role="progressbar" aria-label="Posição na lista de estúdios" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+
+
+    <!-- Rail progress -->
+    <div
+      class="home-v4-rail-progress"
+      data-rail-progress
+      data-rail-for="professionals-rail"
+      role="progressbar"
+      aria-label="Posição na lista de profissionais"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+    >
       <span data-rail-progress-value></span>
     </div>
-    {# Pronto para uso futuro caso este rail passe a ser preenchido via fetch. #}
-    <template data-rail-skeleton-template data-rail-skeleton-for="studios-rail">
-      <article class="home-v4-skeleton-card" aria-hidden="true"><span></span><i></i><i></i><i></i></article>
+
+
+    <!-- Future async loading skeleton -->
+    <template
+      data-rail-skeleton-template
+      data-rail-skeleton-for="professionals-rail"
+    >
+      <article
+        class="home-v4-skeleton-card"
+        aria-hidden="true"
+      >
+        <span></span>
+        <i></i>
+        <i></i>
+        <i></i>
+      </article>
     </template>
+
   </div>
 </section>
 
-<!-- PROVA DE VALOR -->
-<section class="home-v4-proof" aria-labelledby="proof-title">
-  <div class="container home-v4-proof__grid" data-reveal-stagger>
-    <div class="home-v4-proof__title"><span id="proof-title">Por que<br>IDDUN?</span><i></i></div>
-    <article>{{ icon('diamond') }}<div><h3>Curadoria real</h3><p>Profissionais e estúdios verificados e selecionados.</p></div></article>
-    <article>{{ icon('users') }}<div><h3>Avaliações confiáveis</h3><p>Experiências reais de clientes como você.</p></div></article>
-    <article>{{ icon('calendar') }}<div><h3>Agendamento fácil</h3><p>Em poucos cliques, sem complicação.</p></div></article>
-    <article>{{ icon('sparkles') }}<div><h3>Mais que beleza</h3><p>Uma comunidade que acredita no bem-estar como movimento.</p></div></article>
-  </div>
-</section>
 
-<!-- APP PROMO -->
-<section class="home-v4-app" aria-labelledby="app-title">
+<!-- ==========================================================
+     ESTABLISHMENTS
+     ========================================================== -->
+
+<section
+  class="home-v4-section home-v4-studios"
+  id="estudios"
+  aria-labelledby="studios-title"
+>
+
   <div class="container">
-    <div class="home-v4-app__panel" data-reveal>
-      <div class="home-v4-app__copy">
-        <h2 id="app-title">A beleza te acompanha<br>em qualquer lugar.</h2>
-        <p>Baixe o app da IDDUN e agende, salve favoritos e descubra novas experiências, onde estiver.</p>
-        <div class="home-v4-store-buttons">
-          <a href="#" aria-label="Baixar na App Store"><span></span><small>Baixar na<strong>App Store</strong></small></a>
-          <a href="#" aria-label="Disponível no Google Play"><span>▶</span><small>Disponível no<strong>Google Play</strong></small></a>
-        </div>
+
+    <header
+      class="home-v4-section-head"
+      data-reveal
+    >
+
+      <div>
+
+        <h2 id="studios-title">
+          Estabelecimentos em destaque
+        </h2>
+
+        <p>
+          Descubra espaços, equipes e experiências perto de você.
+        </p>
+
       </div>
 
-      <div class="home-v4-app__visual" aria-hidden="true" data-app-parallax>
-        <span class="home-v4-app__silk"></span>
-        <div class="home-v4-phone home-v4-phone--back" data-app-phone="back"></div>
-        <div class="home-v4-phone home-v4-phone--front" data-app-phone="front">
-          <span class="home-v4-phone__notch"></span>
-          <strong>ID<span>✦</span>DUN</strong>
-          <h3>Beleza<br>em movimento.</h3>
-          <img src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}" alt="">
-          <small>⌕ Descobrir</small><small>▢ Agendar</small><small>♡ Meus favoritos</small>
-        </div>
+
+      <div class="home-v4-section-head__actions">
+
+        <a href="{{ url_for('public.establishments') }}">
+          Ver todos os estabelecimentos
+
+          {{ icon('chevron-right') }}
+        </a>
+
+
+        <button
+          type="button"
+          aria-label="Estabelecimentos anteriores"
+          data-rail-control
+          data-rail-target="studios-rail"
+          data-rail-direction="-1"
+        >
+          {{ icon('arrow-left') }}
+        </button>
+
+
+        <button
+          type="button"
+          aria-label="Próximos estabelecimentos"
+          data-rail-control
+          data-rail-target="studios-rail"
+          data-rail-direction="1"
+        >
+          {{ icon('chevron-right') }}
+        </button>
+
       </div>
 
-      <p class="home-v4-app__tagline">Mesmas experiências.<br>Mais liberdade.</p>
+    </header>
+
+
+    <div
+      class="home-v4-studio-rail"
+      id="studios-rail"
+      data-horizontal-rail
+      data-reveal-stagger
+      tabindex="0"
+      aria-label="Estabelecimentos em destaque"
+    >
+
+      {% for studio in studios %}
+
+        <article class="home-v4-studio-card">
+
+          <!-- Establishment image -->
+          <div class="home-v4-studio-card__image">
+
+            <a
+              href="{% if studio.slug %}{{ url_for(
+                'public.establishment_detail',
+                slug=studio.slug
+              ) }}{% else %}{{ url_for(
+                'public.establishments'
+              ) }}{% endif %}"
+              aria-label="Conhecer {{ studio.name }}"
+            >
+
+              <img
+                src="{{ studio.image|media_url }}"
+                alt="Ambiente de {{ studio.name }}"
+                style="object-position: {{ studio.image_position }};"
+                loading="lazy"
+              >
+
+            </a>
+
+
+            <button
+              type="button"
+              class="home-v4-favorite"
+              aria-label="Favoritar {{ studio.name }}"
+              aria-pressed="false"
+              data-favorite
+              data-favorite-id="studio-{{ studio.name|lower|replace(' ', '-') }}"
+              data-favorite-name="{{ studio.name }}"
+            >
+              {{ icon('heart') }}
+            </button>
+
+          </div>
+
+
+          <!-- Establishment content -->
+          <div class="home-v4-studio-card__body">
+
+            <h3>
+              {{ studio.name }}
+            </h3>
+
+
+            <div class="home-v4-studio-card__meta">
+
+              {% if studio.reviews|int > 0 %}
+
+                <span class="home-v4-rating">
+                  {{ icon('star') }}
+
+                  {{ studio.rating }}
+
+                  <small>
+                    ({{ studio.reviews }})
+                  </small>
+                </span>
+
+              {% else %}
+
+                <span class="home-v4-rating">
+                  {{ icon('sparkles') }}
+
+                  Novo
+                </span>
+
+              {% endif %}
+
+
+              <span class="home-v4-location">
+                {{ icon('map-pin') }}
+
+                {{ studio.location }}
+              </span>
+
+            </div>
+
+
+            {% if studio.tags %}
+
+              <div class="home-v4-tags">
+
+                {% for tag in studio.tags[:3] %}
+                  <span>
+                    {{ tag }}
+                  </span>
+                {% endfor %}
+
+              </div>
+
+            {% endif %}
+
+          </div>
+
+        </article>
+
+      {% endfor %}
+
     </div>
+
+
+    <!-- Rail progress -->
+    <div
+      class="home-v4-rail-progress"
+      data-rail-progress
+      data-rail-for="studios-rail"
+      role="progressbar"
+      aria-label="Posição na lista de estabelecimentos"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow="0"
+    >
+      <span data-rail-progress-value></span>
+    </div>
+
+
+    <!-- Future async loading skeleton -->
+    <template
+      data-rail-skeleton-template
+      data-rail-skeleton-for="studios-rail"
+    >
+      <article
+        class="home-v4-skeleton-card"
+        aria-hidden="true"
+      >
+        <span></span>
+        <i></i>
+        <i></i>
+        <i></i>
+      </article>
+    </template>
+
   </div>
 </section>
+
+
+<!-- ==========================================================
+     VALUE PROPOSITION
+     ========================================================== -->
+
+<section
+  class="home-v4-proof"
+  aria-labelledby="proof-title"
+>
+
+  <div
+    class="container home-v4-proof__grid"
+    data-reveal-stagger
+  >
+
+    <div class="home-v4-proof__title">
+
+      <span id="proof-title">
+        Por que<br>
+        IDDUN?
+      </span>
+
+      <i></i>
+
+    </div>
+
+
+    <article>
+
+      {{ icon('diamond') }}
+
+      <div>
+        <h3>
+          Descoberta com contexto
+        </h3>
+
+        <p>
+          Conheça profissionais, especialidades,
+          trabalhos e locais antes de escolher.
+        </p>
+      </div>
+
+    </article>
+
+
+    <article>
+
+      {{ icon('users') }}
+
+      <div>
+        <h3>
+          Avaliações verificadas
+        </h3>
+
+        <p>
+          Avaliações ficam disponíveis depois
+          de atendimentos concluídos pelo IDDUN.
+        </p>
+      </div>
+
+    </article>
+
+
+    <article>
+
+      {{ icon('calendar') }}
+
+      <div>
+        <h3>
+          Agenda conectada
+        </h3>
+
+        <p>
+          Consulte horários disponíveis
+          e reserve com mais clareza.
+        </p>
+      </div>
+
+    </article>
+
+
+    <article>
+
+      {{ icon('sparkles') }}
+
+      <div>
+        <h3>
+          Conexões reais
+        </h3>
+
+        <p>
+          Profissionais e estabelecimentos
+          conectados em uma mesma experiência.
+        </p>
+      </div>
+
+    </article>
+
+  </div>
+</section>
+
+
+<!-- ==========================================================
+     MOBILE APP
+     ========================================================== -->
+
+<section
+  class="home-v4-app"
+  aria-labelledby="app-title"
+>
+
+  <div class="container">
+
+    <div
+      class="home-v4-app__panel"
+      data-reveal
+    >
+
+      <!-- App copy -->
+      <div class="home-v4-app__copy">
+
+        <h2 id="app-title">
+          O IDDUN também<br>
+          vai com você.
+        </h2>
+
+
+        <p>
+          Estamos levando a experiência do IDDUN
+          para o aplicativo: descubra profissionais,
+          acompanhe novidades, salve favoritos
+          e encontre novos horários.
+        </p>
+
+
+        <div
+          class="home-v4-store-buttons"
+          aria-label="Aplicativo IDDUN em desenvolvimento"
+        >
+
+          <a
+            role="link"
+            aria-disabled="true"
+          >
+            <span aria-hidden="true">
+              
+            </span>
+
+            <small>
+              Em breve na
+              <strong>
+                App Store
+              </strong>
+            </small>
+          </a>
+
+
+          <a
+            role="link"
+            aria-disabled="true"
+          >
+            <span aria-hidden="true">
+              ▶
+            </span>
+
+            <small>
+              Em breve no
+              <strong>
+                Google Play
+              </strong>
+            </small>
+          </a>
+
+        </div>
+
+      </div>
+
+
+      <!-- App mockup -->
+      <div
+        class="home-v4-app__visual"
+        aria-hidden="true"
+        data-app-parallax
+      >
+
+        <span class="home-v4-app__silk"></span>
+
+
+        <div
+          class="home-v4-phone home-v4-phone--back"
+          data-app-phone="back"
+        ></div>
+
+
+        <div
+          class="home-v4-phone home-v4-phone--front"
+          data-app-phone="front"
+        >
+
+          <span class="home-v4-phone__notch"></span>
+
+
+          <strong>
+            ID<span>✦</span>DUN
+          </strong>
+
+
+          <h3>
+            Beleza<br>
+            em movimento.
+          </h3>
+
+
+          <img
+            src="{{ url_for(
+              'static',
+              filename='img/hero-woman-v3.webp'
+            ) }}"
+            alt=""
+          >
+
+
+          <small>
+            ⌕ Descobrir
+          </small>
+
+          <small>
+            ▢ Agendar
+          </small>
+
+          <small>
+            ♡ Favoritos
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <!-- App tagline -->
+      <p class="home-v4-app__tagline">
+        Mesma identidade.<br>
+        Mais liberdade.
+      </p>
+
+    </div>
+
+  </div>
+</section>
+
 {% endblock %}
 
+
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/home.js') }}" defer></script>
+<script
+  src="{{ url_for('static', filename='js/home.js') }}"
+  defer
+></script>
 {% endblock %}

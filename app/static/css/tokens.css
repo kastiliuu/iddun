@@ -1,120 +1,382 @@
 :root {
-  /* IDDUN — official brand palette */
+  /* ==========================================================
+     IDDUN — DESIGN SYSTEM
+     Web aligned with the mobile application.
+     ========================================================== */
+
+  /* ----------------------------------------------------------
+     BRAND
+     ---------------------------------------------------------- */
+
   --color-ink: #0B0B0F;
   --color-graphite: #2A2A33;
   --color-mist: #DADDE1;
+
   --color-plum: #6B2EFF;
   --color-deep-violet: #1A0F2E;
-  --color-white: #F7F6F4;
 
-  /* Legacy semantic aliases kept for the remaining product screens. */
-  --color-bg: #090908;
-  --color-bg-soft: #11110f;
-  --color-surface-dark: #171511;
-  --color-surface-light: #f3efe7;
-  --color-surface-light-2: #faf8f3;
-  --color-text: #f5f1e8;
-  --color-text-soft: #d7d0c3;
-  --color-text-muted: #9f9688;
-  --color-text-dark-muted: #7f786e;
-  --color-border: rgba(255, 255, 255, 0.16);
-  --color-border-light: rgba(20, 19, 17, 0.10);
+  --color-white: #FFFFFF;
+  --color-off-white: #F7F6F4;
 
-  --color-primary: #e2c181;
-  --color-primary-strong: #c89e51;
-  --color-primary-hover: #ebcf97;
-  --color-primary-soft: #f2dfb7;
-  --color-gold-soft: #f2dfbc;
-  --color-gold-muted: #cbbda8;
-  --color-card-copy: #615b53;
-  --color-card-muted: #787168;
-  --color-link: #6f5630;
-  --color-price: #ad7731;
 
-  --color-success: #6fbf8f;
-  --color-warning: #e6b85c;
-  --color-danger: #d96b6b;
+  /* ----------------------------------------------------------
+     SURFACES
+     ---------------------------------------------------------- */
 
-  /* Typography */
-  --font-display: "Playfair Display", Georgia, serif;
-  --font-body: "Inter", Arial, sans-serif;
-  --font-script: "Caveat", cursive;
+  --color-bg: var(--color-ink);
+
+  --color-bg-soft: #111117;
+
+  --color-surface-dark: #16161C;
+  --color-surface-dark-raised: #1F1F26;
+
+  --color-surface-light: var(--color-off-white);
+  --color-surface-light-2: var(--color-white);
+
+
+  /* ----------------------------------------------------------
+     TEXT
+     ---------------------------------------------------------- */
+
+  --color-text: var(--color-off-white);
+
+  --color-text-soft: var(--color-mist);
+
+  --color-text-muted: #8A8A94;
+
+  --color-text-dark-muted: #70717C;
+
+  --color-card-copy: #51525C;
+  --color-card-muted: #73747F;
+
+
+  /* ----------------------------------------------------------
+     BRAND ACCENTS
+     ---------------------------------------------------------- */
+
+  --color-plum-soft: rgba(107, 46, 255, 0.14);
+
+  --color-plum-soft-strong: rgba(107, 46, 255, 0.22);
+
+  --color-plum-hover: #7B46FF;
+
+  --color-plum-bright: #8C63FF;
+
+  --color-violet-soft: #22143A;
+
+  --color-violet-light: #B199FF;
+
+
+  /* ----------------------------------------------------------
+     SEMANTIC BRAND ALIASES
+
+     Some older screens still use --color-primary.
+     Keep these aliases until those files are migrated.
+     They now point to the official IDDUN palette.
+     ---------------------------------------------------------- */
+
+  --color-primary: var(--color-plum);
+
+  --color-primary-strong: #5920DF;
+
+  --color-primary-hover: var(--color-plum-hover);
+
+  --color-primary-soft: var(--color-plum-soft);
+
+  /*
+   * Legacy aliases.
+   *
+   * These names remain temporarily because old CSS files still
+   * reference them. The visual result is no longer gold.
+   */
+
+  --color-gold-soft: var(--color-plum-soft);
+
+  --color-gold-muted: var(--color-violet-light);
+
+  --color-link: #5E2BE6;
+
+  --color-price: #5E2BE6;
+
+
+  /* ----------------------------------------------------------
+     BORDERS
+     ---------------------------------------------------------- */
+
+  --color-border: rgba(255, 255, 255, 0.14);
+
+  --color-border-soft: rgba(255, 255, 255, 0.08);
+
+  --color-border-strong: rgba(107, 46, 255, 0.55);
+
+  --color-border-light: rgba(11, 11, 15, 0.10);
+
+
+  /* ----------------------------------------------------------
+     GLASS
+     ---------------------------------------------------------- */
+
+  --glass-soft: rgba(255, 255, 255, 0.06);
+
+  --glass-medium: rgba(255, 255, 255, 0.09);
+
+  --glass-border: rgba(255, 255, 255, 0.10);
+
+  --glass-border-strong: rgba(255, 255, 255, 0.14);
+
+
+  /* ----------------------------------------------------------
+     OVERLAYS
+     ---------------------------------------------------------- */
+
+  --overlay-ink-soft: rgba(11, 11, 15, 0.55);
+
+  --overlay-ink: rgba(11, 11, 15, 0.72);
+
+  --overlay-ink-strong: rgba(11, 11, 15, 0.95);
+
+  --overlay-ink-heavy: rgba(11, 11, 15, 0.98);
+
+  --overlay-violet: rgba(26, 15, 46, 0.85);
+
+
+  /* ----------------------------------------------------------
+     FEEDBACK
+     ---------------------------------------------------------- */
+
+  --color-success: #22C55E;
+
+  --color-warning: #F5A623;
+
+  --color-danger: #EF4444;
+
+  --color-info: var(--color-plum);
+
+
+  /* ----------------------------------------------------------
+     TYPOGRAPHY
+     ---------------------------------------------------------- */
+
+  --font-display:
+    "Playfair Display",
+    Georgia,
+    serif;
+
+  --font-body:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  /*
+   * Kept only for existing decorative content.
+   * It must not be used for primary UI.
+   */
+  --font-script:
+    "Caveat",
+    cursive;
+
+
+  /* ----------------------------------------------------------
+     TYPE SCALE
+     ---------------------------------------------------------- */
 
   --text-xs: 0.72rem;
+
   --text-sm: 0.84rem;
+
   --text-md: 1rem;
+
   --text-lg: 1.08rem;
+
   --text-xl: 1.35rem;
+
   --text-2xl: 1.8rem;
+
   --text-3xl: 2.7rem;
+
   --text-4xl: 4.35rem;
 
-  /* Radius */
+
+  /* ----------------------------------------------------------
+     FONT WEIGHTS
+     ---------------------------------------------------------- */
+
+  --weight-regular: 400;
+
+  --weight-medium: 500;
+
+  --weight-semibold: 600;
+
+  --weight-bold: 700;
+
+
+  /* ----------------------------------------------------------
+     LINE HEIGHT
+     ---------------------------------------------------------- */
+
+  --line-tight: 1.08;
+
+  --line-heading: 1.18;
+
+  --line-body: 1.55;
+
+  --line-relaxed: 1.7;
+
+
+  /* ----------------------------------------------------------
+     RADIUS
+     ---------------------------------------------------------- */
+
   --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+
+  --radius-md: 16px;
+
+  --radius-lg: 24px;
+
+  --radius-xl: 32px;
+
   --radius-pill: 999px;
 
-  /* Spacing */
+
+  /* ----------------------------------------------------------
+     SPACING
+     ---------------------------------------------------------- */
+
   --space-1: 4px;
+
   --space-2: 8px;
+
   --space-3: 12px;
+
   --space-4: 16px;
+
   --space-5: 20px;
+
   --space-6: 24px;
+
   --space-8: 32px;
+
   --space-10: 40px;
+
   --space-12: 48px;
+
   --space-16: 64px;
+
   --space-20: 80px;
 
-  /* Layout */
+
+  /* ----------------------------------------------------------
+     LAYOUT
+     ---------------------------------------------------------- */
+
   --container: 1432px;
+
   --header-height: 72px;
-  --shadow-soft: 0 12px 35px rgba(27, 20, 10, 0.10);
-  --shadow-dark: 0 18px 50px rgba(0, 0, 0, 0.28);
 
-  /* Shared interactive controls */
-  --control-height: 46px;
-  --control-height-touch: 50px;
-  --control-radius: 11px;
-  --control-bg-dark: #0d0d0c;
-  --control-bg-dark-raised: #181713;
-  --control-border-dark: rgba(255, 255, 255, 0.11);
-  --control-border-dark-hover: rgba(226, 193, 129, 0.28);
-  --control-border-dark-focus: rgba(226, 193, 129, 0.50);
-  --control-text-dark: #ede8df;
-  --control-muted-dark: #7f786f;
-  --control-action-size: 36px;
-  --control-label-height: 24px;
-  --control-help-height: 20px;
-  --media-experience-card-height: 178px;
-  --media-professional-card-height: 92px;
-}
-
-/* Mobile application shell */
-:root {
   --mobile-gutter: 16px;
-  --mobile-nav-height: 68px;
-  --mobile-header-height: 62px;
-  --mobile-card-radius: 18px;
-}
 
-/* Visual Direction V2 */
-:root {
-  --color-editorial-rose: #a96f64;
-  --color-editorial-olive: #76735c;
-  --color-editorial-sand: #d9c7aa;
-  --color-surface-warm: #eee8de;
-  --color-surface-warm-2: #e7ddcf;
-  --section-space: clamp(68px, 7vw, 112px);
-  --section-space-compact: clamp(42px, 5vw, 76px);
+  --mobile-nav-height: 68px;
+
+  --mobile-header-height: 62px;
+
+  --mobile-card-radius: 18px;
+
+
+  /* ----------------------------------------------------------
+     SHADOWS
+     ---------------------------------------------------------- */
+
+  --shadow-soft:
+    0 12px 36px rgba(0, 0, 0, 0.12);
+
+  --shadow-medium:
+    0 18px 50px rgba(0, 0, 0, 0.20);
+
+  --shadow-dark:
+    0 24px 70px rgba(0, 0, 0, 0.32);
+
+  --shadow-plum:
+    0 14px 38px rgba(107, 46, 255, 0.24);
+
+
+  /* ----------------------------------------------------------
+     SHARED CONTROLS
+     ---------------------------------------------------------- */
+
+  --control-height: 46px;
+
+  --control-height-touch: 50px;
+
+  --control-radius: 14px;
+
+  --control-bg-dark:
+    var(--color-surface-dark);
+
+  --control-bg-dark-raised:
+    var(--color-surface-dark-raised);
+
+  --control-border-dark:
+    rgba(255, 255, 255, 0.11);
+
+  --control-border-dark-hover:
+    rgba(107, 46, 255, 0.40);
+
+  --control-border-dark-focus:
+    rgba(107, 46, 255, 0.68);
+
+  --control-text-dark:
+    var(--color-off-white);
+
+  --control-muted-dark:
+    var(--color-text-muted);
+
+  --control-action-size: 44px;
+
+  --control-label-height: 24px;
+
+  --control-help-height: 20px;
+
+
+  /* ----------------------------------------------------------
+     MEDIA COMPONENTS
+     ---------------------------------------------------------- */
+
+  --media-experience-card-height: 178px;
+
+  --media-professional-card-height: 92px;
+
+
+  /* ----------------------------------------------------------
+     EDITORIAL LAYOUT
+     ---------------------------------------------------------- */
+
+  --section-space:
+    clamp(68px, 7vw, 112px);
+
+  --section-space-compact:
+    clamp(42px, 5vw, 76px);
+
   --radius-editorial: 30px;
-  --shadow-editorial: 0 28px 80px rgba(34, 25, 13, .12);
+
+  --shadow-editorial:
+    0 28px 80px rgba(0, 0, 0, 0.16);
+
+
+  /* ----------------------------------------------------------
+     MOTION
+     ---------------------------------------------------------- */
+
   --motion-fast: 160ms;
+
   --motion-base: 320ms;
+
   --motion-slow: 720ms;
-  --ease-out-soft: cubic-bezier(.22, .61, .36, 1);
-  --ease-spring-soft: cubic-bezier(.2, .75, .2, 1);
+
+  --ease-out-soft:
+    cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  --ease-spring-soft:
+    cubic-bezier(0.2, 0.75, 0.2, 1);
 }

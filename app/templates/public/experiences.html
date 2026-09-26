@@ -2,175 +2,902 @@
 {% from 'components/icon.html' import icon %}
 {% from 'components/catalog-experience-card.html' import catalog_experience_card, catalog_featured_card %}
 
-{% block title %}Experiências | IDDUN{% endblock %}
-{% block body_class %}marketplace-page{% endblock %}
+
+{% block title %}
+Descobrir | IDDUN
+{% endblock %}
+
+
+{% block body_class %}
+marketplace-page
+{% endblock %}
+
 
 {% block styles_after %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/marketplace.css') }}">
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/marketplace.css') }}"
+>
 {% endblock %}
+
 
 {% block content %}
-<div class="marketplace-shell" data-marketplace-root data-client-filter-ready="{{ 'true' if not filters.categoria else 'false' }}">
-  <!-- Hero / busca principal -->
-  <section class="marketplace-hero" aria-labelledby="marketplace-title">
+
+<div
+  class="marketplace-shell"
+  data-marketplace-root
+  data-client-filter-ready="{{ 'true' if not filters.categoria else 'false' }}"
+>
+
+
+  <!-- ========================================================
+       HERO / DISCOVERY
+       ======================================================== -->
+
+  <section
+    class="marketplace-hero"
+    aria-labelledby="marketplace-title"
+  >
+
     <div class="container marketplace-hero__inner">
-      <div class="marketplace-hero__copy" data-reveal>
-        <span class="marketplace-kicker"><b aria-hidden="true">✦</b> Experiências IDDUN</span>
-        <h1 id="marketplace-title">Encontre sua próxima <em>experiência</em></h1>
-        <p>Descubra profissionais, oportunidades e serviços selecionados para combinar com o seu momento.</p>
+
+      <!-- Copy -->
+      <div
+        class="marketplace-hero__copy"
+        data-reveal
+      >
+
+        <span class="marketplace-kicker">
+          <b aria-hidden="true">
+            ✦
+          </b>
+
+          Descobrir no IDDUN
+        </span>
+
+
+        <h1 id="marketplace-title">
+          Encontre sua próxima
+          <em>experiência</em>
+        </h1>
+
+
+        <p>
+          Descubra serviços, profissionais e estabelecimentos
+          que combinam com o que você procura.
+        </p>
+
       </div>
 
-      <form class="marketplace-search" data-reveal method="get" action="{{ url_for('public.experiences') }}" role="search">
+
+      <!-- ====================================================
+           MAIN SEARCH
+           ==================================================== -->
+
+      <form
+        class="marketplace-search"
+        data-reveal
+        method="get"
+        action="{{ url_for('public.experiences') }}"
+        role="search"
+        aria-label="Buscar no IDDUN"
+      >
+
         <label class="marketplace-search__field">
-          <span class="sr-only">Serviço, profissional ou bairro</span>
-          {{ icon('search', 'marketplace-search__icon') }}
-          <input name="q" value="{{ filters.q }}" type="search" placeholder="Serviço, profissional ou bairro" autocomplete="off">
+
+          <span class="sr-only">
+            Serviço, profissional, estabelecimento ou bairro
+          </span>
+
+
+          {{ icon(
+            'search',
+            'marketplace-search__icon'
+          ) }}
+
+
+          <input
+            name="q"
+            value="{{ filters.q }}"
+            type="search"
+            placeholder="Serviço, profissional, estabelecimento ou bairro"
+            autocomplete="off"
+            enterkeyhint="search"
+            aria-label="Buscar serviço, profissional, estabelecimento ou bairro"
+          >
+
         </label>
-        {% if filters.categoria %}<input type="hidden" name="categoria" value="{{ filters.categoria }}">{% endif %}
-        {% if filters.bairro %}<input type="hidden" name="bairro" value="{{ filters.bairro }}">{% endif %}
-        {% if filters.ordem and filters.ordem != 'recommended' %}<input type="hidden" name="ordem" value="{{ filters.ordem }}">{% endif %}
-        <button class="btn marketplace-search__submit" type="submit">Buscar {{ icon('chevron-right') }}</button>
-      </form>
-    </div>
-  </section>
 
-  <!-- Filtros -->
-  <section class="marketplace-toolbar" aria-label="Filtros de experiências">
-    <div class="container marketplace-toolbar__inner">
-      <div class="marketplace-chips" aria-label="Categorias">
-        <a
-          class="filter-chip {% if not filters.categoria %}is-active{% endif %}"
-          href="{{ url_for('public.experiences', q=filters.q, bairro=filters.bairro, ordem=filters.ordem) }}"
-          role="button"
-          aria-pressed="{{ 'true' if not filters.categoria else 'false' }}"
-          data-category-filter=""
-        >Todas <span>{{ available_count }}</span></a>
-        {% for category in categories %}
-        <a
-          class="filter-chip {% if filters.categoria == category.value %}is-active{% endif %}"
-          href="{{ url_for('public.experiences', q=filters.q, categoria=category.value, bairro=filters.bairro, ordem=filters.ordem) }}"
-          role="button"
-          aria-pressed="{{ 'true' if filters.categoria == category.value else 'false' }}"
-          data-category-filter="{{ category.value }}"
-        >
-          {{ icon(category.icon, 'filter-chip__icon') }} {{ category.label }} <span>{{ category_counts[category.value] }}</span>
-        </a>
-        {% endfor %}
-      </div>
 
-      <form method="get" action="{{ url_for('public.experiences') }}" class="inline-filters marketplace-toolbar__desktop-filters">
-        {% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
-        {% if filters.categoria %}<input type="hidden" name="categoria" value="{{ filters.categoria }}">{% endif %}
-        <label class="select-control">
-          <span class="sr-only">Filtrar por bairro</span>
-          <select name="bairro" onchange="this.form.submit()">
-            <option value="">Todos os bairros</option>
-            {% for location in locations %}<option value="{{ location }}" {% if filters.bairro == location %}selected{% endif %}>{{ location }}</option>{% endfor %}
-          </select>
-          {{ icon('chevron-down') }}
-        </label>
-        <label class="select-control">
-          <span class="sr-only">Ordenar experiências</span>
-          <select name="ordem" onchange="this.form.submit()">
-            <option value="recommended" {% if filters.ordem == 'recommended' %}selected{% endif %}>Recomendados</option>
-            <option value="lowest_price" {% if filters.ordem == 'lowest_price' %}selected{% endif %}>Menor preço</option>
-            <option value="highest_rating" {% if filters.ordem == 'highest_rating' %}selected{% endif %}>Melhor avaliação</option>
-            <option value="newest" {% if filters.ordem == 'newest' %}selected{% endif %}>Mais recentes</option>
-          </select>
-          {{ icon('chevron-down') }}
-        </label>
-      </form>
-
-      <button class="marketplace-filter-button" type="button" data-open-filters aria-haspopup="dialog">
-        {{ icon('sliders', 'marketplace-filter-button__icon') }}
-        <span>Filtros</span>
-        {% if filters.bairro or filters.ordem != 'recommended' %}<span class="marketplace-filter-button__dot"><span class="sr-only">Filtros ativos</span></span>{% endif %}
-      </button>
-    </div>
-  </section>
-
-  <!-- Resultados -->
-  <section class="marketplace-results" aria-labelledby="results-title">
-    <div class="container">
-      <div class="marketplace-results__head" data-reveal>
-        <div>
-          <span class="marketplace-results__eyebrow">Curadoria para você</span>
-          <h2 id="results-title">{% if filters.q %}Resultados para “{{ filters.q }}”{% else %}Experiências para descobrir{% endif %}</h2>
-          <p data-results-count aria-live="polite">{{ experiences|length }} {% if experiences|length == 1 %}experiência encontrada{% else %}experiências encontradas{% endif %}</p>
-        </div>
-        {% if filters.q or filters.categoria or filters.bairro or filters.ordem != 'recommended' %}
-        <a class="marketplace-clear" href="{{ url_for('public.experiences') }}">Limpar filtros</a>
+        <!-- Preserve active filters during a new text search -->
+        {% if filters.categoria %}
+          <input
+            type="hidden"
+            name="categoria"
+            value="{{ filters.categoria }}"
+          >
         {% endif %}
+
+
+        {% if filters.bairro %}
+          <input
+            type="hidden"
+            name="bairro"
+            value="{{ filters.bairro }}"
+          >
+        {% endif %}
+
+
+        {% if filters.ordem and filters.ordem != 'recommended' %}
+          <input
+            type="hidden"
+            name="ordem"
+            value="{{ filters.ordem }}"
+          >
+        {% endif %}
+
+
+        <button
+          class="btn marketplace-search__submit"
+          type="submit"
+        >
+          Buscar
+
+          {{ icon('chevron-right') }}
+        </button>
+
+      </form>
+
+    </div>
+  </section>
+
+
+  <!-- ========================================================
+       FILTER TOOLBAR
+       ======================================================== -->
+
+  <section
+    class="marketplace-toolbar"
+    aria-label="Filtros de descoberta"
+  >
+
+    <div class="container marketplace-toolbar__inner">
+
+
+      <!-- ====================================================
+           CATEGORY CHIPS
+           ==================================================== -->
+
+      <div
+        class="marketplace-chips"
+        aria-label="Filtrar por categoria"
+      >
+
+        <!-- All -->
+        <a
+          class="filter-chip{% if not filters.categoria %} is-active{% endif %}"
+          href="{{ url_for(
+            'public.experiences',
+            q=filters.q,
+            bairro=filters.bairro,
+            ordem=filters.ordem
+          ) }}"
+          aria-pressed="{{ 'true' if not filters.categoria else 'false' }}"
+          {% if not filters.categoria %}
+            aria-current="true"
+          {% endif %}
+          data-category-filter=""
+        >
+          Todas
+
+          <span>
+            {{ available_count }}
+          </span>
+        </a>
+
+
+        <!-- Categories -->
+        {% for category in categories %}
+
+          <a
+            class="filter-chip{% if filters.categoria == category.value %} is-active{% endif %}"
+            href="{{ url_for(
+              'public.experiences',
+              q=filters.q,
+              categoria=category.value,
+              bairro=filters.bairro,
+              ordem=filters.ordem
+            ) }}"
+            aria-pressed="{{ 'true' if filters.categoria == category.value else 'false' }}"
+            {% if filters.categoria == category.value %}
+              aria-current="true"
+            {% endif %}
+            data-category-filter="{{ category.value }}"
+          >
+
+            {{ icon(
+              category.icon,
+              'filter-chip__icon'
+            ) }}
+
+            {{ category.label }}
+
+            <span>
+              {{ category_counts.get(category.value, 0) }}
+            </span>
+
+          </a>
+
+        {% endfor %}
+
       </div>
 
-      <div class="catalog-skeleton" data-catalog-skeleton hidden aria-hidden="true">
-        {% for _ in range(3) %}
-        <div class="skeleton-card"><span></span><i></i><i></i><i></i></div>
-        {% endfor %}
+
+      <!-- ====================================================
+           DESKTOP FILTERS
+           ==================================================== -->
+
+      <form
+        method="get"
+        action="{{ url_for('public.experiences') }}"
+        class="inline-filters marketplace-toolbar__desktop-filters"
+        aria-label="Refinar resultados"
+      >
+
+        {% if filters.q %}
+          <input
+            type="hidden"
+            name="q"
+            value="{{ filters.q }}"
+          >
+        {% endif %}
+
+
+        {% if filters.categoria %}
+          <input
+            type="hidden"
+            name="categoria"
+            value="{{ filters.categoria }}"
+          >
+        {% endif %}
+
+
+        <!-- Neighborhood -->
+        <label class="select-control">
+
+          <span class="sr-only">
+            Filtrar por bairro
+          </span>
+
+
+          <select
+            name="bairro"
+            aria-label="Filtrar por bairro"
+            onchange="this.form.submit()"
+          >
+
+            <option value="">
+              Todos os bairros
+            </option>
+
+
+            {% for location in locations %}
+
+              <option
+                value="{{ location }}"
+                {% if filters.bairro == location %}
+                  selected
+                {% endif %}
+              >
+                {{ location }}
+              </option>
+
+            {% endfor %}
+
+          </select>
+
+
+          {{ icon('chevron-down') }}
+
+        </label>
+
+
+        <!-- Sort -->
+        <label class="select-control">
+
+          <span class="sr-only">
+            Ordenar resultados
+          </span>
+
+
+          <select
+            name="ordem"
+            aria-label="Ordenar resultados"
+            onchange="this.form.submit()"
+          >
+
+            <option
+              value="recommended"
+              {% if filters.ordem == 'recommended' %}
+                selected
+              {% endif %}
+            >
+              Recomendados
+            </option>
+
+
+            <option
+              value="lowest_price"
+              {% if filters.ordem == 'lowest_price' %}
+                selected
+              {% endif %}
+            >
+              Menor preço
+            </option>
+
+
+            <option
+              value="highest_rating"
+              {% if filters.ordem == 'highest_rating' %}
+                selected
+              {% endif %}
+            >
+              Melhor avaliação
+            </option>
+
+
+            <option
+              value="newest"
+              {% if filters.ordem == 'newest' %}
+                selected
+              {% endif %}
+            >
+              Mais recentes
+            </option>
+
+          </select>
+
+
+          {{ icon('chevron-down') }}
+
+        </label>
+
+      </form>
+
+
+      <!-- ====================================================
+           MOBILE FILTER BUTTON
+           ==================================================== -->
+
+      <button
+        class="marketplace-filter-button"
+        type="button"
+        data-open-filters
+        aria-haspopup="dialog"
+        aria-controls="marketplace-filter-sheet"
+        aria-label="Abrir filtros"
+      >
+
+        {{ icon(
+          'sliders',
+          'marketplace-filter-button__icon'
+        ) }}
+
+        <span>
+          Filtros
+        </span>
+
+
+        {% if filters.bairro or filters.ordem != 'recommended' %}
+
+          <span
+            class="marketplace-filter-button__dot"
+            aria-hidden="true"
+          ></span>
+
+          <span class="sr-only">
+            Existem filtros ativos
+          </span>
+
+        {% endif %}
+
+      </button>
+
+    </div>
+  </section>
+
+
+  <!-- ========================================================
+       RESULTS
+       ======================================================== -->
+
+  <section
+    class="marketplace-results"
+    aria-labelledby="results-title"
+  >
+
+    <div class="container">
+
+
+      <!-- Results header -->
+      <div
+        class="marketplace-results__head"
+        data-reveal
+      >
+
+        <div>
+
+          <span class="marketplace-results__eyebrow">
+            {% if filters.q or filters.categoria or filters.bairro %}
+              Sua busca
+            {% else %}
+              Escolhidas para você
+            {% endif %}
+          </span>
+
+
+          <h2 id="results-title">
+
+            {% if filters.q %}
+
+              Resultados para
+              “{{ filters.q }}”
+
+            {% elif filters.categoria %}
+
+              {{ filters.categoria|capitalize }}
+              para descobrir
+
+            {% elif filters.bairro %}
+
+              Experiências em
+              {{ filters.bairro }}
+
+            {% else %}
+
+              Descubra novas experiências
+
+            {% endif %}
+
+          </h2>
+
+
+          <p
+            data-results-count
+            aria-live="polite"
+          >
+
+            {{ experiences|length }}
+
+            {% if experiences|length == 1 %}
+              experiência encontrada
+            {% else %}
+              experiências encontradas
+            {% endif %}
+
+          </p>
+
+        </div>
+
+
+        {% if
+          filters.q
+          or filters.categoria
+          or filters.bairro
+          or filters.ordem != 'recommended'
+        %}
+
+          <a
+            class="marketplace-clear"
+            href="{{ url_for('public.experiences') }}"
+          >
+            Limpar filtros
+          </a>
+
+        {% endif %}
+
       </div>
+
+
+      <!-- ====================================================
+           LOADING SKELETON
+           ==================================================== -->
+
+      <div
+        class="catalog-skeleton"
+        data-catalog-skeleton
+        hidden
+        aria-hidden="true"
+      >
+
+        {% for _ in range(3) %}
+
+          <div class="skeleton-card">
+            <span></span>
+            <i></i>
+            <i></i>
+            <i></i>
+          </div>
+
+        {% endfor %}
+
+      </div>
+
+
+      <!-- ====================================================
+           RESULT CONTENT
+           ==================================================== -->
 
       <div data-results-content>
+
+
         {% if experiences %}
+
+
+          <!-- ================================================
+               FEATURED
+               ================================================ -->
+
           {% if featured_experience %}
-          <div class="catalog-featured-wrap" data-featured-wrap data-reveal>
-            {{ catalog_featured_card(featured_experience) }}
-          </div>
+
+            <div
+              class="catalog-featured-wrap"
+              data-featured-wrap
+              data-reveal
+            >
+
+              {{ catalog_featured_card(
+                featured_experience
+              ) }}
+
+            </div>
+
           {% endif %}
+
+
+          <!-- ================================================
+               CATALOG
+               ================================================ -->
 
           {% if regular_experiences %}
-          <div class="catalog-grid" data-catalog-grid data-reveal-stagger>
-            {% for experience in regular_experiences %}{{ catalog_experience_card(experience) }}{% endfor %}
-          </div>
+
+            <div
+              class="catalog-grid"
+              data-catalog-grid
+              data-reveal-stagger
+            >
+
+              {% for experience in regular_experiences %}
+
+                {{ catalog_experience_card(
+                  experience
+                ) }}
+
+              {% endfor %}
+
+            </div>
+
           {% endif %}
+
         {% endif %}
 
-        <div class="marketplace-empty" data-client-empty {% if experiences %}hidden{% endif %}>
-          <span class="marketplace-empty__symbol" aria-hidden="true">✦</span>
-          <h2>Nenhuma experiência encontrada para esse filtro</h2>
-          <p>Experimente outra categoria ou limpe os filtros para voltar à curadoria completa.</p>
-          <a class="btn marketplace-empty__button" href="{{ url_for('public.experiences') }}">Limpar filtros</a>
+
+        <!-- ==================================================
+             EMPTY STATE
+             ================================================== -->
+
+        <div
+          class="marketplace-empty"
+          data-client-empty
+          {% if experiences %}
+            hidden
+          {% endif %}
+        >
+
+          <span
+            class="marketplace-empty__symbol"
+            aria-hidden="true"
+          >
+            ✦
+          </span>
+
+
+          <h2>
+            Ainda não encontramos algo para essa busca.
+          </h2>
+
+
+          <p>
+            Experimente outro termo, bairro ou categoria.
+            Você também pode voltar para a descoberta completa.
+          </p>
+
+
+          <a
+            class="btn marketplace-empty__button"
+            href="{{ url_for('public.experiences') }}"
+          >
+            Ver tudo
+          </a>
+
         </div>
+
       </div>
+
     </div>
   </section>
 
-  <!-- Filtros mobile -->
-  <dialog class="filter-sheet" data-filter-dialog aria-labelledby="filter-sheet-title">
-    <form class="filter-sheet__panel" method="get" action="{{ url_for('public.experiences') }}">
-      <div class="filter-sheet__handle" aria-hidden="true"></div>
+
+  <!-- ========================================================
+       MOBILE FILTER SHEET
+       ======================================================== -->
+
+  <dialog
+    id="marketplace-filter-sheet"
+    class="filter-sheet"
+    data-filter-dialog
+    aria-labelledby="filter-sheet-title"
+  >
+
+    <form
+      class="filter-sheet__panel"
+      method="get"
+      action="{{ url_for('public.experiences') }}"
+    >
+
+      <div
+        class="filter-sheet__handle"
+        aria-hidden="true"
+      ></div>
+
+
+      <!-- Header -->
       <header class="filter-sheet__header">
-        <div><span>Refine sua busca</span><h2 id="filter-sheet-title">Filtros</h2></div>
-        <button type="button" class="filter-sheet__close" data-close-filters aria-label="Fechar filtros">{{ icon('x') }}</button>
+
+        <div>
+
+          <span>
+            Refine sua busca
+          </span>
+
+          <h2 id="filter-sheet-title">
+            Filtros
+          </h2>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="filter-sheet__close"
+          data-close-filters
+          aria-label="Fechar filtros"
+        >
+          {{ icon('x') }}
+        </button>
+
       </header>
 
-      {% if filters.q %}<input type="hidden" name="q" value="{{ filters.q }}">{% endif %}
+
+      {% if filters.q %}
+        <input
+          type="hidden"
+          name="q"
+          value="{{ filters.q }}"
+        >
+      {% endif %}
+
+
+      <!-- ====================================================
+           CATEGORY
+           ==================================================== -->
+
       <fieldset class="filter-sheet__group">
-        <legend>Categoria</legend>
+
+        <legend>
+          Categoria
+        </legend>
+
+
         <div class="filter-sheet__options">
-          <label><input type="radio" name="categoria" value="" {% if not filters.categoria %}checked{% endif %}><span>Todas</span></label>
-          {% for category in categories %}<label><input type="radio" name="categoria" value="{{ category.value }}" {% if filters.categoria == category.value %}checked{% endif %}><span>{{ category.label }}</span></label>{% endfor %}
+
+
+          <label>
+
+            <input
+              type="radio"
+              name="categoria"
+              value=""
+              {% if not filters.categoria %}
+                checked
+              {% endif %}
+            >
+
+            <span>
+              Todas
+            </span>
+
+          </label>
+
+
+          {% for category in categories %}
+
+            <label>
+
+              <input
+                type="radio"
+                name="categoria"
+                value="{{ category.value }}"
+                {% if filters.categoria == category.value %}
+                  checked
+                {% endif %}
+              >
+
+              <span>
+                {{ category.label }}
+              </span>
+
+            </label>
+
+          {% endfor %}
+
         </div>
+
       </fieldset>
 
-      <fieldset class="filter-sheet__group">
-        <legend>Bairro</legend>
-        <label class="filter-sheet__select"><select name="bairro"><option value="">Todos os bairros</option>{% for location in locations %}<option value="{{ location }}" {% if filters.bairro == location %}selected{% endif %}>{{ location }}</option>{% endfor %}</select></label>
-      </fieldset>
+
+      <!-- ====================================================
+           LOCATION
+           ==================================================== -->
 
       <fieldset class="filter-sheet__group">
-        <legend>Ordenar</legend>
-        <label class="filter-sheet__select"><select name="ordem"><option value="recommended" {% if filters.ordem == 'recommended' %}selected{% endif %}>Recomendados</option><option value="lowest_price" {% if filters.ordem == 'lowest_price' %}selected{% endif %}>Menor preço</option><option value="highest_rating" {% if filters.ordem == 'highest_rating' %}selected{% endif %}>Melhor avaliação</option><option value="newest" {% if filters.ordem == 'newest' %}selected{% endif %}>Mais recentes</option></select></label>
+
+        <legend>
+          Bairro
+        </legend>
+
+
+        <label class="filter-sheet__select">
+
+          <span class="sr-only">
+            Escolha um bairro
+          </span>
+
+
+          <select
+            name="bairro"
+            aria-label="Escolha um bairro"
+          >
+
+            <option value="">
+              Todos os bairros
+            </option>
+
+
+            {% for location in locations %}
+
+              <option
+                value="{{ location }}"
+                {% if filters.bairro == location %}
+                  selected
+                {% endif %}
+              >
+                {{ location }}
+              </option>
+
+            {% endfor %}
+
+          </select>
+
+        </label>
+
       </fieldset>
+
+
+      <!-- ====================================================
+           SORT
+           ==================================================== -->
+
+      <fieldset class="filter-sheet__group">
+
+        <legend>
+          Ordenar
+        </legend>
+
+
+        <label class="filter-sheet__select">
+
+          <span class="sr-only">
+            Ordenar resultados
+          </span>
+
+
+          <select
+            name="ordem"
+            aria-label="Ordenar resultados"
+          >
+
+            <option
+              value="recommended"
+              {% if filters.ordem == 'recommended' %}
+                selected
+              {% endif %}
+            >
+              Recomendados
+            </option>
+
+
+            <option
+              value="lowest_price"
+              {% if filters.ordem == 'lowest_price' %}
+                selected
+              {% endif %}
+            >
+              Menor preço
+            </option>
+
+
+            <option
+              value="highest_rating"
+              {% if filters.ordem == 'highest_rating' %}
+                selected
+              {% endif %}
+            >
+              Melhor avaliação
+            </option>
+
+
+            <option
+              value="newest"
+              {% if filters.ordem == 'newest' %}
+                selected
+              {% endif %}
+            >
+              Mais recentes
+            </option>
+
+          </select>
+
+        </label>
+
+      </fieldset>
+
+
+      <!-- ====================================================
+           ACTIONS
+           ==================================================== -->
 
       <div class="filter-sheet__actions">
-        <a href="{{ url_for('public.experiences') }}" class="btn filter-sheet__clear">Limpar</a>
-        <button class="btn filter-sheet__apply" type="submit">Ver experiências</button>
+
+        <a
+          href="{{ url_for('public.experiences') }}"
+          class="btn filter-sheet__clear"
+        >
+          Limpar
+        </a>
+
+
+        <button
+          class="btn filter-sheet__apply"
+          type="submit"
+        >
+          Ver resultados
+        </button>
+
       </div>
+
     </form>
+
   </dialog>
+
 </div>
+
 {% endblock %}
 
+
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/marketplace.js') }}" defer></script>
+<script
+  src="{{ url_for('static', filename='js/marketplace.js') }}"
+  defer
+></script>
 {% endblock %}

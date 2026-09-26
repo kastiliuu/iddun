@@ -1,26 +1,109 @@
 {% from 'components/icon.html' import icon %}
-<nav class="mobile-bottom-nav" aria-label="Navegação principal do aplicativo" data-mobile-bottom-nav>
-  <a href="{{ url_for('public.home') }}" class="mobile-bottom-nav__item {% if current_page == 'home' %}is-active{% endif %}" {% if current_page == 'home' %}aria-current="page"{% endif %}>
+
+<nav
+  class="mobile-bottom-nav"
+  aria-label="Navegação principal"
+  data-mobile-bottom-nav
+>
+
+  <!-- ======================================================
+       INÍCIO
+       ====================================================== -->
+  <a
+    href="{{ url_for('public.home') }}"
+    class="mobile-bottom-nav__item{% if current_page == 'home' %} is-active{% endif %}"
+    {% if current_page == 'home' %}
+      aria-current="page"
+    {% endif %}
+    aria-label="Início"
+  >
     {{ icon('home', 'mobile-bottom-nav__icon') }}
-    <span>Início</span>
+
+    <span>
+      Início
+    </span>
   </a>
-  <a href="{{ url_for('public.experiences') }}" class="mobile-bottom-nav__item {% if current_page == 'experiences' %}is-active{% endif %}" {% if current_page == 'experiences' %}aria-current="page"{% endif %}>
+
+
+  <!-- ======================================================
+       DESCOBRIR
+
+       Experiences and establishments belong to the discovery
+       context until the web receives a richer discovery hub.
+       ====================================================== -->
+  <a
+    href="{{ url_for('public.experiences') }}"
+    class="mobile-bottom-nav__item{% if current_page in ['experiences', 'establishments'] %} is-active{% endif %}"
+    {% if current_page in ['experiences', 'establishments'] %}
+      aria-current="page"
+    {% endif %}
+    aria-label="Descobrir serviços e experiências"
+  >
     {{ icon('compass', 'mobile-bottom-nav__icon') }}
-    <span>Explorar</span>
+
+    <span>
+      Descobrir
+    </span>
   </a>
-  <a href="{{ url_for('public.professionals') }}" class="mobile-bottom-nav__item {% if current_page == 'professionals' %}is-active{% endif %}" {% if current_page == 'professionals' %}aria-current="page"{% endif %}>
+
+
+  <!-- ======================================================
+       PROFISSIONAIS
+       ====================================================== -->
+  <a
+    href="{{ url_for('public.professionals') }}"
+    class="mobile-bottom-nav__item{% if current_page == 'professionals' %} is-active{% endif %}"
+    {% if current_page == 'professionals' %}
+      aria-current="page"
+    {% endif %}
+    aria-label="Explorar profissionais"
+  >
     {{ icon('users', 'mobile-bottom-nav__icon') }}
-    <span>Profissionais</span>
+
+    <span>
+      Profissionais
+    </span>
   </a>
+
+
+  <!-- ======================================================
+       AUTHENTICATED USER
+       ====================================================== -->
   {% if current_user.is_authenticated %}
-    <a href="{{ url_for('account.dashboard') }}" class="mobile-bottom-nav__item {% if current_page == 'account' %}is-active{% endif %}" {% if current_page == 'account' %}aria-current="page"{% endif %}>
+
+    <a
+      href="{{ url_for('account.dashboard') }}"
+      class="mobile-bottom-nav__item{% if current_page == 'account' %} is-active{% endif %}"
+      {% if current_page == 'account' %}
+        aria-current="page"
+      {% endif %}
+      aria-label="Abrir meu perfil"
+    >
       {{ icon('user', 'mobile-bottom-nav__icon') }}
-      <span>Conta</span>
+
+      <span>
+        Perfil
+      </span>
     </a>
+
+
+  <!-- ======================================================
+       VISITOR
+       ====================================================== -->
   {% else %}
-    <a href="{{ url_for('auth.login', next=url_for('account.dashboard')) }}" class="mobile-bottom-nav__item">
+
+    <a
+      href="{{ url_for('auth.login', next=url_for('account.dashboard')) }}"
+      class="mobile-bottom-nav__item"
+      aria-label="Entrar no IDDUN"
+    >
       {{ icon('user', 'mobile-bottom-nav__icon') }}
-      <span>Entrar</span>
+
+      <span>
+        Entrar
+      </span>
     </a>
+
   {% endif %}
+
 </nav>
