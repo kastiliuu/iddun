@@ -1,9 +1,13 @@
+// Use the web backend by default. Set EXPO_PUBLIC_API_URL to a
+// reachable LAN address when developing on a physical device.
 const DEFAULT_API_URL =
-  "http://192.168.0.8:5000";
+  "https://iddun-web.onrender.com";
 
 export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.trim() ||
-  DEFAULT_API_URL;
+  (
+    process.env.EXPO_PUBLIC_API_URL?.trim() ||
+    DEFAULT_API_URL
+  ).replace(/\/+$/, "");
 
 type ApiMethod =
   | "GET"

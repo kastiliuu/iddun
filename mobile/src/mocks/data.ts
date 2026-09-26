@@ -938,7 +938,7 @@ export const categories = [
   "Unhas",
   "Cabelo",
   "Barbearia",
-  "Cílios",
+  "Tatuagem",
   "Sobrancelhas",
   "Estética",
 ];

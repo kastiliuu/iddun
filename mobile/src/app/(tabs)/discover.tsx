@@ -1,8 +1,12 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -18,6 +22,10 @@ import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { SectionHeader } from "@/components/SectionHeader";
+import {
+  getRealExperiences,
+  type CatalogExperience,
+} from "@/api/experiences";
 
 import {
   categories,
@@ -34,6 +42,15 @@ import {
   useTheme,
 } from "@/theme";
 
+const CATEGORY_CODES: Record<string, string> = {
+  Unhas: "unhas",
+  Cabelo: "cabelo",
+  Barbearia: "barbearia",
+  Tatuagem: "tatuagem",
+  Sobrancelhas: "sobrancelhas",
+  Estética: "estetica",
+};
+
 export default function DiscoverScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -44,6 +61,64 @@ export default function DiscoverScreen() {
 
   const [selectedCategory, setSelectedCategory] =
     useState("Todos");
+
+  const [realExperiences, setRealExperiences] =
+    useState<CatalogExperience[]>([]);
+  const [realLoading, setRealLoading] =
+    useState(true);
+  const [realError, setRealError] =
+    useState(false);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setRealLoading(true);
+      getRealExperiences(
+        {
+          search,
+          category: CATEGORY_CODES[selectedCategory],
+        },
+        controller.signal,
+      )
+        .then((response) => {
+          setRealExperiences(response.items);
+          setRealError(false);
+        })
+        .catch((error: unknown) => {
+          if (
+            error instanceof Error &&
+            error.name === "AbortError"
+          ) {
+            return;
+          }
+          setRealExperiences([]);
+          setRealError(true);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setRealLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, selectedCategory]);
+
+  const openRealExperience = async (
+    experience: CatalogExperience,
+  ) => {
+    try {
+      await Linking.openURL(experience.webUrl);
+    } catch {
+      Alert.alert(
+        "Não foi possível abrir o site",
+        "Tente novamente em instantes.",
+      );
+    }
+  };
 
   const filteredItems =
     useMemo(() => {
@@ -284,49 +359,63 @@ export default function DiscoverScreen() {
           )}
         </ScrollView>
 
-        <View
-          style={
-            styles.locationRow
-          }
-        >
-          <Icon
-            name="map-pin"
-            size={14}
-            color={
-              colors.plum
-            }
+        <View style={styles.sectionHeaderWrap}>
+          <SectionHeader
+            title="Experiências publicadas"
+            subtitle="Disponibilidade e preços do catálogo IDDUN"
           />
+        </View>
 
-          <Text
-            style={
-              styles.locationText
-            }
-          >
-            Curitiba · PR
-          </Text>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Alterar localização"
-            onPress={() => {
-              // Localização real entra quando conectarmos perfil/API.
-            }}
-            style={({
-              pressed,
-            }) => [
-              styles.locationAction,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Text
-              style={
-                styles.locationActionText
-              }
-            >
-              Alterar
+        <View style={styles.realList}>
+          {realLoading ? (
+            <ActivityIndicator color={colors.plum} />
+          ) : realError ? (
+            <Text style={styles.realMessage}>
+              Não foi possível carregar o catálogo agora. Consulte as experiências pelo site IDDUN.
             </Text>
-          </Pressable>
+          ) : realExperiences.length === 0 ? (
+            <Text style={styles.realMessage}>
+              Nenhuma experiência publicada corresponde à busca.
+            </Text>
+          ) : (
+            realExperiences.map((experience) => (
+              <Pressable
+                key={experience.id}
+                accessibilityRole="link"
+                accessibilityLabel={`Abrir ${experience.title} no site IDDUN`}
+                onPress={() => {
+                  void openRealExperience(experience);
+                }}
+                style={styles.realCard}
+              >
+                <Image
+                  source={{ uri: experience.imageUrl }}
+                  style={styles.realImage}
+                  contentFit="cover"
+                  accessibilityLabel={experience.title}
+                />
+                <View style={styles.realDetails}>
+                  <Text style={styles.realTitle} numberOfLines={2}>
+                    {experience.title}
+                  </Text>
+                  <Text style={styles.realMessage} numberOfLines={1}>
+                    {experience.professional} · {experience.location}
+                  </Text>
+                  <Text style={styles.realPrice}>
+                    {new Intl.NumberFormat("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }).format(experience.price)}
+                  </Text>
+                  <Text style={styles.realMessage}>
+                    {experience.availableSlotsCount > 0
+                      ? `${experience.availableSlotsCount} horário(s) disponível(is)`
+                      : "Sem horários no momento"}
+                  </Text>
+                </View>
+              </Pressable>
+            ))
+          )}
         </View>
 
         <View
@@ -338,13 +427,13 @@ export default function DiscoverScreen() {
             title={
               selectedCategory ===
                 "Todos"
-                ? "Para descobrir"
+                ? "Inspiração visual"
                 : selectedCategory
             }
             subtitle={
               search
                 ? `Resultados para "${search}"`
-                : "Uma seleção visual feita para explorar"
+                : "Prévia de estilos e perfis; dados ilustrativos"
             }
           />
         </View>
@@ -438,8 +527,8 @@ export default function DiscoverScreen() {
           </View>
         ) : (
           <EmptyState
-            title="Nada por aqui"
-            description="Tente outro termo ou explore uma categoria diferente."
+            title="Sem inspirações nesta categoria"
+            description="Confira as experiências publicadas acima ou tente outro filtro."
             actionLabel="Limpar filtros"
             onActionPress={() => {
               setSearch("");
@@ -459,8 +548,8 @@ export default function DiscoverScreen() {
             }
           >
             <SectionHeader
-              title="Perto de você"
-              subtitle="Profissionais e espaços para conhecer"
+              title="Perfis de exemplo"
+              subtitle="Prévia visual do IDDUN"
               actionLabel="Ver mais"
               onActionPress={() => {}}
             />
@@ -759,6 +848,53 @@ const useStyles =
 
         paddingHorizontal:
           spacing.lg,
+      },
+
+      realList: {
+        marginTop: spacing.md,
+        paddingHorizontal: spacing.lg,
+        gap: spacing.sm,
+      },
+
+      realCard: {
+        minHeight: 116,
+        flexDirection: "row",
+        overflow: "hidden",
+        borderRadius: radius.md,
+        backgroundColor: colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor: colors.glassBorder,
+      },
+
+      realImage: {
+        width: 112,
+        minHeight: 116,
+      },
+
+      realDetails: {
+        flex: 1,
+        justifyContent: "center",
+        padding: spacing.md,
+        gap: spacing.xs,
+      },
+
+      realTitle: {
+        color: colors.onSurface,
+        fontFamily: fonts.sansSemiBold,
+        fontSize: 14,
+      },
+
+      realMessage: {
+        color: colors.onSurfaceSecondary,
+        fontFamily: fonts.sans,
+        fontSize: 12,
+        lineHeight: 18,
+      },
+
+      realPrice: {
+        color: colors.onSurface,
+        fontFamily: fonts.sansSemiBold,
+        fontSize: 13,
       },
 
       masonry: {

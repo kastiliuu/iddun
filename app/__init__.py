@@ -7,6 +7,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import csrf, db, login_manager, migrate
 from app.routes.account import account_bp
+from app.routes.api import api_v1_bp
 from app.routes.admin import admin_bp
 from app.routes.auth import auth_bp
 from app.routes.bookings import bookings_bp
@@ -100,6 +101,7 @@ def create_app(test_config=None):
             return None
 
     app.register_blueprint(public_bp)
+    app.register_blueprint(api_v1_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(bookings_bp)

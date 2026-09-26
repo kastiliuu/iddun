@@ -1,56 +1,30 @@
-# Welcome to your Expo app 👋
+# IDDUN mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Expo SDK 57, React Native and Expo Router. The Flask application in the repository root is the authoritative source for accounts, published experiences, real availability and reservations.
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run locally
 
 ```bash
-npm run reset-project
+cd mobile
+npm ci
+npm run typecheck
+npm start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+For a physical device, set `EXPO_PUBLIC_API_URL` to a Flask address that the device can reach on the same network. The default API host is `https://iddun-web.onrender.com`. Set `EXPO_PUBLIC_WEB_URL` if the web catalogue lives elsewhere.
 
-### Other setup steps
+## Current integration status
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+The app is a visual prototype with local mock profiles, feed, favourites, login and service availability. The Discover screen reads published experiences from Flask's `/api/v1/experiences` endpoint and opens their real web pages. Other `src/api` modules describe planned endpoints that Flask does not yet expose. Data saved in the local store does not sync with web accounts.
 
-## Learn more
+The booking preview never confirms a reservation. Its final action opens the real web catalogue, where Flask checks slots and creates reservations. The selected mock service, date and time do not carry over. Do not publish the prototype as a transactional app before replacing the mock flows with the shared API.
 
-To learn more about developing your project with Expo, look at the following resources:
+## Shared contract to implement
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+1. Version a Flask API for session and account contexts, public catalogues and profiles.
+2. Serve published experiences and available slots from the same services used by the web pages. Expose stable IDs and real media URLs.
+3. Perform booking holds, confirmation, cancellation and verified reviews through the existing Flask services. Enforce ownership, availability, cutoff and conflicts on the server.
+4. Connect the mobile screens to the API, including loading, empty and error states. Keep prototype data available only in development.
+5. Validate the same account, reservation and reputation flows on web, Android and iOS.
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Visual layouts can suit each platform; prices, availability, account identity and reservation status must come from the same backend.

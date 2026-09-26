@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, redirect, render_template, request
+from flask import Blueprint, abort, current_app, redirect, render_template, request
 
 from app.data.mock_marketplace import CATEGORIES
 from app.services.booking_service import grouped_available_slots
@@ -203,6 +203,9 @@ def _home_establishments(limit=4):
         )
         for establishment in establishments
     ]
+
+    if current_app.config["APP_ENV"] == "production":
+        return cards
 
     # --------------------------------------------------------
     # Temporary prototype fallback.
