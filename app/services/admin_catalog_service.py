@@ -52,8 +52,39 @@ def establishment_choices(include_empty=False):
     return choices
 
 
+def _can_keep_active_membership(membership):
+    if membership.id is None:
+        return False
+
+    table = ProfessionalEstablishmentMembership.__table__
+
+    # Consulta o registro gravado, antes que alterações feitas no formulário
+    # sejam enviadas ao banco pelo autoflush da sessão.
+    with db.session.no_autoflush:
+        previous = db.session.execute(
+            select(
+                table.c.status,
+                table.c.professional_id,
+                table.c.establishment_id,
+            ).where(table.c.id == membership.id)
+        ).one_or_none()
+
+    return (
+        previous is not None
+        and previous.status == MembershipStatus.ACTIVE
+        and previous.professional_id == membership.professional_id
+        and previous.establishment_id == membership.establishment_id
+    )
+
+
 def save_membership(membership):
     if membership.status == MembershipStatus.ACTIVE:
+        if not _can_keep_active_membership(membership):
+            raise ValueError(
+                "O vínculo só pode ser ativado pelo profissional ao aceitar o convite. "
+                "Selecione Pendente para enviar o convite."
+            )
+
         duplicate = db.session.scalar(
             select(ProfessionalEstablishmentMembership.id).where(
                 ProfessionalEstablishmentMembership.professional_id == membership.professional_id,

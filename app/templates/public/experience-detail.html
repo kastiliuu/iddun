@@ -1,141 +1,887 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
-{% block title %}{{ experience.title }} | IDDUN{% endblock %}
-{% block body_class %}experience-detail-page{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/marketplace.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
+
+
+{% block title %}
+{{ experience.title }} | IDDUN
 {% endblock %}
+
+
+{% block body_class %}
+experience-detail-page visual-v2-page
+{% endblock %}
+
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/marketplace.css') }}"
+>
+
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/booking.css') }}"
+>
+{% endblock %}
+
+
 {% block content %}
-<section class="experience-detail-hero">
+
+<!-- ==========================================================
+     EXPERIENCE HERO
+     ========================================================== -->
+
+<section
+  class="experience-detail-hero"
+  aria-labelledby="experience-title"
+>
+
   <div class="container experience-detail-shell">
-    <a href="{{ url_for('public.experiences') }}" class="experience-detail-back">{{ icon('arrow-left') }} Voltar</a>
+
+    <!-- ======================================================
+         BREADCRUMB / BACK
+         ====================================================== -->
+
+    <div class="experience-detail-navigation">
+
+      <a
+        href="{{ url_for('public.experiences') }}"
+        class="experience-detail-back"
+      >
+        {{ icon('arrow-left') }}
+
+        <span>
+          Voltar para Descobrir
+        </span>
+      </a>
+
+
+      <span
+        class="experience-detail-navigation__context"
+        aria-hidden="true"
+      >
+        {{ experience.category_label }}
+        <span>✦</span>
+        {{ experience.location }}
+      </span>
+
+    </div>
+
+
+    <!-- ======================================================
+         MEDIA
+         ====================================================== -->
 
     <div class="experience-detail-media">
-      <img src="{{ experience.image|media_url }}" alt="{{ experience.title }}" style="object-position: {{ experience.get('image_position', '50% 50%') }};">
-      <span class="experience-detail-badge">{{ experience.badge }}</span>
+
+      <img
+        src="{{ experience.image|media_url }}"
+        alt="{{ experience.title }}"
+        style="object-position: {{ experience.get(
+          'image_position',
+          '50% 50%'
+        ) }};"
+        fetchpriority="high"
+      >
+
+
+      <div
+        class="experience-detail-media__overlay"
+        aria-hidden="true"
+      ></div>
+
+
+      {% if experience.badge %}
+
+        <span class="experience-detail-badge">
+          <span aria-hidden="true">
+            ✦
+          </span>
+
+          {{ experience.badge }}
+        </span>
+
+      {% endif %}
+
+
+      <span
+        class="experience-detail-media__signature"
+        aria-hidden="true"
+      >
+        ID<span>✦</span>DUN
+      </span>
+
     </div>
+
+
+    <!-- ======================================================
+         MAIN INFORMATION
+         ====================================================== -->
 
     <div class="experience-detail-main">
-      <span class="experience-detail-eyebrow">{{ experience.category_label|upper }} · {{ experience.location|upper }}</span>
-      <h1>{{ experience.title }}</h1>
-      <p class="experience-detail-lead">{{ experience.long_description or experience.description }}</p>
+
+      <div class="experience-detail-heading">
+
+        <span class="experience-detail-eyebrow">
+          {{ experience.category_label }}
+        </span>
+
+
+        <span class="experience-detail-location">
+          {{ icon('map-pin') }}
+
+          {{ experience.location }}
+        </span>
+
+      </div>
+
+
+      <h1 id="experience-title">
+        {{ experience.title }}
+      </h1>
+
+
+      <p class="experience-detail-lead">
+        {{ experience.long_description or experience.description }}
+      </p>
+
+
+      <!-- ====================================================
+           PROFESSIONAL
+           ==================================================== -->
 
       <div class="experience-detail-provider">
-        <img src="{{ experience.avatar|media_url }}" alt="{{ experience.professional }}" style="object-position: {{ experience.get('avatar_position', '50% 50%') }};">
-        <div>
+
+        <div class="experience-detail-provider__avatar">
+
+          <img
+            src="{{ experience.avatar|media_url }}"
+            alt="Retrato de {{ experience.professional }}"
+            style="object-position: {{ experience.get(
+              'avatar_position',
+              '50% 50%'
+            ) }};"
+          >
+
+        </div>
+
+
+        <div class="experience-detail-provider__identity">
+
+          <span>
+            Com
+          </span>
+
+
           {% if experience.professional_slug %}
-            <a class="experience-detail-provider__link" href="{{ url_for('public.professional_detail', slug=experience.professional_slug) }}"><strong>{{ experience.professional }}</strong></a>
+
+            <a
+              class="experience-detail-provider__link"
+              href="{{ url_for(
+                'public.professional_detail',
+                slug=experience.professional_slug
+              ) }}"
+            >
+              {{ experience.professional }}
+            </a>
+
           {% else %}
-            <strong>{{ experience.professional }}</strong>
+
+            <strong>
+              {{ experience.professional }}
+            </strong>
+
           {% endif %}
-          <span>{{ experience.professional_role }}{% if experience.establishment %} · {% if experience.establishment_slug %}<a href="{{ url_for('public.establishment_detail', slug=experience.establishment_slug) }}">{{ experience.establishment }}</a>{% else %}{{ experience.establishment }}{% endif %}{% endif %}</span>
+
+
+          <small>
+            {{ experience.professional_role }}
+
+            {% if experience.establishment %}
+
+              <span aria-hidden="true">
+                ·
+              </span>
+
+              {% if experience.establishment_slug %}
+
+                <a
+                  href="{{ url_for(
+                    'public.establishment_detail',
+                    slug=experience.establishment_slug
+                  ) }}"
+                >
+                  {{ experience.establishment }}
+                </a>
+
+              {% else %}
+
+                {{ experience.establishment }}
+
+              {% endif %}
+
+            {% endif %}
+          </small>
+
         </div>
-        <span class="experience-detail-verified">{{ icon('shield-check') }} Curadoria IDDUN</span>
+
+
+        <span class="experience-detail-verified">
+
+          {{ icon('shield-check') }}
+
+          <span>
+            Curadoria IDDUN
+          </span>
+
+        </span>
+
       </div>
 
-      <div class="experience-detail-facts">
-        <span>{{ icon('clock') }} {{ experience.duration_minutes }} min</span>
-        <span>{{ icon('map-pin') }} {{ experience.location }}</span>
-        {% if experience.first_time %}<span>{{ icon('sparkles') }} Primeira experiência</span>{% endif %}
+
+      <!-- ====================================================
+           EXPERIENCE FACTS
+           ==================================================== -->
+
+      <div
+        class="experience-detail-facts"
+        aria-label="Informações da experiência"
+      >
+
+        <span>
+
+          {{ icon('clock') }}
+
+          <span>
+            {{ experience.duration_label }}
+          </span>
+
+        </span>
+
+
+        <span>
+
+          {{ icon('map-pin') }}
+
+          <span>
+            {{ experience.location }}
+          </span>
+
+        </span>
+
+
+        {% if experience.first_time %}
+
+          <span>
+
+            {{ icon('sparkles') }}
+
+            <span>
+              Ideal para primeira experiência
+            </span>
+
+          </span>
+
+        {% endif %}
+
       </div>
 
-      <div class="experience-detail-price">
-        <div>
-          <span>Valor da experiência</span>
-          <del>R$ {{ experience.regular_price }}</del>
+
+      <!-- ====================================================
+           PRICE / PRIMARY ACTION
+           ==================================================== -->
+
+      <div class="experience-detail-purchase">
+
+        <div class="experience-detail-price">
+
+          <span>
+            Experiência IDDUN
+          </span>
+
+
+          <div class="experience-detail-price__values">
+
+            {% if experience.regular_price > experience.price %}
+
+              <del>
+                R$ {{ experience.regular_price }}
+              </del>
+
+            {% endif %}
+
+
+            <strong>
+              R$ {{ experience.price }}
+            </strong>
+
+          </div>
+
+
+          {% if experience.discount_percent %}
+
+            <small>
+              {{ experience.discount_percent }}% de economia
+            </small>
+
+          {% endif %}
+
         </div>
-        <strong>R$ {{ experience.price }}</strong>
+
+
+        <div class="experience-detail-purchase__action">
+
+          {% if slot_groups %}
+
+            <a
+              class="btn btn-primary"
+              href="#horarios"
+            >
+              Ver horários
+
+              {{ icon('chevron-right') }}
+            </a>
+
+          {% elif db_experience %}
+
+            <button
+              class="btn btn-primary"
+              type="button"
+              disabled
+            >
+              Sem horários agora
+            </button>
+
+          {% else %}
+
+            <a
+              class="btn btn-outline"
+              href="{{ url_for('public.experiences') }}"
+            >
+              Explorar experiências
+            </a>
+
+          {% endif %}
+
+        </div>
+
       </div>
+
     </div>
+
   </div>
+
 </section>
 
-<section class="experience-booking-section" id="horarios">
+
+<!-- ==========================================================
+     BOOKING
+     ========================================================== -->
+
+<section
+  class="experience-booking-section"
+  id="horarios"
+  aria-labelledby="booking-section-title"
+>
+
   <div class="container experience-booking-layout">
+
+    <!-- ======================================================
+         SLOT SELECTION
+         ====================================================== -->
+
     <div class="experience-booking-copy">
-      <span class="experience-detail-eyebrow">OPORTUNIDADES IDDUN</span>
-      <h2>Escolha quando viver essa experiência.</h2>
-      <p>Os horários abaixo foram liberados pelo profissional especialmente para o IDDUN. Se a agenda conectada detectar um conflito, o horário sai automaticamente da oferta.</p>
+
+      <header class="experience-booking-heading">
+
+        <span class="experience-detail-eyebrow">
+          Disponibilidade
+        </span>
+
+
+        <h2 id="booking-section-title">
+          Escolha o melhor momento para você.
+        </h2>
+
+
+        <p>
+          Veja os horários disponibilizados pelo profissional
+          e escolha quando viver esta experiência.
+        </p>
+
+      </header>
+
 
       {% if db_experience %}
+
         {% if slot_groups %}
-          <div class="slot-date-tabs" role="tablist" aria-label="Datas disponíveis" data-slot-tabs>
+
+          <!-- ================================================
+               DATE TABS
+               ================================================ -->
+
+          <div
+            class="slot-date-tabs"
+            role="tablist"
+            aria-label="Datas disponíveis"
+            data-slot-tabs
+          >
+
             {% for group in slot_groups %}
-              <button type="button" class="slot-date-tab {% if loop.first %}is-active{% endif %}" data-slot-tab="{{ loop.index0 }}" role="tab" aria-selected="{{ 'true' if loop.first else 'false' }}">
-                <span>{{ group.weekday }}</span>
-                <strong>{{ group.day }}</strong>
-                <small>{{ group.month[:3]|capitalize }}</small>
+
+              <button
+                id="slot-tab-{{ loop.index0 }}"
+                type="button"
+                class="slot-date-tab{% if loop.first %} is-active{% endif %}"
+                data-slot-tab="{{ loop.index0 }}"
+                role="tab"
+                aria-selected="{{ 'true' if loop.first else 'false' }}"
+                aria-controls="slot-panel-{{ loop.index0 }}"
+                tabindex="{{ '0' if loop.first else '-1' }}"
+              >
+
+                <span>
+                  {{ group.weekday }}
+                </span>
+
+                <strong>
+                  {{ group.day }}
+                </strong>
+
+                <small>
+                  {{ group.month[:3]|capitalize }}
+                </small>
+
               </button>
+
             {% endfor %}
+
           </div>
+
+
+          <!-- ================================================
+               SLOT PANELS
+               ================================================ -->
 
           <div class="slot-panels">
+
             {% for group in slot_groups %}
-              <div class="slot-panel {% if loop.first %}is-active{% endif %}" data-slot-panel="{{ loop.index0 }}" {% if not loop.first %}hidden{% endif %}>
+
+              <div
+                id="slot-panel-{{ loop.index0 }}"
+                class="slot-panel{% if loop.first %} is-active{% endif %}"
+                data-slot-panel="{{ loop.index0 }}"
+                role="tabpanel"
+                aria-labelledby="slot-tab-{{ loop.index0 }}"
+                {% if not loop.first %}hidden{% endif %}
+              >
+
                 <div class="slot-panel__head">
-                  <strong>{{ group.label }}</strong>
-                  <span>{{ group.slots|length }} horário{% if group.slots|length != 1 %}s{% endif %}</span>
+
+                  <div>
+
+                    <span>
+                      Horários disponíveis
+                    </span>
+
+                    <strong>
+                      {{ group.label }}
+                    </strong>
+
+                  </div>
+
+
+                  <span>
+                    {{ group.slots|length }}
+                    horário{% if group.slots|length != 1 %}s{% endif %}
+                  </span>
+
                 </div>
+
+
                 <div class="slot-grid">
+
                   {% for slot in group.slots %}
-                    <form method="post" action="{{ url_for('bookings.start_booking', slug=experience.slug, slot_id=slot.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="slot-button">
-                        <strong>{{ slot.starts_at.strftime('%H:%M') }}</strong>
-                        <span>até {{ slot.deadline.strftime('%H:%M') }}</span>
+
+                    <form
+                      method="post"
+                      action="{{ url_for(
+                        'bookings.start_booking',
+                        slug=experience.slug,
+                        slot_id=slot.id
+                      ) }}"
+                    >
+
+                      <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                      >
+
+
+                      <button
+                        type="submit"
+                        class="slot-button"
+                        aria-label="Selecionar horário das {{ slot.starts_at.strftime('%H:%M') }}"
+                      >
+
+                        <strong>
+                          {{ slot.starts_at.strftime('%H:%M') }}
+                        </strong>
+
+                        <span>
+                          Reservar
+                        </span>
+
                       </button>
+
                     </form>
+
                   {% endfor %}
+
                 </div>
+
               </div>
+
             {% endfor %}
+
           </div>
+
+
+          <!-- ================================================
+               AVAILABILITY NOTE
+               ================================================ -->
 
           <div class="slot-safety-note">
-            {{ icon('calendar') }}
-            <div><strong>Disponibilidade protegida</strong><span>O IDDUN valida o prazo mínimo antes de confirmar cada reserva.</span></div>
+
+            {{ icon('shield-check') }}
+
+            <div>
+
+              <strong>
+                Disponibilidade verificada
+              </strong>
+
+              <span>
+                Antes da confirmação, o IDDUN verifica novamente
+                a disponibilidade e o prazo mínimo de reserva.
+              </span>
+
+            </div>
+
           </div>
+
+
         {% else %}
+
+          <!-- ================================================
+               REAL EXPERIENCE WITHOUT SLOTS
+               ================================================ -->
+
           <div class="slot-empty-state">
-            <span>{{ icon('calendar') }}</span>
-            <div><h3>Novas oportunidades em breve.</h3><p>Esta experiência está publicada, mas não há horários IDDUN disponíveis agora.</p></div>
+
+            <span>
+              {{ icon('calendar') }}
+            </span>
+
+            <div>
+
+              <span class="slot-empty-state__eyebrow">
+                Agenda
+              </span>
+
+              <h3>
+                Novos horários em breve.
+              </h3>
+
+              <p>
+                Esta experiência está disponível no IDDUN,
+                mas o profissional ainda não liberou novos
+                horários para reserva.
+              </p>
+
+            </div>
+
           </div>
+
         {% endif %}
+
+
       {% else %}
-        <div class="slot-empty-state slot-empty-state--prototype">
-          <span>{{ icon('sparkles') }}</span>
-          <div><h3>Experiência de demonstração.</h3><p>Este item ainda pertence ao catálogo visual do protótipo. Reservas reais aparecem nas experiências cadastradas pelo Admin.</p></div>
+
+        <!-- ==================================================
+             PROTOTYPE EXPERIENCE
+             ================================================== -->
+
+        <div
+          class="slot-empty-state slot-empty-state--prototype"
+        >
+
+          <span>
+            {{ icon('sparkles') }}
+          </span>
+
+          <div>
+
+            <span class="slot-empty-state__eyebrow">
+              Prévia IDDUN
+            </span>
+
+            <h3>
+              Esta experiência ainda é uma demonstração.
+            </h3>
+
+            <p>
+              Este item faz parte do catálogo visual atual.
+              Reservas reais ficam disponíveis nas experiências
+              cadastradas e publicadas na plataforma.
+            </p>
+
+          </div>
+
         </div>
+
       {% endif %}
+
     </div>
 
-    <aside class="experience-booking-card">
-      <span class="experience-detail-eyebrow">RESUMO</span>
-      <h3>{{ experience.title }}</h3>
+
+    <!-- ======================================================
+         BOOKING SUMMARY
+         ====================================================== -->
+
+    <aside
+      class="experience-booking-card"
+      aria-label="Resumo da experiência"
+    >
+
+      <span class="experience-detail-eyebrow">
+        Sua experiência
+      </span>
+
+
+      <h3>
+        {{ experience.title }}
+      </h3>
+
+
       <dl>
-        <div><dt>Profissional</dt><dd>{% if experience.professional_slug %}<a href="{{ url_for('public.professional_detail', slug=experience.professional_slug) }}">{{ experience.professional }}</a>{% else %}{{ experience.professional }}{% endif %}</dd></div>
-        <div><dt>Duração</dt><dd>{{ experience.duration_minutes }} min</dd></div>
-        <div><dt>Local</dt><dd>{{ experience.location }}</dd></div>
+
+        <div>
+
+          <dt>
+            Profissional
+          </dt>
+
+          <dd>
+
+            {% if experience.professional_slug %}
+
+              <a
+                href="{{ url_for(
+                  'public.professional_detail',
+                  slug=experience.professional_slug
+                ) }}"
+              >
+                {{ experience.professional }}
+              </a>
+
+            {% else %}
+
+              {{ experience.professional }}
+
+            {% endif %}
+
+          </dd>
+
+        </div>
+
+
+        <div>
+
+          <dt>
+            Duração
+          </dt>
+
+          <dd>
+            {{ experience.duration_label }}
+          </dd>
+
+        </div>
+
+
+        <div>
+
+          <dt>
+            Local
+          </dt>
+
+          <dd>
+            {{ experience.location }}
+          </dd>
+
+        </div>
+
+
+        {% if experience.establishment %}
+
+          <div>
+
+            <dt>
+              Estabelecimento
+            </dt>
+
+            <dd>
+
+              {% if experience.establishment_slug %}
+
+                <a
+                  href="{{ url_for(
+                    'public.establishment_detail',
+                    slug=experience.establishment_slug
+                  ) }}"
+                >
+                  {{ experience.establishment }}
+                </a>
+
+              {% else %}
+
+                {{ experience.establishment }}
+
+              {% endif %}
+
+            </dd>
+
+          </div>
+
+        {% endif %}
+
       </dl>
-      <div class="experience-booking-card__price"><span>Experiência IDDUN</span><strong>R$ {{ experience.price }}</strong></div>
+
+
+      <div class="experience-booking-card__price">
+
+        <span>
+          Valor
+        </span>
+
+        <div>
+
+          {% if experience.regular_price > experience.price %}
+
+            <del>
+              R$ {{ experience.regular_price }}
+            </del>
+
+          {% endif %}
+
+          <strong>
+            R$ {{ experience.price }}
+          </strong>
+
+        </div>
+
+      </div>
+
+
       {% if slot_groups %}
-        <a class="btn btn-primary" href="#horarios">Escolher horário</a>
+
+        <a
+          class="btn btn-primary"
+          href="#horarios"
+        >
+          Escolher horário
+
+          {{ icon('chevron-right') }}
+        </a>
+
+      {% elif db_experience %}
+
+        <button
+          class="btn btn-primary"
+          type="button"
+          disabled
+        >
+          Sem horários agora
+        </button>
+
       {% else %}
-        <button class="btn btn-primary" type="button" disabled>Sem horários agora</button>
+
+        <a
+          class="btn btn-outline"
+          href="{{ url_for('public.experiences') }}"
+        >
+          Continuar explorando
+        </a>
+
       {% endif %}
-      <small>Na fase piloto, a confirmação não gera cobrança. O modelo de sinal será ativado em uma sprint futura.</small>
+
+
+      <div class="experience-booking-card__trust">
+
+        {{ icon('shield-check') }}
+
+        <p>
+          A reserva só é confirmada depois da validação
+          final de disponibilidade.
+        </p>
+
+      </div>
+
+
+      <small>
+        Durante a fase piloto do IDDUN, a confirmação
+        não gera cobrança.
+      </small>
+
     </aside>
+
   </div>
+
 </section>
 
+
+<!-- ==========================================================
+     MOBILE BOOKING CTA
+     ========================================================== -->
+
 {% if slot_groups %}
-<div class="experience-mobile-cta" aria-label="Ação de reserva">
-  <div><span>A partir de</span><strong>R$ {{ experience.price }}</strong></div>
-  <a href="#horarios" class="btn btn-primary">Ver horários</a>
-</div>
+
+  <div
+    class="experience-mobile-cta"
+    aria-label="Ação de reserva"
+  >
+
+    <div>
+
+      <span>
+        Experiência IDDUN
+      </span>
+
+      <strong>
+        R$ {{ experience.price }}
+      </strong>
+
+    </div>
+
+
+    <a
+      href="#horarios"
+      class="btn btn-primary"
+    >
+      Ver horários
+    </a>
+
+  </div>
+
 {% endif %}
+
 {% endblock %}
+
+
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>
+<script
+  src="{{ url_for('static', filename='js/booking.js') }}"
+  defer
+></script>
 {% endblock %}

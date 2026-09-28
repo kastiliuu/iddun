@@ -1,50 +1,303 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
-{% block title %}Confirmar reserva | IDDUN{% endblock %}
-{% block body_class %}booking-confirm-page{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">{% endblock %}
-{% block site_footer %}{% endblock %}
-{% block mobile_bottom_nav %}{% endblock %}
+
+
+{% block title %}
+Confirmar reserva | IDDUN
+{% endblock %}
+
+
+{% block body_class %}
+booking-confirm-page visual-v2-page
+{% endblock %}
+
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/booking.css') }}"
+>
+{% endblock %}
+
+
+{% block site_footer %}
+{% endblock %}
+
+
+{% block mobile_bottom_nav %}
+{% endblock %}
+
+
 {% block content %}
-<section class="booking-confirm-shell">
+
+<section
+  class="booking-confirm-shell"
+  aria-labelledby="booking-confirm-title"
+>
+
   <div class="container booking-confirm-layout">
-    <a href="{{ url_for('public.experience_detail', slug=booking.experience.slug) }}" class="booking-confirm-back">{{ icon('arrow-left') }} Voltar à experiência</a>
+
+    <!-- ======================================================
+         BACK
+         ====================================================== -->
+
+    <a
+      href="{{ url_for(
+        'public.experience_detail',
+        slug=booking.experience.slug
+      ) }}"
+      class="booking-confirm-back"
+    >
+      {{ icon('arrow-left') }}
+
+      <span>
+        Voltar à experiência
+      </span>
+    </a>
+
+
+    <!-- ======================================================
+         CONFIRMATION CARD
+         ====================================================== -->
 
     <div class="booking-confirm-card">
-      <div class="booking-confirm-head">
-        <span class="booking-confirm-icon">{{ icon('calendar') }}</span>
-        <div><span class="experience-detail-eyebrow">SEU HORÁRIO ESTÁ SENDO GUARDADO</span><h1>Confirme sua reserva.</h1></div>
-      </div>
 
-      <div class="booking-hold" data-hold-until="{{ booking.hold_expires_at.isoformat() if booking.hold_expires_at else '' }}">
-        <span>Tempo para confirmar</span>
-        <strong data-hold-countdown>--:--</strong>
-      </div>
+      <!-- ====================================================
+           HEADER
+           ==================================================== -->
 
-      <article class="booking-summary-ticket">
-        <img src="{{ booking.experience.image_url|media_url }}" alt="{{ booking.experience.title }}" style="object-position: {{ booking.experience.image_focus_x if booking.experience.image_focus_x is not none else 50 }}% {{ booking.experience.image_focus_y if booking.experience.image_focus_y is not none else 50 }}%;">
-        <div class="booking-summary-ticket__main">
-          <span>{{ booking.experience.category_label }}</span>
-          <h2>{{ booking.experience.title }}</h2>
-          <p>{{ booking.professional.display_name }}{% if booking.establishment %} · {{ booking.establishment.name }}{% endif %}</p>
+      <header class="booking-confirm-head">
+
+        <span
+          class="booking-confirm-icon"
+          aria-hidden="true"
+        >
+          {{ icon('calendar') }}
+        </span>
+
+
+        <div>
+
+          <span class="experience-detail-eyebrow">
+            Horário reservado temporariamente
+          </span>
+
+          <h1 id="booking-confirm-title">
+            Confirme sua reserva.
+          </h1>
+
         </div>
+
+      </header>
+
+
+      <!-- ====================================================
+           HOLD COUNTDOWN
+           ==================================================== -->
+
+      <div
+        class="booking-hold"
+        data-hold-until="{{ booking.hold_expires_at.isoformat() if booking.hold_expires_at else '' }}"
+      >
+
+        <span>
+          Tempo restante para confirmar
+        </span>
+
+
+        <strong
+          data-hold-countdown
+          role="timer"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          --:--
+        </strong>
+
+      </div>
+
+
+      <!-- ====================================================
+           EXPERIENCE SUMMARY
+           ==================================================== -->
+
+      <article
+        class="booking-summary-ticket"
+        aria-label="Resumo da reserva"
+      >
+
+        <img
+          src="{{ booking.experience.image_url|media_url }}"
+          alt="{{ booking.experience.title }}"
+          style="
+            object-position:
+            {{ booking.experience.image_focus_x if booking.experience.image_focus_x is not none else 50 }}%
+            {{ booking.experience.image_focus_y if booking.experience.image_focus_y is not none else 50 }}%;
+          "
+        >
+
+
+        <div class="booking-summary-ticket__main">
+
+          <span>
+            {{ booking.experience.category_label }}
+          </span>
+
+
+          <h2>
+            {{ booking.experience.title }}
+          </h2>
+
+
+          <p>
+            Com {{ booking.professional.display_name }}
+
+            {% if booking.establishment %}
+              <span aria-hidden="true">
+                ·
+              </span>
+
+              {{ booking.establishment.name }}
+            {% endif %}
+          </p>
+
+        </div>
+
+
         <dl>
-          <div><dt>Data</dt><dd>{{ local_start.strftime('%d/%m/%Y') }}</dd></div>
-          <div><dt>Horário</dt><dd>{{ local_start.strftime('%H:%M') }}</dd></div>
-          <div><dt>Duração</dt><dd>{{ booking.experience.duration_minutes }} min</dd></div>
-          <div><dt>Valor</dt><dd>R$ {{ booking.price_at_booking }}</dd></div>
+
+          <div>
+
+            <dt>
+              Data
+            </dt>
+
+            <dd>
+              {{ local_start.strftime('%d/%m/%Y') }}
+            </dd>
+
+          </div>
+
+
+          <div>
+
+            <dt>
+              Horário
+            </dt>
+
+            <dd>
+              {{ local_start.strftime('%H:%M') }}
+              –
+              {{ local_end.strftime('%H:%M') }}
+            </dd>
+
+          </div>
+
+
+          <div>
+
+            <dt>
+              Duração
+            </dt>
+
+            <dd>
+              {{ booking.experience.duration_minutes }} min
+            </dd>
+
+          </div>
+
+
+          <div>
+
+            <dt>
+              Valor
+            </dt>
+
+            <dd>
+              R$ {{ booking.price_at_booking }}
+            </dd>
+
+          </div>
+
         </dl>
+
       </article>
 
-      <div class="booking-pilot-note">{{ icon('shield-check') }} <span><strong>Piloto IDDUN:</strong> nenhuma cobrança será feita nesta confirmação. O sinal digital entra em uma etapa futura.</span></div>
 
-      <form method="post" class="booking-confirm-actions">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn btn-primary" data-confirm-booking>Confirmar reserva</button>
-        <a href="{{ url_for('public.experience_detail', slug=booking.experience.slug) }}" class="booking-secondary-link">Escolher outro horário</a>
+      <!-- ====================================================
+           PILOT INFORMATION
+           ==================================================== -->
+
+      <div class="booking-pilot-note">
+
+        {{ icon('shield-check') }}
+
+        <span>
+
+          <strong>
+            Fase piloto IDDUN.
+          </strong>
+
+          Nenhuma cobrança será feita nesta confirmação.
+          O pagamento ou sinal digital será disponibilizado
+          em uma etapa futura da plataforma.
+
+        </span>
+
+      </div>
+
+
+      <!-- ====================================================
+           CONFIRMATION
+           ==================================================== -->
+
+      <form
+        method="post"
+        class="booking-confirm-actions"
+      >
+
+        <input
+          type="hidden"
+          name="csrf_token"
+          value="{{ csrf_token() }}"
+        >
+
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+          data-confirm-booking
+        >
+          {{ icon('shield-check') }}
+
+          Confirmar reserva
+        </button>
+
+
+        <a
+          href="{{ url_for(
+            'public.experience_detail',
+            slug=booking.experience.slug
+          ) }}#horarios"
+          class="booking-secondary-link"
+        >
+          Escolher outro horário
+        </a>
+
       </form>
+
     </div>
+
   </div>
+
 </section>
+
 {% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/booking.js') }}" defer></script>{% endblock %}
+
+
+{% block scripts %}
+<script
+  src="{{ url_for('static', filename='js/booking.js') }}"
+  defer
+></script>
+{% endblock %}

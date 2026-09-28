@@ -1,10 +1,16 @@
+import pytest
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.establishment import Establishment, ProfessionalEstablishmentMembership
+from app.models.establishment import (
+    Establishment,
+    MembershipStatus,
+    ProfessionalEstablishmentMembership,
+)
 from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import ProfessionalProfile
 from app.models.user import User, UserRole
+from app.services.admin_catalog_service import save_membership
 
 
 def _create_user(app, role=UserRole.ADMIN, email="admin@example.com"):
@@ -76,8 +82,14 @@ def test_admin_can_build_real_catalog(app, client):
     assert response.status_code == 302
 
     with app.app_context():
-        establishment = db.session.scalar(select(Establishment).where(Establishment.name == "Studio Aurora"))
-        professional = db.session.scalar(select(ProfessionalProfile).where(ProfessionalProfile.display_name == "Laura Martins"))
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.name == "Studio Aurora")
+        )
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(
+                ProfessionalProfile.display_name == "Laura Martins"
+            )
+        )
         establishment_id = establishment.id
         professional_id = professional.id
 
@@ -87,19 +99,20 @@ def test_admin_can_build_real_catalog(app, client):
             "professional_id": professional_id,
             "establishment_id": establishment_id,
             "role_name": "Cabeleireira",
-            "status": "active",
+            "status": MembershipStatus.PENDING,
             "is_primary": "y",
         },
         follow_redirects=False,
     )
     assert response.status_code == 302
 
+    # O catálogo da profissional pode ser publicado enquanto o convite ao
+    # estabelecimento aguarda aceite, sem atribuir a experiência ao salão.
     response = client.post(
         "/admin/experiencias/nova",
         data={
             "title": "Hair Ritual Aurora",
             "professional_id": professional_id,
-            "establishment_id": establishment_id,
             "category": "cabelo",
             "short_description": "Tratamento, corte e finalização premium",
             "regular_price": "350.00",
@@ -115,11 +128,15 @@ def test_admin_can_build_real_catalog(app, client):
 
     with app.app_context():
         membership = db.session.scalar(select(ProfessionalEstablishmentMembership))
-        experience = db.session.scalar(select(Experience).where(Experience.title == "Hair Ritual Aurora"))
+        experience = db.session.scalar(
+            select(Experience).where(Experience.title == "Hair Ritual Aurora")
+        )
         assert membership is not None
-        assert membership.is_primary is True
+        assert membership.status == MembershipStatus.PENDING
+        assert membership.is_primary is False
         assert experience is not None
         assert experience.status == ExperienceStatus.PUBLISHED
+        assert experience.establishment_id is None
         slug = experience.slug
 
     response = client.get("/experiencias")
@@ -129,6 +146,142 @@ def test_admin_can_build_real_catalog(app, client):
     response = client.get(f"/experiencias/{slug}")
     assert response.status_code == 200
     assert "Hair Ritual Aurora" in response.get_data(as_text=True)
+
+
+def test_admin_form_cannot_activate_new_or_pending_membership(app, client):
+    user_id = _create_user(app, email="admin-consent@example.com")
+    _login_session(client, user_id)
+
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Pro Convidada",
+            slug="pro-convidada-admin",
+        )
+        establishment = Establishment(
+            name="Studio Convite Admin",
+            slug="studio-convite-admin",
+        )
+        db.session.add_all([professional, establishment])
+        db.session.commit()
+        professional_id = professional.id
+        establishment_id = establishment.id
+
+    response = client.get("/admin/vinculos/novo")
+    assert response.status_code == 200
+    assert 'value="active"' not in response.get_data(as_text=True)
+
+    response = client.post(
+        "/admin/vinculos/novo",
+        data={
+            "professional_id": professional_id,
+            "establishment_id": establishment_id,
+            "status": MembershipStatus.ACTIVE,
+            "is_primary": "y",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        assert db.session.scalar(select(ProfessionalEstablishmentMembership)) is None
+
+    response = client.post(
+        "/admin/vinculos/novo",
+        data={
+            "professional_id": professional_id,
+            "establishment_id": establishment_id,
+            "status": MembershipStatus.PENDING,
+            "is_primary": "y",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    with app.app_context():
+        membership = db.session.scalar(select(ProfessionalEstablishmentMembership))
+        assert membership.status == MembershipStatus.PENDING
+        assert membership.is_primary is False
+        membership_id = membership.id
+
+    response = client.post(
+        f"/admin/vinculos/{membership_id}/editar",
+        data={
+            "professional_id": professional_id,
+            "establishment_id": establishment_id,
+            "status": MembershipStatus.ACTIVE,
+            "is_primary": "y",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        membership = db.session.get(ProfessionalEstablishmentMembership, membership_id)
+        assert membership.status == MembershipStatus.PENDING
+        assert membership.is_primary is False
+
+
+def test_membership_service_requires_professional_acceptance(app):
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Pro Serviço",
+            slug="pro-servico-consentimento",
+        )
+        other_professional = ProfessionalProfile(
+            display_name="Outra Pro Serviço",
+            slug="outra-pro-servico-consentimento",
+        )
+        establishment = Establishment(
+            name="Studio Serviço",
+            slug="studio-servico-consentimento",
+        )
+        db.session.add_all([professional, other_professional, establishment])
+        db.session.commit()
+
+        new_active = ProfessionalEstablishmentMembership(
+            professional_id=professional.id,
+            establishment_id=establishment.id,
+            status=MembershipStatus.ACTIVE,
+        )
+        with pytest.raises(ValueError, match="só pode ser ativado pelo profissional"):
+            save_membership(new_active)
+
+        pending = ProfessionalEstablishmentMembership(
+            professional_id=professional.id,
+            establishment_id=establishment.id,
+            status=MembershipStatus.PENDING,
+        )
+        db.session.add(pending)
+        db.session.commit()
+        pending_id = pending.id
+
+        pending.status = MembershipStatus.ACTIVE
+        with pytest.raises(ValueError, match="só pode ser ativado pelo profissional"):
+            save_membership(pending)
+        db.session.rollback()
+
+        pending = db.session.get(ProfessionalEstablishmentMembership, pending_id)
+        assert pending.status == MembershipStatus.PENDING
+
+        # Representa um vínculo que já foi confirmado pelo profissional.
+        confirmed = ProfessionalEstablishmentMembership(
+            professional_id=professional.id,
+            establishment_id=establishment.id,
+            status=MembershipStatus.ACTIVE,
+            is_primary=True,
+        )
+        db.session.add(confirmed)
+        db.session.commit()
+        confirmed_id = confirmed.id
+
+        confirmed.professional_id = other_professional.id
+        with pytest.raises(ValueError, match="só pode ser ativado pelo profissional"):
+            save_membership(confirmed)
+        db.session.rollback()
+
+        confirmed = db.session.get(ProfessionalEstablishmentMembership, confirmed_id)
+        assert confirmed.professional_id == professional.id
+        assert confirmed.status == MembershipStatus.ACTIVE
 
 
 def test_admin_can_publish_opportunity_slots(app, client):
@@ -360,7 +513,7 @@ def test_admin_can_edit_membership_without_media_fields(app, client):
             professional=professional,
             establishment=establishment,
             role_name="Nail designer",
-            status="active",
+            status=MembershipStatus.ACTIVE,
             is_primary=True,
         )
         db.session.add(membership)
@@ -375,7 +528,7 @@ def test_admin_can_edit_membership_without_media_fields(app, client):
             "professional_id": professional_id,
             "establishment_id": establishment_id,
             "role_name": "Especialista em unhas",
-            "status": "active",
+            "status": MembershipStatus.ACTIVE,
             "is_primary": "y",
         },
         follow_redirects=False,
@@ -385,6 +538,9 @@ def test_admin_can_edit_membership_without_media_fields(app, client):
     with app.app_context():
         membership = db.session.get(ProfessionalEstablishmentMembership, membership_id)
         assert membership.role_name == "Especialista em unhas"
+        assert membership.status == MembershipStatus.ACTIVE
+        assert membership.professional_id == professional_id
+        assert membership.establishment_id == establishment_id
 
 
 def test_professional_focus_point_is_persisted(app, client):

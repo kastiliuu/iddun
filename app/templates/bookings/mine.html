@@ -1,126 +1,530 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
-{% block title %}Minhas reservas | IDDUN{% endblock %}
-{% block body_class %}my-bookings-page{% endblock %}
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/booking-mine.css') }}">
+
+
+{% block title %}
+Minhas reservas | IDDUN
 {% endblock %}
 
-{% block content %}
-<section class="my-bookings-hero">
-  <span class="my-bookings-hero__orb my-bookings-hero__orb--one" aria-hidden="true"></span>
-  <span class="my-bookings-hero__orb my-bookings-hero__orb--two" aria-hidden="true"></span>
-  <span class="my-bookings-hero__mark" aria-hidden="true">✦</span>
 
-  <div class="container my-bookings-hero__inner" data-reveal>
-    <a href="{{ url_for('account.dashboard') }}" class="my-bookings-back">
+{% block body_class %}
+my-bookings-page visual-v2-page
+{% endblock %}
+
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/booking.css') }}"
+>
+
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/booking-mine.css') }}"
+>
+{% endblock %}
+
+
+{% block content %}
+
+<!-- ==========================================================
+     HERO
+     ========================================================== -->
+
+<section
+  class="my-bookings-hero"
+  aria-labelledby="my-bookings-title"
+>
+
+  <span
+    class="my-bookings-hero__orb my-bookings-hero__orb--one"
+    aria-hidden="true"
+  ></span>
+
+  <span
+    class="my-bookings-hero__orb my-bookings-hero__orb--two"
+    aria-hidden="true"
+  ></span>
+
+  <span
+    class="my-bookings-hero__mark"
+    aria-hidden="true"
+  >
+    ✦
+  </span>
+
+
+  <div
+    class="container my-bookings-hero__inner"
+    data-reveal
+  >
+
+    <!-- ======================================================
+         BACK
+         ====================================================== -->
+
+    <a
+      href="{{ url_for('account.dashboard') }}"
+      class="my-bookings-back"
+    >
       {{ icon('arrow-left') }}
-      <span>Minha conta</span>
+
+      <span>
+        Minha conta
+      </span>
     </a>
 
+
+    <!-- ======================================================
+         COPY
+         ====================================================== -->
+
     <div class="my-bookings-hero__copy">
-      <span class="my-bookings-eyebrow">SUA JORNADA IDDUN</span>
-      <h1>Minhas reservas</h1>
-      <p>Acompanhe horários confirmados, atendimentos e seu histórico de experiências.</p>
+
+      <span class="my-bookings-eyebrow">
+        Sua jornada IDDUN
+      </span>
+
+
+      <h1 id="my-bookings-title">
+        Minhas reservas
+      </h1>
+
+
+      <p>
+        Acompanhe seus próximos horários, atendimentos
+        concluídos e o histórico das experiências que
+        fazem parte da sua jornada.
+      </p>
+
     </div>
+
   </div>
+
 </section>
 
-<section class="my-bookings-content">
-  <div class="container">
-    {% if rows %}
-      {# Estado preenchido: utiliza somente campos, status e ações reais do backend. #}
-      <div class="my-bookings-list-head" data-reveal>
-        <div>
-          <span class="my-bookings-section-kicker">SUAS EXPERIÊNCIAS</span>
-          <h2>Reservas e histórico</h2>
-        </div>
-        <span class="my-bookings-count">{{ rows|length }} reserva{% if rows|length != 1 %}s{% endif %}</span>
-      </div>
 
-      <div class="my-bookings-grid" data-reveal-stagger>
+<!-- ==========================================================
+     CONTENT
+     ========================================================== -->
+
+<section
+  class="my-bookings-content"
+  aria-label="Reservas"
+>
+
+  <div class="container">
+
+    {% if rows %}
+
+      <!-- ====================================================
+           FILLED STATE
+           ==================================================== -->
+
+      <header
+        class="my-bookings-list-head"
+        data-reveal
+      >
+
+        <div>
+
+          <span class="my-bookings-section-kicker">
+            Suas experiências
+          </span>
+
+
+          <h2>
+            Reservas e histórico
+          </h2>
+
+        </div>
+
+
+        <span
+          class="my-bookings-count"
+          aria-label="{{ rows|length }} reserva{% if rows|length != 1 %}s{% endif %}"
+        >
+          {{ rows|length }}
+          reserva{% if rows|length != 1 %}s{% endif %}
+        </span>
+
+      </header>
+
+
+      <!-- ====================================================
+           BOOKING LIST
+           ==================================================== -->
+
+      <div
+        class="my-bookings-grid"
+        data-reveal-stagger
+      >
+
         {% for row in rows %}
+
           {% set item = row.booking %}
-          <article class="booking-card booking-card--{{ item.status }}">
+
+          <article
+            class="booking-card booking-card--{{ item.status }}"
+            aria-labelledby="booking-title-{{ item.id }}"
+          >
+
+            <!-- ==============================================
+                 STATUS
+                 ============================================== -->
+
             <div class="booking-card__top">
-              <span class="booking-status booking-status--{{ item.status }}">
+
+              <span
+                class="booking-status booking-status--{{ item.status }}"
+              >
+
                 <span aria-hidden="true"></span>
+
                 {{ item.status_label }}
+
               </span>
-              <span class="booking-code">Reserva #{{ '%04d'|format(item.id) }}</span>
+
+
+              <span class="booking-code">
+                Reserva #{{ '%04d'|format(item.id) }}
+              </span>
+
             </div>
+
+
+            <!-- ==============================================
+                 MAIN INFORMATION
+                 ============================================== -->
 
             <div class="booking-card__body">
+
               <div class="booking-card__identity">
-                <span class="my-bookings-section-kicker">{{ item.experience.category_label|upper }}</span>
-                <h2>{{ item.experience.title }}</h2>
+
+                <span class="my-bookings-section-kicker">
+                  {{ item.experience.category_label }}
+                </span>
+
+
+                <h2 id="booking-title-{{ item.id }}">
+                  {{ item.experience.title }}
+                </h2>
+
+
                 <p>
+
                   {{ icon('user') }}
-                  <span>{{ item.professional.display_name }}{% if item.establishment %} · {{ item.establishment.name }}{% endif %}</span>
+
+                  <span>
+                    {{ item.professional.display_name }}
+
+                    {% if item.establishment %}
+
+                      <span aria-hidden="true">
+                        ·
+                      </span>
+
+                      {{ item.establishment.name }}
+
+                    {% endif %}
+                  </span>
+
                 </p>
+
               </div>
 
-              <div class="booking-card__datetime" aria-label="Data e horário da reserva">
-                <span>{{ icon('calendar') }} {{ row.local_start.strftime('%d/%m/%Y') }}</span>
-                <strong>{{ row.local_start.strftime('%H:%M') }}</strong>
+
+              <!-- ============================================
+                   DATE / TIME
+                   ============================================ -->
+
+              <div
+                class="booking-card__datetime"
+                aria-label="Data e horário da reserva"
+              >
+
+                <span>
+
+                  {{ icon('calendar') }}
+
+                  <time
+                    datetime="{{ row.local_start.isoformat() }}"
+                  >
+                    {{ row.local_start.strftime('%d/%m/%Y') }}
+                  </time>
+
+                </span>
+
+
+                <strong>
+
+                  <time
+                    datetime="{{ row.local_start.isoformat() }}"
+                  >
+                    {{ row.local_start.strftime('%H:%M') }}
+                  </time>
+
+                </strong>
+
               </div>
+
             </div>
+
+
+            <!-- ==============================================
+                 FOOTER / ACTION
+                 ============================================== -->
 
             <div class="booking-card__foot">
+
               <div class="booking-card__price">
-                <small>Valor da experiência</small>
-                <strong>R$ {{ item.price_at_booking }}</strong>
+
+                <small>
+                  Valor da experiência
+                </small>
+
+                <strong>
+                  R$ {{ item.price_at_booking }}
+                </strong>
+
               </div>
 
-              {% if item.status in [BookingStatus.PENDING, BookingStatus.CONFIRMED] %}
-                <form method="post" action="{{ url_for('bookings.cancel', booking_id=item.id) }}" onsubmit="return confirm('Cancelar esta reserva?');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" aria-label="Cancelar reserva {{ item.experience.title }}">Cancelar reserva</button>
+
+              <!-- ============================================
+                   PENDING / CONFIRMED
+                   ============================================ -->
+
+              {% if item.status in [
+                BookingStatus.PENDING,
+                BookingStatus.CONFIRMED
+              ] %}
+
+                <form
+                  method="post"
+                  action="{{ url_for(
+                    'bookings.cancel',
+                    booking_id=item.id
+                  ) }}"
+                  onsubmit="return confirm('Cancelar esta reserva?');"
+                >
+
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                  >
+
+
+                  <button
+                    type="submit"
+                    aria-label="Cancelar reserva {{ item.experience.title }}"
+                  >
+                    Cancelar reserva
+                  </button>
+
                 </form>
+
+
+              <!-- ============================================
+                   COMPLETED
+                   ============================================ -->
+
               {% elif item.status == BookingStatus.COMPLETED %}
-                <a class="booking-review-link" href="{{ url_for('bookings.review', booking_id=item.id) }}">
+
+                <a
+                  class="booking-review-link"
+                  href="{{ url_for(
+                    'bookings.review',
+                    booking_id=item.id
+                  ) }}"
+                >
+
                   {{ icon('star') }}
-                  {% if row.has_professional_review %}Editar avaliação{% else %}Avaliar atendimento{% endif %}
+
+
+                  {% if row.has_professional_review %}
+
+                    Editar avaliação
+
+                  {% else %}
+
+                    Avaliar atendimento
+
+                  {% endif %}
+
                 </a>
+
               {% endif %}
+
             </div>
+
           </article>
+
         {% endfor %}
+
       </div>
+
+
     {% else %}
-      <section class="bookings-empty" data-reveal aria-labelledby="bookings-empty-title">
-        <div class="bookings-empty__visual" aria-hidden="true">
+
+      <!-- ====================================================
+           EMPTY STATE
+           ==================================================== -->
+
+      <section
+        class="bookings-empty"
+        data-reveal
+        aria-labelledby="bookings-empty-title"
+      >
+
+        <!-- ==================================================
+             VISUAL
+             ================================================== -->
+
+        <div
+          class="bookings-empty__visual"
+          aria-hidden="true"
+        >
+
           <span class="bookings-empty__halo"></span>
-          <span class="bookings-empty__icon">{{ icon('calendar') }}</span>
-          <span class="bookings-empty__spark">✦</span>
+
+
+          <span class="bookings-empty__icon">
+            {{ icon('calendar') }}
+          </span>
+
+
+          <span class="bookings-empty__spark">
+            ✦
+          </span>
+
         </div>
 
-        <span class="my-bookings-section-kicker">PRÓXIMA DESCOBERTA</span>
-        <h2 id="bookings-empty-title">Sua primeira experiência começa aqui.</h2>
-        <p>Quando você reservar um horário IDDUN, ele aparecerá nesta tela com todos os detalhes para acompanhar sua jornada.</p>
 
-        <a href="{{ url_for('public.experiences') }}" class="btn bookings-empty__cta">
-          <span>Explorar experiências</span>
+        <!-- ==================================================
+             COPY
+             ================================================== -->
+
+        <span class="my-bookings-section-kicker">
+          Próxima descoberta
+        </span>
+
+
+        <h2 id="bookings-empty-title">
+          Sua primeira experiência começa aqui.
+        </h2>
+
+
+        <p>
+          Quando você reservar uma experiência pelo IDDUN,
+          todos os detalhes do horário aparecerão aqui para
+          que você acompanhe sua jornada com clareza.
+        </p>
+
+
+        <!-- ==================================================
+             CTA
+             ================================================== -->
+
+        <a
+          href="{{ url_for('public.experiences') }}"
+          class="btn bookings-empty__cta"
+        >
+
+          <span>
+            Explorar experiências
+          </span>
+
           {{ icon('chevron-right') }}
+
         </a>
 
-        <ol class="bookings-empty__journey" aria-label="Como reservar uma experiência no IDDUN">
+
+        <!-- ==================================================
+             JOURNEY
+             ================================================== -->
+
+        <ol
+          class="bookings-empty__journey"
+          aria-label="Como reservar uma experiência no IDDUN"
+        >
+
           <li>
-            <span>{{ icon('sparkles') }}</span>
-            <div><strong>Descubra</strong><small>Encontre experiências que combinam com você.</small></div>
+
+            <span aria-hidden="true">
+              {{ icon('sparkles') }}
+            </span>
+
+
+            <div>
+
+              <strong>
+                Descubra
+              </strong>
+
+              <small>
+                Explore experiências, profissionais
+                e estabelecimentos.
+              </small>
+
+            </div>
+
           </li>
+
+
           <li>
-            <span>{{ icon('search') }}</span>
-            <div><strong>Escolha</strong><small>Conheça o profissional e selecione seu horário.</small></div>
+
+            <span aria-hidden="true">
+              {{ icon('search') }}
+            </span>
+
+
+            <div>
+
+              <strong>
+                Escolha
+              </strong>
+
+              <small>
+                Conheça os detalhes e encontre
+                o melhor horário para você.
+              </small>
+
+            </div>
+
           </li>
+
+
           <li>
-            <span>{{ icon('calendar') }}</span>
-            <div><strong>Reserve</strong><small>Acompanhe tudo por aqui, sem complicação.</small></div>
+
+            <span aria-hidden="true">
+              {{ icon('calendar') }}
+            </span>
+
+
+            <div>
+
+              <strong>
+                Reserve
+              </strong>
+
+              <small>
+                Confirme o horário e acompanhe
+                tudo por aqui.
+              </small>
+
+            </div>
+
           </li>
+
         </ol>
+
       </section>
+
     {% endif %}
+
   </div>
+
 </section>
+
 {% endblock %}

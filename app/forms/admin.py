@@ -75,18 +75,30 @@ class MembershipForm(FlaskForm):
     role_name = StringField("Função no local", validators=[Optional(), Length(max=120)])
     status = SelectField(
         "Status",
-        choices=[
-            (MembershipStatus.PENDING, "Pendente"),
-            (MembershipStatus.ACTIVE, "Ativo"),
-            (MembershipStatus.REJECTED, "Recusado"),
-            (MembershipStatus.INACTIVE, "Inativo"),
-        ],
+        choices=[(MembershipStatus.PENDING, "Pendente · aguarda aceite do profissional")],
         validators=[DataRequired()],
+        default=MembershipStatus.PENDING,
     )
     is_primary = BooleanField("Local principal")
     started_at = DateField("Início", validators=[Optional()], format="%Y-%m-%d")
     ended_at = DateField("Fim", validators=[Optional()], format="%Y-%m-%d")
     submit = SubmitField("Salvar vínculo")
+
+    def __init__(self, *args, **kwargs):
+        item = kwargs.get("obj")
+        super().__init__(*args, **kwargs)
+
+        if item is not None:
+            self.status.choices = [
+                (MembershipStatus.PENDING, "Pendente · aguarda aceite do profissional"),
+                (MembershipStatus.REJECTED, "Recusado"),
+                (MembershipStatus.INACTIVE, "Inativo"),
+            ]
+            if item.status == MembershipStatus.ACTIVE:
+                self.status.choices.insert(
+                    1,
+                    (MembershipStatus.ACTIVE, "Ativo · confirmado pelo profissional"),
+                )
 
     def validate(self, extra_validators=None):
         valid = super().validate(extra_validators=extra_validators)
