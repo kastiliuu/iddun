@@ -97,6 +97,19 @@ def _normalize_text(value):
 # PRESENTATION HELPERS
 # ============================================================
 
+_FIRST_VISIT_BADGES = {
+    "primeira experiencia",
+    "primeira vez",
+}
+
+
+def _public_badge(value, default):
+    label = str(value or "").strip()
+    if _normalize_text(label) in _FIRST_VISIT_BADGES:
+        return default
+    return label or default
+
+
 def _money_number(value):
     if value is None:
         return 0
@@ -302,13 +315,13 @@ def _db_item(experience):
             experience.slug
         ),
 
-        "badge": (
-            experience.badge
-            or (
-                "Primeira experiência"
-                if experience.is_first_experience
+        "badge": _public_badge(
+            experience.badge,
+            (
+                "Oportunidade IDDUN"
+                if available_slots
                 else "Curadoria IDDUN"
-            )
+            ),
         ),
 
         "title": (
@@ -422,9 +435,9 @@ def _db_item(experience):
             experience.is_featured
         ),
 
-        "first_time": (
-            experience.is_first_experience
-        ),
+        # Preserve the presentation key while no longer suggesting
+        # that a booking depends on being a first-time client.
+        "first_time": False,
 
         "duration_minutes": (
             experience.duration_minutes
@@ -555,6 +568,12 @@ def _normalize_mock_item(item):
         "source",
         "prototype",
     )
+
+    item["badge"] = _public_badge(
+        item.get("badge"),
+        "Prévia IDDUN",
+    )
+    item["first_time"] = False
 
     item.setdefault(
         "image_position",

@@ -165,10 +165,11 @@ class Experience(db.Model):
         default=False,
     )
 
+    # Legacy column kept for existing databases; it does not limit reservations.
     is_first_experience = db.Column(
         db.Boolean,
         nullable=False,
-        default=True,
+        default=False,
     )
 
     created_at = db.Column(

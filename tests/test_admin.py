@@ -106,6 +106,12 @@ def test_admin_can_build_real_catalog(app, client):
     )
     assert response.status_code == 302
 
+    response = client.get("/admin/experiencias/nova")
+    assert response.status_code == 200
+    form_html = response.get_data(as_text=True)
+    assert 'name="is_first_experience"' not in form_html
+    assert "Ex.: Destaque da semana" in form_html
+
     # O catálogo da profissional pode ser publicado enquanto o convite ao
     # estabelecimento aguarda aceite, sem atribuir a experiência ao salão.
     response = client.post(
@@ -137,6 +143,7 @@ def test_admin_can_build_real_catalog(app, client):
         assert experience is not None
         assert experience.status == ExperienceStatus.PUBLISHED
         assert experience.establishment_id is None
+        assert experience.is_first_experience is False
         slug = experience.slug
 
     response = client.get("/experiencias")
@@ -437,12 +444,17 @@ def test_admin_can_edit_experience_without_reuploading_image(app, client):
             price="249.00",
             duration_minutes=60,
             status=ExperienceStatus.PUBLISHED,
+            is_first_experience=True,
         )
         db.session.add(experience)
         db.session.commit()
         experience_id = experience.id
         professional_id = professional.id
         establishment_id = establishment.id
+
+    response = client.get(f"/admin/experiencias/{experience_id}/editar")
+    assert response.status_code == 200
+    assert 'name="is_first_experience"' not in response.get_data(as_text=True)
 
     response = client.post(
         f"/admin/experiencias/{experience_id}/editar",
@@ -466,6 +478,7 @@ def test_admin_can_edit_experience_without_reuploading_image(app, client):
         experience = db.session.get(Experience, experience_id)
         assert experience.title == "Experiência Atualizada"
         assert experience.image_url == "uploads/experiences/original.jpg"
+        assert experience.is_first_experience is False
 
 
 def test_experience_edit_explains_inherited_cutoff(app, client):
@@ -593,7 +606,6 @@ def test_experience_focus_point_is_persisted(app, client):
             "image_focus_x": "19",
             "image_focus_y": "82",
             "status": ExperienceStatus.PUBLISHED,
-            "is_first_experience": "y",
         },
         follow_redirects=False,
     )
@@ -605,3 +617,4 @@ def test_experience_focus_point_is_persisted(app, client):
         )
         assert experience.image_focus_x == 19
         assert experience.image_focus_y == 82
+        assert experience.is_first_experience is False
