@@ -384,10 +384,16 @@ def test_real_experience_detail_shows_available_slot(
     app,
     client,
 ):
-    _, slot_ids = _catalog(
+    experience_id, slot_ids = _catalog(
         app,
         slot_count=1,
     )
+
+    with app.app_context():
+        experience = db.session.get(Experience, experience_id)
+        experience.is_first_experience = True
+        experience.badge = "Primeira experiência"
+        db.session.commit()
 
     response = client.get(
         "/experiencias/"
@@ -427,6 +433,11 @@ def test_real_experience_detail_shows_available_slot(
         "Studio Booking"
         in html
     )
+
+    assert "Para qualquer cliente" in html
+    assert "Qualquer cliente pode reservar um horário disponível." in html
+    assert "Oportunidade IDDUN" in html
+    assert "Primeira experiência" not in html
 
     assert (
         'data-slot-tab="0"'
@@ -629,6 +640,58 @@ def test_booking_http_flow_confirms_and_appears_in_my_bookings(
         "Cancelar reserva"
         in html
     )
+
+
+def test_client_can_book_again_after_completed_appointment(app, client):
+    experience_id, slot_ids = _catalog(app, slot_count=2)
+    user_id, profile_id = _client_user(app, "returning-client@example.com")
+
+    with app.app_context():
+        experience = db.session.get(Experience, experience_id)
+        experience.is_first_experience = True
+
+        previous_slot = db.session.get(ExperienceSlot, slot_ids[0])
+        previous_slot.starts_at = utcnow() - timedelta(days=7)
+        previous_slot.ends_at = previous_slot.starts_at + timedelta(hours=1)
+        previous_slot.status = SlotStatus.BOOKED
+
+        completed = Booking(
+            client_id=profile_id,
+            experience_id=experience_id,
+            professional_id=experience.professional_id,
+            establishment_id=experience.establishment_id,
+            slot_id=previous_slot.id,
+            status=BookingStatus.COMPLETED,
+            price_at_booking=experience.price,
+            confirmed_at=previous_slot.starts_at - timedelta(days=1),
+            completed_at=previous_slot.ends_at,
+        )
+        db.session.add(completed)
+        db.session.commit()
+        completed_id = completed.id
+        expected_price = completed.price_at_booking
+
+    _login_session(client, user_id)
+    response = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[1]}/reservar",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "/reserva/" in response.headers["Location"]
+
+    with app.app_context():
+        previous = db.session.get(Booking, completed_id)
+        current = db.session.scalar(
+            select(Booking).where(
+                Booking.client_id == profile_id,
+                Booking.slot_id == slot_ids[1],
+            )
+        )
+        assert previous.status == BookingStatus.COMPLETED
+        assert current is not None
+        assert current.status == BookingStatus.PENDING
+        assert current.price_at_booking == expected_price
 
 
 def test_external_conflict_cancels_pending_hold(

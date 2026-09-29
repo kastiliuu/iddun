@@ -98,7 +98,11 @@ experience-detail-page visual-v2-page
             ✦
           </span>
 
-          {{ experience.badge }}
+          {% if experience.badge == 'Primeira experiência' %}
+            Oportunidade IDDUN
+          {% else %}
+            {{ experience.badge }}
+          {% endif %}
         </span>
 
       {% endif %}
@@ -270,14 +274,14 @@ experience-detail-page visual-v2-page
         </span>
 
 
-        {% if experience.first_time %}
+        {% if db_experience %}
 
           <span>
 
             {{ icon('sparkles') }}
 
             <span>
-              Ideal para primeira experiência
+              Para qualquer cliente
             </span>
 
           </span>
@@ -407,6 +411,9 @@ experience-detail-page visual-v2-page
         <p>
           Veja os horários disponibilizados pelo profissional
           e escolha quando viver esta experiência.
+          {% if db_experience %}
+            Qualquer cliente pode reservar um horário disponível.
+          {% endif %}
         </p>
 
       </header>

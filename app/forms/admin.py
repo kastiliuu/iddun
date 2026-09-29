@@ -131,7 +131,6 @@ class ExperienceForm(FlaskForm):
     )
     status = SelectField("Status", choices=ExperienceStatus.CHOICES, validators=[DataRequired()])
     is_featured = BooleanField("Destaque na Home")
-    is_first_experience = BooleanField("Oferta de primeira experiência", default=True)
     submit = SubmitField("Salvar experiência")
 
     def validate(self, extra_validators=None):

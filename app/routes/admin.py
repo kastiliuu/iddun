@@ -193,7 +193,8 @@ def establishment_edit(item_id):
         try:
             uploaded_logo = save_uploaded_image(form.logo_file.data, "establishments")
         except ValueError as exc:
-            form.logo_file.errors.append(str(exc))
+            form.logo_file.errors.append(str(exc)
+            )
             return render_template(
                 "admin/establishments/form.html", form=form, item=item, admin_section="establishments"
             )
@@ -475,7 +476,6 @@ def experience_create():
 
     if request.method == "GET":
         form.status.data = ExperienceStatus.DRAFT
-        form.is_first_experience.data = True
 
     if not form.professional_id.choices:
         flash("Cadastre um profissional antes de criar uma experiência.", "info")
@@ -507,7 +507,7 @@ def experience_create():
             booking_cutoff_minutes=form.booking_cutoff_minutes.data,
             status=form.status.data,
             is_featured=form.is_featured.data,
-            is_first_experience=form.is_first_experience.data,
+            is_first_experience=False,
         )
         db.session.add(item)
         db.session.commit()
@@ -557,7 +557,7 @@ def experience_edit(item_id):
         item.booking_cutoff_minutes = form.booking_cutoff_minutes.data
         item.status = form.status.data
         item.is_featured = form.is_featured.data
-        item.is_first_experience = form.is_first_experience.data
+        item.is_first_experience = False
         db.session.commit()
         flash("Experiência atualizada.", "success")
         return redirect(url_for("admin.experiences"))
