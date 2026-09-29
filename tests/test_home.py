@@ -1,3 +1,11 @@
+import re
+
+from app.extensions import db
+from app.models.establishment import Establishment
+from app.models.professional import ProfessionalProfile
+from app.models.user import User, UserRole
+
+
 def test_home_returns_200(client):
     response = client.get("/")
 
@@ -76,16 +84,22 @@ def test_home_search_categories_and_marketplace_sections(
     # production establishment catalog is populated.
     assert "Lume Beauty Studio" in text
 
-    # App promotional section.
+    # Real community counts replace the old promotional sections.
     assert (
-        "O IDDUN também"
+        'class="home-v4-stats"'
         in text
     )
 
     assert (
-        "Em breve na"
+        'data-count-to="0"'
         in text
     )
+
+    assert "Pessoas cadastradas" in text
+    assert "Perfis profissionais ativos" in text
+    assert "Estabelecimentos ativos" in text
+    assert "O IDDUN também" not in text
+    assert "Em breve na" not in text
 
     # Favorites start inactive.
     assert (
@@ -172,7 +186,7 @@ def test_home_search_suggestions_use_searchable_values(
     )
 
 
-def test_home_exposes_how_it_works_anchor_and_safe_footer_links(
+def test_home_links_to_how_it_works_and_keeps_safe_footer_links(
     client,
 ):
     response = client.get("/")
@@ -183,15 +197,15 @@ def test_home_exposes_how_it_works_anchor_and_safe_footer_links(
 
     assert response.status_code == 200
 
-    # Header/footer links that point to #como-funciona must
-    # have a real destination on the page.
+    # The old anchor is kept for existing bookmarks to the
+    # community numbers; navigation now opens the full guide.
     assert (
         'id="como-funciona"'
         in text
     )
 
     assert (
-        'href="#como-funciona"'
+        'href="/como-funciona"'
         in text
     )
 
@@ -232,6 +246,27 @@ def test_home_exposes_how_it_works_anchor_and_safe_footer_links(
     assert (
         'aria-label="Instagram do IDDUN — em breve"'
         in text
+    )
+
+
+def test_how_it_works_page_explains_current_and_planned_features(
+    client,
+):
+    response = client.get("/como-funciona")
+
+    assert response.status_code == 200
+    text = response.get_data(as_text=True)
+
+    assert "Um lugar para a beleza se encontrar." in text
+    assert "Disponível agora" in text
+    assert "Em desenvolvimento" in text
+    assert "qualquer cliente pode reservar" in text
+    assert "Vagas na área da beleza" in text
+    assert "Visitas ao perfil" in text
+    assert 'href="/static/css/how-it-works.css"' in text
+    assert re.search(
+        r'class="nav-link is-active"\s+aria-current="page"\s*>\s*Como funciona',
+        text,
     )
 
 
@@ -289,14 +324,86 @@ def test_home_exposes_new_brand_interactions_and_accessible_states(
     )
 
     assert (
-        'data-app-parallax'
+        'data-count-to='
         in text
     )
 
     assert (
         "Avaliações verificadas"
-        in text
+        not in text
     )
+
+
+def test_home_counts_real_active_records_without_prototype_cards(app, client):
+    with app.app_context():
+        db.session.add_all(
+            [
+                User(
+                    name="Cliente ativo",
+                    email="active-client@example.com",
+                    password_hash="test",
+                    role=UserRole.CLIENT,
+                    is_active_account=True,
+                ),
+                User(
+                    name="Profissional ativo",
+                    email="active-pro@example.com",
+                    password_hash="test",
+                    role=UserRole.PROFESSIONAL,
+                    is_active_account=True,
+                ),
+                User(
+                    name="Administrador",
+                    email="admin-count@example.com",
+                    password_hash="test",
+                    role=UserRole.ADMIN,
+                    is_active_account=True,
+                ),
+                User(
+                    name="Cliente desativado",
+                    email="inactive-client@example.com",
+                    password_hash="test",
+                    role=UserRole.CLIENT,
+                    is_active_account=False,
+                ),
+                ProfessionalProfile(
+                    display_name="Profissional publicado",
+                    slug="active-pro-count",
+                    is_active=True,
+                ),
+                ProfessionalProfile(
+                    display_name="Profissional desativado",
+                    slug="inactive-pro-count",
+                    is_active=False,
+                ),
+                Establishment(
+                    name="Estabelecimento publicado",
+                    slug="active-establishment-count",
+                    is_active=True,
+                ),
+                Establishment(
+                    name="Estabelecimento desativado",
+                    slug="inactive-establishment-count",
+                    is_active=False,
+                ),
+            ]
+        )
+        db.session.commit()
+
+    response = client.get("/")
+    text = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    for count, label in (
+        (2, "Pessoas cadastradas"),
+        (1, "Perfis profissionais ativos"),
+        (1, "Estabelecimentos ativos"),
+    ):
+        assert re.search(
+            rf'data-count-to="{count}">{count}</span>\s*</strong>'
+            rf'\s*<span class="home-v4-stats__label">{label}</span>',
+            text,
+        )
 
 
 def test_professionals_page_returns_200(
