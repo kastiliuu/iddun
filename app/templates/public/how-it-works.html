@@ -1,0 +1,266 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Como funciona | IDDUN{% endblock %}
+{% block body_class %}how-page{% endblock %}
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/how-it-works.css') }}"
+>
+{% endblock %}
+
+{% block content %}
+<section class="how-hero" aria-labelledby="how-title">
+  <div class="container how-hero__inner">
+    <span class="how-eyebrow">
+      <span aria-hidden="true">✦</span>
+      Como funciona
+    </span>
+
+    <h1 id="how-title">
+      Um lugar para a beleza se encontrar.
+    </h1>
+
+    <p class="how-hero__lead">
+      O IDDUN aproxima clientes, profissionais e estabelecimentos.
+      Você descobre quem atende, conhece o trabalho, encontra horários
+      disponíveis e constrói conexões com mais contexto. Começamos
+      por Curitiba e queremos crescer com as pessoas da comunidade.
+    </p>
+
+    <div class="how-hero__actions">
+      <a class="how-button how-button--primary" href="{{ url_for('public.experiences') }}">
+        Explorar experiências
+      </a>
+      <a class="how-button" href="#hoje">
+        Entenda o que já funciona
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="how-section" id="hoje" aria-labelledby="how-today-title">
+  <div class="container">
+    <header class="how-section__head">
+      <span class="how-eyebrow">
+        <span aria-hidden="true">✦</span>
+        Disponível agora
+      </span>
+
+      <h2 id="how-today-title">
+        Cada pessoa encontra um caminho.
+      </h2>
+
+      <p>
+        O IDDUN já reúne perfis, experiências, reservas e avaliações
+        em um mesmo ambiente. Alguns recursos ainda são operados pela
+        equipe enquanto os painéis de cada perfil evoluem.
+      </p>
+    </header>
+
+    <div class="how-grid">
+      <article class="how-card">
+        <span class="how-card__number" aria-hidden="true">01</span>
+        <span class="how-status">Para clientes · disponível</span>
+        <h3>Escolha com mais informação</h3>
+        <p>
+          Explore categorias, profissionais, estabelecimentos e
+          experiências. Veja serviços, preços e horários publicados
+          antes de fazer uma reserva.
+        </p>
+        <ul>
+          <li>Reserve um horário disponível com sua conta.</li>
+          <li>Acompanhe suas reservas no IDDUN.</li>
+          <li>Avalie após a conclusão do atendimento.</li>
+        </ul>
+        <a class="how-card__link" href="{{ url_for('public.experiences') }}">
+          Ver experiências
+        </a>
+      </article>
+
+      <article class="how-card">
+        <span class="how-card__number" aria-hidden="true">02</span>
+        <span class="how-status">Para profissionais · disponível</span>
+        <h3>Apresente seu trabalho</h3>
+        <p>
+          Construa um perfil público com sua atuação, portfólio e
+          informações de atendimento. O trabalho aparece com autoria
+          própria, mesmo quando você atua em um estabelecimento.
+        </p>
+        <ul>
+          <li>Mostre especialidades e trabalhos realizados.</li>
+          <li>Receba convites de estabelecimentos.</li>
+          <li>Aceite ou recuse cada vínculo antes da ativação.</li>
+        </ul>
+        <a class="how-card__link" href="{{ url_for('public.for_professionals') }}">
+          Conhecer o espaço profissional
+        </a>
+      </article>
+
+      <article class="how-card">
+        <span class="how-card__number" aria-hidden="true">03</span>
+        <span class="how-status">Para estabelecimentos · disponível</span>
+        <h3>Dê contexto ao seu espaço</h3>
+        <p>
+          Apresente o estabelecimento, sua galeria e a equipe.
+          Clientes podem conhecer o local e consultar avaliações
+          publicadas após atendimentos concluídos.
+        </p>
+        <ul>
+          <li>Tenha uma página própria para o negócio.</li>
+          <li>Convide profissionais para compor a equipe.</li>
+          <li>O vínculo só se torna ativo com o aceite profissional.</li>
+        </ul>
+        <a class="how-card__link" href="{{ url_for('public.establishments') }}">
+          Conhecer estabelecimentos
+        </a>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="how-section how-section--soft" id="oportunidades" aria-labelledby="how-slots-title">
+  <div class="container">
+    <header class="how-section__head">
+      <span class="how-eyebrow">
+        <span aria-hidden="true">✦</span>
+        Horários e oportunidades
+      </span>
+
+      <h2 id="how-slots-title">
+        Um horário livre pode virar uma nova conexão.
+      </h2>
+
+      <p>
+        Quando um profissional disponibiliza uma experiência e um
+        horário no IDDUN, qualquer cliente pode reservar. O preço é
+        definido por quem oferece o atendimento; um valor especial,
+        quando houver, aparece junto das informações da experiência.
+      </p>
+    </header>
+
+    <ol class="how-process">
+      <li>
+        <strong>Encontre</strong>
+        <p>
+          Busque por serviço, categoria, profissional ou estabelecimento
+          e abra a experiência que interessa a você.
+        </p>
+      </li>
+      <li>
+        <strong>Confira</strong>
+        <p>
+          Veja preço, duração e horários publicados antes de escolher.
+          A disponibilidade é confirmada durante a reserva.
+        </p>
+      </li>
+      <li>
+        <strong>Viva e avalie</strong>
+        <p>
+          Após o atendimento ser concluído, você pode avaliar o
+          profissional e, quando houver, o estabelecimento.
+        </p>
+      </li>
+    </ol>
+
+    <p class="how-note">
+      <strong>Como está hoje:</strong> a equipe do IDDUN ainda participa
+      da publicação de oportunidades. A criação diretamente pelo
+      profissional no próprio painel está em desenvolvimento.
+      O acesso a reservas não depende de um plano pago.
+    </p>
+  </div>
+</section>
+
+<section class="how-section" id="em-desenvolvimento" aria-labelledby="how-next-title">
+  <div class="container">
+    <header class="how-section__head">
+      <span class="how-eyebrow">
+        <span aria-hidden="true">✦</span>
+        Em desenvolvimento
+      </span>
+
+      <h2 id="how-next-title">
+        A rede cresce a partir das necessidades reais.
+      </h2>
+
+      <p>
+        Estas soluções fazem parte da direção do IDDUN, mas ainda
+        não estão disponíveis como ferramentas completas. Vamos
+        apresentá-las como disponíveis somente quando funcionarem
+        na web e no aplicativo.
+      </p>
+    </header>
+
+    <div class="how-grid">
+      <article class="how-card">
+        <span class="how-status how-status--planned">Em desenvolvimento</span>
+        <h3>Publicações e conexões</h3>
+        <p>
+          Profissionais e estabelecimentos poderão compartilhar
+          conteúdo e mostrar o próprio trabalho. Clientes poderão
+          acompanhar profissionais e estabelecimentos; profissionais
+          também poderão acompanhar estabelecimentos.
+        </p>
+        <p>
+          Mensagens diretas ficam para uma etapa posterior.
+        </p>
+      </article>
+
+      <article class="how-card">
+        <span class="how-status how-status--planned">Em desenvolvimento</span>
+        <h3>Vagas na área da beleza</h3>
+        <p>
+          Estabelecimentos poderão divulgar vagas e profissionais
+          poderão se candidatar gratuitamente. Ferramentas adicionais
+          de triagem e organização das candidaturas farão parte
+          do IDDUN Business.
+        </p>
+      </article>
+
+      <article class="how-card">
+        <span class="how-status how-status--planned">Em desenvolvimento</span>
+        <h3>Visitas ao perfil</h3>
+        <p>
+          O total de visitas será uma informação básica. A identificação
+          de visitantes, quando permitida por eles, será uma ferramenta
+          adicional dos planos profissionais pagos.
+        </p>
+      </article>
+    </div>
+
+    <p class="how-note">
+      <strong>Compromisso do IDDUN:</strong> perfis, serviços,
+      oportunidades, reservas e publicação básica de vagas não terão
+      limite artificial para incentivar a contratação de um plano.
+    </p>
+  </div>
+</section>
+
+<section class="how-next" aria-labelledby="how-start-title">
+  <div class="container how-next__inner">
+    <div class="how-next__copy">
+      <span class="how-eyebrow">
+        <span aria-hidden="true">✦</span>
+        Comece pelo que importa
+      </span>
+      <h2 id="how-start-title">Encontre seu lugar no IDDUN.</h2>
+      <p>
+        Descubra experiências ou comece a construir sua presença
+        profissional. Estamos formando essa comunidade a partir
+        de Curitiba, uma conexão de cada vez.
+      </p>
+    </div>
+
+    <div class="how-next__actions">
+      <a class="how-button how-button--primary" href="{{ url_for('public.experiences') }}">
+        Explorar o IDDUN
+      </a>
+      <a class="how-button" href="{{ url_for('public.for_professionals') }}">
+        Sou profissional
+      </a>
+    </div>
+  </div>
+</section>
+{% endblock %}

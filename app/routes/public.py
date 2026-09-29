@@ -14,6 +14,7 @@ from app.services.experience_service import (
     list_locations,
 )
 from app.services.google_calendar_service import sync_professional_if_stale
+from app.services.home_stats_service import get_home_stats
 from app.services.professional_service import (
     get_establishment_public_view,
     get_professional_public_view,
@@ -273,7 +274,20 @@ def home():
         categories=categories,
         professionals=professionals,
         studios=studios,
+        home_stats=get_home_stats(),
         current_page="home",
+    )
+
+
+# ============================================================
+# HOW IT WORKS
+# ============================================================
+
+@public_bp.get("/como-funciona")
+def how_it_works():
+    return render_template(
+        "public/how-it-works.html",
+        current_page="how-it-works",
     )
 
 

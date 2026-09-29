@@ -1,0 +1,133 @@
+/* IDDUN home: real community totals. Brand values come from tokens.css. */
+
+.home-v4-stats {
+  color: var(--color-text);
+  background: var(--color-bg);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.home-v4-stats__inner {
+  display: grid;
+  gap: clamp(1.5rem, 3vw, 2.75rem);
+  padding-block: clamp(3.5rem, 7vw, 6rem);
+}
+
+.home-v4-stats__intro {
+  max-width: 55rem;
+}
+
+.home-v4-stats__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.85rem;
+  color: var(--color-plum-bright);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.home-v4-stats__intro h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.home-v4-stats__intro p {
+  max-width: 62ch;
+  margin: 1rem 0 0;
+  color: var(--color-text-soft);
+  font-family: var(--font-body);
+  font-size: clamp(0.92rem, 1.25vw, 1.05rem);
+  line-height: 1.65;
+}
+
+.home-v4-stats__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  list-style: none;
+}
+
+.home-v4-stats__list:focus-visible {
+  outline: 2px solid var(--color-plum-bright);
+  outline-offset: 4px;
+}
+
+.home-v4-stats__item {
+  min-width: 0;
+  padding: clamp(1.25rem, 2.8vw, 2rem);
+}
+
+.home-v4-stats__item:first-child {
+  padding-left: 0;
+}
+
+.home-v4-stats__item + .home-v4-stats__item {
+  border-left: 1px solid var(--color-border-soft);
+}
+
+.home-v4-stats__value {
+  display: block;
+  color: var(--color-plum-bright);
+  font-family: var(--font-display);
+  font-size: clamp(2.6rem, 5.3vw, 4.75rem);
+  font-variant-numeric: lining-nums tabular-nums;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.home-v4-stats__label {
+  display: block;
+  margin-top: 0.85rem;
+  color: var(--color-text-soft);
+  font-family: var(--font-body);
+  font-size: clamp(0.82rem, 1.2vw, 0.96rem);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .home-v4-stats__inner {
+    gap: 1.75rem;
+  }
+
+  .home-v4-stats__list {
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(12.5rem, 76%);
+    grid-template-columns: none;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: 0.25rem;
+    scroll-snap-type: x mandatory;
+    scrollbar-color: var(--color-plum-bright) transparent;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .home-v4-stats__item {
+    padding: 1.5rem 1.25rem;
+    scroll-snap-align: start;
+  }
+
+  .home-v4-stats__item:first-child {
+    padding-left: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v4-stats__list {
+    scroll-behavior: auto;
+  }
+}

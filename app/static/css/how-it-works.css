@@ -1,0 +1,318 @@
+/* Página Como funciona. Os valores de marca vêm de tokens.css. */
+
+.how-page {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.how-page main {
+  min-height: 70vh;
+}
+
+.how-page [id] {
+  scroll-margin-top: calc(var(--header-height) + 1.5rem);
+}
+
+.how-page :focus-visible {
+  outline: 2px solid var(--color-plum-bright);
+  outline-offset: 4px;
+}
+
+.how-hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(7rem, 11vw, 10rem) 0 clamp(4rem, 7vw, 6rem);
+  border-bottom: 1px solid var(--color-border-soft);
+  background:
+    radial-gradient(circle at 92% 12%, rgba(107, 46, 255, 0.12), transparent 32%),
+    var(--color-bg);
+}
+
+.how-hero__inner {
+  max-width: 62rem;
+}
+
+.how-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--color-plum-bright);
+  font: var(--weight-bold) 0.75rem/1.4 var(--font-body);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.how-hero h1,
+.how-section__head h2,
+.how-next__copy h2 {
+  margin: 1rem 0 0;
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+.how-hero h1 {
+  max-width: 18ch;
+  font-size: clamp(2.6rem, 6vw, 5.2rem);
+  line-height: 1.06;
+}
+
+.how-hero__lead {
+  max-width: 67ch;
+  margin: 1.6rem 0 0;
+  color: var(--color-text-soft);
+  font: 400 clamp(1rem, 1.4vw, 1.18rem)/1.7 var(--font-body);
+}
+
+.how-hero__actions,
+.how-next__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 2rem;
+}
+
+.how-button {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  background: var(--color-surface-dark);
+  font: var(--weight-semibold) 0.88rem/1.25 var(--font-body);
+  text-align: center;
+  text-decoration: none;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.how-button:hover {
+  border-color: var(--color-plum-bright);
+  background: var(--color-plum-soft);
+  transform: translateY(-2px);
+}
+
+.how-button--primary {
+  border-color: var(--color-plum-bright);
+  background: var(--color-plum-soft-strong);
+}
+
+.how-section {
+  padding: clamp(4rem, 7vw, 6.5rem) 0;
+}
+
+.how-section--soft {
+  border-block: 1px solid var(--color-border-soft);
+  background: var(--color-bg-soft);
+}
+
+.how-section__head {
+  max-width: 50rem;
+  margin-bottom: clamp(1.8rem, 3vw, 2.8rem);
+}
+
+.how-section__head h2,
+.how-next__copy h2 {
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 1.13;
+}
+
+.how-section__head p,
+.how-next__copy p {
+  max-width: 68ch;
+  margin: 1rem 0 0;
+  color: var(--color-text-soft);
+  font: 400 1rem/1.7 var(--font-body);
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.how-card {
+  min-width: 0;
+  padding: clamp(1.5rem, 2.6vw, 2.2rem);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-dark);
+}
+
+.how-card__number {
+  display: block;
+  margin-bottom: 2.25rem;
+  color: var(--color-plum-bright);
+  font: 500 2.2rem/1 var(--font-display);
+}
+
+.how-card h3 {
+  margin: 0;
+  font: var(--weight-semibold) clamp(1.1rem, 1.5vw, 1.3rem)/1.3 var(--font-body);
+}
+
+.how-card p,
+.how-card li {
+  color: var(--color-text-soft);
+  font: 400 0.92rem/1.65 var(--font-body);
+}
+
+.how-card p {
+  margin: 0.8rem 0 0;
+}
+
+.how-card ul {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1.35rem 0 0;
+  padding-left: 1.15rem;
+}
+
+.how-card li::marker {
+  color: var(--color-plum-bright);
+}
+
+.how-card__link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 1.5rem;
+  color: var(--color-violet-light);
+  font: var(--weight-semibold) 0.88rem/1.3 var(--font-body);
+  text-underline-offset: 0.25em;
+}
+
+.how-card__link:hover {
+  color: var(--color-text);
+}
+
+.how-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-text-soft);
+  font: var(--weight-semibold) 0.72rem/1.2 var(--font-body);
+}
+
+.how-status--planned {
+  border-color: var(--color-border-strong);
+  color: var(--color-violet-light);
+}
+
+.how-process {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-process li {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.how-process strong {
+  display: block;
+  font: var(--weight-semibold) 1rem/1.4 var(--font-body);
+}
+
+.how-process p {
+  margin: 0.6rem 0 0;
+  color: var(--color-text-soft);
+  font: 400 0.92rem/1.65 var(--font-body);
+}
+
+.how-note {
+  max-width: 56rem;
+  margin-top: 2.25rem;
+  padding: 1.2rem 1.4rem;
+  border-left: 3px solid var(--color-plum-bright);
+  color: var(--color-text-soft);
+  background: var(--color-surface-dark);
+  font: 400 0.9rem/1.65 var(--font-body);
+}
+
+.how-note strong {
+  color: var(--color-text);
+}
+
+.how-next {
+  padding: clamp(3.5rem, 6vw, 5.5rem) 0;
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.how-next__inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+}
+
+.how-next__copy {
+  max-width: 48rem;
+}
+
+.how-next__actions {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 900px) {
+  .how-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .how-process {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .how-next__inner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 620px) {
+  .how-hero {
+    padding-top: calc(var(--mobile-header-height) + 3.5rem);
+  }
+
+  .how-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .how-card__number {
+    margin-bottom: 1.3rem;
+  }
+
+  .how-hero__actions,
+  .how-next__actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .how-button {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .how-button {
+    transition: none;
+  }
+
+  .how-button:hover {
+    transform: none;
+  }
+}

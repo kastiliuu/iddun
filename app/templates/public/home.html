@@ -13,6 +13,10 @@ home-page visual-v2-page home-v4-page
   rel="stylesheet"
   href="{{ url_for('static', filename='css/home.css') }}"
 >
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/home-stats.css') }}"
+>
 {% endblock %}
 
 
@@ -921,252 +925,56 @@ home-page visual-v2-page home-v4-page
 
 
 <!-- ==========================================================
-     HOW IT WORKS / VALUE PROPOSITION
+     THE IDDUN COMMUNITY — REAL COUNTS
      ========================================================== -->
 
 <section
-  class="home-v4-proof"
+  class="home-v4-stats"
   id="como-funciona"
-  aria-labelledby="proof-title"
+  aria-labelledby="stats-title"
 >
-
-  <div
-    class="container home-v4-proof__grid"
-    data-reveal-stagger
-  >
-
-    <div class="home-v4-proof__title">
-
-      <span id="proof-title">
-        Por que<br>
-        IDDUN?
+  <div class="container home-v4-stats__inner">
+    <header class="home-v4-stats__intro" data-reveal>
+      <span class="home-v4-stats__eyebrow">
+        <span aria-hidden="true">✦</span>
+        A comunidade IDDUN
       </span>
 
-      <i></i>
-
-    </div>
-
-
-    <article>
-
-      {{ icon('diamond') }}
-
-      <div>
-        <h3>
-          Descoberta com contexto
-        </h3>
-
-        <p>
-          Conheça profissionais, especialidades,
-          trabalhos e locais antes de escolher.
-        </p>
-      </div>
-
-    </article>
-
-
-    <article>
-
-      {{ icon('users') }}
-
-      <div>
-        <h3>
-          Avaliações verificadas
-        </h3>
-
-        <p>
-          Avaliações ficam disponíveis depois
-          de atendimentos concluídos pelo IDDUN.
-        </p>
-      </div>
-
-    </article>
-
-
-    <article>
-
-      {{ icon('calendar') }}
-
-      <div>
-        <h3>
-          Agenda conectada
-        </h3>
-
-        <p>
-          Consulte horários disponíveis
-          e reserve com mais clareza.
-        </p>
-      </div>
-
-    </article>
-
-
-    <article>
-
-      {{ icon('sparkles') }}
-
-      <div>
-        <h3>
-          Conexões reais
-        </h3>
-
-        <p>
-          Profissionais e estabelecimentos
-          conectados em uma mesma experiência.
-        </p>
-      </div>
-
-    </article>
-
-  </div>
-</section>
-
-
-<!-- ==========================================================
-     MOBILE APP
-     ========================================================== -->
-
-<section
-  class="home-v4-app"
-  aria-labelledby="app-title"
->
-
-  <div class="container">
-
-    <div
-      class="home-v4-app__panel"
-      data-reveal
-    >
-
-      <!-- App copy -->
-      <div class="home-v4-app__copy">
-
-        <h2 id="app-title">
-          O IDDUN também<br>
-          vai com você.
-        </h2>
-
-
-        <p>
-          Estamos levando a experiência do IDDUN
-          para o aplicativo: descubra profissionais,
-          acompanhe novidades, salve favoritos
-          e encontre novos horários.
-        </p>
-
-
-        <div
-          class="home-v4-store-buttons"
-          aria-label="Aplicativo IDDUN em desenvolvimento"
-        >
-
-          <a
-            role="link"
-            aria-disabled="true"
-          >
-            <span aria-hidden="true">
-              
-            </span>
-
-            <small>
-              Em breve na
-              <strong>
-                App Store
-              </strong>
-            </small>
-          </a>
-
-
-          <a
-            role="link"
-            aria-disabled="true"
-          >
-            <span aria-hidden="true">
-              ▶
-            </span>
-
-            <small>
-              Em breve no
-              <strong>
-                Google Play
-              </strong>
-            </small>
-          </a>
-
-        </div>
-
-      </div>
-
-
-      <!-- App mockup -->
-      <div
-        class="home-v4-app__visual"
-        aria-hidden="true"
-        data-app-parallax
-      >
-
-        <span class="home-v4-app__silk"></span>
-
-
-        <div
-          class="home-v4-phone home-v4-phone--back"
-          data-app-phone="back"
-        ></div>
-
-
-        <div
-          class="home-v4-phone home-v4-phone--front"
-          data-app-phone="front"
-        >
-
-          <span class="home-v4-phone__notch"></span>
-
-
-          <strong>
-            ID<span>✦</span>DUN
-          </strong>
-
-
-          <h3>
-            Beleza<br>
-            em movimento.
-          </h3>
-
-
-          <img
-            src="{{ url_for(
-              'static',
-              filename='img/hero-woman-v3.webp'
-            ) }}"
-            alt=""
-          >
-
-
-          <small>
-            ⌕ Descobrir
-          </small>
-
-          <small>
-            ▢ Agendar
-          </small>
-
-          <small>
-            ♡ Favoritos
-          </small>
-
-        </div>
-
-      </div>
-
-
-      <!-- App tagline -->
-      <p class="home-v4-app__tagline">
-        Mesma identidade.<br>
-        Mais liberdade.
+      <h2 id="stats-title">Beleza que conecta pessoas.</h2>
+
+      <p>
+        Um espaço para descobrir profissionais, conhecer estabelecimentos
+        e fazer novas conexões.
       </p>
+    </header>
 
-    </div>
+    <ul
+      class="home-v4-stats__list"
+      aria-label="Números da comunidade IDDUN"
+      data-reveal
+      tabindex="0"
+    >
+      <li class="home-v4-stats__item">
+        <strong class="home-v4-stats__value">
+          <span data-count-to="{{ home_stats.members }}">{{ home_stats.members }}</span>
+        </strong>
+        <span class="home-v4-stats__label">Pessoas cadastradas</span>
+      </li>
 
+      <li class="home-v4-stats__item">
+        <strong class="home-v4-stats__value">
+          <span data-count-to="{{ home_stats.professionals }}">{{ home_stats.professionals }}</span>
+        </strong>
+        <span class="home-v4-stats__label">Perfis profissionais ativos</span>
+      </li>
+
+      <li class="home-v4-stats__item">
+        <strong class="home-v4-stats__value">
+          <span data-count-to="{{ home_stats.establishments }}">{{ home_stats.establishments }}</span>
+        </strong>
+        <span class="home-v4-stats__label">Estabelecimentos ativos</span>
+      </li>
+    </ul>
   </div>
 </section>
 
