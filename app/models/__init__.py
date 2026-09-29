@@ -11,6 +11,14 @@ from app.models.establishment import (
     ProfessionalEstablishmentMembership,
 )
 from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
+from app.models.plan import (
+    BillingCycle,
+    PlanChangeEvent,
+    PlanCode,
+    PlanSource,
+    PlanStatus,
+    PlanSubscription,
+)
 from app.models.profile import ClientProfile
 from app.models.professional import (
     ProfilePlan,
@@ -50,4 +58,10 @@ __all__ = [
     "SlotStatus",
     "Booking",
     "BookingStatus",
+    "PlanCode",
+    "PlanStatus",
+    "BillingCycle",
+    "PlanSource",
+    "PlanSubscription",
+    "PlanChangeEvent",
 ]
