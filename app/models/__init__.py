@@ -1,3 +1,4 @@
+from app.models.api_session import ApiSession
 from app.models.certification import ProfessionalCertification
 from app.models.reputation import ContactClick, Review, ReviewTarget
 from app.models.calendar import CalendarConnection, CalendarProvider
@@ -31,6 +32,7 @@ from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatu
 
 
 __all__ = [
+    "ApiSession",
     "ProfessionalCertification",
     "Review",
     "ReviewTarget",
