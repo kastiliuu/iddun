@@ -690,6 +690,13 @@
   font: inherit;
 }
 
+.header-search-dialog__field
+input:focus-visible {
+  outline: 0;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 .header-search-dialog__field input::placeholder {
   color:
     rgba(247, 246, 244, 0.52);

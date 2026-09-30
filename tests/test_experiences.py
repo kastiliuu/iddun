@@ -429,6 +429,37 @@ def test_experiences_empty_state_is_available_for_no_results(
     )
 
 
+def test_search_inputs_delegate_visible_focus_to_their_containers(
+    client,
+):
+    marketplace_css = client.get(
+        "/static/css/marketplace.css"
+    ).get_data(as_text=True)
+
+    components_css = client.get(
+        "/static/css/components.css"
+    ).get_data(as_text=True)
+
+    marketplace_focus = re.search(
+        r"\.marketplace-page\s+"
+        r"\.marketplace-search__field\s+"
+        r"input:focus-visible\s*\{([^}]*)\}",
+        marketplace_css,
+    )
+
+    header_focus = re.search(
+        r"\.header-search-dialog__field\s+"
+        r"input:focus-visible\s*\{([^}]*)\}",
+        components_css,
+    )
+
+    assert marketplace_focus is not None
+    assert "outline: 0;" in marketplace_focus.group(1)
+
+    assert header_focus is not None
+    assert "outline: 0;" in header_focus.group(1)
+
+
 def test_empty_official_category_keeps_marketplace_available(
     client,
 ):
