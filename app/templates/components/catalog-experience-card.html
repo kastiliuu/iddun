@@ -54,7 +54,8 @@
 
     <span
       class="catalog-card__rating"
-      aria-label="{{ '%.1f'|format(item.rating|float)|replace('.', ',') }} de 5, com {{ item.reviews }} avaliações"
+      {# (a) Usa singular quando existir somente uma avaliação. #}
+      aria-label="{{ '%.1f'|format(item.rating|float)|replace('.', ',') }} de 5, com {{ item.reviews }} {{ 'avaliação' if item.reviews|int == 1 else 'avaliações' }}"
     >
 
       {{ icon(
@@ -305,7 +306,7 @@
       >
 
 
-      <div>
+      <div class="catalog-card__professional-copy">
 
         <strong>
           {{ item.professional }}
@@ -389,7 +390,7 @@
         'public.experience_detail',
         slug=item.slug
       ) }}"
-      aria-label="Ver experiência em destaque {{ item.title }}"
+      aria-label="Ver experiência {{ item.title }}"
     >
 
       <img
@@ -399,8 +400,9 @@
           'image_position',
           '50% 50%'
         ) }};"
-        loading="lazy"
+        loading="eager"
         decoding="async"
+        fetchpriority="high"
       >
 
     </a>
@@ -411,7 +413,12 @@
         ✦
       </span>
 
-      Destaque IDDUN
+      {# (a) O primeiro resultado pode ocupar o card editorial sem ser destaque. #}
+      {% if item.featured %}
+        Destaque IDDUN
+      {% else %}
+        Curadoria IDDUN
+      {% endif %}
     </span>
 
 
@@ -447,7 +454,7 @@
     {% if item.badge %}
 
       <span
-        class="catalog-featured__badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}"
+        class="badge catalog-featured__badge{% if item.badge == 'Últimas vagas' %} badge--urgent{% endif %}"
       >
         {{ item.badge }}
       </span>
@@ -473,7 +480,7 @@
     <!-- Description -->
     {% if item.description %}
 
-      <p>
+      <p class="catalog-featured__description">
         {{ item.description }}
       </p>
 
@@ -533,7 +540,7 @@
       >
 
 
-      <div>
+      <div class="catalog-featured__professional-copy">
 
         <strong>
           {{ item.professional }}

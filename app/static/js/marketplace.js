@@ -110,6 +110,87 @@
   };
 
 
+  const hasActiveFiltersInUrl = (
+    targetUrl
+  ) => {
+    const url = new URL(
+      targetUrl ||
+        window.location.href,
+      window.location.href
+    );
+
+    const sort =
+      url.searchParams.get(
+        'ordem'
+      );
+
+    return Boolean(
+      url.searchParams
+        .get('q')
+        ?.trim() ||
+      url.searchParams
+        .get('categoria')
+        ?.trim() ||
+      url.searchParams
+        .get('bairro')
+        ?.trim() ||
+      (
+        sort &&
+        sort !== 'recommended'
+      )
+    );
+  };
+
+
+  const syncFilterIndicator = (
+    targetUrl
+  ) => {
+    if (!openFilters) {
+      return;
+    }
+
+    const active =
+      hasActiveFiltersInUrl(
+        targetUrl
+      );
+
+    let dot =
+      openFilters.querySelector(
+        '.marketplace-filter-button__dot'
+      );
+
+    if (!dot) {
+      dot =
+        document.createElement(
+          'span'
+        );
+
+      dot.className =
+        'marketplace-filter-button__dot';
+
+      dot.setAttribute(
+        'aria-hidden',
+        'true'
+      );
+
+      openFilters.append(dot);
+    }
+
+    dot.hidden = !active;
+
+    openFilters.dataset
+      .hasActiveFilters =
+        String(active);
+
+    openFilters.setAttribute(
+      'aria-label',
+      active
+        ? 'Abrir filtros. Existem filtros ativos.'
+        : 'Abrir filtros'
+    );
+  };
+
+
   /* ==========================================================
      FAVORITES
      ========================================================== */
@@ -436,6 +517,10 @@
     'false'
   );
 
+  syncFilterIndicator(
+    window.location.href
+  );
+
 
   /* ==========================================================
      CLIENT-SIDE CATEGORY FILTER
@@ -480,16 +565,21 @@
           );
 
 
-          chip.setAttribute(
-            'aria-pressed',
-            String(active)
+          /*
+           * (a) Category chips are navigation links, not
+           * toggle buttons. aria-current is the correct
+           * semantic state for the selected destination.
+           */
+
+          chip.removeAttribute(
+            'aria-pressed'
           );
 
 
           if (active) {
             chip.setAttribute(
               'aria-current',
-              'true'
+              'page'
             );
           } else {
             chip.removeAttribute(
@@ -635,6 +725,11 @@
 
     syncCategoryChips(
       normalizedCategory
+    );
+
+    syncFilterIndicator(
+      targetUrl ||
+        window.location.href
     );
 
 

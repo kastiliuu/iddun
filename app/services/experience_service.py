@@ -4,11 +4,12 @@ from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
 from flask import current_app
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
 from app.data.mock_professionals import PROFESSIONAL_CATALOG
 from app.extensions import db
+from app.models.establishment import Establishment
 from app.models.experience import (
     Experience,
     ExperienceCategory,
@@ -616,8 +617,9 @@ def _normalize_mock_item(item):
 # CATALOG
 # ============================================================
 
-def _published_db_experiences():
-    items = db.session.scalars(
+def _published_db_query():
+    """(c) Centraliza a elegibilidade da listagem e do estado vazio."""
+    return (
         select(
             Experience
         )
@@ -628,6 +630,13 @@ def _published_db_experiences():
                 == ProfessionalProfile.id
             ),
         )
+        .outerjoin(
+            Establishment,
+            (
+                Experience.establishment_id
+                == Establishment.id
+            ),
+        )
         .where(
             Experience.status
             == ExperienceStatus.PUBLISHED,
@@ -635,7 +644,22 @@ def _published_db_experiences():
             ProfessionalProfile.is_active.is_(
                 True
             ),
+
+            or_(
+                Experience.establishment_id.is_(
+                    None
+                ),
+                Establishment.is_active.is_(
+                    True
+                ),
+            ),
         )
+    )
+
+
+def _published_db_experiences():
+    items = db.session.scalars(
+        _published_db_query()
         .order_by(
             Experience.is_featured.desc(),
             Experience.created_at.desc(),
@@ -645,11 +669,30 @@ def _published_db_experiences():
     return [
         _db_item(item)
         for item in items
-        if (
-            item.establishment is None
-            or item.establishment.is_active
-        )
     ]
+
+
+def catalog_has_experiences():
+    """(c) Informa se o ambiente atual possui algum item público visível."""
+    if (
+        current_app.config["APP_ENV"]
+        != "production"
+        and EXPERIENCE_CATALOG
+    ):
+        return True
+
+    query = (
+        _published_db_query()
+        .with_only_columns(
+            Experience.id
+        )
+        .limit(1)
+    )
+
+    return (
+        db.session.scalar(query)
+        is not None
+    )
 
 
 def _catalog():
@@ -950,36 +993,13 @@ def get_experience_by_slug(
     slug,
 ):
     db_item = db.session.scalar(
-        select(
-            Experience
-        ).where(
+        _published_db_query().where(
             Experience.slug
             == slug,
-
-            Experience.status
-            == ExperienceStatus.PUBLISHED,
         )
     )
 
     if db_item:
-        if not (
-            db_item
-            .professional
-            .is_active
-        ):
-            return None
-
-        if (
-            db_item.establishment
-            is not None
-            and not (
-                db_item
-                .establishment
-                .is_active
-            )
-        ):
-            return None
-
         return _db_item(
             db_item
         )
@@ -1028,20 +1048,10 @@ def list_locations():
     )
 
     rows = db.session.scalars(
-        select(
-            Experience
-        ).where(
-            Experience.status
-            == ExperienceStatus.PUBLISHED
-        )
+        _published_db_query()
     ).all()
 
     for item in rows:
-        if not item.professional.is_active or (
-            item.establishment is not None
-            and not item.establishment.is_active
-        ):
-            continue
         if (
             item.establishment
             and item.establishment.neighborhood
@@ -1065,32 +1075,10 @@ def get_database_experience_by_slug(
     slug,
 ):
     item = db.session.scalar(
-        select(
-            Experience
-        ).where(
+        _published_db_query().where(
             Experience.slug
             == slug,
-
-            Experience.status
-            == ExperienceStatus.PUBLISHED,
         )
     )
-
-    if item is None:
-        return None
-
-    if not (
-        item.professional.is_active
-    ):
-        return None
-
-    if (
-        item.establishment
-        is not None
-        and not (
-            item.establishment.is_active
-        )
-    ):
-        return None
 
     return item

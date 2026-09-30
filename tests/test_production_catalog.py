@@ -23,3 +23,62 @@ def test_development_keeps_prototype_catalog(app, client):
 
     assert client.get("/experiencias/hair-experience-camila-rocha").status_code == 200
     assert client.get("/profissionais/camila-rocha").status_code == 200
+
+
+def test_catalog_presence_uses_public_eligibility_rules(app):
+    from sqlalchemy import select
+
+    from app.extensions import db
+    from app.models.establishment import Establishment
+    from app.models.experience import Experience, ExperienceStatus
+    from app.models.professional import ProfessionalProfile
+    from app.services.experience_service import catalog_has_experiences
+
+    app.config["APP_ENV"] = "production"
+
+    with app.app_context():
+        assert catalog_has_experiences() is False
+
+        professional = ProfessionalProfile(
+            display_name="Profissional do Catálogo",
+            slug="profissional-do-catalogo",
+            is_active=True,
+        )
+        experience = Experience(
+            professional=professional,
+            title="Experiência Publicável",
+            slug="experiencia-publicavel",
+            category="cabelo",
+            short_description="Experiência real para validar o catálogo.",
+            regular_price="200.00",
+            price="150.00",
+            duration_minutes=60,
+            status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add_all([professional, experience])
+        db.session.commit()
+
+        assert catalog_has_experiences() is True
+
+        professional.is_active = False
+        db.session.commit()
+
+        assert catalog_has_experiences() is False
+
+        professional.is_active = True
+        establishment = Establishment(
+            name="Studio Inativo do Catálogo",
+            slug="studio-inativo-do-catalogo",
+            is_active=False,
+        )
+        db.session.add(establishment)
+        db.session.flush()
+        experience.establishment_id = establishment.id
+        db.session.commit()
+
+        assert catalog_has_experiences() is False
+
+        saved = db.session.scalar(
+            select(Experience).where(Experience.id == experience.id)
+        )
+        assert saved.status == ExperienceStatus.PUBLISHED

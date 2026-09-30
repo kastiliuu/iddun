@@ -52,6 +52,39 @@ def establishment_choices(include_empty=False):
     return choices
 
 
+def validate_experience_publication(professional_id, establishment_id=None):
+    """(a) Impede que o admin publique algo que o catálogo público ocultaria."""
+    professional = db.session.get(ProfessionalProfile, professional_id)
+    if professional is None:
+        raise ValueError("Selecione um profissional válido antes de publicar a experiência.")
+    if not professional.is_active:
+        raise ValueError(
+            f"Ative o perfil de {professional.display_name} antes de publicar a experiência."
+        )
+
+    if not establishment_id:
+        return
+
+    establishment = db.session.get(Establishment, establishment_id)
+    if establishment is None:
+        raise ValueError("Selecione um estabelecimento válido antes de publicar a experiência.")
+    if not establishment.is_active:
+        raise ValueError(
+            f"Ative o estabelecimento {establishment.name} antes de publicar a experiência."
+        )
+
+
+def publish_experience(experience):
+    """(a) Publica somente experiências elegíveis para o catálogo público."""
+    validate_experience_publication(
+        professional_id=experience.professional_id,
+        establishment_id=experience.establishment_id,
+    )
+    experience.status = ExperienceStatus.PUBLISHED
+    db.session.add(experience)
+    return experience
+
+
 def _can_keep_active_membership(membership):
     if membership.id is None:
         return False
