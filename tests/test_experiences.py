@@ -1,3 +1,6 @@
+import re
+
+
 def test_experiences_page_returns_200(
     client,
 ):
@@ -266,6 +269,37 @@ def test_experiences_uses_explicit_featured_card_above_uniform_grid(
     )
 
 
+def test_featured_experience_is_not_repeated_in_regular_grid(
+    client,
+):
+    response = client.get(
+        "/experiencias"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    featured = re.search(
+        r'<article[^>]*class="catalog-featured"[^>]*data-title="([^"]+)"',
+        html,
+        re.DOTALL,
+    )
+
+    assert featured is not None
+
+    featured_title = featured.group(1)
+
+    assert (
+        html.count(
+            f'data-title="{featured_title}"'
+        )
+        == 1
+    )
+
+
 def test_experiences_header_search_uses_dialog_instead_of_inline_input(
     client,
 ):
@@ -291,6 +325,84 @@ def test_experiences_header_search_uses_dialog_instead_of_inline_input(
         'class="search-shell"'
         not in html
     )
+
+
+def test_global_styles_define_screen_reader_only_utility(
+    client,
+):
+    response = client.get(
+        "/static/css/base.css"
+    )
+
+    css = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+    assert ".sr-only {" in css
+
+    required_declarations = (
+        "position: absolute;",
+        "width: 1px;",
+        "height: 1px;",
+        "overflow: hidden;",
+        "clip: rect(0, 0, 0, 0);",
+        "white-space: nowrap;",
+    )
+
+    for declaration in required_declarations:
+        assert declaration in css
+
+    page = client.get(
+        "/experiencias"
+    ).get_data(
+        as_text=True
+    )
+
+    assert page.count(
+        'class="sr-only"'
+    ) >= 6
+
+    filtered_page = client.get(
+        "/experiencias?bairro=Batel"
+    ).get_data(
+        as_text=True
+    )
+
+    assert filtered_page.count(
+        'class="sr-only"'
+    ) >= 7
+
+
+def test_experiences_filter_toolbar_has_accessible_landmarks(
+    client,
+):
+    response = client.get(
+        "/experiencias"
+    )
+
+    html = response.get_data(
+        as_text=True
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        'aria-label="Filtros de descoberta"'
+        in html
+    )
+
+    assert (
+        'aria-label="Filtrar por categoria"'
+        in html
+    )
+
+    assert (
+        'aria-label="Refinar resultados"'
+        in html
+    )
+
+    assert 'aria-current="page"' in html
 
 
 def test_experiences_empty_state_is_available_for_no_results(

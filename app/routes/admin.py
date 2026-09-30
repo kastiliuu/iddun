@@ -17,8 +17,10 @@ from app.services.admin_catalog_service import (
     dashboard_counts,
     establishment_choices,
     experience_choices,
+    publish_experience,
     professional_choices,
     save_membership,
+    validate_experience_publication,
 )
 from app.services.slug_service import public_handle_available, unique_public_handle, unique_slug
 from app.services.media_service import save_uploaded_image
@@ -89,6 +91,23 @@ def _set_experience_cutoff_help(form):
         form.booking_cutoff_minutes.description = (
             "Opcional. Se ficar vazio, o IDDUN usa a antecedência padrão do profissional escolhido."
         )
+
+
+def _experience_status_is_valid(form):
+    """(a) Bloqueia no formulário uma publicação invisível no catálogo."""
+    if form.status.data != ExperienceStatus.PUBLISHED:
+        return True
+
+    try:
+        validate_experience_publication(
+            professional_id=form.professional_id.data,
+            establishment_id=form.establishment_id.data or None,
+        )
+    except ValueError as exc:
+        form.status.errors.append(str(exc))
+        return False
+
+    return True
 
 
 def _set_membership_choices(form):
@@ -480,7 +499,7 @@ def experience_create():
     if not form.professional_id.choices:
         flash("Cadastre um profissional antes de criar uma experiência.", "info")
 
-    if form.validate_on_submit():
+    if form.validate_on_submit() and _experience_status_is_valid(form):
         try:
             image_url = save_uploaded_image(form.image_file.data, "experiences")
         except ValueError as exc:
@@ -530,7 +549,7 @@ def experience_edit(item_id):
     _set_experience_choices(form)
     _set_experience_cutoff_help(form)
 
-    if form.validate_on_submit():
+    if form.validate_on_submit() and _experience_status_is_valid(form):
         try:
             uploaded_image = save_uploaded_image(form.image_file.data, "experiences")
         except ValueError as exc:
@@ -574,9 +593,14 @@ def experience_edit(item_id):
 @admin_required
 def experience_publish(item_id):
     item = db.session.get(Experience, item_id) or abort(404)
-    item.status = ExperienceStatus.PUBLISHED
-    db.session.commit()
-    flash(f"{item.title} está publicada no marketplace.", "success")
+    try:
+        publish_experience(item)
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        flash(f"{item.title} está publicada no marketplace.", "success")
     return redirect(url_for("admin.experiences"))
 
 

@@ -27,7 +27,15 @@ marketplace-page
   class="marketplace-shell"
   data-marketplace-root
   data-client-filter-ready="{{ 'true' if not filters.categoria else 'false' }}"
+  data-catalog-has-items="{{ 'true' if catalog_has_items else 'false' }}"
 >
+
+  {% set selected_category = namespace(label=filters.categoria|capitalize) %}
+  {% for category in categories %}
+    {% if category.value == filters.categoria %}
+      {% set selected_category.label = category.label %}
+    {% endif %}
+  {% endfor %}
 
 
   <!-- ========================================================
@@ -182,17 +190,18 @@ marketplace-page
             bairro=filters.bairro,
             ordem=filters.ordem
           ) }}"
-          aria-pressed="{{ 'true' if not filters.categoria else 'false' }}"
           {% if not filters.categoria %}
-            aria-current="true"
+            aria-current="page"
           {% endif %}
           data-category-filter=""
         >
           Todas
 
-          <span>
-            {{ available_count }}
-          </span>
+          {% if available_count > 0 %}
+            <span class="filter-chip__count">
+              {{ available_count }}
+            </span>
+          {% endif %}
         </a>
 
 
@@ -208,9 +217,8 @@ marketplace-page
               bairro=filters.bairro,
               ordem=filters.ordem
             ) }}"
-            aria-pressed="{{ 'true' if filters.categoria == category.value else 'false' }}"
             {% if filters.categoria == category.value %}
-              aria-current="true"
+              aria-current="page"
             {% endif %}
             data-category-filter="{{ category.value }}"
           >
@@ -222,9 +230,12 @@ marketplace-page
 
             {{ category.label }}
 
-            <span>
-              {{ category_counts.get(category.value, 0) }}
-            </span>
+            {% set category_count = category_counts.get(category.value, 0) %}
+            {% if category_count > 0 %}
+              <span class="filter-chip__count">
+                {{ category_count }}
+              </span>
+            {% endif %}
 
           </a>
 
@@ -388,7 +399,7 @@ marketplace-page
         </span>
 
 
-        {% if filters.bairro or filters.ordem != 'recommended' %}
+        {% if has_active_filters %}
 
           <span
             class="marketplace-filter-button__dot"
@@ -445,7 +456,7 @@ marketplace-page
 
             {% elif filters.categoria %}
 
-              {{ filters.categoria|capitalize }}
+              {{ selected_category.label }}
               para descobrir
 
             {% elif filters.bairro %}
@@ -480,12 +491,7 @@ marketplace-page
         </div>
 
 
-        {% if
-          filters.q
-          or filters.categoria
-          or filters.bairro
-          or filters.ordem != 'recommended'
-        %}
+        {% if has_active_filters %}
 
           <a
             class="marketplace-clear"
@@ -587,38 +593,70 @@ marketplace-page
              ================================================== -->
 
         <div
-          class="marketplace-empty"
+          class="marketplace-empty{% if not catalog_has_items %} marketplace-empty--catalog{% else %} marketplace-empty--filtered{% endif %}"
           data-client-empty
           {% if experiences %}
             hidden
           {% endif %}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
         >
 
-          <span
-            class="marketplace-empty__symbol"
+          <div
+            class="marketplace-empty__art"
             aria-hidden="true"
           >
-            ✦
-          </span>
+            <span class="marketplace-empty__orbit marketplace-empty__orbit--one"></span>
+            <span class="marketplace-empty__orbit marketplace-empty__orbit--two"></span>
+            <span class="marketplace-empty__symbol">✦</span>
+          </div>
 
 
-          <h2>
-            Ainda não encontramos algo para essa busca.
-          </h2>
+          {% if not catalog_has_items %}
 
+            <span class="marketplace-empty__eyebrow">
+              Novidades a caminho
+            </span>
 
-          <p>
-            Experimente outro termo, bairro ou categoria.
-            Você também pode voltar para a descoberta completa.
-          </p>
+            <h2>
+              Estamos preparando as primeiras experiências.
+            </h2>
 
+            <p>
+              A curadoria IDDUN está recebendo os primeiros
+              profissionais e serviços. Volte em breve para
+              descobrir o que está chegando.
+            </p>
 
-          <a
-            class="btn marketplace-empty__button"
-            href="{{ url_for('public.experiences') }}"
-          >
-            Ver tudo
-          </a>
+            <span class="marketplace-empty__note">
+              <b aria-hidden="true">✦</b>
+              Novas experiências serão publicadas aqui
+            </span>
+
+          {% else %}
+
+            <span class="marketplace-empty__eyebrow">
+              Ajuste sua descoberta
+            </span>
+
+            <h2>
+              Ainda não encontramos algo para essa busca.
+            </h2>
+
+            <p>
+              Experimente outro termo, bairro ou categoria.
+              Você também pode voltar para a descoberta completa.
+            </p>
+
+            <a
+              class="btn marketplace-empty__button"
+              href="{{ url_for('public.experiences') }}"
+            >
+              Ver tudo
+            </a>
+
+          {% endif %}
 
         </div>
 

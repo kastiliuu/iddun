@@ -8,6 +8,7 @@ from app.services.contact_service import (
     record_contact_click,
 )
 from app.services.experience_service import (
+    catalog_has_experiences,
     get_database_experience_by_slug,
     get_experience_by_slug,
     list_experiences,
@@ -317,6 +318,16 @@ def experiences():
         "recommended",
     )
 
+    # (c) Permite ao template diferenciar um catálogo realmente
+    # vazio de uma combinação de busca/filtros sem resultados.
+    catalog_has_items = catalog_has_experiences()
+    has_active_filters = bool(
+        search.strip()
+        or category.strip()
+        or location.strip()
+        or sort != "recommended"
+    )
+
     # --------------------------------------------------------
     # A single source feeds both results and category counters.
     #
@@ -408,6 +419,12 @@ def experiences():
         ),
         available_count=len(
             available_items
+        ),
+        catalog_has_items=(
+            catalog_has_items
+        ),
+        has_active_filters=(
+            has_active_filters
         ),
         locations=list_locations(),
         filters={

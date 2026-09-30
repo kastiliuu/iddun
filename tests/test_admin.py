@@ -155,6 +155,122 @@ def test_admin_can_build_real_catalog(app, client):
     assert "Hair Ritual Aurora" in response.get_data(as_text=True)
 
 
+def test_admin_cannot_publish_experience_from_inactive_professional(app, client):
+    user_id = _create_user(app, email="admin-inactive-professional@example.com")
+    _login_session(client, user_id)
+
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Profissional Inativa",
+            slug="profissional-inativa",
+            is_active=False,
+        )
+        experience = Experience(
+            professional=professional,
+            title="Experiência Bloqueada",
+            slug="experiencia-bloqueada",
+            category="cabelo",
+            short_description="Não deve entrar no catálogo público.",
+            regular_price="200.00",
+            price="150.00",
+            duration_minutes=60,
+            status=ExperienceStatus.DRAFT,
+        )
+        db.session.add_all([professional, experience])
+        db.session.commit()
+        experience_id = experience.id
+
+    response = client.post(
+        f"/admin/experiencias/{experience_id}/publicar",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Ative o perfil de Profissional Inativa" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(Experience, experience_id).status == ExperienceStatus.DRAFT
+
+
+def test_admin_cannot_publish_experience_from_inactive_establishment(app, client):
+    user_id = _create_user(app, email="admin-inactive-establishment@example.com")
+    _login_session(client, user_id)
+
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Profissional Ativa",
+            slug="profissional-ativa",
+            is_active=True,
+        )
+        establishment = Establishment(
+            name="Studio Inativo",
+            slug="studio-inativo",
+            is_active=False,
+        )
+        experience = Experience(
+            professional=professional,
+            establishment=establishment,
+            title="Experiência de Studio Inativo",
+            slug="experiencia-studio-inativo",
+            category="unhas",
+            short_description="Não deve entrar no catálogo público.",
+            regular_price="200.00",
+            price="150.00",
+            duration_minutes=60,
+            status=ExperienceStatus.DRAFT,
+        )
+        db.session.add_all([professional, establishment, experience])
+        db.session.commit()
+        experience_id = experience.id
+
+    response = client.post(
+        f"/admin/experiencias/{experience_id}/publicar",
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Ative o estabelecimento Studio Inativo" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.get(Experience, experience_id).status == ExperienceStatus.DRAFT
+
+
+def test_admin_form_rejects_published_experience_from_inactive_professional(app, client):
+    user_id = _create_user(app, email="admin-form-inactive-professional@example.com")
+    _login_session(client, user_id)
+
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Profissional Pausada",
+            slug="profissional-pausada",
+            is_active=False,
+        )
+        db.session.add(professional)
+        db.session.commit()
+        professional_id = professional.id
+
+    response = client.post(
+        "/admin/experiencias/nova",
+        data={
+            "title": "Publicação Inválida",
+            "professional_id": professional_id,
+            "category": "estetica",
+            "short_description": "Não pode ser publicada neste estado.",
+            "regular_price": "200.00",
+            "price": "150.00",
+            "duration_minutes": "60",
+            "status": ExperienceStatus.PUBLISHED,
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "Ative o perfil de Profissional Pausada" in response.get_data(as_text=True)
+    with app.app_context():
+        saved = db.session.scalar(
+            select(Experience).where(Experience.title == "Publicação Inválida")
+        )
+        assert saved is None
+
+
 def test_admin_form_cannot_activate_new_or_pending_membership(app, client):
     user_id = _create_user(app, email="admin-consent@example.com")
     _login_session(client, user_id)
