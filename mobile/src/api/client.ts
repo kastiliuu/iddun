@@ -3,6 +3,8 @@
 const DEFAULT_API_URL =
   "https://iddun-web.onrender.com";
 
+const REQUEST_TIMEOUT_MS = 20_000;
+
 export const API_URL =
   (
     process.env.EXPO_PUBLIC_API_URL?.trim() ||
@@ -100,6 +102,16 @@ function getErrorMessage(
         }
       ).error;
     }
+
+    if (
+      "error" in data &&
+      typeof data.error === "object" &&
+      data.error !== null &&
+      "message" in data.error &&
+      typeof data.error.message === "string"
+    ) {
+      return data.error.message;
+    }
   }
 
   return fallback;
@@ -168,32 +180,108 @@ export async function apiRequest<T>(
       `Bearer ${token}`;
   }
 
-  let response: Response;
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let rejectCancellation:
+    | ((reason: Error) => void)
+    | undefined;
+
+  const cancellation = new Promise<never>(
+    (_, reject) => {
+      rejectCancellation = reject;
+    },
+  );
+
+  const cancelFromCaller = () => {
+    controller.abort();
+
+    const error = new Error(
+      "Requisição cancelada.",
+    );
+    error.name = "AbortError";
+    rejectCancellation?.(error);
+  };
+
+  if (signal?.aborted) {
+    cancelFromCaller();
+  } else {
+    signal?.addEventListener(
+      "abort",
+      cancelFromCaller,
+    );
+  }
+
+  const request = async (): Promise<T> => {
+    const response = await fetch(
+      buildUrl(path),
+      {
+        method,
+        headers: requestHeaders,
+        body:
+          body !== undefined
+            ? JSON.stringify(body)
+            : undefined,
+        signal: controller.signal,
+      },
+    );
+
+    const data =
+      await parseResponse(response);
+
+    if (!response.ok) {
+      throw new ApiError(
+        getErrorMessage(
+          data,
+          `Erro ${response.status}`,
+        ),
+        response.status,
+        data,
+      );
+    }
+
+    return data as T;
+  };
+
+  const timeout = new Promise<never>(
+    (_, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+
+        reject(
+          new ApiError(
+            "O servidor demorou para responder. Tente novamente.",
+            0,
+          ),
+        );
+      }, REQUEST_TIMEOUT_MS);
+    },
+  );
 
   try {
-    response =
-      await fetch(
-        buildUrl(path),
-        {
-          method,
-          headers:
-            requestHeaders,
-          body:
-            body !==
-            undefined
-              ? JSON.stringify(
-                  body,
-                )
-              : undefined,
-          signal,
-        },
-      );
+    return await Promise.race([
+      request(),
+      timeout,
+      cancellation,
+    ]);
   } catch (error) {
+    if (timedOut) {
+      throw new ApiError(
+        "O servidor demorou para responder. Tente novamente.",
+        0,
+        error,
+      );
+    }
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
     if (
-      error instanceof
-        Error &&
-      error.name ===
-        "AbortError"
+      signal?.aborted ||
+      (error instanceof Error &&
+        error.name === "AbortError")
     ) {
       throw error;
     }
@@ -203,25 +291,16 @@ export async function apiRequest<T>(
       0,
       error,
     );
-  }
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
 
-  const data =
-    await parseResponse(
-      response,
-    );
-
-  if (!response.ok) {
-    throw new ApiError(
-      getErrorMessage(
-        data,
-        `Erro ${response.status}`,
-      ),
-      response.status,
-      data,
+    signal?.removeEventListener(
+      "abort",
+      cancelFromCaller,
     );
   }
-
-  return data as T;
 }
 
 export const api = {
@@ -306,8 +385,7 @@ export const api = {
       path,
       {
         ...options,
-        method:
-          "DELETE",
+        method: "DELETE",
       },
     );
   },

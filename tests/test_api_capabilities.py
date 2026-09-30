@@ -1,6 +1,11 @@
 """Testes do contrato e do acesso à API de capacidades."""
 
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select
+
 from app.extensions import db
+from app.models.api_session import ApiSession
 from app.models.establishment import (
     Establishment,
     EstablishmentAccessRole,
@@ -11,6 +16,7 @@ from app.models.establishment import (
 )
 from app.models.professional import ProfessionalProfile
 from app.models.user import User, UserRole
+from app.services.api_auth import issue_session, revoke_session
 
 
 ENDPOINT = "/api/v1/me/capabilities"
@@ -53,6 +59,10 @@ def _login_session(client, user_id):
     with client.session_transaction() as session:
         session["_user_id"] = str(user_id)
         session["_fresh"] = True
+
+
+def _bearer(token):
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _assert_essential(payload, subject_type, required_capabilities):
@@ -255,3 +265,114 @@ def test_pending_professional_invitation_does_not_grant_business_access(
     assert response.status_code == 200
     assert response.get_json()["professional"] is not None
     assert response.get_json()["establishments"] == []
+
+
+def test_bearer_uses_token_owner_even_with_another_users_web_cookie(
+    app,
+    client,
+):
+    with app.app_context():
+        token_user = _user("token-owner@example.com")
+        token_profile = _professional(token_user, "token-owner")
+
+        cookie_user = _user("cookie-owner@example.com")
+        cookie_profile = _professional(cookie_user, "cookie-owner")
+        cookie_business = _establishment("cookie-business")
+
+        db.session.add(
+            EstablishmentUserAccess(
+                user_id=cookie_user.id,
+                establishment_id=cookie_business.id,
+                role=EstablishmentAccessRole.OWNER,
+                status=EstablishmentAccessStatus.ACTIVE,
+            )
+        )
+        db.session.commit()
+
+        token = issue_session(token_user).access_token
+        cookie_user_id = cookie_user.id
+        token_profile_id = token_profile.id
+        cookie_profile_id = cookie_profile.id
+
+    _login_session(client, cookie_user_id)
+
+    response = client.get(ENDPOINT, headers=_bearer(token))
+
+    assert response.status_code == 200
+    assert "no-store" in response.headers["Cache-Control"]
+
+    payload = response.get_json()
+    assert payload["professional"]["id"] == token_profile_id
+    assert payload["professional"]["id"] != cookie_profile_id
+    assert payload["establishments"] == []
+
+    _assert_essential(
+        payload["professional"]["entitlements"],
+        "professional",
+        {"profile.public", "agenda.basic"},
+    )
+
+
+def test_invalid_bearer_never_falls_back_to_valid_web_cookie(
+    app,
+    client,
+):
+    with app.app_context():
+        user = _user("web-cookie@example.com")
+        db.session.commit()
+        user_id = user.id
+
+    _login_session(client, user_id)
+
+    assert client.get(ENDPOINT).status_code == 200
+
+    for authorization in (
+        "Bearer token-invalido",
+        "Basic abc",
+        "",
+    ):
+        response = client.get(
+            ENDPOINT,
+            headers={"Authorization": authorization},
+        )
+
+        assert response.status_code == 401
+        assert (
+            response.get_json()["error"]["code"]
+            == "authentication_required"
+        )
+
+
+def test_expired_and_revoked_bearer_tokens_are_rejected(
+    app,
+    client,
+):
+    with app.app_context():
+        user = _user("expired-token@example.com")
+        db.session.commit()
+
+        expired_tokens = issue_session(user)
+        saved = db.session.scalar(
+            select(ApiSession).where(
+                ApiSession.user_id == user.id
+            )
+        )
+        saved.access_expires_at = (
+            datetime.now(timezone.utc) - timedelta(seconds=1)
+        )
+        db.session.commit()
+
+        revoked_tokens = issue_session(user)
+        assert revoke_session(revoked_tokens.access_token) is True
+
+    for token in (
+        expired_tokens.access_token,
+        revoked_tokens.access_token,
+    ):
+        response = client.get(
+            ENDPOINT,
+            headers=_bearer(token),
+        )
+
+        assert response.status_code == 401
+        assert "no-store" in response.headers["Cache-Control"]

@@ -4,6 +4,7 @@ import React, {
 } from "react";
 
 import {
+  ActivityIndicator,
   View,
 } from "react-native";
 
@@ -26,6 +27,10 @@ import {
 import {
   SafeAreaProvider,
 } from "react-native-safe-area-context";
+
+import {
+  getCurrentUser,
+} from "@/api/auth";
 
 import {
   ToastProvider,
@@ -62,22 +67,33 @@ export default function RootLayout() {
         async () => {
           try {
             await store.load();
+
+            try {
+              const user =
+                await getCurrentUser();
+
+              if (!user) {
+                store.setUser(null);
+              }
+            } catch {
+              // Uma falha de rede não apaga os tokens salvos.
+              // O app abre como visitante até a próxima verificação.
+              store.setUser(null);
+            }
+          } catch {
+            // A experiência básica continua disponível.
+            store.setUser(null);
           } finally {
-            if (
-              mounted
-            ) {
-              setReady(
-                true,
-              );
+            if (mounted) {
+              setReady(true);
             }
           }
         };
 
-      initialize();
+      void initialize();
 
       return () => {
-        mounted =
-          false;
+        mounted = false;
       };
     },
     [],
@@ -86,6 +102,9 @@ export default function RootLayout() {
   if (!ready) {
     return (
       <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Verificando sessão do IDDUN"
         style={[
           styles.loading,
           {
@@ -93,15 +112,17 @@ export default function RootLayout() {
               colors.surface,
           },
         ]}
-      />
+      >
+        <ActivityIndicator
+          color={colors.plum}
+        />
+      </View>
     );
   }
 
   return (
     <GestureHandlerRootView
-      style={
-        styles.root
-      }
+      style={styles.root}
     >
       <SafeAreaProvider>
         <BottomSheetModalProvider>
@@ -200,6 +221,8 @@ const useStyles =
 
       loading: {
         flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
       },
     }),
   );

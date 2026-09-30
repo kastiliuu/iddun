@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * Estado local usado enquanto o backend Flask ainda não está integrado.
+ * Estado local para interações ainda não sincronizadas com a API.
  *
  * IMPORTANTE:
  * Favoritos, follows, comentários, notificações e sessão serão
@@ -22,6 +22,7 @@ export type Role =
 export type CurrentUser =
   | {
       role: Role;
+      id?: number | string;
       name: string;
       email: string;
       avatar?: string;
@@ -80,20 +81,36 @@ export type Notification = {
   createdAt: number;
 };
 
-type PersistedStore = {
+type PersistedScope = {
   posts?: string[];
   professionals?: string[];
   services?: string[];
-
   follows?: string[];
-
-  user?: CurrentUser;
-
   comments?: Record<string, Comment[]>;
   notifications?: Notification[];
 };
 
+type PersistedStore = PersistedScope & {
+  user?: CurrentUser;
+  scopes?: Record<string, PersistedScope>;
+};
+
 const STORE_KEY = "iddun_store";
+const GUEST_SCOPE = "guest";
+
+function scopeKeyFor(user: CurrentUser) {
+  if (!user) return GUEST_SCOPE;
+
+  if (user.id !== undefined && user.id !== null) {
+    return `account-id:${String(user.id)}`;
+  }
+
+  return emailScopeKeyFor(user);
+}
+
+function emailScopeKeyFor(user: NonNullable<CurrentUser>) {
+  return `account-email:${user.email.trim().toLowerCase()}`;
+}
 
 const KEYS = {
   onboarded: "iddun_onboarded",
@@ -129,6 +146,12 @@ class LocalStore {
 
   private user: CurrentUser = null;
 
+  private scopes: Record<string, PersistedScope> = {};
+
+  private activeScopeKey = GUEST_SCOPE;
+
+  private persistence: Promise<void> = Promise.resolve();
+
   private comments: Record<string, Comment[]> =
     {};
 
@@ -159,29 +182,23 @@ class LocalStore {
         const parsed: PersistedStore =
           JSON.parse(raw);
 
-        this.data.posts = new Set(
-          parsed.posts ?? [],
-        );
-
-        this.data.professionals = new Set(
-          parsed.professionals ?? [],
-        );
-
-        this.data.services = new Set(
-          parsed.services ?? [],
-        );
-
-        this.follows = new Set(
-          parsed.follows ?? [],
-        );
-
         this.user = parsed.user ?? null;
 
-        this.comments =
-          parsed.comments ?? {};
+        if (parsed.scopes) {
+          this.scopes = parsed.scopes;
+        } else {
+          this.scopes[scopeKeyFor(this.user)] = {
+            posts: parsed.posts ?? [],
+            professionals: parsed.professionals ?? [],
+            services: parsed.services ?? [],
+            follows: parsed.follows ?? [],
+            comments: parsed.comments ?? {},
+            notifications: parsed.notifications ?? [],
+          };
+        }
 
-        this.notifications =
-          parsed.notifications ?? [];
+        this.activeScopeKey = scopeKeyFor(this.user);
+        this.applyScope(this.scopes[this.activeScopeKey]);
       }
     } catch (error) {
       logStoreError(
@@ -190,15 +207,7 @@ class LocalStore {
       );
     }
 
-    if (
-      Object.keys(this.comments).length === 0
-    ) {
-      this.seedComments();
-    }
-
-    if (this.notifications.length === 0) {
-      this.seedNotifications();
-    }
+    this.seedEmptyScope();
 
     this.loaded = true;
 
@@ -208,43 +217,78 @@ class LocalStore {
   }
 
   private async persist() {
-    try {
-      const payload: PersistedStore = {
-        posts: [...this.data.posts],
+    this.saveActiveScope();
 
-        professionals: [
-          ...this.data.professionals,
-        ],
+    const payload: PersistedStore = {
+      user: this.user,
+      scopes: this.scopes,
+    };
 
-        services: [
-          ...this.data.services,
-        ],
+    const serialized = JSON.stringify(payload);
 
-        follows: [...this.follows],
+    this.persistence = this.persistence
+      .catch(() => {})
+      .then(async () => {
+        try {
+          await AsyncStorage.setItem(
+            STORE_KEY,
+            serialized,
+          );
+        } catch (error) {
+          logStoreError(
+            "Falha ao persistir estado local.",
+            error,
+          );
+        }
+      });
 
-        user: this.user,
+    await this.persistence;
+  }
 
-        comments: this.comments,
+  private saveActiveScope() {
+    this.scopes[this.activeScopeKey] = {
+      posts: [...this.data.posts],
+      professionals: [...this.data.professionals],
+      services: [...this.data.services],
+      follows: [...this.follows],
+      comments: this.comments,
+      notifications: this.notifications,
+    };
+  }
 
-        notifications:
-          this.notifications,
-      };
+  private applyScope(scope?: PersistedScope) {
+    this.data.posts = new Set(scope?.posts ?? []);
+    this.data.professionals = new Set(
+      scope?.professionals ?? [],
+    );
+    this.data.services = new Set(
+      scope?.services ?? [],
+    );
+    this.follows = new Set(scope?.follows ?? []);
+    this.comments = scope?.comments ?? {};
+    this.notifications =
+      scope?.notifications ?? [];
+  }
 
-      await AsyncStorage.setItem(
-        STORE_KEY,
-        JSON.stringify(payload),
-      );
-    } catch (error) {
-      logStoreError(
-        "Falha ao persistir estado local.",
-        error,
-      );
+  private seedEmptyScope() {
+    if (Object.keys(this.comments).length === 0) {
+      this.seedComments();
     }
+
+    if (this.notifications.length === 0) {
+      this.seedNotifications();
+    }
+  }
+
+  private cancelAllFollowAlerts() {
+    this.followAlertTimers.forEach((timer) =>
+      clearTimeout(timer),
+    );
+    this.followAlertTimers.clear();
   }
 
   private persistAndEmit() {
     void this.persist();
-
     this.emit();
   }
 
@@ -286,7 +330,6 @@ class LocalStore {
     id: string,
     options?: {
       authorName?: string;
-
       onAlert?: (
         notification: Notification,
       ) => void;
@@ -294,11 +337,9 @@ class LocalStore {
   ) {
     if (this.follows.has(id)) {
       this.follows.delete(id);
-
       this.cancelFollowAlert(id);
     } else {
       this.follows.add(id);
-
       this.scheduleMockFollowAlert(
         id,
         options,
@@ -320,7 +361,6 @@ class LocalStore {
     authorId: string,
     options?: {
       authorName?: string;
-
       onAlert?: (
         notification: Notification,
       ) => void;
@@ -349,7 +389,6 @@ class LocalStore {
 
       const notification: Notification = {
         id: createId("notification"),
-
         kind: "iddun_now",
 
         title: options?.authorName
@@ -363,9 +402,7 @@ class LocalStore {
           this.randomSoonSlot(),
 
         authorId,
-
         read: false,
-
         createdAt: Date.now(),
       };
 
@@ -441,12 +478,43 @@ class LocalStore {
   }
 
   /*
-   * USUÁRIO / SESSÃO MOCK
+   * USUÁRIO E DADOS LOCAIS DA CONTA ATIVA
    */
 
   setUser(user: CurrentUser) {
-    this.user = user;
+    const nextScopeKey = scopeKeyFor(user);
 
+    if (nextScopeKey !== this.activeScopeKey) {
+      this.saveActiveScope();
+      this.cancelAllFollowAlerts();
+
+      if (
+        user &&
+        user.id !== undefined &&
+        user.id !== null
+      ) {
+        const emailScopeKey =
+          emailScopeKeyFor(user);
+
+        if (
+          !this.scopes[nextScopeKey] &&
+          this.scopes[emailScopeKey]
+        ) {
+          this.scopes[nextScopeKey] =
+            this.scopes[emailScopeKey];
+
+          delete this.scopes[emailScopeKey];
+        }
+      }
+
+      this.activeScopeKey = nextScopeKey;
+      this.applyScope(
+        this.scopes[nextScopeKey],
+      );
+      this.seedEmptyScope();
+    }
+
+    this.user = user;
     this.persistAndEmit();
   }
 
@@ -459,9 +527,7 @@ class LocalStore {
    */
 
   getComments(postId: string) {
-    return (
-      this.comments[postId] ?? []
-    );
+    return this.comments[postId] ?? [];
   }
 
   addComment(
@@ -479,7 +545,6 @@ class LocalStore {
 
     const comment: Comment = {
       id: createId("comment"),
-
       postId,
 
       authorId:
@@ -494,7 +559,6 @@ class LocalStore {
         "guest",
 
       text: cleanText,
-
       createdAt: Date.now(),
 
       isAuthorReply:
@@ -588,9 +652,7 @@ class LocalStore {
     this.notifications = [
       {
         id: "notification_welcome",
-
         kind: "system",
-
         title: "Bem-vindo ao IDDUN ✦",
 
         body:
@@ -623,9 +685,7 @@ class LocalStore {
       isAuthorReply?: boolean;
     }): Comment => ({
       id,
-
       postId,
-
       author,
 
       role: isAuthorReply

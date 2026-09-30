@@ -5,6 +5,7 @@ from app.models.establishment import (
     EstablishmentAccessRole,
     EstablishmentAccessStatus,
 )
+from app.services.api_auth import get_user_by_access_token
 from app.services.booking_service import grouped_available_slots
 from app.services.entitlements import (
     SUBJECT_CLIENT,
@@ -86,10 +87,29 @@ def _capabilities_payload(snapshot):
     }
 
 
+def _authenticated_user():
+    authorization = request.headers.get("Authorization")
+
+    if authorization is not None:
+        parts = authorization.split()
+
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            return None
+
+        return get_user_by_access_token(parts[1])
+
+    if current_user.is_authenticated and current_user.is_active:
+        return current_user
+
+    return None
+
+
 @api_v1_bp.get("/me/capabilities")
 def my_capabilities():
     """Retorna somente os contextos da conta autenticada."""
-    if not current_user.is_authenticated or not current_user.is_active:
+    user = _authenticated_user()
+
+    if user is None:
         response = jsonify(
             {
                 "error": {
@@ -104,7 +124,7 @@ def my_capabilities():
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
-    professional = current_user.professional_profile
+    professional = user.professional_profile
     professional_payload = None
 
     if professional is not None:
@@ -121,7 +141,7 @@ def my_capabilities():
 
     establishments = []
 
-    for access in current_user.establishment_accesses:
+    for access in user.establishment_accesses:
         if access.status != EstablishmentAccessStatus.ACTIVE:
             continue
 
