@@ -476,6 +476,16 @@
 }
 
 
+/* The wrapper owns the visible focus ring via :focus-within. */
+.marketplace-page
+.marketplace-search__field
+input:focus-visible {
+  outline: 0;
+  outline-offset: 0;
+  box-shadow: none;
+}
+
+
 .marketplace-search__field
 input::placeholder {
   color:
