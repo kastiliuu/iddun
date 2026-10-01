@@ -3,109 +3,655 @@
 {% from 'auth/_macros.html' import field_errors %}
 {% from 'components/media-upload.html' import media_upload, multi_upload %}
 
-{% block title %}Crie sua empresa | IDDUN Business{% endblock %}
-{% block body_class %}platform-page platform-onboarding-page{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block title %}
+  Crie sua empresa | IDDUN Business
+{% endblock %}
+
+{% block body_class %}
+  platform-page platform-onboarding-page
+{% endblock %}
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/platform.css') }}"
+>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/media-cropper.css') }}"
+>
+{% endblock %}
 
 {% block content %}
 <section class="platform-onboarding">
   <div class="container platform-onboarding__shell">
     <aside class="platform-onboarding__aside">
-      <a class="platform-back-link" href="{{ url_for('professional.start') }}">{{ icon('arrow-left') }} Voltar</a>
-      <span class="platform-kicker">IDDUN BUSINESS</span>
-      <h1>Transforme sua empresa em um destino dentro do IDDUN.</h1>
-      <p>A página da empresa conecta marca, endereço, experiências e profissionais sem apagar a identidade individual de ninguém.</p>
+      <a
+        class="platform-back-link"
+        href="{{ url_for('professional.start') }}"
+      >
+        {{ icon('arrow-left') }}
+        Voltar
+      </a>
 
-      <div class="platform-progress" aria-label="Progresso do cadastro">
-        <div class="platform-progress__top"><span>Sua empresa</span><strong data-wizard-progress-label>20%</strong></div>
-        <div class="platform-progress__bar"><span data-wizard-progress style="width:20%"></span></div>
+      <span class="platform-kicker">
+        IDDUN BUSINESS
+      </span>
+
+      <h1>
+        Transforme sua empresa em um destino
+        dentro do IDDUN.
+      </h1>
+
+      <p>
+        A página da empresa conecta marca,
+        endereço, experiências e profissionais
+        sem apagar a identidade individual
+        de ninguém.
+      </p>
+
+      <div
+        class="platform-progress"
+        aria-label="Progresso do cadastro"
+      >
+        <div class="platform-progress__top">
+          <span>Sua empresa</span>
+          <strong data-wizard-progress-label>
+            20%
+          </strong>
+        </div>
+
+        <div class="platform-progress__bar">
+          <span
+            data-wizard-progress
+            style="width: 20%;"
+          ></span>
+        </div>
       </div>
 
-      <ol class="platform-steps" data-wizard-nav>
-        <li class="is-active" data-step-nav="1"><span>01</span> Marca</li>
-        <li data-step-nav="2"><span>02</span> Empresa</li>
-        <li data-step-nav="3"><span>03</span> Localização</li>
-        <li data-step-nav="4"><span>04</span> Galeria</li>
-        <li data-step-nav="5"><span>05</span> Criar página</li>
+      <ol
+        class="platform-steps"
+        data-wizard-nav
+      >
+        <li
+          class="is-active"
+          data-step-nav="1"
+        >
+          <span>01</span>
+          Marca
+        </li>
+
+        <li data-step-nav="2">
+          <span>02</span>
+          Empresa
+        </li>
+
+        <li data-step-nav="3">
+          <span>03</span>
+          Localização
+        </li>
+
+        <li data-step-nav="4">
+          <span>04</span>
+          Galeria
+        </li>
+
+        <li data-step-nav="5">
+          <span>05</span>
+          Criar página
+        </li>
       </ol>
     </aside>
 
     <div class="platform-onboarding__main">
-      <form method="post" enctype="multipart/form-data" novalidate data-wizard-form data-wizard-total="5" class="platform-wizard-form">
+      <form
+        method="post"
+        enctype="multipart/form-data"
+        novalidate
+        data-wizard-form
+        data-wizard-total="5"
+        class="platform-wizard-form"
+      >
         {{ form.hidden_tag() }}
 
-        <section class="platform-step is-active" data-wizard-step="1">
-          <div class="platform-step__head"><span>01 · Marca</span><h2>Como sua empresa se apresenta?</h2><p>Logo e capa dão identidade imediata à página pública.</p></div>
+        <section
+          class="platform-step is-active"
+          data-wizard-step="1"
+        >
+          <div class="platform-step__head">
+            <span>
+              01 · Marca
+            </span>
+
+            <h2>
+              Como sua empresa se apresenta?
+            </h2>
+
+            <p>
+              Logo e capa dão identidade
+              imediata à página pública.
+            </p>
+          </div>
+
           <div class="platform-media-pair">
             <div class="platform-field">
-              {{ form.logo_file.label(class_='platform-label') }}
-              {{ media_upload(form.logo_file, form.logo_focus_x, form.logo_focus_y, 'logo', none, 'Selecionar logo', 'Obrigatório · até 5 MB') }}
-              {{ field_errors(form.logo_file) }}
+              {{
+                form.logo_file.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                media_upload(
+                  form.logo_file,
+                  form.logo_focus_x,
+                  form.logo_focus_y,
+                  'logo',
+                  none,
+                  'Selecionar logo',
+                  'Obrigatório · até 5 MB'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.logo_file
+                )
+              }}
             </div>
+
             <div class="platform-field">
-              {{ form.cover_file.label(class_='platform-label') }}
-              {{ media_upload(form.cover_file, form.cover_focus_x, form.cover_focus_y, 'cover', none, 'Foto de capa', 'Ambiente, fachada ou conceito') }}
-              {{ field_errors(form.cover_file) }}
+              {{
+                form.cover_file.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                media_upload(
+                  form.cover_file,
+                  form.cover_focus_x,
+                  form.cover_focus_y,
+                  'cover',
+                  none,
+                  'Foto de capa',
+                  'Ambiente, fachada ou conceito'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.cover_file
+                )
+              }}
             </div>
           </div>
+
           <div class="platform-form-grid">
-            <div class="platform-field platform-field--wide">{{ form.name.label(class_='platform-label') }}{{ form.name(class_='platform-input', placeholder='Ex.: Studio Bella') }}{{ field_errors(form.name) }}</div>
-            <div class="platform-field platform-field--wide">{{ form.category.label(class_='platform-label') }}{{ form.category(class_='platform-select') }}{{ field_errors(form.category) }}</div>
+            <div
+              class="platform-field platform-field--wide"
+            >
+              {{
+                form.name.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.name(
+                  class_='platform-input',
+                  placeholder='Ex.: Studio Bella'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.name
+                )
+              }}
+            </div>
+
+            <div
+              class="platform-field platform-field--wide"
+            >
+              {{
+                form.category.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.category(
+                  class_='platform-select'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.category
+                )
+              }}
+            </div>
           </div>
         </section>
 
-        <section class="platform-step" data-wizard-step="2" hidden>
-          <div class="platform-step__head"><span>02 · Empresa</span><h2>Conte o que torna este lugar especial.</h2><p>O cliente precisa entender rapidamente a proposta da marca.</p></div>
+        <section
+          class="platform-step"
+          data-wizard-step="2"
+          hidden
+        >
+          <div class="platform-step__head">
+            <span>
+              02 · Empresa
+            </span>
+
+            <h2>
+              Conte o que torna este lugar
+              especial.
+            </h2>
+
+            <p>
+              O cliente precisa entender
+              rapidamente a proposta da marca.
+            </p>
+          </div>
+
           <div class="platform-form-grid">
-            <div class="platform-field platform-field--wide">{{ form.description.label(class_='platform-label') }}{{ form.description(class_='platform-textarea', rows='7', placeholder='Fale sobre conceito, especialidades, atendimento e experiência...') }}{{ field_errors(form.description) }}</div>
-            <div class="platform-field">{{ form.phone.label(class_='platform-label') }}{{ form.phone(class_='platform-input', inputmode='tel') }}{{ field_errors(form.phone) }}</div>
-            <div class="platform-field platform-field--wide platform-checkbox-field">{{ form.whatsapp_enabled() }} {{ form.whatsapp_enabled.label(class_='platform-label') }}</div>
-            <div class="platform-field">{{ form.email.label(class_='platform-label') }}{{ form.email(class_='platform-input', type='email') }}{{ field_errors(form.email) }}</div>
-            <div class="platform-field platform-field--wide">{{ form.instagram.label(class_='platform-label') }}{{ form.instagram(class_='platform-input', placeholder='@suaempresa') }}{{ field_errors(form.instagram) }}</div>
+            <div
+              class="platform-field platform-field--wide"
+            >
+              {{
+                form.description.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.description(
+                  class_='platform-textarea',
+                  rows='7',
+                  placeholder='Fale sobre conceito, especialidades, atendimento e experiência...'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.description
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.phone.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.phone(
+                  class_='platform-input',
+                  inputmode='tel'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.phone
+                )
+              }}
+            </div>
+
+            <div
+              class="platform-field platform-field--wide platform-checkbox-field"
+            >
+              {{
+                form.whatsapp_enabled()
+              }}
+
+              {{
+                form.whatsapp_enabled.label(
+                  class_='platform-label'
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.email.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.email(
+                  class_='platform-input',
+                  type='email'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.email
+                )
+              }}
+            </div>
+
+            <div
+              class="platform-field platform-field--wide"
+            >
+              {{
+                form.instagram.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.instagram(
+                  class_='platform-input',
+                  placeholder='@suaempresa'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.instagram
+                )
+              }}
+            </div>
           </div>
         </section>
 
-        <section class="platform-step" data-wizard-step="3" hidden>
-          <div class="platform-step__head"><span>03 · Localização</span><h2>Onde as experiências acontecem?</h2><p>Esses dados alimentam busca, perfil público e, futuramente, descoberta por proximidade.</p></div>
+        <section
+          class="platform-step"
+          data-wizard-step="3"
+          hidden
+        >
+          <div class="platform-step__head">
+            <span>
+              03 · Localização
+            </span>
+
+            <h2>
+              Onde as experiências acontecem?
+            </h2>
+
+            <p>
+              Esses dados alimentam busca,
+              perfil público e, futuramente,
+              descoberta por proximidade.
+            </p>
+          </div>
+
           <div class="platform-form-grid">
-            <div class="platform-field platform-field--wide">{{ form.address_line1.label(class_='platform-label') }}{{ form.address_line1(class_='platform-input', placeholder='Rua, número') }}{{ field_errors(form.address_line1) }}</div>
-            <div class="platform-field">{{ form.address_line2.label(class_='platform-label') }}{{ form.address_line2(class_='platform-input', placeholder='Sala, andar...') }}{{ field_errors(form.address_line2) }}</div>
-            <div class="platform-field">{{ form.neighborhood.label(class_='platform-label') }}{{ form.neighborhood(class_='platform-input') }}{{ field_errors(form.neighborhood) }}</div>
-            <div class="platform-field">{{ form.city.label(class_='platform-label') }}{{ form.city(class_='platform-input') }}{{ field_errors(form.city) }}</div>
-            <div class="platform-field">{{ form.state.label(class_='platform-label') }}{{ form.state(class_='platform-input', maxlength='2') }}{{ field_errors(form.state) }}</div>
-            <div class="platform-field">{{ form.postal_code.label(class_='platform-label') }}{{ form.postal_code(class_='platform-input', inputmode='numeric') }}{{ field_errors(form.postal_code) }}</div>
+            <div
+              class="platform-field platform-field--wide"
+            >
+              {{
+                form.address_line1.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.address_line1(
+                  class_='platform-input',
+                  placeholder='Rua, número'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.address_line1
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.address_line2.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.address_line2(
+                  class_='platform-input',
+                  placeholder='Sala, andar...'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.address_line2
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.neighborhood.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.neighborhood(
+                  class_='platform-input'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.neighborhood
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.city.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.city(
+                  class_='platform-input'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.city
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.state.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.state(
+                  class_='platform-input',
+                  maxlength='2'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.state
+                )
+              }}
+            </div>
+
+            <div class="platform-field">
+              {{
+                form.postal_code.label(
+                  class_='platform-label'
+                )
+              }}
+
+              {{
+                form.postal_code(
+                  class_='platform-input',
+                  inputmode='numeric'
+                )
+              }}
+
+              {{
+                field_errors(
+                  form.postal_code
+                )
+              }}
+            </div>
           </div>
         </section>
 
-        <section class="platform-step" data-wizard-step="4" hidden>
-          <div class="platform-step__head"><span>04 · Galeria</span><h2>Mostre o ambiente antes da visita.</h2><p>Fotos ajudam a transformar uma listagem em uma marca desejável. Elas são opcionais agora e podem ser adicionadas depois.</p></div>
+        <section
+          class="platform-step"
+          data-wizard-step="4"
+          hidden
+        >
+          <div class="platform-step__head">
+            <span>
+              04 · Galeria
+            </span>
+
+            <h2>
+              Mostre o ambiente antes da visita.
+            </h2>
+
+            <p>
+              Fotos ajudam a transformar uma
+              listagem em uma marca desejável.
+              Elas são opcionais agora e podem
+              ser adicionadas depois.
+            </p>
+          </div>
+
           <div class="platform-field">
-            {{ form.gallery_files.label(class_='platform-label') }}
-            {{ multi_upload(form.gallery_files, 'Adicionar fotos do espaço', 'Até 10 imagens · até 5 MB cada · 30 MB no envio') }}
-            {{ field_errors(form.gallery_files) }}
+            {{
+              form.gallery_files.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              multi_upload(
+                form.gallery_files,
+                'Adicionar fotos do espaço',
+                'Até 10 imagens · até 5 MB cada · 30 MB no envio'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.gallery_files
+              )
+            }}
           </div>
         </section>
 
-        <section class="platform-step" data-wizard-step="5" hidden>
-          <div class="platform-step__head"><span>05 · Criar página</span><h2>Sua empresa passa a ter um lugar próprio no IDDUN.</h2><p>Depois de criar, você poderá montar a equipe conectando perfis profissionais que já existem na plataforma.</p></div>
+        <section
+          class="platform-step"
+          data-wizard-step="5"
+          hidden
+        >
+          <div class="platform-step__head">
+            <span>
+              05 · Criar página
+            </span>
+
+            <h2>
+              Sua empresa passa a ter um lugar
+              próprio no IDDUN.
+            </h2>
+
+            <p>
+              Depois de criar, você poderá montar
+              a equipe conectando perfis
+              profissionais que já existem na
+              plataforma.
+            </p>
+          </div>
+
           <div class="platform-publish-preview">
-            <span class="platform-publish-preview__badge">IDDUN BUSINESS · GRÁTIS NESTA FASE</span>
-            <h3>Marca forte, vínculos transparentes</h3>
+            <span
+              class="platform-publish-preview__badge"
+            >
+              IDDUN BUSINESS · GRÁTIS NESTA FASE
+            </span>
+
+            <h3>
+              Marca forte, vínculos transparentes
+            </h3>
+
             <div class="platform-tree-preview">
-              <strong>Sua empresa</strong><span>↓</span><small>Equipe</small><span>↓</span><em>Perfis profissionais individuais</em>
+              <strong>Sua empresa</strong>
+              <span>↓</span>
+              <small>Equipe</small>
+              <span>↓</span>
+              <em>
+                Perfis profissionais individuais
+              </em>
             </div>
-            <div class="platform-benefit-list platform-benefit-list--business">
-              <span>{{ icon('check') }} Você convida profissionais usando a conta IDDUN deles</span>
-              <span>{{ icon('check') }} Cada profissional aceita ou recusa o vínculo</span>
-              <span>{{ icon('check') }} Reputação da empresa e reputação profissional continuam separadas</span>
+
+            <div
+              class="platform-benefit-list platform-benefit-list--business"
+            >
+              <span>
+                {{ icon('check') }}
+                Você convida profissionais usando
+                a conta IDDUN deles
+              </span>
+
+              <span>
+                {{ icon('check') }}
+                Cada profissional aceita ou recusa
+                o vínculo
+              </span>
+
+              <span>
+                {{ icon('check') }}
+                Reputação da empresa e reputação
+                profissional continuam separadas
+              </span>
             </div>
           </div>
         </section>
 
         <div class="platform-wizard-actions">
-          <button class="btn btn-outline" type="button" data-wizard-prev hidden>{{ icon('arrow-left') }} Voltar</button>
-          <button class="btn btn-primary platform-primary-action" type="button" data-wizard-next>Continuar {{ icon('chevron-right') }}</button>
-          {{ form.submit(class_='btn btn-primary platform-primary-action', data_wizard_submit='', hidden=true) }}
+          <button
+            class="btn btn-outline"
+            type="button"
+            data-wizard-prev
+            hidden
+          >
+            {{ icon('arrow-left') }}
+            Voltar
+          </button>
+
+          <button
+            class="btn btn-primary platform-primary-action"
+            type="button"
+            data-wizard-next
+          >
+            Continuar
+            {{ icon('chevron-right') }}
+          </button>
+
+          {{
+            form.submit(
+              class_='btn btn-primary platform-primary-action',
+              data_wizard_submit='',
+              hidden=true
+            )
+          }}
         </div>
       </form>
     </div>
@@ -113,5 +659,16 @@
 </section>
 {% endblock %}
 
-{% block mobile_bottom_nav %}{% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/platform.js') }}" defer></script>{% endblock %}
+{% block mobile_bottom_nav %}
+{% endblock %}
+
+{% block scripts %}
+<script
+  src="{{ url_for('static', filename='js/platform.js') }}"
+  defer
+></script>
+<script
+  src="{{ url_for('static', filename='js/media-cropper.js') }}"
+  defer
+></script>
+{% endblock %}

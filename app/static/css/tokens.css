@@ -271,7 +271,23 @@
      LAYOUT
      ---------------------------------------------------------- */
 
-  --container: 1432px;
+  --container-wide: 1432px;
+
+  --container-content: 1280px;
+
+  --container-compact: 1080px;
+
+  --container-reading: 760px;
+
+  /*
+   * Backwards-compatible alias used by screens that have not
+   * migrated to a semantic container size yet.
+   */
+  --container: var(--container-wide);
+
+  --page-gutter: clamp(14px, 3vw, 24px);
+
+  --grid-gap: clamp(18px, 2vw, 28px);
 
   --header-height: 72px;
 

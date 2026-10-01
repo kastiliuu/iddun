@@ -48,7 +48,7 @@
    ============================================================ */
 
 .btn {
-  min-height: 46px;
+  min-height: var(--control-height);
 
   display: inline-flex;
   align-items: center;
@@ -106,7 +106,7 @@
     linear-gradient(
       135deg,
       var(--color-plum) 0%,
-      #5920DF 55%,
+      var(--color-primary-strong) 55%,
       var(--color-deep-violet) 100%
     );
 
@@ -149,6 +149,29 @@
 
   border-color:
     rgba(107, 46, 255, 0.48);
+
+  background:
+    var(--color-plum-soft);
+}
+
+
+/* Outline for light surfaces */
+
+.btn-outline--light {
+  color: var(--color-ink);
+
+  border-color:
+    rgba(11, 11, 15, 0.18);
+
+  background:
+    rgba(255, 255, 255, 0.58);
+}
+
+.btn-outline--light:hover {
+  color: var(--color-deep-violet);
+
+  border-color:
+    rgba(107, 46, 255, 0.42);
 
   background:
     var(--color-plum-soft);
@@ -1272,17 +1295,17 @@ input:focus-visible {
    ============================================================ */
 
 .icon-button {
-  width: 40px;
-  height: 40px;
+  width: var(--control-action-size);
+  height: var(--control-action-size);
 
-  min-width: 40px;
-  min-height: 40px;
+  min-width: var(--control-action-size);
+  min-height: var(--control-action-size);
 
   display: grid;
   place-items: center;
 
   flex:
-    0 0 40px;
+    0 0 var(--control-action-size);
 
   padding: 0;
 
@@ -1837,7 +1860,7 @@ input[type="search"]
   /* Buttons */
 
   .btn {
-    min-height: 48px;
+    min-height: var(--control-height-touch);
   }
 
 
