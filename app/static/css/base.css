@@ -1,4 +1,6 @@
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -27,7 +29,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -36,8 +40,27 @@ button {
 }
 
 .container {
-  width: min(calc(100% - 48px), var(--container));
+  --container-max: var(--container);
+
+  width: calc(100% - (var(--page-gutter) * 2));
+  max-width: var(--container-max);
   margin-inline: auto;
+}
+
+.container--wide {
+  --container-max: var(--container-wide);
+}
+
+.container--content {
+  --container-max: var(--container-content);
+}
+
+.container--compact {
+  --container-max: var(--container-compact);
+}
+
+.container--reading {
+  --container-max: var(--container-reading);
 }
 
 main {
@@ -70,10 +93,6 @@ main {
 }
 
 @media (max-width: 760px) {
-  .container {
-    width: min(calc(100% - 28px), var(--container));
-  }
-
   .desktop-only {
     display: none;
   }

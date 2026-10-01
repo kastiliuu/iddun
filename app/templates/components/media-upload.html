@@ -1,33 +1,153 @@
 {% from 'components/icon.html' import icon %}
 
 {% macro media_upload(field, focus_x, focus_y, kind='avatar', existing_url=None, title='Escolher imagem', help_text='JPG, PNG ou WEBP · até 5 MB') -%}
-<div class="platform-media-control" data-media-control>
-  <label class="platform-image-upload platform-image-upload--{{ kind }}" data-image-upload>
-    {{ field(class_='platform-file-input', accept='image/jpeg,image/png,image/webp', data_image_input='') }}
-    <span
-      class="platform-image-upload__preview{% if existing_url %} has-image{% endif %}"
-      data-image-preview
-      {% if existing_url %}style="background-image:url('{{ existing_url|media_url }}');background-position:{{ focus_x.data if focus_x.data is not none else 50 }}% {{ focus_y.data if focus_y.data is not none else 50 }}%"{% endif %}
-    >{{ icon('upload') }}</span>
-    <span><strong>{{ title }}</strong><small>{{ help_text }}</small></span>
-  </label>
-  {{ focus_x(data_focus_x='') }}
-  {{ focus_y(data_focus_y='') }}
-  <div class="platform-focus-control" data-focus-control {% if not existing_url %}hidden{% endif %}>
-    <span>Enquadramento</span>
-    <label>Horizontal <input type="range" min="0" max="100" value="{{ focus_x.data if focus_x.data is not none else 50 }}" data-focus-range-x></label>
-    <label>Vertical <input type="range" min="0" max="100" value="{{ focus_y.data if focus_y.data is not none else 50 }}" data-focus-range-y></label>
+  {% set focus_x_value = focus_x.data if focus_x.data not in (none, '') else 50 %}
+  {% set focus_y_value = focus_y.data if focus_y.data not in (none, '') else 50 %}
+  {% set crop_ratio = '16 / 7' if kind == 'cover' else '1 / 1' %}
+
+  <div
+    class="platform-media-control"
+    data-media-control
+  >
+    <label
+      class="platform-image-upload platform-image-upload--{{ kind }}"
+      data-image-upload
+    >
+      {{ field(
+        class_='platform-file-input',
+        accept='image/jpeg,image/png,image/webp',
+        data_image_input=''
+      ) }}
+
+      <span
+        class="platform-image-upload__preview{% if existing_url %} has-image{% endif %}"
+        data-image-preview
+        {% if existing_url %}
+          style="background-image:url('{{ existing_url|media_url }}');background-position:{{ focus_x_value }}% {{ focus_y_value }}%"
+        {% endif %}
+        aria-hidden="true"
+      >
+        {{ icon('upload') }}
+      </span>
+
+      <span>
+        <strong>{{ title }}</strong>
+        <small>{{ help_text }}</small>
+      </span>
+    </label>
+
+    {{ focus_x(data_focus_x='') }}
+    {{ focus_y(data_focus_y='') }}
+
+    <div
+      class="media-cropper media-cropper--{{ kind }}{% if existing_url %} has-image{% endif %}"
+      data-media-cropper
+      data-crop-input-id="{{ field.id }}"
+      data-focus-x-id="{{ focus_x.id }}"
+      data-focus-y-id="{{ focus_y.id }}"
+      {% if not existing_url %}
+        hidden
+      {% endif %}
+    >
+      <div class="media-cropper__header">
+        <div class="media-cropper__copy">
+          <strong>
+            Ajustar enquadramento
+          </strong>
+
+          <small
+            id="{{ field.id }}-crop-help"
+          >
+            Arraste a imagem para escolher a área
+            principal. Use as setas para ajustes
+            finos ou Shift + setas para movimentos
+            maiores.
+          </small>
+        </div>
+
+        <button
+          class="media-cropper__reset"
+          type="button"
+          data-crop-reset
+        >
+          Centralizar
+        </button>
+      </div>
+
+      <div
+        class="media-cropper__stage"
+        style="aspect-ratio: {{ crop_ratio }};"
+        data-crop-stage
+        tabindex="0"
+        aria-label="Ajustar enquadramento de {{ field.label.text }}"
+        aria-describedby="{{ field.id }}-crop-help"
+      >
+        <img
+          class="media-cropper__image"
+          data-crop-image
+          {% if existing_url %}
+            src="{{ existing_url|media_url }}"
+          {% endif %}
+          alt=""
+          style="object-position: {{ focus_x_value }}% {{ focus_y_value }}%;"
+          draggable="false"
+        >
+
+        <span
+          class="media-cropper__target"
+          aria-hidden="true"
+        ></span>
+      </div>
+
+      <div class="media-cropper__footer">
+        <span>
+          A prévia mostra como a imagem
+          aparecerá no perfil.
+        </span>
+
+        <output
+          data-crop-output
+          aria-live="polite"
+        >
+          {{ focus_x_value }}% ·
+          {{ focus_y_value }}%
+        </output>
+      </div>
+    </div>
   </div>
-</div>
 {%- endmacro %}
 
+
 {% macro multi_upload(field, title, help_text, existing_count=0) -%}
-<label class="platform-dropzone" data-multi-upload>
-  {{ field(class_='platform-file-input', accept='image/jpeg,image/png,image/webp', multiple=true, data_multi_input='') }}
-  <span class="platform-dropzone__icon">{{ icon('upload') }}</span>
-  <strong>{{ title }}</strong>
-  <span>{{ help_text }}</span>
-  {% if existing_count %}<small>{{ existing_count }} imagem(ns) já publicada(s)</small>{% endif %}
-</label>
-<div class="platform-upload-grid" data-multi-preview aria-live="polite"></div>
+  <label
+    class="platform-dropzone"
+    data-multi-upload
+  >
+    {{ field(
+      class_='platform-file-input',
+      accept='image/jpeg,image/png,image/webp',
+      multiple=true,
+      data_multi_input=''
+    ) }}
+
+    <span class="platform-dropzone__icon">
+      {{ icon('upload') }}
+    </span>
+
+    <strong>{{ title }}</strong>
+    <span>{{ help_text }}</span>
+
+    {% if existing_count %}
+      <small>
+        {{ existing_count }}
+        imagem(ns) já publicada(s)
+      </small>
+    {% endif %}
+  </label>
+
+  <div
+    class="platform-upload-grid"
+    data-multi-preview
+    aria-live="polite"
+  ></div>
 {%- endmacro %}

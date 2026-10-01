@@ -3,58 +3,481 @@
 {% from 'auth/_macros.html' import field_errors %}
 {% from 'components/media-upload.html' import media_upload, multi_upload %}
 
-{% block title %}Editar empresa | IDDUN Business{% endblock %}
-{% block body_class %}platform-page platform-editor-page{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block title %}
+  Editar empresa | IDDUN Business
+{% endblock %}
+
+{% block body_class %}
+  platform-page platform-editor-page
+{% endblock %}
+
+{% block styles %}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/platform.css') }}"
+>
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', filename='css/media-cropper.css') }}"
+>
+{% endblock %}
 
 {% block content %}
 <section class="platform-editor">
   <div class="container platform-editor__layout">
     <header class="platform-editor__head">
-      <a class="platform-back-link" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('arrow-left') }} IDDUN Business</a>
-      <span class="platform-kicker">PÁGINA DA EMPRESA</span><h1>Refine a apresentação da marca.</h1><p>Esses dados alimentam a página pública que conecta sua empresa à equipe.</p>
+      <a
+        class="platform-back-link"
+        href="{{ url_for('business.dashboard', slug=establishment.slug) }}"
+      >
+        {{ icon('arrow-left') }}
+        IDDUN Business
+      </a>
+
+      <span class="platform-kicker">
+        PÁGINA DA EMPRESA
+      </span>
+
+      <h1>
+        Refine a apresentação da marca.
+      </h1>
+
+      <p>
+        Esses dados alimentam a página pública
+        que conecta sua empresa à equipe.
+      </p>
     </header>
 
-    <form class="platform-editor-form" method="post" enctype="multipart/form-data" novalidate>
+    <form
+      class="platform-editor-form"
+      method="post"
+      enctype="multipart/form-data"
+      novalidate
+    >
       {{ form.hidden_tag() }}
+
       <section class="platform-panel">
         <div class="platform-form-grid">
-          <div class="platform-field">{{ form.logo_file.label(class_='platform-label') }}{{ media_upload(form.logo_file, form.logo_focus_x, form.logo_focus_y, 'logo', establishment.logo_url, 'Trocar logo', 'JPG, PNG ou WEBP · até 5 MB') }}{{ field_errors(form.logo_file) }}</div>
-          <div class="platform-field">{{ form.cover_file.label(class_='platform-label') }}{{ media_upload(form.cover_file, form.cover_focus_x, form.cover_focus_y, 'cover', establishment.cover_url, 'Trocar capa', 'Ajuste o enquadramento sem recortar o original') }}{{ field_errors(form.cover_file) }}</div>
-          <div class="platform-field">{{ form.name.label(class_='platform-label') }}{{ form.name(class_='platform-input') }}{{ field_errors(form.name) }}</div>
-          <div class="platform-field">{{ form.category.label(class_='platform-label') }}{{ form.category(class_='platform-select') }}{{ field_errors(form.category) }}</div>
-          <div class="platform-field platform-field--wide">{{ form.description.label(class_='platform-label') }}{{ form.description(class_='platform-textarea', rows='6') }}{{ field_errors(form.description) }}</div>
-          <div class="platform-field">{{ form.phone.label(class_='platform-label') }}{{ form.phone(class_='platform-input') }}{{ field_errors(form.phone) }}</div>
-          <div class="platform-field platform-field--wide platform-checkbox-field">{{ form.whatsapp_enabled() }} {{ form.whatsapp_enabled.label(class_='platform-label') }}</div>
-          <div class="platform-field">{{ form.email.label(class_='platform-label') }}{{ form.email(class_='platform-input') }}{{ field_errors(form.email) }}</div>
-          <div class="platform-field platform-field--wide">{{ form.instagram.label(class_='platform-label') }}{{ form.instagram(class_='platform-input') }}{{ field_errors(form.instagram) }}</div>
-          <div class="platform-field platform-field--wide">{{ form.address_line1.label(class_='platform-label') }}{{ form.address_line1(class_='platform-input') }}{{ field_errors(form.address_line1) }}</div>
-          <div class="platform-field">{{ form.address_line2.label(class_='platform-label') }}{{ form.address_line2(class_='platform-input') }}{{ field_errors(form.address_line2) }}</div>
-          <div class="platform-field">{{ form.neighborhood.label(class_='platform-label') }}{{ form.neighborhood(class_='platform-input') }}{{ field_errors(form.neighborhood) }}</div>
-          <div class="platform-field">{{ form.city.label(class_='platform-label') }}{{ form.city(class_='platform-input') }}{{ field_errors(form.city) }}</div>
-          <div class="platform-field">{{ form.state.label(class_='platform-label') }}{{ form.state(class_='platform-input') }}{{ field_errors(form.state) }}</div>
-          <div class="platform-field">{{ form.postal_code.label(class_='platform-label') }}{{ form.postal_code(class_='platform-input') }}{{ field_errors(form.postal_code) }}</div>
+          <div class="platform-field">
+            {{
+              form.logo_file.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              media_upload(
+                form.logo_file,
+                form.logo_focus_x,
+                form.logo_focus_y,
+                'logo',
+                establishment.logo_url,
+                'Trocar logo',
+                'JPG, PNG ou WEBP · até 5 MB'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.logo_file
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.cover_file.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              media_upload(
+                form.cover_file,
+                form.cover_focus_x,
+                form.cover_focus_y,
+                'cover',
+                establishment.cover_url,
+                'Trocar capa',
+                'Ajuste o enquadramento sem recortar o original'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.cover_file
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.name.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.name(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.name
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.category.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.category(
+                class_='platform-select'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.category
+              )
+            }}
+          </div>
+
+          <div
+            class="platform-field platform-field--wide"
+          >
+            {{
+              form.description.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.description(
+                class_='platform-textarea',
+                rows='6'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.description
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.phone.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.phone(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.phone
+              )
+            }}
+          </div>
+
+          <div
+            class="platform-field platform-field--wide platform-checkbox-field"
+          >
+            {{
+              form.whatsapp_enabled()
+            }}
+
+            {{
+              form.whatsapp_enabled.label(
+                class_='platform-label'
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.email.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.email(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.email
+              )
+            }}
+          </div>
+
+          <div
+            class="platform-field platform-field--wide"
+          >
+            {{
+              form.instagram.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.instagram(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.instagram
+              )
+            }}
+          </div>
+
+          <div
+            class="platform-field platform-field--wide"
+          >
+            {{
+              form.address_line1.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.address_line1(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.address_line1
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.address_line2.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.address_line2(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.address_line2
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.neighborhood.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.neighborhood(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.neighborhood
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.city.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.city(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.city
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.state.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.state(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.state
+              )
+            }}
+          </div>
+
+          <div class="platform-field">
+            {{
+              form.postal_code.label(
+                class_='platform-label'
+              )
+            }}
+
+            {{
+              form.postal_code(
+                class_='platform-input'
+              )
+            }}
+
+            {{
+              field_errors(
+                form.postal_code
+              )
+            }}
+          </div>
         </div>
       </section>
 
       <section class="platform-panel">
-        <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>{{ establishment.gallery_items|length }} imagens</h2></div></header>
+        <header class="platform-panel__head">
+          <div>
+            <span class="platform-kicker">
+              GALERIA
+            </span>
+
+            <h2>
+              {{ establishment.gallery_items|length }}
+              imagens
+            </h2>
+          </div>
+        </header>
+
         <div class="platform-manage-gallery">
           {% for item in establishment.gallery_items %}
-          <div class="platform-manage-gallery__item"><img src="{{ item.image_url|media_url }}" alt="Imagem da galeria"><button type="submit" form="remove-gallery-{{ item.id }}" aria-label="Remover imagem">×</button></div>
+            <div
+              class="platform-manage-gallery__item"
+            >
+              <img
+                src="{{ item.image_url|media_url }}"
+                alt="Imagem da galeria"
+              >
+
+              <button
+                type="submit"
+                form="remove-gallery-{{ item.id }}"
+                aria-label="Remover imagem"
+              >
+                ×
+              </button>
+            </div>
           {% endfor %}
         </div>
-        <div class="platform-field">{{ form.gallery_files.label(class_='platform-label') }}{{ multi_upload(form.gallery_files, 'Adicionar imagens à galeria', 'Até 10 imagens por envio · até 5 MB cada', establishment.gallery_items|length) }}{{ field_errors(form.gallery_files) }}</div>
+
+        <div class="platform-field">
+          {{
+            form.gallery_files.label(
+              class_='platform-label'
+            )
+          }}
+
+          {{
+            multi_upload(
+              form.gallery_files,
+              'Adicionar imagens à galeria',
+              'Até 10 imagens por envio · até 5 MB cada',
+              establishment.gallery_items|length
+            )
+          }}
+
+          {{
+            field_errors(
+              form.gallery_files
+            )
+          }}
+        </div>
       </section>
 
-      <div class="platform-editor-actions">{{ form.submit(class_='btn btn-primary') }}<a class="btn btn-outline" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" target="_blank">Ver página pública</a></div>
+      <div class="platform-editor-actions">
+        {{
+          form.submit(
+            class_='btn btn-primary'
+          )
+        }}
+
+        <a
+          class="btn btn-outline"
+          href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Ver página pública
+        </a>
+      </div>
     </form>
 
     {% for item in establishment.gallery_items %}
-    <form id="remove-gallery-{{ item.id }}" method="post" action="{{ url_for('business.remove_gallery_item', slug=establishment.slug, item_id=item.id) }}" hidden><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"></form>
+      <form
+        id="remove-gallery-{{ item.id }}"
+        method="post"
+        action="{{ url_for('business.remove_gallery_item', slug=establishment.slug, item_id=item.id) }}"
+        hidden
+      >
+        <input
+          type="hidden"
+          name="csrf_token"
+          value="{{ csrf_token() }}"
+        >
+      </form>
     {% endfor %}
   </div>
 </section>
 {% endblock %}
-{% block mobile_bottom_nav %}{% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/platform.js') }}" defer></script>{% endblock %}
+
+{% block mobile_bottom_nav %}
+{% endblock %}
+
+{% block scripts %}
+<script
+  src="{{ url_for('static', filename='js/platform.js') }}"
+  defer
+></script>
+<script
+  src="{{ url_for('static', filename='js/media-cropper.js') }}"
+  defer
+></script>
+{% endblock %}
