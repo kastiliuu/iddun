@@ -15,6 +15,12 @@ def api_json(
             "Cache-Control"
         ] = cache_control
 
+        if "no-store" in cache_control:
+            response.headers.setdefault(
+                "Pragma",
+                "no-cache",
+            )
+
     return response
 
 
