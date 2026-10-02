@@ -199,7 +199,7 @@ export default function BookingsScreen() {
       ],
     );
 
-  const refresh =  const refresh =
+  const refresh =
     async () => {
       const response =
         await getBookings({
