@@ -37,3 +37,46 @@ class LoginForm(FlaskForm):
     )
     remember = BooleanField("Continuar conectado")
     submit = SubmitField("Entrar")
+
+
+
+class PasswordResetRequestForm(FlaskForm):
+    email = StringField(
+        "E-mail",
+        validators=[
+            DataRequired(),
+            Email(),
+            Length(max=255),
+        ],
+    )
+    submit = SubmitField(
+        "Enviar link de recuperação"
+    )
+
+
+class PasswordResetForm(FlaskForm):
+    password = PasswordField(
+        "Nova senha",
+        validators=[
+            DataRequired(),
+            Length(
+                min=8,
+                max=128,
+            ),
+        ],
+    )
+    confirm_password = PasswordField(
+        "Confirmar nova senha",
+        validators=[
+            DataRequired(),
+            EqualTo(
+                "password",
+                message=(
+                    "As senhas precisam ser iguais."
+                ),
+            ),
+        ],
+    )
+    submit = SubmitField(
+        "Redefinir senha"
+    )
