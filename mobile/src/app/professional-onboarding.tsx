@@ -13,6 +13,7 @@ import {
   Text,
   TextInput,
   View,
+  StyleSheet,
 } from "react-native";
 
 import {
@@ -38,6 +39,7 @@ import {
 import {
   deleteProfessionalPortfolioItem,
   reorderProfessionalPortfolio,
+  updateProfessionalCoverFocus,
   uploadProfessionalAvatar,
   uploadProfessionalCover,
   uploadProfessionalPortfolioItem,
@@ -69,6 +71,64 @@ import {
   spacing,
   useTheme,
 } from "@/theme";
+
+
+const COVER_FOCUS_POINTS = [
+  {
+    x: 15,
+    y: 15,
+    label:
+      "Topo esquerdo",
+  },
+  {
+    x: 50,
+    y: 15,
+    label:
+      "Topo central",
+  },
+  {
+    x: 85,
+    y: 15,
+    label:
+      "Topo direito",
+  },
+  {
+    x: 15,
+    y: 50,
+    label:
+      "Centro esquerdo",
+  },
+  {
+    x: 50,
+    y: 50,
+    label:
+      "Centro",
+  },
+  {
+    x: 85,
+    y: 50,
+    label:
+      "Centro direito",
+  },
+  {
+    x: 15,
+    y: 85,
+    label:
+      "Base esquerda",
+  },
+  {
+    x: 50,
+    y: 85,
+    label:
+      "Base central",
+  },
+  {
+    x: 85,
+    y: 85,
+    label:
+      "Base direita",
+  },
+] as const;
 
 
 type MediaSourceActionsProps = {
@@ -216,6 +276,12 @@ export default function ProfessionalOnboardingScreen() {
     useState<MediaKind | null>(
       null,
     );
+
+  const [
+    coverFocusBusy,
+    setCoverFocusBusy,
+  ] =
+    useState(false);
 
   const [
     companyName,
@@ -407,6 +473,58 @@ export default function ProfessionalOnboardingScreen() {
       } finally {
         setMediaBusy(
           null,
+        );
+      }
+    };
+
+  const handleCoverFocus =
+    async (
+      focusX: number,
+      focusY: number,
+    ) => {
+      if (
+        coverFocusBusy ||
+        !profile?.coverUrl
+      ) {
+        return;
+      }
+
+      try {
+        setCoverFocusBusy(
+          true,
+        );
+
+        await updateProfessionalCoverFocus(
+          focusX,
+          focusY,
+        );
+
+        setProfile(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  coverFocusX:
+                    focusX,
+                  coverFocusY:
+                    focusY,
+                }
+              : current,
+        );
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível ajustar a capa",
+          body:
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setCoverFocusBusy(
+          false,
         );
       }
     };
@@ -1188,20 +1306,120 @@ export default function ProfessionalOnboardingScreen() {
             </View>
 
             {profile.coverUrl ? (
-              <Image
-                source={{
-                  uri:
-                    profile.coverUrl,
-                }}
-                style={
-                  styles.coverMediaPreview
-                }
-                contentFit="cover"
-                transition={160}
-                accessibilityLabel={
-                  `Capa do perfil de ${profile.displayName}`
-                }
-              />
+              <>
+                <View
+                  style={
+                    styles.coverMediaFrame
+                  }
+                >
+                  <Image
+                    source={{
+                      uri:
+                        profile.coverUrl,
+                    }}
+                    style={
+                      styles.coverMediaPreview
+                    }
+                    contentFit="cover"
+                    contentPosition={{
+                      left:
+                        `${profile.coverFocusX}%`,
+                      top:
+                        `${profile.coverFocusY}%`,
+                    }}
+                    transition={160}
+                    accessibilityLabel={
+                      `Capa do perfil de ${profile.displayName}`
+                    }
+                  />
+
+                  <View
+                    style={
+                      styles.coverFocusGrid
+                    }
+                  >
+                    {COVER_FOCUS_POINTS.map(
+                      (
+                        point,
+                      ) => {
+                        const selected =
+                          profile.coverFocusX ===
+                            point.x &&
+                          profile.coverFocusY ===
+                            point.y;
+
+                        return (
+                          <Pressable
+                            key={
+                              `${point.x}-${point.y}`
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              `Enquadrar capa em ${point.label}`
+                            }
+                            accessibilityState={{
+                              selected,
+                              disabled:
+                                coverFocusBusy,
+                            }}
+                            disabled={
+                              coverFocusBusy
+                            }
+                            onPress={() =>
+                              void handleCoverFocus(
+                                point.x,
+                                point.y,
+                              )
+                            }
+                            style={
+                              styles.coverFocusCell
+                            }
+                          >
+                            {selected ? (
+                              <View
+                                style={
+                                  styles.coverFocusDot
+                                }
+                              />
+                            ) : null}
+                          </Pressable>
+                        );
+                      },
+                    )}
+                  </View>
+                </View>
+
+                <View
+                  style={
+                    styles.coverFocusHint
+                  }
+                >
+                  {coverFocusBusy ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={
+                        colors.plum
+                      }
+                    />
+                  ) : (
+                    <Icon
+                      name="move"
+                      size={14}
+                      color={
+                        colors.plum
+                      }
+                    />
+                  )}
+
+                  <Text
+                    style={
+                      styles.fieldHint
+                    }
+                  >
+                    Toque na região que deve permanecer em destaque no recorte da capa.
+                  </Text>
+                </View>
+              </>
             ) : (
               <View
                 style={
@@ -2366,13 +2584,60 @@ const useStyles =
           colors.plum,
       },
 
-      coverMediaPreview: {
+      coverMediaFrame: {
+        position:
+          "relative",
         width: "100%",
         aspectRatio: 16 / 7,
         borderRadius:
           radius.md,
+        overflow:
+          "hidden",
         backgroundColor:
           colors.graphite,
+      },
+
+      coverMediaPreview: {
+        width: "100%",
+        height: "100%",
+        backgroundColor:
+          colors.graphite,
+      },
+
+      coverFocusGrid: {
+        ...StyleSheet.absoluteFillObject,
+        flexDirection:
+          "row",
+        flexWrap:
+          "wrap",
+      },
+
+      coverFocusCell: {
+        width: "33.3333%",
+        height: "33.3333%",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      coverFocusDot: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor:
+          colors.plum,
+        borderWidth: 3,
+        borderColor:
+          colors.white,
+      },
+
+      coverFocusHint: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.sm,
       },
 
       coverMediaPlaceholder: {
