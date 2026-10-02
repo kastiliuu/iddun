@@ -10,6 +10,9 @@ import {
   store,
 } from "@/store/local";
 
+const AUTH_BASE =
+  "/api/v1/auth";
+
 const ACCESS_TOKEN_KEY =
   "iddun_access_token";
 
@@ -134,7 +137,7 @@ async function fetchCurrentUser(
 ) {
   const response =
     await api.get<CurrentUser>(
-      "/api/auth/me",
+      `${AUTH_BASE}/me`,
       { token },
     );
 
@@ -150,7 +153,7 @@ export async function login(
 ) {
   const response =
     await api.post<AuthResponse>(
-      "/api/auth/login",
+      `${AUTH_BASE}/login`,
       {
         email: payload.email
           .trim()
@@ -174,7 +177,7 @@ export async function registerClient(
 ) {
   const response =
     await api.post<AuthResponse>(
-      "/api/auth/register",
+      `${AUTH_BASE}/register`,
       {
         name: payload.name.trim(),
         email: payload.email
@@ -208,7 +211,7 @@ async function performRefresh() {
 
   const response =
     await api.post<RefreshResponse>(
-      "/api/auth/refresh",
+      `${AUTH_BASE}/refresh`,
       { refreshToken },
     );
 
@@ -327,7 +330,7 @@ export async function logout() {
   if (token) {
     try {
       await api.post(
-        "/api/auth/logout",
+        `${AUTH_BASE}/logout`,
         undefined,
         { token },
       );

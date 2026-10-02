@@ -5,6 +5,10 @@ from app.models.establishment import Establishment, MembershipStatus, Profession
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
 from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import ProfessionalProfile
+from app.services.public_eligibility import (
+    establishment_is_public,
+    professional_is_public,
+)
 
 
 def dashboard_counts():
@@ -57,7 +61,7 @@ def validate_experience_publication(professional_id, establishment_id=None):
     professional = db.session.get(ProfessionalProfile, professional_id)
     if professional is None:
         raise ValueError("Selecione um profissional válido antes de publicar a experiência.")
-    if not professional.is_active:
+    if not professional_is_public(professional):
         raise ValueError(
             f"Ative o perfil de {professional.display_name} antes de publicar a experiência."
         )
@@ -68,7 +72,7 @@ def validate_experience_publication(professional_id, establishment_id=None):
     establishment = db.session.get(Establishment, establishment_id)
     if establishment is None:
         raise ValueError("Selecione um estabelecimento válido antes de publicar a experiência.")
-    if not establishment.is_active:
+    if not establishment_is_public(establishment):
         raise ValueError(
             f"Ative o estabelecimento {establishment.name} antes de publicar a experiência."
         )

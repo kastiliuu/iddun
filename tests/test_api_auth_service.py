@@ -12,6 +12,8 @@ from app.models.user import User, UserRole
 from app.services.api_auth import (
     ACCESS_TOKEN_TTL,
     REFRESH_TOKEN_TTL,
+    cleanup_expired_sessions,
+    expired_session_count,
     get_user_by_access_token,
     issue_session,
     revoke_session,
@@ -195,3 +197,69 @@ def test_malformed_tokens_are_rejected(account, invalid_token):
         invalid_token,
         now=START,
     ) is False
+
+
+def test_cleanup_expired_sessions_keeps_renewable_sessions(
+    account,
+):
+    expired = issue_session(
+        account,
+        now=START
+        - REFRESH_TOKEN_TTL
+        - timedelta(seconds=1),
+    )
+
+    active = issue_session(
+        account,
+        now=START,
+    )
+
+    assert expired_session_count(
+        now=START,
+    ) == 1
+
+    removed = cleanup_expired_sessions(
+        now=START,
+    )
+
+    assert removed == 1
+    assert expired_session_count(
+        now=START,
+    ) == 0
+
+    assert get_user_by_access_token(
+        expired.access_token,
+        now=START,
+    ) is None
+
+    assert get_user_by_access_token(
+        active.access_token,
+        now=START,
+    ).id == account.id
+
+    assert db.session.scalar(
+        select(func.count())
+        .select_from(ApiSession)
+    ) == 1
+
+
+def test_session_at_refresh_expiry_boundary_is_cleanup_eligible(
+    account,
+):
+    issue_session(
+        account,
+        now=START,
+    )
+
+    boundary = (
+        START
+        + REFRESH_TOKEN_TTL
+    )
+
+    assert expired_session_count(
+        now=boundary,
+    ) == 1
+
+    assert cleanup_expired_sessions(
+        now=boundary,
+    ) == 1

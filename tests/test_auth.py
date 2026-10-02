@@ -299,12 +299,17 @@ def test_csrf_failure_is_json_for_json_request(csrf_client):
     )
 
     assert response.status_code == 400
+
+    message = (
+        "Sua sessão de segurança expirou. "
+        "Confira os dados e envie novamente."
+    )
+
     assert response.get_json() == {
+        "message": message,
         "error": {
             "code": "csrf_failed",
-            "message": (
-                "Sua sessão de segurança expirou. "
-                "Confira os dados e envie novamente."
-            ),
-        }
+            "message": message,
+        },
     }
+

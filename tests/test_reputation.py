@@ -12,7 +12,10 @@ from app.models.professional import ProfessionalProfile
 from app.models.profile import ClientProfile
 from app.models.reputation import ContactClick, Review, ReviewTarget
 from app.models.user import User, UserRole
-from app.services.reputation_service import reputation_summary
+from app.services.reputation_service import (
+    reputation_summary,
+    save_booking_reviews,
+)
 from app.services.time_service import utcnow
 
 
@@ -212,3 +215,55 @@ def test_whatsapp_redirect_records_lead(app, client):
         assert len(clicks) == 2
         assert clicks[0].professional_id == professional_id
         assert clicks[1].establishment_id == establishment_id
+
+
+
+def test_establishment_not_recommended_boolean_is_persisted(
+    app,
+):
+    (
+        _user_id,
+        booking_id,
+        _professional_id,
+        establishment_id,
+    ) = _completed_booking(app)
+
+    with app.app_context():
+        booking = db.session.get(
+            Booking,
+            booking_id,
+        )
+
+        save_booking_reviews(
+            booking=booking,
+            client_profile=booking.client,
+            professional_rating=5,
+            professional_recommended=True,
+            professional_comment="Excelente.",
+            establishment_rating=3,
+            establishment_recommended=False,
+            establishment_comment=(
+                "Bom atendimento, mas eu não retornaria ao local."
+            ),
+        )
+
+        establishment_review = (
+            db.session.scalar(
+                select(Review).where(
+                    Review.booking_id
+                    == booking_id,
+                    Review.target_type
+                    == ReviewTarget.ESTABLISHMENT,
+                )
+            )
+        )
+
+        assert establishment_review is not None
+        assert (
+            establishment_review.establishment_id
+            == establishment_id
+        )
+        assert (
+            establishment_review.recommended
+            is False
+        )

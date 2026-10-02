@@ -1,35 +1,41 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  Linking,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import {
   useLocalSearchParams,
   useRouter,
 } from "expo-router";
 import * as Haptics from "expo-haptics";
 
-import { Avatar } from "@/components/Avatar";
+import {
+  cancelBooking,
+  confirmBooking,
+  holdExperienceSlot,
+  type Booking,
+} from "@/api/bookings";
+import {
+  getExperienceAvailability,
+  getRealExperience,
+  type CatalogExperience,
+  type ExperienceAvailabilityDay,
+  type ExperienceAvailabilityResponse,
+  type ExperienceAvailabilitySlot,
+} from "@/api/experiences";
+import { ApiError } from "@/api/client";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
-
-import {
-  getProfessionalById,
-  getServiceById,
-} from "@/mocks/data";
-
-import {
-  useStoreVersion,
-} from "@/store/local";
-
 import {
   fonts,
   makeStyles,
@@ -45,21 +51,6 @@ type BookingStep =
   | "time"
   | "confirm"
   | "success";
-
-const WEB_CATALOG_URL =
-  (process.env.EXPO_PUBLIC_WEB_URL ||
-    "https://iddun-web.onrender.com"
-  ).replace(/\/+$/, "") +
-  "/experiencias";
-
-type BookingDate = {
-  date: Date;
-  key: string;
-  weekday: string;
-  day: string;
-  month: string;
-  label: string;
-};
 
 function formatCurrency(
   value: number,
@@ -88,123 +79,102 @@ function formatDuration(
   const remaining =
     minutes % 60;
 
-  if (remaining === 0) {
-    return `${hours}h`;
-  }
-
-  return `${hours}h ${remaining}min`;
+  return remaining
+    ? `${hours}h ${remaining}min`
+    : `${hours}h`;
 }
 
-function capitalize(
+function dateAtNoon(
   value: string,
 ) {
-  if (!value) {
-    return value;
-  }
-
-  return (
-    value.charAt(0).toUpperCase() +
-    value.slice(1)
+  return new Date(
+    `${value}T12:00:00`,
   );
 }
 
-function buildDates(
-  count = 7,
-): BookingDate[] {
-  const today =
-    new Date();
+function formatDayCard(
+  value: string,
+) {
+  const date =
+    dateAtNoon(value);
 
-  today.setHours(
-    12,
-    0,
-    0,
-    0,
-  );
+  return {
+    weekday:
+      new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+          weekday: "short",
+        },
+      )
+        .format(date)
+        .replace(".", ""),
+    day:
+      new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+          day: "2-digit",
+        },
+      ).format(date),
+    month:
+      new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+          month: "short",
+        },
+      )
+        .format(date)
+        .replace(".", ""),
+    label:
+      new Intl.DateTimeFormat(
+        "pt-BR",
+        {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+        },
+      ).format(date),
+  };
+}
 
-  return Array.from(
+function formatSlotTime(
+  startsAt: string,
+  timezone: string,
+) {
+  return new Intl.DateTimeFormat(
+    "pt-BR",
     {
-      length: count,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: timezone,
     },
-    (_, index) => {
-      const date =
-        new Date(today);
+  ).format(
+    new Date(startsAt),
+  );
+}
 
-      /*
-       * IMPORTANTE:
-       * index começa em 0.
-       *
-       * Portanto o primeiro dia
-       * exibido é HOJE.
-       */
-      date.setDate(
-        today.getDate() +
-          index,
-      );
+function formatHoldExpiration(
+  value: string | null,
+  timezone: string,
+) {
+  if (!value) {
+    return null;
+  }
 
-      const weekday =
-        new Intl.DateTimeFormat(
-          "pt-BR",
-          {
-            weekday: "short",
-          },
-        )
-          .format(date)
-          .replace(".", "");
-
-      const day =
-        new Intl.DateTimeFormat(
-          "pt-BR",
-          {
-            day: "2-digit",
-          },
-        ).format(date);
-
-      const month =
-        new Intl.DateTimeFormat(
-          "pt-BR",
-          {
-            month: "short",
-          },
-        )
-          .format(date)
-          .replace(".", "");
-
-      const fullLabel =
-        capitalize(
-          new Intl.DateTimeFormat(
-            "pt-BR",
-            {
-              weekday: "long",
-              day: "2-digit",
-              month: "long",
-            },
-          ).format(date),
-        );
-
-      return {
-        date,
-        key: date
-          .toISOString()
-          .slice(0, 10),
-        weekday:
-          capitalize(
-            weekday,
-          ),
-        day,
-        month:
-          capitalize(
-            month,
-          ),
-        label:
-          fullLabel,
-      };
+  return new Intl.DateTimeFormat(
+    "pt-BR",
+    {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      timeZone: timezone,
     },
+  ).format(
+    new Date(value),
   );
 }
 
 export default function BookingScreen() {
-  useStoreVersion();
-
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
@@ -214,27 +184,40 @@ export default function BookingScreen() {
       serviceId: string;
     }>();
 
-  const service =
-    getServiceById(
+  const experienceSlug =
+    Array.isArray(
       params.serviceId,
+    )
+      ? params.serviceId[0]
+      : params.serviceId;
+
+  const [
+    experience,
+    setExperience,
+  ] =
+    useState<CatalogExperience | null>(
+      null,
     );
 
-  const author =
-    useMemo(
-      () =>
-        service
-          ? getProfessionalById(
-              service.authorId,
-            )
-          : undefined,
-      [service],
+  const [
+    availability,
+    setAvailability,
+  ] =
+    useState<ExperienceAvailabilityResponse | null>(
+      null,
     );
 
-  const availableDates =
-    useMemo(
-      () =>
-        buildDates(7),
-      [],
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    loadError,
+    setLoadError,
+  ] =
+    useState<string | null>(
+      null,
     );
 
   const [step, setStep] =
@@ -242,57 +225,502 @@ export default function BookingScreen() {
       "date",
     );
 
-  /*
-   * Começa no primeiro item:
-   * HOJE.
-   *
-   * No protótipo anterior
-   * começava no índice 1,
-   * ou seja, amanhã.
-   */
   const [
-    selectedDateKey,
-    setSelectedDateKey,
-  ] = useState(
-    availableDates[0]?.key ??
-      "",
-  );
-
-  const [
-    selectedTime,
-    setSelectedTime,
+    selectedDate,
+    setSelectedDate,
   ] =
     useState<string | null>(
       null,
     );
 
-  const selectedDate =
-    availableDates.find(
-      (item) =>
-        item.key ===
-        selectedDateKey,
+  const [
+    selectedSlotId,
+    setSelectedSlotId,
+  ] =
+    useState<number | null>(
+      null,
     );
 
-  /*
-   * Ainda é mock.
-   *
-   * Quando conectarmos ao Flask,
-   * isso DEVE vir da API para
-   * a data escolhida.
-   */
-  const availableTimes =
-    useMemo(() => {
-      if (!service) {
-        return [];
+  const [
+    booking,
+    setBooking,
+  ] =
+    useState<Booking | null>(
+      null,
+    );
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+  useEffect(() => {
+    const controller =
+      new AbortController();
+
+    const load =
+      async () => {
+        if (!experienceSlug) {
+          setLoadError(
+            "Experiência não encontrada.",
+          );
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const [
+            experienceResponse,
+            availabilityResponse,
+          ] =
+            await Promise.all([
+              getRealExperience(
+                experienceSlug,
+                controller.signal,
+              ),
+              getExperienceAvailability(
+                experienceSlug,
+                controller.signal,
+              ),
+            ]);
+
+          if (
+            controller.signal.aborted
+          ) {
+            return;
+          }
+
+          setExperience(
+            experienceResponse,
+          );
+          setAvailability(
+            availabilityResponse,
+          );
+
+          setSelectedDate(
+            (
+              current,
+            ) => {
+              if (
+                current &&
+                availabilityResponse.days.some(
+                  (day) =>
+                    day.date ===
+                    current,
+                )
+              ) {
+                return current;
+              }
+
+              return (
+                availabilityResponse
+                  .days[0]?.date ??
+                null
+              );
+            },
+          );
+        } catch (
+          error: unknown
+        ) {
+          if (
+            error instanceof Error &&
+            error.name ===
+              "AbortError"
+          ) {
+            return;
+          }
+
+          if (
+            error instanceof ApiError &&
+            error.status === 404
+          ) {
+            setLoadError(
+              "Essa experiência não está publicada no momento.",
+            );
+          } else {
+            setLoadError(
+              "Não foi possível carregar a disponibilidade agora.",
+            );
+          }
+        } finally {
+          if (
+            !controller.signal.aborted
+          ) {
+            setLoading(false);
+          }
+        }
+      };
+
+    void load();
+
+    return () => {
+      controller.abort();
+    };
+  }, [experienceSlug]);
+
+  const selectedDay =
+    useMemo<
+      ExperienceAvailabilityDay | undefined
+    >(
+      () =>
+        availability?.days.find(
+          (item) =>
+            item.date ===
+            selectedDate,
+        ),
+      [
+        availability,
+        selectedDate,
+      ],
+    );
+
+  const selectedSlot =
+    useMemo<
+      ExperienceAvailabilitySlot | undefined
+    >(
+      () =>
+        selectedDay?.slots.find(
+          (slot) =>
+            slot.id ===
+            selectedSlotId,
+        ),
+      [
+        selectedDay,
+        selectedSlotId,
+      ],
+    );
+
+  const timezone =
+    availability?.timezone ??
+    "America/Sao_Paulo";
+
+  const selectedDateLabel =
+    selectedDate
+      ? formatDayCard(
+          selectedDate,
+        ).label
+      : null;
+
+  const holdExpiration =
+    formatHoldExpiration(
+      booking?.holdExpiresAt ??
+        null,
+      timezone,
+    );
+
+  const refreshAvailability =
+    async () => {
+      if (!experienceSlug) {
+        return;
       }
 
-      return (
-        service.availableSlots ??
-        []
-      );
-    }, [service]);
+      const response =
+        await getExperienceAvailability(
+          experienceSlug,
+        );
 
-  if (!service) {
+      setAvailability(
+        response,
+      );
+      setSelectedDate(
+        (current) => {
+          if (
+            current &&
+            response.days.some(
+              (day) =>
+                day.date ===
+                current,
+            )
+          ) {
+            return current;
+          }
+
+          return (
+            response.days[0]
+              ?.date ??
+            null
+          );
+        },
+      );
+    };
+
+  const leavePendingHold =
+    async () => {
+      if (
+        booking?.status !==
+        "pending"
+      ) {
+        return;
+      }
+
+      try {
+        await cancelBooking(
+          booking.id,
+        );
+      } catch {
+        // O hold expira no backend mesmo
+        // se o aparelho ficar offline.
+      }
+
+      setBooking(null);
+    };
+
+  const handleBack =
+    async () => {
+      if (submitting) {
+        return;
+      }
+
+      if (
+        step === "success"
+      ) {
+        router.replace(
+          "/(tabs)",
+        );
+        return;
+      }
+
+      if (
+        step === "confirm"
+      ) {
+        setSubmitting(true);
+
+        await leavePendingHold();
+
+        try {
+          await refreshAvailability();
+        } catch {
+          // A tela continua utilizável com
+          // a última disponibilidade conhecida.
+        }
+
+        setSelectedSlotId(
+          null,
+        );
+        setStep("time");
+        setSubmitting(false);
+        return;
+      }
+
+      if (
+        step === "time"
+      ) {
+        setSelectedSlotId(
+          null,
+        );
+        setStep("date");
+        return;
+      }
+
+      if (
+        router.canGoBack()
+      ) {
+        router.back();
+      } else {
+        router.replace(
+          "/(tabs)/discover",
+        );
+      }
+    };
+
+  const handleContinue =
+    async () => {
+      Haptics
+        .impactAsync(
+          Haptics
+            .ImpactFeedbackStyle
+            .Light,
+        )
+        .catch(() => {});
+
+      if (
+        step === "date"
+      ) {
+        if (!selectedDay) {
+          return;
+        }
+
+        setStep("time");
+        return;
+      }
+
+      if (
+        step !== "time" ||
+        !selectedSlot ||
+        !experienceSlug
+      ) {
+        return;
+      }
+
+      setSubmitting(true);
+
+      try {
+        const response =
+          await holdExperienceSlot(
+            experienceSlug,
+            selectedSlot.id,
+          );
+
+        setBooking(
+          response.booking,
+        );
+        setStep(
+          "confirm",
+        );
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 401
+        ) {
+          Alert.alert(
+            "Entre para reservar",
+            "Faça login na sua conta IDDUN e tente novamente.",
+            [
+              {
+                text: "Agora não",
+                style: "cancel",
+              },
+              {
+                text: "Entrar",
+                onPress: () =>
+                  router.push({
+                    pathname: "/login",
+                    params: {
+                      returnToBooking:
+                        experienceSlug,
+                    },
+                  }),
+              },
+            ],
+          );
+        } else if (
+          error instanceof ApiError &&
+          error.status === 409
+        ) {
+          setSelectedSlotId(
+            null,
+          );
+
+          try {
+            await refreshAvailability();
+          } catch {
+            // O alerta principal continua sendo
+            // o conflito do horário.
+          }
+
+          Alert.alert(
+            "Horário indisponível",
+            error.message,
+          );
+        } else {
+          Alert.alert(
+            "Não foi possível reservar",
+            error instanceof Error
+              ? error.message
+              : "Tente novamente em instantes.",
+          );
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+  const handleConfirm =
+    async () => {
+      if (
+        !booking ||
+        booking.status !==
+          "pending"
+      ) {
+        return;
+      }
+
+      setSubmitting(true);
+
+      try {
+        const response =
+          await confirmBooking(
+            booking.id,
+          );
+
+        setBooking(
+          response.booking,
+        );
+        setStep(
+          "success",
+        );
+
+        Haptics
+          .notificationAsync(
+            Haptics
+              .NotificationFeedbackType
+              .Success,
+          )
+          .catch(() => {});
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 409
+        ) {
+          setBooking(null);
+          setSelectedSlotId(
+            null,
+          );
+          setStep("time");
+
+          try {
+            await refreshAvailability();
+          } catch {
+            // A mensagem de conflito já orienta
+            // a pessoa a escolher outro horário.
+          }
+
+          Alert.alert(
+            "Reserva não confirmada",
+            error.message,
+          );
+        } else {
+          Alert.alert(
+            "Não foi possível confirmar",
+            error instanceof Error
+              ? error.message
+              : "Tente novamente em instantes.",
+          );
+        }
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+  if (loading) {
+    return (
+      <View
+        style={
+          styles.loadingState
+        }
+      >
+        <ActivityIndicator
+          color={
+            colors.plum
+          }
+        />
+
+        <Text
+          style={
+            styles.loadingText
+          }
+        >
+          Consultando disponibilidade real…
+        </Text>
+      </View>
+    );
+  }
+
+  if (
+    loadError ||
+    !experience ||
+    !availability
+  ) {
     return (
       <View
         style={
@@ -308,15 +736,7 @@ export default function BookingScreen() {
             accessibilityRole="button"
             accessibilityLabel="Voltar"
             onPress={() => {
-              if (
-                router.canGoBack()
-              ) {
-                router.back();
-              } else {
-                router.replace(
-                  "/(tabs)",
-                );
-              }
+              void handleBack();
             }}
             style={
               styles.headerButton
@@ -333,9 +753,12 @@ export default function BookingScreen() {
         </View>
 
         <EmptyState
-          title="Serviço não encontrado"
-          description="Não foi possível iniciar este agendamento."
-          actionLabel="Descobrir"
+          title="Agendamento indisponível"
+          description={
+            loadError ??
+            "Essa experiência não pode ser reservada agora."
+          }
+          actionLabel="Descobrir experiências"
           onActionPress={() =>
             router.replace(
               "/(tabs)/discover",
@@ -345,84 +768,6 @@ export default function BookingScreen() {
       </View>
     );
   }
-
-  const handleBack = () => {
-    if (
-      step === "success"
-    ) {
-      router.replace(
-        "/(tabs)",
-      );
-
-      return;
-    }
-
-    if (
-      step === "confirm"
-    ) {
-      setStep("time");
-      return;
-    }
-
-    if (
-      step === "time"
-    ) {
-      setStep("date");
-      return;
-    }
-
-    if (
-      router.canGoBack()
-    ) {
-      router.back();
-    } else {
-      router.replace(
-        `/service/${service.id}`,
-      );
-    }
-  };
-
-  const handleContinue =
-    () => {
-      Haptics.impactAsync(
-        Haptics
-          .ImpactFeedbackStyle
-          .Light,
-      ).catch(() => {});
-
-      if (
-        step === "date"
-      ) {
-        setStep("time");
-        return;
-      }
-
-      if (
-        step === "time"
-      ) {
-        if (!selectedTime) {
-          return;
-        }
-
-        setStep(
-          "confirm",
-        );
-      }
-    };
-
-  const handleConfirm =
-    async () => {
-      try {
-        await Linking.openURL(
-          WEB_CATALOG_URL,
-        );
-      } catch {
-        Alert.alert(
-          "Não foi possível abrir o site",
-          "Acesse iddun-web.onrender.com/experiencias para consultar horários reais.",
-        );
-      }
-    };
 
   const stepNumber =
     step === "date"
@@ -456,9 +801,12 @@ export default function BookingScreen() {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Voltar"
-            onPress={
-              handleBack
+            disabled={
+              submitting
             }
+            onPress={() => {
+              void handleBack();
+            }}
             style={({
               pressed,
             }) => [
@@ -522,7 +870,6 @@ export default function BookingScreen() {
                   key={item}
                   style={[
                     styles.progressBar,
-
                     stepNumber >=
                       item &&
                       styles.progressBarActive,
@@ -533,17 +880,70 @@ export default function BookingScreen() {
           </View>
         ) : null}
 
-        <View style={styles.loginWarning}>
-          <Icon name="alert-circle" size={18} color={colors.plum} />
-          <View style={styles.loginWarningContent}>
-            <Text style={styles.loginWarningTitle}>
-              Prévia de agendamento
-            </Text>
-            <Text style={styles.loginWarningText}>
-              As datas, os horários e os preços aqui são ilustrativos. Consulte a disponibilidade real e reserve pelo site IDDUN.
-            </Text>
+        {step !==
+        "success" ? (
+          <View
+            style={
+              styles.experienceCard
+            }
+          >
+            <Image
+              source={{
+                uri:
+                  experience.imageUrl,
+              }}
+              style={
+                styles.experienceImage
+              }
+              contentFit="cover"
+              accessibilityLabel={
+                experience.title
+              }
+            />
+
+            <View
+              style={
+                styles.experienceBody
+              }
+            >
+              <Text
+                style={
+                  styles.experienceEyebrow
+                }
+              >
+                {
+                  experience.categoryLabel
+                }
+              </Text>
+
+              <Text
+                style={
+                  styles.experienceTitle
+                }
+                numberOfLines={2}
+              >
+                {
+                  experience.title
+                }
+              </Text>
+
+              <Text
+                style={
+                  styles.experienceMeta
+                }
+                numberOfLines={2}
+              >
+                {
+                  experience.professional
+                }
+                {" · "}
+                {
+                  experience.location
+                }
+              </Text>
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {step ===
         "date" ? (
@@ -574,138 +974,118 @@ export default function BookingScreen() {
                   styles.description
                 }
               >
-                Selecione uma data para explorar a prévia. Os horários reais estão no site.
+                A disponibilidade abaixo vem da agenda real desta experiência.
               </Text>
             </View>
 
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={
-                false
-              }
-              contentContainerStyle={
-                styles.dateList
-              }
-            >
-              {availableDates.map(
-                (item) => {
-                  const selected =
-                    item.key ===
-                    selectedDateKey;
-
-                  return (
-                    <Pressable
-                      key={
-                        item.key
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={
-                        item.label
-                      }
-                      accessibilityState={{
-                        selected,
-                      }}
-                      onPress={() => {
-                        setSelectedDateKey(
-                          item.key,
-                        );
-
-                        setSelectedTime(
-                          null,
-                        );
-
-                        Haptics.selectionAsync().catch(
-                          () => {},
-                        );
-                      }}
-                      style={({
-                        pressed,
-                      }) => [
-                        styles.dateCard,
-
-                        selected &&
-                          styles.dateCardSelected,
-
-                        pressed &&
-                          styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dateWeekday,
-
-                          selected &&
-                            styles.dateTextSelected,
-                        ]}
-                      >
-                        {
-                          item.weekday
-                        }
-                      </Text>
-
-                      <Text
-                        style={[
-                          styles.dateDay,
-
-                          selected &&
-                            styles.dateTextSelected,
-                        ]}
-                      >
-                        {item.day}
-                      </Text>
-
-                      <Text
-                        style={[
-                          styles.dateMonth,
-
-                          selected &&
-                            styles.dateTextSelected,
-                        ]}
-                      >
-                        {item.month}
-                      </Text>
-                    </Pressable>
-                  );
-                },
-              )}
-            </ScrollView>
-
-            <View
-              style={
-                styles.summaryCard
-              }
-            >
-              <Icon
-                name="calendar"
-                size={18}
-                color={
-                  colors.plum
+            {availability
+              .days
+              .length >
+            0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={
+                  false
                 }
-              />
-
-              <View
-                style={
-                  styles.summaryCardContent
+                contentContainerStyle={
+                  styles.dateList
                 }
               >
-                <Text
-                  style={
-                    styles.summaryCardLabel
-                  }
-                >
-                  Data selecionada
-                </Text>
+                {availability.days.map(
+                  (day) => {
+                    const card =
+                      formatDayCard(
+                        day.date,
+                      );
+                    const selected =
+                      day.date ===
+                      selectedDate;
 
-                <Text
-                  style={
-                    styles.summaryCardValue
-                  }
-                >
-                  {selectedDate?.label ??
-                    "Selecione uma data"}
-                </Text>
-              </View>
-            </View>
+                    return (
+                      <Pressable
+                        key={
+                          day.date
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={
+                          card.label
+                        }
+                        accessibilityState={{
+                          selected,
+                        }}
+                        onPress={() => {
+                          setSelectedDate(
+                            day.date,
+                          );
+                          setSelectedSlotId(
+                            null,
+                          );
+
+                          Haptics
+                            .selectionAsync()
+                            .catch(
+                              () => {},
+                            );
+                        }}
+                        style={({
+                          pressed,
+                        }) => [
+                          styles.dateCard,
+                          selected &&
+                            styles.dateCardSelected,
+                          pressed &&
+                            styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dateWeekday,
+                            selected &&
+                              styles.dateTextSelected,
+                          ]}
+                        >
+                          {
+                            card.weekday
+                          }
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.dateDay,
+                            selected &&
+                              styles.dateTextSelected,
+                          ]}
+                        >
+                          {card.day}
+                        </Text>
+
+                        <Text
+                          style={[
+                            styles.dateMonth,
+                            selected &&
+                              styles.dateTextSelected,
+                          ]}
+                        >
+                          {card.month}
+                        </Text>
+                      </Pressable>
+                    );
+                  },
+                )}
+              </ScrollView>
+            ) : (
+              <EmptyState
+                title="Sem horários disponíveis"
+                description="Esse profissional ainda não publicou novos horários para esta experiência."
+                actionLabel="Voltar ao Descobrir"
+                onActionPress={() =>
+                  router.replace(
+                    "/(tabs)/discover",
+                  )
+                }
+                compact
+              />
+            )}
           </>
         ) : null}
 
@@ -738,50 +1118,61 @@ export default function BookingScreen() {
                   styles.description
                 }
               >
-                {selectedDate?.label}
+                {
+                  selectedDateLabel
+                }
               </Text>
             </View>
 
-            {availableTimes.length >
-            0 ? (
+            {selectedDay &&
+            selectedDay.slots
+              .length >
+              0 ? (
               <View
                 style={
                   styles.timeGrid
                 }
               >
-                {availableTimes.map(
-                  (time) => {
+                {selectedDay.slots.map(
+                  (slot) => {
                     const selected =
-                      selectedTime ===
-                      time;
+                      selectedSlotId ===
+                      slot.id;
+                    const label =
+                      formatSlotTime(
+                        slot.startsAt,
+                        timezone,
+                      );
 
                     return (
                       <Pressable
                         key={
-                          time
+                          slot.id
                         }
                         accessibilityRole="button"
-                        accessibilityLabel={`Horário ${time}`}
+                        accessibilityLabel={
+                          `Horário ${label}`
+                        }
                         accessibilityState={{
                           selected,
                         }}
                         onPress={() => {
-                          setSelectedTime(
-                            time,
+                          setSelectedSlotId(
+                            slot.id,
                           );
 
-                          Haptics.selectionAsync().catch(
-                            () => {},
-                          );
+                          Haptics
+                            .selectionAsync()
+                            .catch(
+                              () => {},
+                            );
                         }}
                         style={({
                           pressed,
                         }) => [
                           styles.timeButton,
-
                           selected &&
                             styles.timeButtonSelected,
-
                           pressed &&
                             styles.pressed,
                         ]}
@@ -791,22 +1182,19 @@ export default function BookingScreen() {
                           size={14}
                           color={
                             selected
-                              ? colors
-                                  .onBrandPrimary
-                              : colors
-                                  .plum
+                              ? colors.onBrandPrimary
+                              : colors.plum
                           }
                         />
 
                         <Text
                           style={[
                             styles.timeText,
-
                             selected &&
                               styles.timeTextSelected,
                           ]}
                         >
-                          {time}
+                          {label}
                         </Text>
                       </Pressable>
                     );
@@ -815,9 +1203,9 @@ export default function BookingScreen() {
               </View>
             ) : (
               <EmptyState
-                title="Sem horários disponíveis"
-                description="Não há horários disponíveis para esta data."
-                actionLabel="Escolher outro dia"
+                title="Sem horários neste dia"
+                description="Escolha outra data disponível."
+                actionLabel="Trocar data"
                 onActionPress={() =>
                   setStep(
                     "date",
@@ -826,51 +1214,12 @@ export default function BookingScreen() {
                 compact
               />
             )}
-
-            {selectedTime ? (
-              <View
-                style={
-                  styles.summaryCard
-                }
-              >
-                <Icon
-                  name="clock"
-                  size={18}
-                  color={
-                    colors.plum
-                  }
-                />
-
-                <View
-                  style={
-                    styles.summaryCardContent
-                  }
-                >
-                  <Text
-                    style={
-                      styles.summaryCardLabel
-                    }
-                  >
-                    Horário selecionado
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.summaryCardValue
-                    }
-                  >
-                    {
-                      selectedTime
-                    }
-                  </Text>
-                </View>
-              </View>
-            ) : null}
           </>
         ) : null}
 
         {step ===
-        "confirm" ? (
+        "confirm" &&
+        booking ? (
           <>
             <View
               style={
@@ -882,7 +1231,7 @@ export default function BookingScreen() {
                   styles.eyebrow
                 }
               >
-                PRÉVIA
+                CONFIRMAÇÃO
               </Text>
 
               <Text
@@ -890,7 +1239,7 @@ export default function BookingScreen() {
                   styles.title
                 }
               >
-                Confira os detalhes.
+                Seu horário está temporariamente reservado.
               </Text>
 
               <Text
@@ -898,79 +1247,10 @@ export default function BookingScreen() {
                   styles.description
                 }
               >
-                Confira a prévia e consulte os horários reais no site.
+                {holdExpiration
+                  ? `Confirme até ${holdExpiration} para garantir este horário.`
+                  : "Confirme agora para garantir este horário."}
               </Text>
-            </View>
-
-            <View
-              style={
-                styles.serviceCard
-              }
-            >
-              {author ? (
-                <Avatar
-                  name={
-                    author.name
-                  }
-                  uri={
-                    author.avatar
-                  }
-                  size={54}
-                />
-              ) : (
-                <View
-                  style={
-                    styles.serviceFallback
-                  }
-                >
-                  <Icon
-                    name="scissors"
-                    size={20}
-                    color={
-                      colors.plum
-                    }
-                  />
-                </View>
-              )}
-
-              <View
-                style={
-                  styles.serviceContent
-                }
-              >
-                <Text
-                  style={
-                    styles.serviceName
-                  }
-                >
-                  {service.name}
-                </Text>
-
-                {author ? (
-                  <Text
-                    style={
-                      styles.serviceAuthor
-                    }
-                    numberOfLines={
-                      1
-                    }
-                  >
-                    {
-                      author.name
-                    }
-                  </Text>
-                ) : null}
-
-                <Text
-                  style={
-                    styles.serviceMeta
-                  }
-                >
-                  {formatDuration(
-                    service.durationMinutes,
-                  )}
-                </Text>
-              </View>
             </View>
 
             <View
@@ -983,19 +1263,13 @@ export default function BookingScreen() {
                   styles.confirmRow
                 }
               >
-                <View
-                  style={
-                    styles.confirmIcon
+                <Icon
+                  name="calendar"
+                  size={18}
+                  color={
+                    colors.plum
                   }
-                >
-                  <Icon
-                    name="calendar"
-                    size={16}
-                    color={
-                      colors.plum
-                    }
-                  />
-                </View>
+                />
 
                 <View
                   style={
@@ -1015,7 +1289,11 @@ export default function BookingScreen() {
                       styles.confirmValue
                     }
                   >
-                    {selectedDate?.label}
+                    {
+                      formatDayCard(
+                        booking.slot.localDate,
+                      ).label
+                    }
                   </Text>
                 </View>
               </View>
@@ -1031,19 +1309,13 @@ export default function BookingScreen() {
                   styles.confirmRow
                 }
               >
-                <View
-                  style={
-                    styles.confirmIcon
+                <Icon
+                  name="clock"
+                  size={18}
+                  color={
+                    colors.plum
                   }
-                >
-                  <Icon
-                    name="clock"
-                    size={16}
-                    color={
-                      colors.plum
-                    }
-                  />
-                </View>
+                />
 
                 <View
                   style={
@@ -1063,7 +1335,17 @@ export default function BookingScreen() {
                       styles.confirmValue
                     }
                   >
-                    {selectedTime}
+                    {
+                      booking.slot.localTime
+                    }
+                    {" · "}
+                    {
+                      formatDuration(
+                        booking
+                          .experience
+                          .durationMinutes,
+                      )
+                    }
                   </Text>
                 </View>
               </View>
@@ -1079,19 +1361,13 @@ export default function BookingScreen() {
                   styles.confirmRow
                 }
               >
-                <View
-                  style={
-                    styles.confirmIcon
+                <Icon
+                  name="user"
+                  size={18}
+                  color={
+                    colors.plum
                   }
-                >
-                  <Icon
-                    name="map-pin"
-                    size={16}
-                    color={
-                      colors.plum
-                    }
-                  />
-                </View>
+                />
 
                 <View
                   style={
@@ -1103,7 +1379,7 @@ export default function BookingScreen() {
                       styles.confirmLabel
                     }
                   >
-                    Local
+                    Profissional
                   </Text>
 
                   <Text
@@ -1112,7 +1388,9 @@ export default function BookingScreen() {
                     }
                   >
                     {
-                      service.location
+                      booking
+                        .professional
+                        .name
                     }
                   </Text>
                 </View>
@@ -1129,7 +1407,7 @@ export default function BookingScreen() {
                   styles.priceSummaryLabel
                 }
               >
-                Preço ilustrativo
+                Valor da experiência
               </Text>
 
               <Text
@@ -1137,16 +1415,19 @@ export default function BookingScreen() {
                   styles.priceSummaryValue
                 }
               >
-                {formatCurrency(
-                  service.price,
-                )}
+                {
+                  formatCurrency(
+                    booking.price,
+                  )
+                }
               </Text>
             </View>
           </>
         ) : null}
 
         {step ===
-        "success" ? (
+        "success" &&
+        booking ? (
           <View
             style={
               styles.success
@@ -1159,7 +1440,7 @@ export default function BookingScreen() {
             >
               <Icon
                 name="check"
-                size={30}
+                size={28}
                 color={
                   colors.onBrandPrimary
                 }
@@ -1167,9 +1448,6 @@ export default function BookingScreen() {
             </View>
 
             <Text
-              accessible={
-                false
-              }
               style={
                 styles.successSpark
               }
@@ -1182,7 +1460,7 @@ export default function BookingScreen() {
                 styles.successTitle
               }
             >
-              Prévia concluída.
+              Reserva confirmada.
             </Text>
 
             <Text
@@ -1190,7 +1468,7 @@ export default function BookingScreen() {
                 styles.successDescription
               }
             >
-              Consulte os horários reais no site IDDUN para fazer uma reserva.
+              Seu horário está garantido no IDDUN.
             </Text>
 
             <View
@@ -1203,7 +1481,11 @@ export default function BookingScreen() {
                   styles.successService
                 }
               >
-                {service.name}
+                {
+                  booking
+                    .experience
+                    .title
+                }
               </Text>
 
               <Text
@@ -1211,7 +1493,11 @@ export default function BookingScreen() {
                   styles.successDate
                 }
               >
-                {selectedDate?.label}
+                {
+                  formatDayCard(
+                    booking.slot.localDate,
+                  ).label
+                }
               </Text>
 
               <Text
@@ -1219,7 +1505,11 @@ export default function BookingScreen() {
                   styles.successTime
                 }
               >
-                {selectedTime}
+                {
+                  booking
+                    .slot
+                    .localTime
+                }
               </Text>
             </View>
 
@@ -1229,23 +1519,23 @@ export default function BookingScreen() {
               }
             >
               <Button
-                title="Voltar ao início"
+                title="Ver meus agendamentos"
                 onPress={() =>
                   router.replace(
-                    "/(tabs)",
+                    "/bookings",
                   )
                 }
                 fullWidth
               />
 
               <Button
-                title="Ver meu perfil"
-                variant="secondary"
+                title="Descobrir mais experiências"
                 onPress={() =>
                   router.replace(
-                    "/(tabs)/profile",
+                    "/(tabs)/discover",
                   )
                 }
+                variant="secondary"
                 fullWidth
               />
             </View>
@@ -1260,83 +1550,71 @@ export default function BookingScreen() {
       </ScrollView>
 
       {step !==
-      "success" ? (
+        "success" &&
+      availability.days.length >
+        0 ? (
         <View
           style={
             styles.stickyBar
           }
         >
+          <View
+            style={
+              styles.stickyPriceArea
+            }
+          >
+            <Text
+              style={
+                styles.stickyLabel
+              }
+            >
+              Valor
+            </Text>
+
+            <Text
+              style={
+                styles.stickyPrice
+              }
+            >
+              {
+                formatCurrency(
+                  experience.price,
+                )
+              }
+            </Text>
+          </View>
+
           {step ===
           "confirm" ? (
-            <>
-              <View
-                style={
-                  styles.stickyPriceArea
-                }
-              >
-                <Text
-                  style={
-                    styles.stickyLabel
-                  }
-                >
-                  Preço ilustrativo
-                </Text>
-
-                <Text
-                  style={
-                    styles.stickyPrice
-                  }
-                >
-                  {formatCurrency(
-                    service.price,
-                  )}
-                </Text>
-              </View>
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Consultar horários reais no site"
-                onPress={
-                  handleConfirm
-                }
-                style={({
-                  pressed,
-                }) => [
-                  styles.confirmButton,
-                  pressed &&
-                    styles.confirmButtonPressed,
-                ]}
-              >
-                <Text
-                  style={
-                    styles.confirmButtonText
-                  }
-                >
-                  Consultar no site
-                </Text>
-
-                <Icon
-                  name="external-link"
-                  size={15}
-                  color={
-                    colors
-                      .onBrandPrimary
-                  }
-                />
-              </Pressable>
-            </>
+            <Button
+              title="Confirmar reserva"
+              onPress={() => {
+                void handleConfirm();
+              }}
+              loading={
+                submitting
+              }
+              compact
+            />
           ) : (
             <Button
-              title="Continuar"
-              onPress={
-                handleContinue
+              title={
+                step === "date"
+                  ? "Escolher horário"
+                  : "Reservar horário"
               }
+              onPress={() => {
+                void handleContinue();
+              }}
               disabled={
-                step ===
-                  "time" &&
-                !selectedTime
+                step === "date"
+                  ? !selectedDay
+                  : !selectedSlot
               }
-              fullWidth
+              loading={
+                submitting
+              }
+              compact
             />
           )}
         </View>
@@ -1345,922 +1623,586 @@ export default function BookingScreen() {
   );
 }
 
-const useStyles = makeStyles(
-  (colors) => ({
-    container: {
-      flex: 1,
-      backgroundColor:
-        colors.surface,
-    },
-
-    content: {
-      paddingTop: 54,
-      paddingHorizontal:
-        spacing.lg,
-      paddingBottom: 110,
-    },
-
-    headerOnly: {
-      paddingTop: 54,
-      paddingHorizontal:
-        spacing.lg,
-    },
-
-    header: {
-      minHeight: 52,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "space-between",
-    },
-
-    headerButton: {
-      width:
-        touch.minimum,
-
-      height:
-        touch.minimum,
-
-      borderRadius:
-        radius.pill,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.glassSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    headerCenter: {
-      alignItems:
-        "center",
-    },
-
-    headerTitle: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 13,
-      lineHeight: 17,
-    },
-
-    headerStep: {
-      marginTop: 2,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    headerPlaceholder: {
-      width:
-        touch.minimum,
-
-      height:
-        touch.minimum,
-    },
-
-    progress: {
-      marginTop:
-        spacing.lg,
-
-      flexDirection:
-        "row",
-
-      gap: spacing.sm,
-    },
-
-    progressBar: {
-      flex: 1,
-
-      height: 3,
-
-      borderRadius: 2,
-
-      backgroundColor:
-        colors.surfaceTertiary,
-    },
-
-    progressBarActive: {
-      backgroundColor:
-        colors.plum,
-    },
-
-    intro: {
-      marginTop:
-        spacing.xxxl,
-    },
-
-    eyebrow: {
-      color:
-        colors.plum,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 10,
-      lineHeight: 14,
-
-      letterSpacing: 1.5,
-    },
-
-    title: {
-      maxWidth: 350,
-
-      marginTop:
-        spacing.sm,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 32,
-      lineHeight: 38,
-
-      letterSpacing: -0.4,
-    },
-
-    description: {
-      maxWidth: 340,
-
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 13,
-      lineHeight: 20,
-    },
-
-    dateList: {
-      marginTop:
-        spacing.xl,
-
-      gap: spacing.sm,
-
-      paddingRight:
-        spacing.lg,
-    },
-
-    dateCard: {
-      width: 74,
-      minHeight: 104,
-
-      borderRadius:
-        radius.md,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    dateCardSelected: {
-      backgroundColor:
-        colors.plum,
-
-      borderColor:
-        colors.plum,
-    },
-
-    dateWeekday: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 10,
-      lineHeight: 13,
-    },
-
-    dateDay: {
-      marginTop: 4,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 24,
-      lineHeight: 28,
-    },
-
-    dateMonth: {
-      marginTop: 2,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    dateTextSelected: {
-      color:
-        colors.onBrandPrimary,
-    },
-
-    summaryCard: {
-      marginTop:
-        spacing.xl,
-
-      minHeight: 68,
-
-      padding:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap: spacing.md,
-
-      backgroundColor:
-        colors.plumSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    summaryCardContent: {
-      flex: 1,
-    },
-
-    summaryCardLabel: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    summaryCardValue: {
-      marginTop: 2,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    timeGrid: {
-      marginTop:
-        spacing.xl,
-
-      flexDirection:
-        "row",
-
-      flexWrap:
-        "wrap",
-
-      gap: spacing.sm,
-    },
-
-    timeButton: {
-      minWidth: 96,
-
-      minHeight:
-        touch.minimum,
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius:
-        radius.pill,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      gap: spacing.xs,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    timeButtonSelected: {
-      backgroundColor:
-        colors.plum,
-
-      borderColor:
-        colors.plum,
-    },
-
-    timeText: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    timeTextSelected: {
-      color:
-        colors.onBrandPrimary,
-    },
-
-    serviceCard: {
-      marginTop:
-        spacing.xl,
-
-      minHeight: 84,
-
-      padding:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap: spacing.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    serviceFallback: {
-      width: 54,
-      height: 54,
-
-      borderRadius:
-        radius.md,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.plumSoft,
-    },
-
-    serviceContent: {
-      flex: 1,
-      minWidth: 0,
-    },
-
-    serviceName: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 14,
-      lineHeight: 18,
-    },
-
-    serviceAuthor: {
-      marginTop: 2,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-      lineHeight: 14,
-    },
-
-    serviceMeta: {
-      marginTop:
-        spacing.xs,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-      lineHeight: 13,
-    },
-
-    confirmCard: {
-      marginTop:
-        spacing.lg,
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    confirmRow: {
-      minHeight: 72,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap: spacing.md,
-    },
-
-    confirmIcon: {
-      width: 38,
-      height: 38,
-
-      borderRadius:
-        radius.md,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.plumSoft,
-    },
-
-    confirmContent: {
-      flex: 1,
-    },
-
-    confirmLabel: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    confirmValue: {
-      marginTop: 2,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 12,
-      lineHeight: 17,
-    },
-
-    confirmDivider: {
-      height: 1,
-
-      marginLeft: 50,
-
-      backgroundColor:
-        colors.divider,
-    },
-
-    loginWarning: {
-      marginTop:
-        spacing.lg,
-
-      padding:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "flex-start",
-
-      gap: spacing.md,
-
-      backgroundColor:
-        colors.plumSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    loginWarningContent: {
-      flex: 1,
-    },
-
-    loginWarningTitle: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    loginWarningText: {
-      marginTop:
-        spacing.xs,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-      lineHeight: 16,
-    },
-
-    priceSummary: {
-      marginTop:
-        spacing.xl,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "space-between",
-    },
-
-    priceSummaryLabel: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 12,
-    },
-
-    priceSummaryValue: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 24,
-      lineHeight: 29,
-    },
-
-    success: {
-      flex: 1,
-
-      minHeight: 620,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      paddingVertical:
-        spacing.xxxl,
-    },
-
-    successIcon: {
-      width: 72,
-      height: 72,
-
-      borderRadius:
-        radius.pill,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.plum,
-    },
-
-    successSpark: {
-      marginTop:
-        spacing.xl,
-
-      color:
-        colors.plum,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 16,
-      lineHeight: 20,
-    },
-
-    successTitle: {
-      maxWidth: 330,
-
-      marginTop:
-        spacing.sm,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 31,
-      lineHeight: 37,
-
-      textAlign:
-        "center",
-    },
-
-    successDescription: {
-      maxWidth: 340,
-
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 12,
-      lineHeight: 19,
-
-      textAlign:
-        "center",
-    },
-
-    successSummary: {
-      width: "100%",
-
-      marginTop:
-        spacing.xxl,
-
-      padding:
-        spacing.xl,
-
-      borderRadius:
-        radius.md,
-
-      alignItems:
-        "center",
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    successService: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 15,
-      lineHeight: 19,
-    },
-
-    successDate: {
-      marginTop:
-        spacing.sm,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 12,
-    },
-
-    successTime: {
-      marginTop:
-        spacing.sm,
-
-      color:
-        colors.plum,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 28,
-      lineHeight: 33,
-    },
-
-    successButtons: {
-      width: "100%",
-
-      marginTop:
-        spacing.xxl,
-
-      gap: spacing.sm,
-    },
-
-    stickyBar: {
-      position: "absolute",
-
-      left: 0,
-      right: 0,
-      bottom: 0,
-
-      minHeight: 88,
-
-      paddingHorizontal:
-        spacing.lg,
-
-      paddingTop:
-        spacing.md,
-
-      paddingBottom: 22,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap: spacing.md,
-
-      backgroundColor:
-        colors.overlayInkHeavy,
-
-      borderTopWidth: 1,
-
-      borderTopColor:
-        colors.glassBorder,
-    },
-
-    stickyPriceArea: {
-      flex: 1,
-    },
-
-    stickyLabel: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    stickyPrice: {
-      marginTop: 2,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 18,
-      lineHeight: 22,
-    },
-
-    confirmButton: {
-      minHeight:
-        touch.minimum,
-
-      paddingHorizontal:
-        spacing.xl,
-
-      borderRadius:
-        radius.pill,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      gap: spacing.sm,
-
-      backgroundColor:
-        colors.plum,
-    },
-
-    confirmButtonPressed: {
-      opacity: 0.8,
-
-      transform: [
-        {
-          scale: 0.98,
-        },
-      ],
-    },
-
-    confirmButtonText: {
-      color:
-        colors.onBrandPrimary,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 13,
-      lineHeight: 17,
-    },
-
-    bottomSpace: {
-      height: 40,
-    },
-
-    pressed: {
-      opacity: 0.76,
-    },
-  }),
-);
+const useStyles =
+  makeStyles(
+    (colors) => ({
+      container: {
+        flex: 1,
+        backgroundColor:
+          colors.surface,
+      },
+
+      loadingState: {
+        flex: 1,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.md,
+        backgroundColor:
+          colors.surface,
+      },
+
+      loadingText: {
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+      },
+
+      content: {
+        paddingTop: 52,
+        paddingHorizontal:
+          spacing.lg,
+        paddingBottom: 120,
+      },
+
+      headerOnly: {
+        paddingTop: 54,
+        paddingHorizontal:
+          spacing.lg,
+      },
+
+      header: {
+        minHeight:
+          touch.minimum,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "space-between",
+      },
+
+      headerButton: {
+        width:
+          touch.minimum,
+        height:
+          touch.minimum,
+        borderRadius:
+          radius.pill,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.glassSoft,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      headerCenter: {
+        alignItems:
+          "center",
+      },
+
+      headerTitle: {
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 14,
+      },
+
+      headerStep: {
+        marginTop: 2,
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 9,
+      },
+
+      headerPlaceholder: {
+        width:
+          touch.minimum,
+      },
+
+      progress: {
+        marginTop:
+          spacing.lg,
+        flexDirection:
+          "row",
+        gap: spacing.xs,
+      },
+
+      progressBar: {
+        flex: 1,
+        height: 3,
+        borderRadius:
+          radius.pill,
+        backgroundColor:
+          colors.glassSoft,
+      },
+
+      progressBarActive: {
+        backgroundColor:
+          colors.plum,
+      },
+
+      experienceCard: {
+        marginTop:
+          spacing.xl,
+        overflow:
+          "hidden",
+        borderRadius:
+          radius.md,
+        flexDirection:
+          "row",
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      experienceImage: {
+        width: 104,
+        minHeight: 112,
+      },
+
+      experienceBody: {
+        flex: 1,
+        justifyContent:
+          "center",
+        padding:
+          spacing.md,
+      },
+
+      experienceEyebrow: {
+        color:
+          colors.plum,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 9,
+        letterSpacing: 1,
+      },
+
+      experienceTitle: {
+        marginTop:
+          spacing.xs,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 14,
+        lineHeight: 18,
+      },
+
+      experienceMeta: {
+        marginTop:
+          spacing.xs,
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 10,
+        lineHeight: 15,
+      },
+
+      intro: {
+        marginTop:
+          spacing.xxl,
+      },
+
+      eyebrow: {
+        color:
+          colors.plum,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 9,
+        letterSpacing: 1.3,
+      },
+
+      title: {
+        maxWidth: 350,
+        marginTop:
+          spacing.sm,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.display,
+        fontSize: 30,
+        lineHeight: 36,
+      },
+
+      description: {
+        maxWidth: 350,
+        marginTop:
+          spacing.md,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+        lineHeight: 19,
+      },
+
+      dateList: {
+        paddingTop:
+          spacing.xl,
+        paddingRight:
+          spacing.lg,
+        gap: spacing.sm,
+      },
+
+      dateCard: {
+        width: 76,
+        minHeight: 98,
+        padding:
+          spacing.sm,
+        borderRadius:
+          radius.md,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      dateCardSelected: {
+        backgroundColor:
+          colors.plum,
+        borderColor:
+          colors.plum,
+      },
+
+      dateWeekday: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 9,
+        textTransform:
+          "uppercase",
+      },
+
+      dateDay: {
+        marginTop:
+          spacing.xs,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.display,
+        fontSize: 28,
+        lineHeight: 32,
+      },
+
+      dateMonth: {
+        marginTop: 2,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 10,
+      },
+
+      dateTextSelected: {
+        color:
+          colors.onBrandPrimary,
+      },
+
+      timeGrid: {
+        marginTop:
+          spacing.xl,
+        flexDirection:
+          "row",
+        flexWrap:
+          "wrap",
+        gap: spacing.sm,
+      },
+
+      timeButton: {
+        minWidth: 100,
+        minHeight:
+          touch.minimum,
+        paddingHorizontal:
+          spacing.lg,
+        borderRadius:
+          radius.pill,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.xs,
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      timeButtonSelected: {
+        backgroundColor:
+          colors.plum,
+        borderColor:
+          colors.plum,
+      },
+
+      timeText: {
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
+      },
+
+      timeTextSelected: {
+        color:
+          colors.onBrandPrimary,
+      },
+
+      confirmCard: {
+        marginTop:
+          spacing.xl,
+        overflow:
+          "hidden",
+        borderRadius:
+          radius.md,
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      confirmRow: {
+        minHeight: 74,
+        padding:
+          spacing.lg,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.md,
+      },
+
+      confirmContent: {
+        flex: 1,
+      },
+
+      confirmLabel: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 9,
+      },
+
+      confirmValue: {
+        marginTop: 3,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 13,
+        lineHeight: 18,
+      },
+
+      confirmDivider: {
+        height: 1,
+        marginLeft: 50,
+        backgroundColor:
+          colors.glassBorder,
+      },
+
+      priceSummary: {
+        marginTop:
+          spacing.xl,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "space-between",
+      },
+
+      priceSummaryLabel: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+      },
+
+      priceSummaryValue: {
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.display,
+        fontSize: 24,
+      },
+
+      success: {
+        minHeight: 610,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        paddingVertical:
+          spacing.xxxl,
+      },
+
+      successIcon: {
+        width: 72,
+        height: 72,
+        borderRadius:
+          radius.pill,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.plum,
+      },
+
+      successSpark: {
+        marginTop:
+          spacing.xl,
+        color:
+          colors.plum,
+        fontFamily:
+          fonts.display,
+        fontSize: 16,
+      },
+
+      successTitle: {
+        marginTop:
+          spacing.sm,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.display,
+        fontSize: 31,
+        textAlign:
+          "center",
+      },
+
+      successDescription: {
+        marginTop:
+          spacing.md,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+        textAlign:
+          "center",
+      },
+
+      successSummary: {
+        width: "100%",
+        marginTop:
+          spacing.xxl,
+        padding:
+          spacing.xl,
+        borderRadius:
+          radius.md,
+        alignItems:
+          "center",
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      successService: {
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 15,
+        textAlign:
+          "center",
+      },
+
+      successDate: {
+        marginTop:
+          spacing.sm,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+      },
+
+      successTime: {
+        marginTop:
+          spacing.sm,
+        color:
+          colors.plum,
+        fontFamily:
+          fonts.display,
+        fontSize: 28,
+      },
+
+      successButtons: {
+        width: "100%",
+        marginTop:
+          spacing.xxl,
+        gap: spacing.sm,
+      },
+
+      stickyBar: {
+        position:
+          "absolute",
+        left: 0,
+        right: 0,
+        bottom: 0,
+        minHeight: 88,
+        paddingHorizontal:
+          spacing.lg,
+        paddingTop:
+          spacing.md,
+        paddingBottom: 22,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.md,
+        backgroundColor:
+          colors.overlayInkHeavy,
+        borderTopWidth: 1,
+        borderTopColor:
+          colors.glassBorder,
+      },
+
+      stickyPriceArea: {
+        flex: 1,
+      },
+
+      stickyLabel: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 9,
+      },
+
+      stickyPrice: {
+        marginTop: 2,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 18,
+      },
+
+      bottomSpace: {
+        height: 40,
+      },
+
+      pressed: {
+        opacity: 0.76,
+      },
+    }),
+  );

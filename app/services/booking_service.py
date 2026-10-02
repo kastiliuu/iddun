@@ -52,20 +52,20 @@ def release_expired_holds(now=None, commit=True):
         select(ExperienceSlot).where(
             ExperienceSlot.status == SlotStatus.HELD,
             ExperienceSlot.hold_expires_at.is_not(None),
+            ExperienceSlot.hold_expires_at <= now,
         )
     ).all()
     changed = False
     for slot in held_slots:
-        if as_utc(slot.hold_expires_at) <= now:
-            slot.status = SlotStatus.AVAILABLE
-            slot.hold_expires_at = None
-            for booking in slot.bookings:
-                if booking.status == BookingStatus.PENDING:
-                    booking.status = BookingStatus.CANCELLED
-                    booking.cancelled_at = now
-                    booking.cancellation_reason = "Tempo de confirmação expirado"
-                    booking.hold_expires_at = None
-            changed = True
+        slot.status = SlotStatus.AVAILABLE
+        slot.hold_expires_at = None
+        for booking in slot.bookings:
+            if booking.status == BookingStatus.PENDING:
+                booking.status = BookingStatus.CANCELLED
+                booking.cancelled_at = now
+                booking.cancellation_reason = "Tempo de confirmação expirado"
+                booking.hold_expires_at = None
+        changed = True
     if changed and commit:
         db.session.commit()
     return changed

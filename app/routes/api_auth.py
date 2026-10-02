@@ -1,7 +1,7 @@
 """Autenticação JSON do aplicativo, separada da sessão web."""
 
 from email_validator import EmailNotValidError, validate_email
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -14,6 +14,10 @@ from app.services.api_auth import (
     revoke_session,
     rotate_refresh_token,
 )
+from app.services.api_contract import (
+    api_error,
+    api_json,
+)
 
 
 api_auth_bp = Blueprint(
@@ -25,25 +29,14 @@ api_auth_bp = Blueprint(
 MAX_AUTH_BODY_BYTES = 16_384
 
 
-def _json_response(payload, status=200):
-    response = jsonify(payload)
-    response.status_code = status
-    response.headers["Cache-Control"] = "no-store"
+def _auth_json(payload, status=200):
+    response = api_json(
+        payload,
+        status,
+        cache_control="no-store",
+    )
     response.headers["Pragma"] = "no-cache"
     return response
-
-
-def _error(code, message, status):
-    return _json_response(
-        {
-            "message": message,
-            "error": {
-                "code": code,
-                "message": message,
-            },
-        },
-        status,
-    )
 
 
 def _json_body():
@@ -51,14 +44,14 @@ def _json_body():
         request.content_length is not None
         and request.content_length > MAX_AUTH_BODY_BYTES
     ):
-        return None, _error(
+        return None, api_error(
             "request_too_large",
             "A solicitação é muito grande.",
             413,
         )
 
     if not request.is_json:
-        return None, _error(
+        return None, api_error(
             "json_required",
             "Envie os dados em formato JSON.",
             415,
@@ -67,7 +60,7 @@ def _json_body():
     payload = request.get_json(silent=True)
 
     if not isinstance(payload, dict):
-        return None, _error(
+        return None, api_error(
             "invalid_json",
             "Não foi possível ler os dados enviados.",
             400,
@@ -154,7 +147,7 @@ def login():
         or not password
         or len(password) > 128
     ):
-        return _error(
+        return api_error(
             "invalid_credentials",
             "E-mail ou senha incorretos.",
             401,
@@ -169,7 +162,7 @@ def login():
         or not user.check_password(password)
         or not user.is_active
     ):
-        return _error(
+        return api_error(
             "invalid_credentials",
             "E-mail ou senha incorretos.",
             401,
@@ -177,7 +170,7 @@ def login():
 
     tokens = issue_session(user)
 
-    return _json_response(
+    return _auth_json(
         {
             "user": _user_payload(user),
             **_tokens_payload(tokens),
@@ -200,21 +193,21 @@ def register():
     password = payload.get("password")
 
     if payload.get("role", UserRole.CLIENT) != UserRole.CLIENT:
-        return _error(
+        return api_error(
             "invalid_role",
             "O cadastro pelo aplicativo está disponível para clientes.",
             400,
         )
 
     if not 2 <= len(name) <= 120:
-        return _error(
+        return api_error(
             "invalid_name",
             "Informe um nome entre 2 e 120 caracteres.",
             400,
         )
 
     if email is None:
-        return _error(
+        return api_error(
             "invalid_email",
             "Informe um e-mail válido.",
             400,
@@ -224,7 +217,7 @@ def register():
         not isinstance(password, str)
         or not 8 <= len(password) <= 128
     ):
-        return _error(
+        return api_error(
             "invalid_password",
             "A senha deve ter entre 8 e 128 caracteres.",
             400,
@@ -235,7 +228,7 @@ def register():
     )
 
     if existing_user is not None:
-        return _error(
+        return api_error(
             "email_in_use",
             "Já existe uma conta cadastrada com este e-mail.",
             409,
@@ -258,13 +251,13 @@ def register():
         tokens = issue_session(user)
     except IntegrityError:
         db.session.rollback()
-        return _error(
+        return api_error(
             "email_in_use",
             "Já existe uma conta cadastrada com este e-mail.",
             409,
         )
 
-    return _json_response(
+    return _auth_json(
         {
             "user": _user_payload(user),
             **_tokens_payload(tokens),
@@ -285,13 +278,13 @@ def refresh():
     tokens = rotate_refresh_token(payload.get("refreshToken"))
 
     if tokens is None:
-        return _error(
+        return api_error(
             "invalid_refresh_token",
             "Sua sessão expirou. Entre novamente.",
             401,
         )
 
-    return _json_response(_tokens_payload(tokens))
+    return _auth_json(_tokens_payload(tokens))
 
 
 @api_auth_bp.get("/me")
@@ -300,13 +293,13 @@ def me():
     user = get_user_by_access_token(token)
 
     if user is None:
-        return _error(
+        return api_error(
             "authentication_required",
             "Entre na sua conta para continuar.",
             401,
         )
 
-    return _json_response(_user_payload(user))
+    return _auth_json(_user_payload(user))
 
 
 @api_auth_bp.post("/logout")
@@ -316,7 +309,7 @@ def logout():
     token = _bearer_token()
 
     if token is None:
-        return _error(
+        return api_error(
             "authentication_required",
             "Entre na sua conta para continuar.",
             401,

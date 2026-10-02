@@ -226,9 +226,9 @@ class ProfessionalEstablishmentMembership(db.Model):
     establishment = db.relationship("Establishment", back_populates="memberships")
 
     __table_args__ = (
-        db.Index(
-            "ix_membership_professional_establishment",
+        db.UniqueConstraint(
             "professional_id",
             "establishment_id",
+            name="uq_membership_professional_establishment",
         ),
     )

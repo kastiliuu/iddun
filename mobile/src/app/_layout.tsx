@@ -166,6 +166,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="bookings"
+              />
+
+              <Stack.Screen
                 name="iddun-now"
               />
 

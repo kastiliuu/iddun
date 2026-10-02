@@ -7,19 +7,25 @@ from dotenv import load_dotenv
 from flask import Flask, flash, g, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFError, generate_csrf
 from sqlalchemy import text
-from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.exceptions import (
+    MethodNotAllowed,
+    NotFound,
+    RequestEntityTooLarge,
+)
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
 from app.routes.api_auth import api_auth_bp
+from app.routes.api_bookings import api_bookings_bp
 from app.routes.admin import admin_bp
 from app.routes.auth import auth_bp
 from app.routes.bookings import bookings_bp
 from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
+from app.services.api_contract import api_error
 from app.services.media_storage import resolve_media_url
 
 
@@ -222,17 +228,11 @@ def create_app(test_config=None):
             request.path.startswith("/api/")
             or request.is_json
         ):
-            return (
-                jsonify(
-                    {
-                        "error": {
-                            "code": "rate_limit_exceeded",
-                            "message": (
-                                "Muitas tentativas. "
-                                "Aguarde um pouco e tente novamente."
-                            ),
-                        }
-                    }
+            return api_error(
+                "rate_limit_exceeded",
+                (
+                    "Muitas tentativas. "
+                    "Aguarde um pouco e tente novamente."
                 ),
                 429,
             )
@@ -242,6 +242,31 @@ def create_app(test_config=None):
             "e tente novamente.",
             429,
         )
+
+    @app.errorhandler(NotFound)
+    def handle_not_found(error):
+        if request.path.startswith("/api/"):
+            return api_error(
+                "not_found",
+                "Recurso não encontrado.",
+                404,
+            )
+
+        return error
+
+    @app.errorhandler(MethodNotAllowed)
+    def handle_method_not_allowed(error):
+        if request.path.startswith("/api/"):
+            return api_error(
+                "method_not_allowed",
+                (
+                    "Método HTTP não permitido "
+                    "para este recurso."
+                ),
+                405,
+            )
+
+        return error
 
     @app.template_filter("media_url")
     def media_url(value):
@@ -294,15 +319,9 @@ def create_app(test_config=None):
             request.path.startswith("/api/")
             or request.is_json
         ):
-            return (
-                jsonify(
-                    {
-                        "error": {
-                            "code": "csrf_failed",
-                            "message": message,
-                        }
-                    }
-                ),
+            return api_error(
+                "csrf_failed",
+                message,
                 400,
             )
 
@@ -348,15 +367,9 @@ def create_app(test_config=None):
             request.path.startswith("/api/")
             or request.is_json
         ):
-            return (
-                jsonify(
-                    {
-                        "error": {
-                            "code": "request_too_large",
-                            "message": message,
-                        }
-                    }
-                ),
+            return api_error(
+                "request_too_large",
+                message,
                 413,
             )
 
@@ -396,6 +409,12 @@ def create_app(test_config=None):
     app.register_blueprint(public_bp)
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(api_auth_bp)
+    app.register_blueprint(
+        api_auth_bp,
+        url_prefix="/api/v1/auth",
+        name="api_auth_v1",
+    )
+    app.register_blueprint(api_bookings_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(bookings_bp)

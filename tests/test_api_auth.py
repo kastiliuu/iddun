@@ -288,3 +288,39 @@ def test_auth_requires_json_and_keeps_web_csrf_enabled(tmp_path):
         finally:
             db.session.remove()
             db.drop_all()
+
+
+
+def test_versioned_auth_alias_matches_legacy_contract(
+    app,
+    client,
+):
+    response = client.post(
+        "/api/v1/auth/register",
+        json=_registration(
+            email="versioned@example.com",
+        ),
+    )
+
+    assert response.status_code == 201
+    payload = response.get_json()
+
+    assert payload["accessToken"]
+    assert payload["refreshToken"]
+    assert (
+        payload["user"]["email"]
+        == "versioned@example.com"
+    )
+
+    current = client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            payload["accessToken"]
+        ),
+    )
+
+    assert current.status_code == 200
+    assert (
+        current.get_json()["email"]
+        == "versioned@example.com"
+    )

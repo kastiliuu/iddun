@@ -4,11 +4,16 @@ from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
 from flask import current_app
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
 from app.data.mock_professionals import PROFESSIONAL_CATALOG
 from app.extensions import db
+from app.models.booking import (
+    ExperienceSlot,
+    SlotStatus,
+)
 from app.models.establishment import Establishment
 from app.models.experience import (
     Experience,
@@ -16,7 +21,17 @@ from app.models.experience import (
     ExperienceStatus,
 )
 from app.models.professional import ProfessionalProfile
-from app.services.booking_service import available_slots_for_experience
+from app.models.reputation import (
+    Review,
+    ReviewTarget,
+)
+from app.services.booking_service import (
+    available_slots_for_experience,
+    release_expired_holds,
+)
+from app.services.public_eligibility import (
+    public_experiences_query,
+)
 from app.services.reputation_service import reputation_summary
 from app.services.time_service import to_local, utcnow
 
@@ -92,6 +107,62 @@ def _normalize_text(value):
     )
 
     return without_accents.casefold()
+
+
+_SQL_ACCENT_REPLACEMENTS = (
+    ("á", "a"),
+    ("à", "a"),
+    ("ã", "a"),
+    ("â", "a"),
+    ("Á", "a"),
+    ("À", "a"),
+    ("Ã", "a"),
+    ("Â", "a"),
+    ("é", "e"),
+    ("ê", "e"),
+    ("É", "e"),
+    ("Ê", "e"),
+    ("í", "i"),
+    ("Í", "i"),
+    ("ó", "o"),
+    ("ô", "o"),
+    ("õ", "o"),
+    ("Ó", "o"),
+    ("Ô", "o"),
+    ("Õ", "o"),
+    ("ú", "u"),
+    ("Ú", "u"),
+    ("ç", "c"),
+    ("Ç", "c"),
+)
+
+
+def _sql_normalized_text(
+    expression,
+):
+    """
+    Normalização SQL portátil para os caracteres usados na busca PT-BR.
+
+    Evita depender da extensão PostgreSQL unaccent e mantém os
+    testes SQLite semanticamente equivalentes à produção.
+    """
+    normalized = func.coalesce(
+        expression,
+        "",
+    )
+
+    for source, target in (
+        _SQL_ACCENT_REPLACEMENTS
+    ):
+        normalized = func.replace(
+            normalized,
+            source,
+            target,
+        )
+
+    return func.lower(
+        normalized
+    )
 
 
 # ============================================================
@@ -618,53 +689,60 @@ def _normalize_mock_item(item):
 # ============================================================
 
 def _published_db_query():
-    """(c) Centraliza a elegibilidade da listagem e do estado vazio."""
+    """Compatibilidade interna para a política pública centralizada."""
+    return public_experiences_query()
+
+
+def _catalog_loader_options(
+    now,
+):
+    """
+    Evita carregar o histórico inteiro de slots no catálogo.
+
+    Holds expirados são liberados antes da consulta; por isso,
+    nesta carga interessam apenas slots futuros ainda disponíveis.
+    """
     return (
-        select(
-            Experience
-        )
-        .join(
-            ProfessionalProfile,
-            (
-                Experience.professional_id
-                == ProfessionalProfile.id
-            ),
-        )
-        .outerjoin(
-            Establishment,
-            (
-                Experience.establishment_id
-                == Establishment.id
-            ),
-        )
-        .where(
-            Experience.status
-            == ExperienceStatus.PUBLISHED,
-
-            ProfessionalProfile.is_active.is_(
-                True
-            ),
-
-            or_(
-                Experience.establishment_id.is_(
-                    None
-                ),
-                Establishment.is_active.is_(
-                    True
-                ),
-            ),
-        )
+        selectinload(
+            Experience.professional
+        ).selectinload(
+            ProfessionalProfile.reviews_received
+        ),
+        selectinload(
+            Experience.establishment
+        ).selectinload(
+            Establishment.reviews_received
+        ),
+        selectinload(
+            Experience.slots.and_(
+                ExperienceSlot.starts_at
+                > now,
+                ExperienceSlot.status
+                == SlotStatus.AVAILABLE,
+            )
+        ),
     )
 
 
 def _published_db_experiences():
+    now = utcnow()
+
+    release_expired_holds(
+        now=now,
+    )
+
     items = db.session.scalars(
         _published_db_query()
+        .options(
+            *_catalog_loader_options(
+                now
+            )
+        )
         .order_by(
             Experience.is_featured.desc(),
             Experience.created_at.desc(),
         )
-    ).all()
+    ).unique().all()
 
     return [
         _db_item(item)
@@ -952,6 +1030,257 @@ def list_experiences(
         )
 
     return items
+
+
+def _professional_rating_expression():
+    return (
+        select(
+            func.coalesce(
+                func.avg(
+                    Review.rating
+                ),
+                0,
+            )
+        )
+        .where(
+            Review.professional_id
+            == Experience.professional_id,
+            Review.target_type
+            == ReviewTarget.PROFESSIONAL,
+            Review.is_visible.is_(
+                True
+            ),
+        )
+        .correlate(Experience)
+        .scalar_subquery()
+    )
+
+
+def _professional_reviews_expression():
+    return (
+        select(
+            func.count(
+                Review.id
+            )
+        )
+        .where(
+            Review.professional_id
+            == Experience.professional_id,
+            Review.target_type
+            == ReviewTarget.PROFESSIONAL,
+            Review.is_visible.is_(
+                True
+            ),
+        )
+        .correlate(Experience)
+        .scalar_subquery()
+    )
+
+
+def _database_catalog_order(sort):
+    rating = (
+        _professional_rating_expression()
+    )
+    reviews = (
+        _professional_reviews_expression()
+    )
+
+    if sort == "lowest_price":
+        return (
+            Experience.price.asc(),
+            Experience.is_featured.desc(),
+            Experience.created_at.desc(),
+            Experience.id.desc(),
+        )
+
+    if sort == "highest_rating":
+        return (
+            rating.desc(),
+            reviews.desc(),
+            Experience.is_featured.desc(),
+            Experience.created_at.desc(),
+            Experience.id.desc(),
+        )
+
+    if sort == "biggest_saving":
+        return (
+            (
+                Experience.regular_price
+                - Experience.price
+            ).desc(),
+            Experience.is_featured.desc(),
+            Experience.created_at.desc(),
+            Experience.id.desc(),
+        )
+
+    if sort == "newest":
+        return (
+            Experience.created_at.desc(),
+            Experience.id.desc(),
+        )
+
+    return (
+        Experience.is_featured.desc(),
+        rating.desc(),
+        reviews.desc(),
+        Experience.created_at.desc(),
+        Experience.id.desc(),
+    )
+
+
+def list_database_experiences_page(
+    *,
+    search="",
+    category="",
+    location="",
+    sort="recommended",
+    offset=0,
+    limit=20,
+):
+    """
+    Página de experiências reais para API.
+
+    Busca, filtros, ordenação, contagem e paginação acontecem
+    no banco. A normalização SQL preserva a busca PT-BR sem
+    acentos tanto em SQLite quanto em PostgreSQL.
+    """
+    normalized_search = _normalize_text(
+        search
+    )
+    normalized_location = _normalize_text(
+        location
+    )
+    normalized_category = _normalize_text(
+        category
+    )
+
+    query = _published_db_query()
+
+    if normalized_category:
+        query = query.where(
+            Experience.category
+            == normalized_category
+        )
+
+    if normalized_search:
+        pattern = (
+            f"%{normalized_search}%"
+        )
+
+        query = query.where(
+            or_(
+                _sql_normalized_text(
+                    Experience.title
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.short_description
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.description
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.category
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.display_name
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.primary_specialty
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.city
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.name
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.neighborhood
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.city
+                ).like(pattern),
+            )
+        )
+
+    if normalized_location:
+        location_pattern = (
+            f"%{normalized_location}%"
+        )
+
+        query = query.where(
+            or_(
+                _sql_normalized_text(
+                    Establishment.neighborhood
+                ).like(
+                    location_pattern
+                ),
+                _sql_normalized_text(
+                    Establishment.city
+                ).like(
+                    location_pattern
+                ),
+                _sql_normalized_text(
+                    ProfessionalProfile.city
+                ).like(
+                    location_pattern
+                ),
+            )
+        )
+
+    total_query = (
+        select(
+            func.count()
+        )
+        .select_from(
+            query
+            .with_only_columns(
+                Experience.id
+            )
+            .order_by(None)
+            .subquery()
+        )
+    )
+
+    total = (
+        db.session.scalar(
+            total_query
+        )
+        or 0
+    )
+
+    now = utcnow()
+
+    release_expired_holds(
+        now=now,
+    )
+
+    query = (
+        query
+        .options(
+            *_catalog_loader_options(
+                now
+            )
+        )
+        .order_by(
+            *_database_catalog_order(
+                sort
+            )
+        )
+        .offset(offset)
+        .limit(limit)
+    )
+
+    rows = db.session.scalars(
+        query
+    ).unique().all()
+
+    return (
+        [
+            _db_item(item)
+            for item in rows
+        ],
+        total,
+    )
 
 
 # ============================================================

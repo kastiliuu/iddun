@@ -176,6 +176,20 @@ class Booking(db.Model):
         order_by="Review.created_at.asc()",
     )
 
+    __table_args__ = (
+        db.Index(
+            "uq_bookings_active_slot",
+            "slot_id",
+            unique=True,
+            postgresql_where=db.text(
+                "status IN ('pending', 'confirmed')"
+            ),
+            sqlite_where=db.text(
+                "status IN ('pending', 'confirmed')"
+            ),
+        ),
+    )
+
     @property
     def status_label(self):
         return BookingStatus.LABELS.get(self.status, self.status.title())

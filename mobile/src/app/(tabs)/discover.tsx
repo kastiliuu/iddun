@@ -5,8 +5,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -107,17 +105,12 @@ export default function DiscoverScreen() {
     };
   }, [search, selectedCategory]);
 
-  const openRealExperience = async (
+  const openRealExperience = (
     experience: CatalogExperience,
   ) => {
-    try {
-      await Linking.openURL(experience.webUrl);
-    } catch {
-      Alert.alert(
-        "Não foi possível abrir o site",
-        "Tente novamente em instantes.",
-      );
-    }
+    router.push(
+      `/booking/${experience.slug}`,
+    );
   };
 
   const filteredItems =
@@ -371,7 +364,7 @@ export default function DiscoverScreen() {
             <ActivityIndicator color={colors.plum} />
           ) : realError ? (
             <Text style={styles.realMessage}>
-              Não foi possível carregar o catálogo agora. Consulte as experiências pelo site IDDUN.
+              Não foi possível carregar o catálogo agora. Tente novamente em instantes.
             </Text>
           ) : realExperiences.length === 0 ? (
             <Text style={styles.realMessage}>
@@ -381,10 +374,10 @@ export default function DiscoverScreen() {
             realExperiences.map((experience) => (
               <Pressable
                 key={experience.id}
-                accessibilityRole="link"
-                accessibilityLabel={`Abrir ${experience.title} no site IDDUN`}
+                accessibilityRole="button"
+                accessibilityLabel={`Agendar ${experience.title}`}
                 onPress={() => {
-                  void openRealExperience(experience);
+                  openRealExperience(experience);
                 }}
                 style={styles.realCard}
               >

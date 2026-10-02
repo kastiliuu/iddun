@@ -585,14 +585,18 @@ def test_global_oversized_api_request_returns_structured_json(
 
     assert response.status_code == 413
 
+    message = (
+        "O envio ultrapassou o limite "
+        "total de 1 MB. "
+        "Reduza a quantidade ou o tamanho "
+        "das imagens e tente novamente."
+    )
+
     assert response.get_json() == {
+        "message": message,
         "error": {
             "code": "request_too_large",
-            "message": (
-                "O envio ultrapassou o limite "
-                "total de 1 MB. "
-                "Reduza a quantidade ou o tamanho "
-                "das imagens e tente novamente."
-            ),
-        }
+            "message": message,
+        },
     }
+

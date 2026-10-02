@@ -471,7 +471,7 @@ export default function ProfileScreen() {
               title="Meus agendamentos"
               subtitle="Próximos atendimentos e histórico"
               onPress={() =>
-                showComingSoon("Meus agendamentos")
+                router.push("/bookings")
               }
             />
 

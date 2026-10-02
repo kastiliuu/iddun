@@ -47,35 +47,78 @@ def can_review_booking(booking, client_profile):
     )
 
 
-def save_review(*, booking, client_profile, target_type, rating, recommended, comment=None):
-    if not can_review_booking(booking, client_profile):
-        raise ReviewError("A avaliação só fica disponível depois que o atendimento é concluído.")
-    if target_type not in ReviewTarget.CHOICES:
-        raise ReviewError("Destino de avaliação inválido.")
+def save_review(
+    *,
+    booking,
+    client_profile,
+    target_type,
+    rating,
+    recommended,
+    comment=None,
+):
+    if not can_review_booking(
+        booking,
+        client_profile,
+    ):
+        raise ReviewError(
+            (
+                "A avaliação só fica disponível "
+                "depois que o atendimento é concluído."
+            )
+        )
 
-    review = get_review(booking.id, target_type)
+    if target_type not in ReviewTarget.CHOICES:
+        raise ReviewError(
+            "Destino de avaliação inválido."
+        )
+
+    professional = None
+    establishment = None
+
+    if target_type == ReviewTarget.PROFESSIONAL:
+        professional = booking.professional
+    else:
+        establishment = booking.establishment
+
+        if establishment is None:
+            raise ReviewError(
+                (
+                    "Esta reserva não possui um "
+                    "estabelecimento para avaliar."
+                )
+            )
+
+    review = get_review(
+        booking.id,
+        target_type,
+    )
+
     if review is None:
         review = Review(
             booking=booking,
             client=client_profile,
             target_type=target_type,
+            professional=professional,
+            establishment=establishment,
         )
         db.session.add(review)
-
-    review.rating = _validate_rating(rating)
-    review.recommended = _as_bool(recommended)
-    review.comment = (comment or "").strip() or None
-
-    if target_type == ReviewTarget.PROFESSIONAL:
-        review.professional = booking.professional
-        review.establishment = None
     else:
-        if booking.establishment is None:
-            raise ReviewError("Esta reserva não possui um estabelecimento para avaliar.")
-        review.establishment = booking.establishment
-        review.professional = None
+        review.professional = professional
+        review.establishment = establishment
+
+    review.rating = _validate_rating(
+        rating
+    )
+    review.recommended = _as_bool(
+        recommended
+    )
+    review.comment = (
+        (comment or "").strip()
+        or None
+    )
 
     db.session.flush()
+
     return review
 
 
@@ -99,7 +142,13 @@ def save_booking_reviews(
         comment=professional_comment,
     )
 
-    if booking.establishment is not None and establishment_rating and establishment_recommended:
+    has_establishment_review = (
+        booking.establishment is not None
+        and establishment_rating not in (None, "")
+        and establishment_recommended not in (None, "")
+    )
+
+    if has_establishment_review:
         save_review(
             booking=booking,
             client_profile=client_profile,
