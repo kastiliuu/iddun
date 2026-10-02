@@ -50,10 +50,10 @@ type EstablishmentTab =
   | "team"
   | "reviews";
 
-const tabs: Array<{
+const tabs: {
   id: EstablishmentTab;
   label: string;
-}> = [
+}[] = [
   {
     id: "work",
     label: "Trabalhos",
