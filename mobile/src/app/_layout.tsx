@@ -204,6 +204,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="create-post"
+              />
+
+              <Stack.Screen
                 name="open-slot"
               />
 
