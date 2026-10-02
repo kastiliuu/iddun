@@ -164,9 +164,50 @@ export default function ProfessionalOnboardingScreen() {
 
   useEffect(
     () => {
-      void load();
+      let mounted =
+        true;
+
+      getProfessionalOnboarding()
+        .then(
+          (response) => {
+            if (mounted) {
+              setProfile(
+                response.profile,
+              );
+            }
+          },
+        )
+        .catch(
+          (error) => {
+            if (!mounted) {
+              return;
+            }
+
+            toast.show({
+              title:
+                "Não foi possível carregar",
+              body:
+                error instanceof Error
+                  ? error.message
+                  : "Tente novamente.",
+              icon:
+                "alert-circle",
+            });
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setLoading(false);
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
     },
-    [load],
+    [toast],
   );
 
   const handleAddExperience =
