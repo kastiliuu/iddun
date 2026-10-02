@@ -2,11 +2,16 @@ from copy import deepcopy
 
 from flask import current_app
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.data.mock_professionals import PROFESSIONAL_CATALOG
 from app.data.mock_marketplace import EXPERIENCE_CATALOG
 from app.extensions import db
-from app.models.establishment import Establishment, MembershipStatus
+from app.models.establishment import (
+    Establishment,
+    MembershipStatus,
+    ProfessionalEstablishmentMembership,
+)
 from app.models.experience import Experience
 from app.models.professional import ProfessionalProfile
 from app.services.public_eligibility import (
@@ -56,7 +61,20 @@ def list_professionals():
         _db_item(item)
         for item in db.session.scalars(
             public_professionals_query()
-            .order_by(ProfessionalProfile.is_verified.desc(), ProfessionalProfile.created_at.desc())
+            .options(
+                selectinload(
+                    ProfessionalProfile.memberships
+                ).selectinload(
+                    ProfessionalEstablishmentMembership.establishment
+                ),
+                selectinload(
+                    ProfessionalProfile.reviews_received
+                ),
+            )
+            .order_by(
+                ProfessionalProfile.is_verified.desc(),
+                ProfessionalProfile.created_at.desc(),
+            )
         ).all()
     ]
     if current_app.config["APP_ENV"] == "production":
@@ -179,7 +197,15 @@ def get_professional_public_view(slug):
 def list_establishments():
     return db.session.scalars(
         public_establishments_query()
-        .order_by(Establishment.is_verified.desc(), Establishment.created_at.desc())
+        .options(
+            selectinload(
+                Establishment.reviews_received
+            )
+        )
+        .order_by(
+            Establishment.is_verified.desc(),
+            Establishment.created_at.desc(),
+        )
     ).all()
 
 def get_establishment_public_view(slug):
