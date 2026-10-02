@@ -80,3 +80,32 @@ class PasswordResetForm(FlaskForm):
     submit = SubmitField(
         "Redefinir senha"
     )
+
+
+
+class DeleteAccountForm(FlaskForm):
+    password = PasswordField(
+        "Senha atual",
+        validators=[
+            DataRequired(),
+            Length(max=128),
+        ],
+    )
+    confirm = BooleanField(
+        (
+            "Entendo que minha conta será "
+            "desativada e meus dados pessoais "
+            "serão anonimizados."
+        ),
+        validators=[
+            DataRequired(
+                message=(
+                    "Confirme que você entende "
+                    "as consequências da exclusão."
+                )
+            )
+        ],
+    )
+    submit = SubmitField(
+        "Excluir minha conta"
+    )
