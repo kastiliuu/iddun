@@ -254,76 +254,74 @@ export default function BookingScreen() {
     setSubmitting,
   ] = useState(false);
 
-  const loadBookingData =
-    async (
-      signal?: AbortSignal,
-    ) => {
-      if (!experienceSlug) {
-        setLoadError(
-          "Experiência não encontrada.",
-        );
-        setLoading(false);
-        return;
-      }
-
-      const [
-        experienceResponse,
-        availabilityResponse,
-      ] =
-        await Promise.all([
-          getRealExperience(
-            experienceSlug,
-            signal,
-          ),
-          getExperienceAvailability(
-            experienceSlug,
-            signal,
-          ),
-        ]);
-
-      setExperience(
-        experienceResponse,
-      );
-      setAvailability(
-        availabilityResponse,
-      );
-
-      setSelectedDate(
-        (current) => {
-          if (
-            current &&
-            availabilityResponse.days.some(
-              (day) =>
-                day.date ===
-                current,
-            )
-          ) {
-            return current;
-          }
-
-          return (
-            availabilityResponse
-              .days[0]?.date ??
-            null
-          );
-        },
-      );
-    };
-
   useEffect(() => {
     const controller =
       new AbortController();
 
-    setLoading(true);
-    setLoadError(null);
+    const load =
+      async () => {
+        if (!experienceSlug) {
+          setLoadError(
+            "Experiência não encontrada.",
+          );
+          setLoading(false);
+          return;
+        }
 
-    loadBookingData(
-      controller.signal,
-    )
-      .catch(
-        (
-          error: unknown,
-        ) => {
+        try {
+          const [
+            experienceResponse,
+            availabilityResponse,
+          ] =
+            await Promise.all([
+              getRealExperience(
+                experienceSlug,
+                controller.signal,
+              ),
+              getExperienceAvailability(
+                experienceSlug,
+                controller.signal,
+              ),
+            ]);
+
+          if (
+            controller.signal.aborted
+          ) {
+            return;
+          }
+
+          setExperience(
+            experienceResponse,
+          );
+          setAvailability(
+            availabilityResponse,
+          );
+
+          setSelectedDate(
+            (
+              current,
+            ) => {
+              if (
+                current &&
+                availabilityResponse.days.some(
+                  (day) =>
+                    day.date ===
+                    current,
+                )
+              ) {
+                return current;
+              }
+
+              return (
+                availabilityResponse
+                  .days[0]?.date ??
+                null
+              );
+            },
+          );
+        } catch (
+          error: unknown
+        ) {
           if (
             error instanceof Error &&
             error.name ===
@@ -344,15 +342,16 @@ export default function BookingScreen() {
               "Não foi possível carregar a disponibilidade agora.",
             );
           }
-        },
-      )
-      .finally(() => {
-        if (
-          !controller.signal.aborted
-        ) {
-          setLoading(false);
+        } finally {
+          if (
+            !controller.signal.aborted
+          ) {
+            setLoading(false);
+          }
         }
-      });
+      };
+
+    void load();
 
     return () => {
       controller.abort();
@@ -401,16 +400,6 @@ export default function BookingScreen() {
           selectedDate,
         ).label
       : null;
-
-  const selectedTimeLabel =
-    selectedSlot
-      ? formatSlotTime(
-          selectedSlot.startsAt,
-          timezone,
-        )
-      : booking?.slot
-          .localTime ??
-        null;
 
   const holdExpiration =
     formatHoldExpiration(
