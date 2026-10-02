@@ -624,3 +624,86 @@ def test_user_cannot_delete_another_professionals_portfolio_item(
         )
 
         assert item is not None
+
+
+def test_cover_focus_is_persisted_and_resumed(
+    app,
+    client,
+):
+    _, profile_id, headers = (
+        _authenticated_professional(
+            app,
+            email=(
+                "cover-focus@example.com"
+            ),
+        )
+    )
+
+    uploaded = client.post(
+        f"{BASE}/cover",
+        headers=headers,
+        data=_multipart(
+            filename="cover-focus.jpg",
+        ),
+        content_type=(
+            "multipart/form-data"
+        ),
+    )
+
+    assert uploaded.status_code == 200
+
+    focused = client.put(
+        f"{BASE}/cover/focus",
+        headers=headers,
+        json={
+            "focusX": 85,
+            "focusY": 15,
+        },
+    )
+
+    assert focused.status_code == 200
+    assert focused.get_json() == {
+        "focusX": 85,
+        "focusY": 15,
+    }
+
+    resumed = client.get(
+        "/api/v1/onboarding/professional",
+        headers=headers,
+    )
+
+    assert resumed.status_code == 200
+
+    profile_payload = (
+        resumed.get_json()[
+            "profile"
+        ]
+    )
+
+    assert (
+        profile_payload[
+            "coverFocusX"
+        ]
+        == 85
+    )
+    assert (
+        profile_payload[
+            "coverFocusY"
+        ]
+        == 15
+    )
+
+    with app.app_context():
+        profile = db.session.get(
+            ProfessionalProfile,
+            profile_id,
+        )
+
+        assert (
+            profile.cover_focus_x
+            == 85
+        )
+        assert (
+            profile.cover_focus_y
+            == 15
+        )
