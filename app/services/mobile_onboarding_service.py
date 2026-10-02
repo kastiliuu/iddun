@@ -1,10 +1,11 @@
-"""Criação de rascunhos de perfis pelo aplicativo móvel.
+"""Identidade profissional e rascunhos usados pelo aplicativo móvel.
 
-O onboarding web exige mídia e outros campos antes de publicar um perfil.
-O mobile pode criar o mesmo registro como rascunho inativo; os catálogos
-públicos do projeto filtram ``is_active``. A etapa de publicação poderá
-ativar o rascunho quando os demais requisitos forem cumpridos.
+O serviço reaproveita os mesmos modelos do web. O app pode criar e atualizar
+um rascunho privado, retomá-lo depois e só publicar quando os requisitos
+centrais do perfil estiverem completos.
 """
+
+from datetime import date
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -16,13 +17,19 @@ from app.models.establishment import (
     EstablishmentAccessRole,
     EstablishmentAccessStatus,
     EstablishmentUserAccess,
+    MembershipStatus,
+    ProfessionalEstablishmentMembership,
 )
 from app.models.professional import ProfessionalProfile, utcnow
+from app.models.professional_experience import (
+    ProfessionalExperience,
+    ProfessionalExperienceVerification,
+)
 from app.services.slug_service import unique_public_handle
 
 
 class MobileOnboardingError(ValueError):
-    """Dados inválidos ou perfil que não pôde ser criado."""
+    """Dados inválidos ou operação de onboarding não permitida."""
 
 
 PROFESSIONAL_CATEGORIES = {
@@ -70,7 +77,7 @@ def _text(value, label, *, minimum=0, maximum, required=False):
 def _active_user(user):
     if user is None or user.id is None or not user.is_active:
         raise MobileOnboardingError(
-            "Entre em uma conta ativa para criar seu perfil."
+            "Entre em uma conta ativa para continuar."
         )
 
 
@@ -82,7 +89,6 @@ def _location(city, state):
         maximum=100,
         required=True,
     )
-
     clean_state = _text(
         state,
         "UF",
@@ -135,17 +141,8 @@ def create_professional_draft(
     bio="",
     phone="",
 ):
-    """Cria no máximo um perfil profissional por usuário, sem publicá-lo."""
+    """Cria ou atualiza o único perfil profissional da conta."""
     _active_user(user)
-
-    existing = db.session.scalar(
-        select(ProfessionalProfile).where(
-            ProfessionalProfile.user_id == user.id
-        )
-    )
-
-    if existing is not None:
-        return existing
 
     clean_name = _text(
         display_name,
@@ -154,7 +151,6 @@ def create_professional_draft(
         maximum=140,
         required=True,
     )
-
     clean_specialty = _text(
         primary_specialty,
         "Especialidade",
@@ -162,34 +158,42 @@ def create_professional_draft(
         maximum=120,
         required=True,
     )
-
     clean_city, clean_state = _location(city, state)
     clean_bio = _text(bio, "Apresentação", maximum=2000)
     clean_phone = _text(phone, "Telefone", maximum=32)
     specialties = _professional_categories(categories)
 
-    profile = ProfessionalProfile(
-        user_id=user.id,
-        display_name=clean_name,
-        slug=unique_public_handle(
-            clean_name,
-            resource_type="professional",
-        ),
-        primary_specialty=clean_specialty,
-        specialties_text=specialties,
-        bio=clean_bio or None,
-        phone=clean_phone or None,
-        whatsapp_enabled=bool(clean_phone),
-        city=clean_city,
-        state=clean_state,
-        plan_tier="free",
-        onboarding_completed=False,
-        published_at=None,
-        is_active=False,
-        claimed_at=utcnow(),
+    profile = db.session.scalar(
+        select(ProfessionalProfile).where(
+            ProfessionalProfile.user_id == user.id
+        )
     )
+    is_new = profile is None
 
-    db.session.add(profile)
+    if is_new:
+        profile = ProfessionalProfile(
+            user_id=user.id,
+            display_name=clean_name,
+            slug=unique_public_handle(
+                clean_name,
+                resource_type="professional",
+            ),
+            plan_tier="free",
+            onboarding_completed=False,
+            published_at=None,
+            is_active=False,
+            claimed_at=utcnow(),
+        )
+        db.session.add(profile)
+
+    profile.display_name = clean_name
+    profile.primary_specialty = clean_specialty
+    profile.specialties_text = specialties
+    profile.bio = clean_bio or None
+    profile.phone = clean_phone or None
+    profile.whatsapp_enabled = bool(clean_phone)
+    profile.city = clean_city
+    profile.state = clean_state
 
     try:
         db.session.commit()
@@ -202,11 +206,11 @@ def create_professional_draft(
             )
         )
 
-        if existing is not None:
+        if is_new and existing is not None:
             return existing
 
         raise MobileOnboardingError(
-            "Não foi possível criar o perfil. Tente novamente."
+            "Não foi possível salvar o perfil. Tente novamente."
         ) from exc
 
     return profile
@@ -233,9 +237,7 @@ def create_establishment_draft(
         maximum=160,
         required=True,
     )
-
     clean_city, clean_state = _location(city, state)
-
     clean_category = _text(
         category,
         "Categoria",
@@ -253,13 +255,11 @@ def create_establishment_draft(
         "Apresentação",
         maximum=2000,
     )
-
     clean_phone = _text(
         phone,
         "Telefone",
         maximum=32,
     )
-
     clean_neighborhood = _text(
         neighborhood,
         "Bairro",
@@ -283,6 +283,12 @@ def create_establishment_draft(
     )
 
     if existing is not None:
+        existing.description = clean_description or None
+        existing.phone = clean_phone or None
+        existing.whatsapp_enabled = bool(clean_phone)
+        existing.neighborhood = clean_neighborhood or None
+        existing.category = clean_category
+        db.session.commit()
         return existing
 
     establishment = Establishment(
@@ -316,7 +322,6 @@ def create_establishment_draft(
 
     try:
         db.session.flush()
-
         db.session.add(
             EstablishmentUserAccess(
                 user_id=user.id,
@@ -325,13 +330,220 @@ def create_establishment_draft(
                 status=EstablishmentAccessStatus.ACTIVE,
             )
         )
-
         db.session.commit()
     except IntegrityError as exc:
         db.session.rollback()
-
         raise MobileOnboardingError(
             "Não foi possível criar o estabelecimento. Tente novamente."
         ) from exc
 
     return establishment
+
+
+def professional_completion(profile):
+    steps = [
+        {
+            "key": "avatar",
+            "label": "Adicionar foto de perfil",
+            "complete": bool(profile.avatar_url),
+        },
+        {
+            "key": "identity",
+            "label": "Definir nome profissional",
+            "complete": bool(profile.display_name),
+        },
+        {
+            "key": "specialty",
+            "label": "Informar especialidade",
+            "complete": bool(profile.primary_specialty),
+        },
+        {
+            "key": "bio",
+            "label": "Escrever sua bio",
+            "complete": bool(profile.bio),
+        },
+        {
+            "key": "location",
+            "label": "Informar cidade e UF",
+            "complete": bool(profile.city and profile.state),
+        },
+        {
+            "key": "portfolio",
+            "label": "Adicionar pelo menos 3 trabalhos",
+            "complete": len(profile.portfolio_items) >= 3,
+        },
+    ]
+
+    recommended = []
+
+    if not profile.professional_experiences:
+        recommended.append(
+            {
+                "key": "experience",
+                "label": "Adicionar experiência profissional",
+            }
+        )
+
+    if not profile.active_memberships:
+        recommended.append(
+            {
+                "key": "establishment",
+                "label": "Conectar um estabelecimento",
+            }
+        )
+
+    return {
+        "percentage": profile.profile_completion,
+        "readyToPublish": profile.ready_to_publish,
+        "steps": steps,
+        "recommendedActions": recommended,
+    }
+
+
+def add_professional_experience(
+    *,
+    profile,
+    company_name,
+    role_title,
+    started_at,
+    ended_at=None,
+    is_current=False,
+    description="",
+    establishment_id=None,
+):
+    if profile is None or profile.id is None:
+        raise MobileOnboardingError(
+            "Crie seu perfil profissional antes de adicionar experiência."
+        )
+
+    if not isinstance(started_at, date):
+        raise MobileOnboardingError(
+            "Data inicial inválida."
+        )
+
+    if ended_at is not None and not isinstance(ended_at, date):
+        raise MobileOnboardingError(
+            "Data final inválida."
+        )
+
+    clean_company = _text(
+        company_name,
+        "Empresa",
+        minimum=2,
+        maximum=160,
+        required=not bool(establishment_id),
+    )
+    clean_role = _text(
+        role_title,
+        "Cargo",
+        minimum=2,
+        maximum=140,
+        required=True,
+    )
+    clean_description = _text(
+        description,
+        "Descrição",
+        maximum=1200,
+    )
+
+    establishment = None
+    verification_status = (
+        ProfessionalExperienceVerification.UNVERIFIED
+    )
+
+    if establishment_id:
+        establishment = db.session.get(
+            Establishment,
+            establishment_id,
+        )
+
+        if establishment is None:
+            raise MobileOnboardingError(
+                "Estabelecimento não encontrado."
+            )
+
+        membership = db.session.scalar(
+            select(ProfessionalEstablishmentMembership).where(
+                ProfessionalEstablishmentMembership.professional_id
+                == profile.id,
+                ProfessionalEstablishmentMembership.establishment_id
+                == establishment.id,
+                ProfessionalEstablishmentMembership.status
+                == MembershipStatus.ACTIVE,
+            )
+        )
+
+        if membership is None:
+            raise MobileOnboardingError(
+                "O vínculo com este estabelecimento precisa estar confirmado."
+            )
+
+        clean_company = establishment.name
+        verification_status = (
+            ProfessionalExperienceVerification.VERIFIED_MEMBERSHIP
+        )
+
+    experience = ProfessionalExperience(
+        professional_id=profile.id,
+        establishment_id=(
+            establishment.id if establishment else None
+        ),
+        company_name=clean_company,
+        role_title=clean_role,
+        description=clean_description or None,
+        started_at=started_at,
+        ended_at=ended_at,
+        is_current=bool(is_current),
+        verification_status=verification_status,
+    )
+
+    try:
+        experience.normalize_dates()
+    except ValueError as exc:
+        raise MobileOnboardingError(str(exc)) from exc
+
+    db.session.add(experience)
+    db.session.commit()
+
+    return experience
+
+
+def delete_professional_experience(*, profile, experience_id):
+    experience = db.session.get(
+        ProfessionalExperience,
+        experience_id,
+    )
+
+    if (
+        experience is None
+        or profile is None
+        or experience.professional_id != profile.id
+    ):
+        raise MobileOnboardingError(
+            "Experiência profissional não encontrada."
+        )
+
+    db.session.delete(experience)
+    db.session.commit()
+
+
+def publish_professional_profile(profile):
+    if profile is None:
+        raise MobileOnboardingError(
+            "Crie seu perfil profissional antes de publicar."
+        )
+
+    if not profile.ready_to_publish:
+        raise MobileOnboardingError(
+            "Complete os requisitos obrigatórios antes de publicar."
+        )
+
+    profile.onboarding_completed = True
+    profile.is_active = True
+
+    if profile.published_at is None:
+        profile.published_at = utcnow()
+
+    db.session.commit()
+
+    return profile
