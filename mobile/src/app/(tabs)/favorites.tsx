@@ -43,10 +43,10 @@ type FavoritesTab =
   | "professionals"
   | "services";
 
-const tabs: Array<{
+const tabs: {
   id: FavoritesTab;
   label: string;
-}> = [
+}[] = [
   {
     id: "posts",
     label: "Publicações",
