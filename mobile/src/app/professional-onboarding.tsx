@@ -1986,7 +1986,7 @@ export default function ProfessionalOnboardingScreen() {
           >
             {profile.completion.readyToPublish
               ? "Revise a prévia e publique quando estiver confortável."
-              : "Foto e portfólio serão concluídos no fluxo de mídia. Você pode sair agora e continuar depois sem perder seus dados."}
+              : "Complete os itens pendentes acima. Tudo fica salvo para você continuar depois sem perder seus dados."}
           </Text>
 
           <Button
