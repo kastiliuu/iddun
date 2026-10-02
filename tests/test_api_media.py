@@ -707,3 +707,55 @@ def test_cover_focus_is_persisted_and_resumed(
             profile.cover_focus_y
             == 15
         )
+
+
+def test_portfolio_rejects_ninth_image(
+    app,
+    client,
+):
+    _, _, headers = (
+        _authenticated_professional(
+            app,
+            email=(
+                "portfolio-limit@example.com"
+            ),
+        )
+    )
+
+    for index in range(8):
+        response = client.post(
+            f"{BASE}/portfolio",
+            headers=headers,
+            data=_multipart(
+                filename=(
+                    f"limit-{index}.jpg"
+                ),
+            ),
+            content_type=(
+                "multipart/form-data"
+            ),
+        )
+
+        assert (
+            response.status_code
+            == 201
+        )
+
+    ninth = client.post(
+        f"{BASE}/portfolio",
+        headers=headers,
+        data=_multipart(
+            filename="limit-9.jpg",
+        ),
+        content_type=(
+            "multipart/form-data"
+        ),
+    )
+
+    assert ninth.status_code == 409
+    assert (
+        ninth.get_json()[
+            "error"
+        ]["code"]
+        == "portfolio_limit_reached"
+    )
