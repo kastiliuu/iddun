@@ -92,6 +92,7 @@ def _service_payload(
         ),
         "image": _media(
             item.image_url
+            or "img/exp-hair.jpg"
         ),
         "durationMinutes": (
             item.duration_minutes
@@ -190,6 +191,7 @@ def professional_profile(
         "name": profile.display_name,
         "avatar": _media(
             profile.avatar_url
+            or "img/category-hair.jpg"
         ),
         "cover": _media(
             profile.cover_url
@@ -306,6 +308,7 @@ def establishment_profile(
             establishment.name,
         "avatar": _media(
             establishment.logo_url
+            or "img/category-hair.jpg"
         ),
         "cover": _media(
             establishment.cover_url
@@ -388,6 +391,7 @@ def establishment_profile(
                     professional.display_name,
                 "avatar": _media(
                     professional.avatar_url
+                    or "img/category-hair.jpg"
                 ),
                 "cover": _media(
                     professional.cover_url
