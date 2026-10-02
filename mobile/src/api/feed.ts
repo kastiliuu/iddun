@@ -37,6 +37,8 @@ export type WorkPostAuthor = {
   name: string;
   avatar?: string | null;
   specialty?: string | null;
+  rating?: number | null;
+  reviewsCount?: number;
 };
 
 export type WorkPostService = {
@@ -44,6 +46,8 @@ export type WorkPostService = {
   name: string;
   price?: number;
   availabilityLabel?: string | null;
+  image?: string | null;
+  category?: string | null;
 };
 
 export type WorkPost = {
