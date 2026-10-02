@@ -6,6 +6,7 @@ import React, {
 
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   Switch,
@@ -13,6 +14,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import {
+  Image,
+} from "expo-image";
 
 import {
   useRouter,
@@ -31,6 +36,14 @@ import {
 } from "@/api/onboarding";
 
 import {
+  deleteProfessionalPortfolioItem,
+  reorderProfessionalPortfolio,
+  uploadProfessionalAvatar,
+  uploadProfessionalCover,
+  uploadProfessionalPortfolioItem,
+} from "@/api/media";
+
+import {
   Button,
 } from "@/components/Button";
 
@@ -41,6 +54,13 @@ import {
 import {
   useToast,
 } from "@/components/Toast";
+
+import {
+  MediaPermissionError,
+  pickAndPrepareImage,
+  type MediaKind,
+  type MediaSource,
+} from "@/media/imagePipeline";
 
 import {
   fonts,
@@ -89,6 +109,14 @@ export default function ProfessionalOnboardingScreen() {
     setPublishing,
   ] =
     useState(false);
+
+  const [
+    mediaBusy,
+    setMediaBusy,
+  ] =
+    useState<MediaKind | null>(
+      null,
+    );
 
   const [
     companyName,
@@ -209,6 +237,200 @@ export default function ProfessionalOnboardingScreen() {
     },
     [toast],
   );
+
+  const handleMediaUpload =
+    async (
+      kind: MediaKind,
+      source: MediaSource,
+    ) => {
+      if (mediaBusy) {
+        return;
+      }
+
+      try {
+        const image =
+          await pickAndPrepareImage(
+            source,
+            kind,
+          );
+
+        if (!image) {
+          return;
+        }
+
+        setMediaBusy(
+          kind,
+        );
+
+        if (kind === "avatar") {
+          await uploadProfessionalAvatar(
+            image,
+          );
+        } else if (
+          kind === "cover"
+        ) {
+          await uploadProfessionalCover(
+            image,
+          );
+        } else {
+          await uploadProfessionalPortfolioItem(
+            image,
+          );
+        }
+
+        await load();
+
+        toast.show({
+          title:
+            kind === "portfolio"
+              ? "Trabalho adicionado"
+              : kind === "avatar"
+                ? "Foto atualizada"
+                : "Capa atualizada",
+          body:
+            "A imagem foi salva no seu perfil.",
+          icon:
+            "check",
+        });
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível salvar a imagem",
+          body:
+            error instanceof
+              MediaPermissionError ||
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setMediaBusy(
+          null,
+        );
+      }
+    };
+
+  const removePortfolioItem =
+    (
+      itemId: number,
+    ) => {
+      Alert.alert(
+        "Remover trabalho?",
+        (
+          "A imagem será removida do "
+          + "seu portfólio."
+        ),
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+          {
+            text: "Remover",
+            style:
+              "destructive",
+            onPress: () => {
+              void (
+                async () => {
+                  try {
+                    await deleteProfessionalPortfolioItem(
+                      itemId,
+                    );
+
+                    await load();
+
+                    toast.show({
+                      title:
+                        "Trabalho removido",
+                      icon:
+                        "check",
+                    });
+                  } catch (
+                    error
+                  ) {
+                    toast.show({
+                      title:
+                        "Não foi possível remover",
+                      body:
+                        error instanceof
+                          Error
+                          ? error.message
+                          : "Tente novamente.",
+                      icon:
+                        "alert-circle",
+                    });
+                  }
+                }
+              )();
+            },
+          },
+        ],
+      );
+    };
+
+  const movePortfolioItem =
+    async (
+      itemId: number,
+      direction: -1 | 1,
+    ) => {
+      const items =
+        profile?.portfolio ||
+        [];
+
+      const currentIndex =
+        items.findIndex(
+          (item) =>
+            item.id ===
+            itemId,
+        );
+
+      const targetIndex =
+        currentIndex +
+        direction;
+
+      if (
+        currentIndex < 0 ||
+        targetIndex < 0 ||
+        targetIndex >=
+          items.length
+      ) {
+        return;
+      }
+
+      const ids =
+        items.map(
+          (item) =>
+            item.id,
+        );
+
+      [
+        ids[currentIndex],
+        ids[targetIndex],
+      ] = [
+        ids[targetIndex],
+        ids[currentIndex],
+      ];
+
+      try {
+        await reorderProfessionalPortfolio(
+          ids,
+        );
+        await load();
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível reorganizar",
+          body:
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      }
+    };
 
   const handleAddExperience =
     async () => {
