@@ -261,39 +261,6 @@ export default function DiscoverScreen() {
     );
 
   return (
-            matchesCategory &&
-            matchesSearch
-          );
-        },
-      );
-    }, [
-      search,
-      selectedCategory,
-    ]);
-
-  const leftColumn =
-    discoveryItems.filter(
-      (_, index) =>
-        index % 2 === 0,
-    );
-
-  const rightColumn =
-    discoveryItems.filter(
-      (_, index) =>
-        index % 2 !== 0,
-    );
-
-  const nearbyProfessionals =
-    useMemo(
-      () =>
-        professionals.slice(
-          0,
-          4,
-        ),
-      [],
-    );
-
-  return (
     <View
       style={
         styles.container
