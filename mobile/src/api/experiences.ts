@@ -2,6 +2,7 @@ import { api } from "@/api/client";
 
 export type CatalogExperience = {
   id: string;
+  entityId?: number | null;
   slug: string;
   title: string;
   description: string;
