@@ -109,3 +109,10 @@ class User(UserMixin, db.Model):
     @property
     def is_active(self):
         return self.is_active_account
+
+    @property
+    def is_email_verified(self):
+        return (
+            self.email_verified_at
+            is not None
+        )
