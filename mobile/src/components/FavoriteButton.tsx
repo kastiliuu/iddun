@@ -103,6 +103,13 @@ function saveTargetType(
     return "professional";
   }
 
+  if (
+    kind ===
+    "posts"
+  ) {
+    return "work_post";
+  }
+
   return null;
 }
 
