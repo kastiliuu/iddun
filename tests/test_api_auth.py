@@ -497,3 +497,155 @@ def test_email_verification_resend_requires_bearer(
         ]["code"]
         == "authentication_required"
     )
+
+
+
+def test_device_sessions_can_be_listed_and_revoked(
+    app,
+    client,
+):
+    first = client.post(
+        "/api/v1/auth/register",
+        json={
+            **_registration(),
+            "device": {
+                "name": "IDDUN no iOS",
+                "platform": "ios",
+            },
+        },
+    ).get_json()
+
+    second = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "mobile@example.com",
+            "password": "senha-forte-123",
+            "device": {
+                "name": "IDDUN no Android",
+                "platform": "android",
+            },
+        },
+    ).get_json()
+
+    response = client.get(
+        "/api/v1/auth/sessions",
+        headers=_bearer(
+            second["accessToken"]
+        ),
+    )
+
+    assert response.status_code == 200
+
+    items = response.get_json()[
+        "items"
+    ]
+
+    assert len(items) == 2
+
+    current = next(
+        item
+        for item in items
+        if item["current"]
+    )
+    other = next(
+        item
+        for item in items
+        if not item["current"]
+    )
+
+    assert (
+        current["deviceName"]
+        == "IDDUN no Android"
+    )
+    assert (
+        current["platform"]
+        == "android"
+    )
+    assert (
+        other["deviceName"]
+        == "IDDUN no iOS"
+    )
+
+    revoked = client.post(
+        (
+            "/api/v1/auth/sessions/"
+            f"{other['id']}/revoke"
+        ),
+        headers=_bearer(
+            second["accessToken"]
+        ),
+    )
+
+    assert revoked.status_code == 200
+    assert (
+        revoked.get_json()[
+            "currentSessionRevoked"
+        ]
+        is False
+    )
+
+    assert client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            first["accessToken"]
+        ),
+    ).status_code == 401
+
+    remaining = client.get(
+        "/api/v1/auth/sessions",
+        headers=_bearer(
+            second["accessToken"]
+        ),
+    ).get_json()["items"]
+
+    assert len(remaining) == 1
+    assert (
+        remaining[0]["current"]
+        is True
+    )
+
+
+def test_revoke_other_sessions_keeps_current_session(
+    client,
+):
+    first = client.post(
+        "/api/v1/auth/register",
+        json=_registration(),
+    ).get_json()
+
+    second = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "mobile@example.com",
+            "password": "senha-forte-123",
+        },
+    ).get_json()
+
+    response = client.post(
+        "/api/v1/auth/sessions/revoke-others",
+        headers=_bearer(
+            second["accessToken"]
+        ),
+    )
+
+    assert response.status_code == 200
+    assert (
+        response.get_json()[
+            "revokedCount"
+        ]
+        == 1
+    )
+
+    assert client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            first["accessToken"]
+        ),
+    ).status_code == 401
+
+    assert client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            second["accessToken"]
+        ),
+    ).status_code == 200
