@@ -49,7 +49,7 @@ export function FavoriteButton({
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
+    transform: [{ scale: scale.get() }],
   }));
 
   const handlePress = () => {
@@ -57,7 +57,7 @@ export function FavoriteButton({
       Haptics.ImpactFeedbackStyle.Medium,
     ).catch(() => {});
 
-    scale.value = withSequence(
+    scale.set(withSequence(
       withSpring(1.28, {
         damping: 7,
         stiffness: 260,
@@ -66,7 +66,7 @@ export function FavoriteButton({
         damping: 8,
         stiffness: 220,
       }),
-    );
+    ));
 
     store.toggleFavorite(kind, id);
   };
