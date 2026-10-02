@@ -242,8 +242,8 @@ export default function PostDetailScreen() {
     router.push(
       author.kind ===
         "establishment"
-        ? `/establishment/${author.id}`
-        : `/professional/${author.id}`,
+        ? `/establishment/${author.routeId}`
+        : `/professional/${author.routeId}`,
     );
   };
 
