@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from flask import url_for
 from werkzeug.datastructures import FileStorage
 
@@ -18,8 +19,20 @@ from app.services.media_storage import (
 
 def _file(
     filename="image.jpg",
-    content=b"image-content",
+    content=None,
 ):
+    if content is None:
+        output = BytesIO()
+        Image.new(
+            "RGB",
+            (8, 8),
+            (120, 80, 160),
+        ).save(
+            output,
+            format="JPEG",
+        )
+        content = output.getvalue()
+
     return FileStorage(
         stream=BytesIO(content),
         filename=filename,
