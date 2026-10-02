@@ -7,6 +7,13 @@ import {
   refreshSession,
 } from "@/api/auth";
 
+import {
+  followGraphTarget,
+  saveGraphTarget,
+  unfollowGraphTarget,
+  unsaveGraphTarget,
+} from "@/api/graph";
+
 import type {
   Professional,
   Service,
@@ -39,6 +46,29 @@ export type FollowResponse = {
 export type FavoriteProfessionalResponse = {
   favorited: boolean;
 };
+
+function requireGraphId(
+  value: string,
+) {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(
+      "Este item ainda não possui um ID real do backend.",
+    );
+  }
+
+  const id = Number(value);
+
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw new Error(
+      "ID inválido para sincronização.",
+    );
+  }
+
+  return id;
+}
 
 function buildQuery(
   params: ProfessionalSearchParams,
@@ -144,59 +174,69 @@ export async function getProfessional(
 export async function followProfessional(
   professionalId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<FollowResponse>(
-        `/api/professionals/${professionalId}/follow`,
-        undefined,
-        {
-          token,
-        },
+  const response =
+    await followGraphTarget(
+      "professional",
+      requireGraphId(
+        professionalId,
       ),
-  );
+    );
+
+  return {
+    following:
+      response.following,
+  };
 }
 
 export async function unfollowProfessional(
   professionalId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.delete<FollowResponse>(
-        `/api/professionals/${professionalId}/follow`,
-        {
-          token,
-        },
+  const response =
+    await unfollowGraphTarget(
+      "professional",
+      requireGraphId(
+        professionalId,
       ),
-  );
+    );
+
+  return {
+    following:
+      response.following,
+  };
 }
 
 export async function favoriteProfessional(
   professionalId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<FavoriteProfessionalResponse>(
-        `/api/professionals/${professionalId}/favorite`,
-        undefined,
-        {
-          token,
-        },
+  const response =
+    await saveGraphTarget(
+      "professional",
+      requireGraphId(
+        professionalId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export async function unfavoriteProfessional(
   professionalId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.delete<FavoriteProfessionalResponse>(
-        `/api/professionals/${professionalId}/favorite`,
-        {
-          token,
-        },
+  const response =
+    await unsaveGraphTarget(
+      "professional",
+      requireGraphId(
+        professionalId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export async function getProfessionalServices(
