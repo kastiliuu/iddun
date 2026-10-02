@@ -160,6 +160,103 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     assert "Trabalhos recentes" in public_html
 
 
+def test_web_portfolio_removal_unpublishes_incomplete_profile(
+    app,
+    client,
+):
+    user_id = _create_user(
+        app,
+        email="portfolio-removal@example.com",
+    )
+    _login_session(
+        client,
+        user_id,
+    )
+
+    created = client.post(
+        "/pro/onboarding",
+        data={
+            "display_name": "Perfil Remoção",
+            "headline": "Perfil completo",
+            "primary_specialty": "Nail Designer",
+            "specialties_text": "Unhas",
+            "bio": (
+                "Perfil criado para validar "
+                "remoção de mídia obrigatória."
+            ),
+            "phone": "41999999999",
+            "city": "Curitiba",
+            "state": "PR",
+            "visual_theme": "beauty",
+            "avatar_file": _image(
+                "avatar-removal.jpg"
+            ),
+            "portfolio_files": [
+                _image("removal-1.jpg"),
+                _image("removal-2.jpg"),
+                _image("removal-3.jpg"),
+            ],
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+
+    assert created.status_code == 302
+
+    with app.app_context():
+        profile = db.session.scalar(
+            select(
+                ProfessionalProfile
+            ).where(
+                ProfessionalProfile.user_id
+                == user_id
+            )
+        )
+
+        assert profile is not None
+        assert profile.is_active is True
+        assert profile.ready_to_publish is True
+
+        item_id = (
+            profile.portfolio_items[
+                0
+            ].id
+        )
+        slug = profile.slug
+
+    removed = client.post(
+        (
+            "/pro/portfolio/"
+            f"{item_id}/remover"
+        ),
+        follow_redirects=False,
+    )
+
+    assert removed.status_code == 302
+
+    with app.app_context():
+        profile = db.session.scalar(
+            select(
+                ProfessionalProfile
+            ).where(
+                ProfessionalProfile.user_id
+                == user_id
+            )
+        )
+
+        assert profile is not None
+        assert profile.ready_to_publish is False
+        assert profile.onboarding_completed is False
+        assert profile.is_active is False
+        assert profile.published_at is None
+
+    public = client.get(
+        f"/profissionais/{slug}"
+    )
+
+    assert public.status_code == 404
+
+
 def test_business_onboarding_creates_owner_access_and_public_page(
     app,
     client,
