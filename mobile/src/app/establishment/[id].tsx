@@ -299,6 +299,7 @@ export default function EstablishmentProfileScreen() {
             >
               <FavoriteButton
                 kind="professionals"
+                targetType="establishment"
                 id={
                   establishment.id
                 }
@@ -355,6 +356,7 @@ export default function EstablishmentProfileScreen() {
               id={
                 establishment.id
               }
+              targetType="establishment"
               authorName={
                 establishment.name
               }
