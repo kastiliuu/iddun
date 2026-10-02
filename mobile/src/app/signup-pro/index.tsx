@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -19,6 +20,16 @@ import * as Haptics from "expo-haptics";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
+
+import {
+  getCurrentUser,
+} from "@/api/auth";
+
+import {
+  getProfessionalOnboarding,
+  saveEstablishmentDraft,
+  saveProfessionalDraft,
+} from "@/api/onboarding";
 
 import {
   store,
@@ -117,6 +128,11 @@ export default function SignupProfessionalScreen() {
       "Curitiba",
     );
 
+  const [state, setState] =
+    useState(
+      "PR",
+    );
+
   const [neighborhood, setNeighborhood] =
     useState("");
 
@@ -131,6 +147,86 @@ export default function SignupProfessionalScreen() {
 
   const [loading, setLoading] =
     useState(false);
+
+  useEffect(
+    () => {
+      let mounted = true;
+
+      const hydrate =
+        async () => {
+          const currentUser =
+            store.getUser();
+
+          if (
+            mounted &&
+            currentUser
+          ) {
+            setName(
+              (value) =>
+                value ||
+                currentUser.name,
+            );
+            setEmail(
+              (value) =>
+                value ||
+                currentUser.email,
+            );
+          }
+
+          try {
+            const response =
+              await getProfessionalOnboarding();
+
+            if (
+              !mounted ||
+              !response.profile
+            ) {
+              return;
+            }
+
+            const profile =
+              response.profile;
+
+            setAccountType(
+              "professional",
+            );
+            setName(
+              profile.displayName,
+            );
+            setSpecialty(
+              profile.primarySpecialty ||
+                "",
+            );
+            setSelectedCategories(
+              profile.categories,
+            );
+            setCity(
+              profile.city ||
+                "Curitiba",
+            );
+            setState(
+              profile.state ||
+                "PR",
+            );
+            setBio(
+              profile.bio,
+            );
+            setPhone(
+              profile.phone,
+            );
+          } catch {
+            // Uma falha de rede não apaga o que a pessoa já digitou.
+          }
+        };
+
+      void hydrate();
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [],
+  );
 
   const isEstablishment =
     accountType ===
@@ -152,6 +248,12 @@ export default function SignupProfessionalScreen() {
       }
 
       if (!city.trim()) {
+        return false;
+      }
+
+      if (
+        state.trim().length !== 2
+      ) {
         return false;
       }
 
@@ -178,6 +280,7 @@ export default function SignupProfessionalScreen() {
       name,
       email,
       city,
+      state,
       specialty,
       selectedCategories,
       isEstablishment,
@@ -237,59 +340,85 @@ export default function SignupProfessionalScreen() {
             .Medium,
         ).catch(() => {});
 
-        const profileId =
-          isEstablishment
-            ? "est_mock_current"
-            : "pro_mock_current";
+        if (isEstablishment) {
+          const firstCategory =
+            selectedCategories[0];
 
-        /*
-         * Ainda é mock local.
-         *
-         * Quando conectarmos o backend,
-         * esse bloco será substituído por:
-         *
-         * POST /api/professional-signup
-         *
-         * ou por endpoints separados
-         * para professional/establishment.
-         */
-        store.setUser({
-          profileId,
-          role:
-            accountType,
-          name:
-            name.trim(),
-          businessName:
-            isEstablishment
-              ? businessName.trim()
-              : undefined,
-          email:
-            email.trim(),
-          city:
-            city.trim(),
-          neighborhood:
-            neighborhood.trim() ||
-            undefined,
-          specialty:
-            specialty.trim(),
-          avatar:
-            undefined,
-        });
+          const categoryMap:
+            Record<string, string> = {
+              cabelo: "salao",
+              unhas: "unhas",
+              barbearia: "barbearia",
+              estetica: "estetica",
+              maquiagem: "salao",
+              sobrancelhas: "salao",
+              tatuagem: "tatuagem",
+              massagem: "bem-estar",
+            };
 
-        toast.show({
-          title:
-            isEstablishment
-              ? "Estabelecimento criado"
-              : "Perfil profissional criado",
-          body:
-            "Seu perfil já está pronto para começar a ganhar vida no IDDUN.",
-          icon:
-            "check",
-        });
+          await saveEstablishmentDraft({
+            name:
+              businessName.trim(),
+            category:
+              categoryMap[
+                firstCategory
+              ] || "multisservicos",
+            city: city.trim(),
+            state:
+              state.trim().toUpperCase(),
+            description:
+              bio.trim(),
+            phone:
+              phone.trim(),
+            neighborhood:
+              neighborhood.trim(),
+          });
 
-        router.replace(
-          "/(tabs)/create",
-        );
+          toast.show({
+            title:
+              "Estabelecimento salvo",
+            body:
+              "Seu rascunho está salvo no IDDUN e pode ser retomado depois.",
+            icon:
+              "check",
+          });
+
+          router.replace(
+            "/(tabs)/profile",
+          );
+        } else {
+          await saveProfessionalDraft({
+            displayName:
+              name.trim(),
+            primarySpecialty:
+              specialty.trim(),
+            categories:
+              selectedCategories,
+            city:
+              city.trim(),
+            state:
+              state.trim().toUpperCase(),
+            bio:
+              bio.trim(),
+            phone:
+              phone.trim(),
+          });
+
+          await getCurrentUser();
+
+          toast.show({
+            title:
+              "Perfil salvo",
+            body:
+              "Seu rascunho profissional agora é real e fica salvo na sua conta.",
+            icon:
+              "check",
+          });
+
+          router.replace(
+            "/professional-onboarding",
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -624,9 +753,11 @@ export default function SignupProfessionalScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
-              style={
-                styles.input
-              }
+              editable={false}
+              style={[
+                styles.input,
+                styles.inputDisabled,
+              ]}
             />
           </View>
 
@@ -704,25 +835,61 @@ export default function SignupProfessionalScreen() {
                   styles.fieldLabel
                 }
               >
-                Bairro
+                UF *
               </Text>
 
               <TextInput
-                value={
-                  neighborhood
+                value={state}
+                onChangeText={(value) =>
+                  setState(
+                    value
+                      .replace(
+                        /[^a-zA-Z]/g,
+                        "",
+                      )
+                      .slice(0, 2)
+                      .toUpperCase(),
+                  )
                 }
-                onChangeText={
-                  setNeighborhood
-                }
-                placeholder="Bairro"
+                placeholder="PR"
                 placeholderTextColor={
                   colors.muted
                 }
+                autoCapitalize="characters"
+                maxLength={2}
                 style={
                   styles.input
                 }
               />
             </View>
+          </View>
+
+          <View
+            style={
+              styles.field
+            }
+          >
+            <Text
+              style={
+                styles.fieldLabel
+              }
+            >
+              Bairro
+            </Text>
+
+            <TextInput
+              value={neighborhood}
+              onChangeText={
+                setNeighborhood
+              }
+              placeholder="Bairro"
+              placeholderTextColor={
+                colors.muted
+              }
+              style={
+                styles.input
+              }
+            />
           </View>
 
           <View
