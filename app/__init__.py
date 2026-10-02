@@ -112,6 +112,44 @@ def create_app(test_config=None):
             or "memory://"
         ),
         RATELIMIT_HEADERS_ENABLED=True,
+        EMAIL_BACKEND=(
+            os.getenv("EMAIL_BACKEND")
+            or (
+                "console"
+                if app_env == "development"
+                else "disabled"
+            )
+        ),
+        EMAIL_FROM=os.getenv(
+            "EMAIL_FROM"
+        ),
+        SMTP_HOST=os.getenv(
+            "SMTP_HOST"
+        ),
+        SMTP_PORT=int(
+            os.getenv(
+                "SMTP_PORT",
+                "587",
+            )
+        ),
+        SMTP_USERNAME=os.getenv(
+            "SMTP_USERNAME"
+        ),
+        SMTP_PASSWORD=os.getenv(
+            "SMTP_PASSWORD"
+        ),
+        SMTP_USE_TLS=(
+            os.getenv(
+                "SMTP_USE_TLS",
+                "true",
+            ).strip().lower()
+            in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        ),
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "pool_recycle": 300,
