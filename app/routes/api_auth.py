@@ -1,12 +1,13 @@
 """Autenticação JSON do aplicativo, separada da sessão web."""
 
 from email_validator import EmailNotValidError, validate_email
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import csrf, db, limiter
 from app.models.profile import ClientProfile
+from app.models.account_token import AccountTokenPurpose
 from app.models.user import User, UserRole
 from app.services.api_auth import (
     get_user_by_access_token,
@@ -17,6 +18,14 @@ from app.services.api_auth import (
 from app.services.api_contract import (
     api_error,
     api_json,
+)
+from app.services.account_notifications import (
+    send_email_verification,
+    send_password_reset_email,
+)
+from app.services.account_security import (
+    reset_password_token,
+    verify_email_token,
 )
 
 
@@ -104,6 +113,9 @@ def _user_payload(user):
         "email": user.email,
         "role": "professional" if professional is not None else "client",
         "accountRole": user.role,
+        "emailVerified": (
+            user.is_email_verified
+        ),
     }
 
     if professional is not None:
@@ -127,6 +139,42 @@ def _tokens_payload(tokens):
         "accessExpiresAt": tokens.access_expires_at.isoformat(),
         "refreshExpiresAt": tokens.refresh_expires_at.isoformat(),
     }
+
+
+def _try_send_verification(
+    user,
+):
+    try:
+        return send_email_verification(
+            user
+        )
+    except Exception:
+        current_app.logger.exception(
+            (
+                "Falha inesperada ao preparar "
+                "verificação de e-mail user_id=%s"
+            ),
+            user.id,
+        )
+        return False
+
+
+def _try_send_password_reset(
+    user,
+):
+    try:
+        return send_password_reset_email(
+            user
+        )
+    except Exception:
+        current_app.logger.exception(
+            (
+                "Falha inesperada ao preparar "
+                "recuperação de senha user_id=%s"
+            ),
+            user.id,
+        )
+        return False
 
 
 @api_auth_bp.post("/login")
@@ -257,6 +305,10 @@ def register():
             409,
         )
 
+    _try_send_verification(
+        user
+    )
+
     return _auth_json(
         {
             "user": _user_payload(user),
@@ -300,6 +352,197 @@ def me():
         )
 
     return _auth_json(_user_payload(user))
+
+
+@api_auth_bp.post("/password/forgot")
+@csrf.exempt
+@limiter.limit("5 per minute")
+def forgot_password():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    email = _normalized_email(
+        payload.get("email")
+    )
+
+    if email is not None:
+        user = db.session.scalar(
+            select(User).where(
+                User.email == email,
+                User.is_active_account.is_(
+                    True
+                ),
+            )
+        )
+
+        if user is not None:
+            _try_send_password_reset(
+                user
+            )
+
+    return _auth_json(
+        {
+            "message": (
+                "Se existir uma conta IDDUN "
+                "com este e-mail, enviaremos "
+                "as instruções de recuperação."
+            )
+        },
+        202,
+    )
+
+
+@api_auth_bp.post("/password/reset")
+@csrf.exempt
+@limiter.limit("10 per minute")
+def reset_password():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    token = payload.get("token")
+    password = payload.get(
+        "password"
+    )
+
+    if (
+        not isinstance(
+            token,
+            str,
+        )
+        or not isinstance(
+            password,
+            str,
+        )
+        or not 8
+        <= len(password)
+        <= 128
+    ):
+        return api_error(
+            "invalid_reset_request",
+            (
+                "Token ou nova senha inválidos."
+            ),
+            400,
+        )
+
+    user = reset_password_token(
+        token,
+        password,
+    )
+
+    if user is None:
+        return api_error(
+            "invalid_or_expired_token",
+            (
+                "Este link de recuperação "
+                "expirou ou já foi utilizado."
+            ),
+            400,
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "Senha redefinida com sucesso."
+            )
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/email/verification/resend"
+)
+@csrf.exempt
+@limiter.limit("3 per hour")
+def resend_verification():
+    token = _bearer_token()
+    user = get_user_by_access_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "authentication_required",
+            (
+                "Entre na sua conta "
+                "para continuar."
+            ),
+            401,
+        )
+
+    if not user.is_email_verified:
+        _try_send_verification(
+            user
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "Se necessário, um novo link "
+                "de confirmação foi enviado."
+            ),
+            "emailVerified": (
+                user.is_email_verified
+            ),
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/email/verification/confirm"
+)
+@csrf.exempt
+@limiter.limit("10 per minute")
+def confirm_email_verification():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    token = payload.get(
+        "token"
+    )
+
+    if not isinstance(
+        token,
+        str,
+    ):
+        return api_error(
+            "invalid_verification_token",
+            (
+                "Token de verificação inválido."
+            ),
+            400,
+        )
+
+    user = verify_email_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "invalid_or_expired_token",
+            (
+                "Este link de verificação "
+                "expirou ou já foi utilizado."
+            ),
+            400,
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "E-mail confirmado com sucesso."
+            ),
+            "user": _user_payload(
+                user
+            ),
+        }
+    )
 
 
 @api_auth_bp.post("/logout")
