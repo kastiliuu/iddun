@@ -28,6 +28,17 @@ from app.services.api_auth import (
 )
 
 
+def _utc(value):
+    if value.tzinfo is None:
+        return value.replace(
+            tzinfo=timezone.utc
+        )
+
+    return value.astimezone(
+        timezone.utc
+    )
+
+
 START = datetime(
     2026,
     10,
@@ -88,7 +99,9 @@ def test_account_token_is_stored_only_as_hash(
             ).hexdigest()
         )
         assert (
-            stored.expires_at
+            _utc(
+                stored.expires_at
+            )
             == START
             + PASSWORD_RESET_TTL
         )
@@ -175,7 +188,9 @@ def test_email_verification_is_single_use(
             == user_id
         )
         assert (
-            verified.email_verified_at
+            _utc(
+                verified.email_verified_at
+            )
             == START
             + timedelta(minutes=5)
         )
@@ -269,7 +284,9 @@ def test_password_reset_changes_password_and_revokes_api_sessions(
         )
 
         assert (
-            api_session.revoked_at
+            _utc(
+                api_session.revoked_at
+            )
             == START
             + timedelta(minutes=10)
         )
