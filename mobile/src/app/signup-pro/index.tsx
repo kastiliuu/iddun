@@ -374,6 +374,8 @@ export default function SignupProfessionalScreen() {
               neighborhood.trim(),
           });
 
+          await getCurrentUser();
+
           toast.show({
             title:
               "Estabelecimento salvo",
