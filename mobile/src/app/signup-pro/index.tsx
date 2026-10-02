@@ -1499,6 +1499,10 @@ const useStyles = makeStyles(
         colors.glassBorder,
     },
 
+    inputDisabled: {
+      opacity: 0.72,
+    },
+
     textArea: {
       minHeight: 116,
 
