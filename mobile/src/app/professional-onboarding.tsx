@@ -1055,7 +1055,7 @@ const useStyles =
         padding:
           spacing.lg,
         borderRadius:
-          radius.xl,
+          radius.lg,
         backgroundColor:
           colors.surfaceSecondary,
         borderWidth: 1,
@@ -1341,7 +1341,7 @@ const useStyles =
         padding:
           spacing.lg,
         borderRadius:
-          radius.xl,
+          radius.lg,
         backgroundColor:
           colors.surfaceSecondary,
         borderWidth: 1,
