@@ -272,6 +272,10 @@ export default function HomeScreen() {
         caption={
           post.caption
         }
+        rating={
+          author.rating ??
+          undefined
+        }
         commentsCount={
           post.commentsCount
         }
