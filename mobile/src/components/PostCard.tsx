@@ -31,6 +31,7 @@ type PostCardProps = {
 
   author: {
     id: string;
+    routeId?: string;
     name: string;
     avatar?: string | null;
     kind: PostAuthorKind;
@@ -89,8 +90,8 @@ export function PostCard({
   const openAuthor = () => {
     router.push(
       author.kind === "establishment"
-        ? `/establishment/${author.id}`
-        : `/professional/${author.id}`,
+        ? `/establishment/${author.routeId ?? author.id}`
+        : `/professional/${author.routeId ?? author.id}`,
     );
   };
 
