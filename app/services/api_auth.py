@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
 
 from app.extensions import db
 from app.models.api_session import ApiSession
@@ -177,3 +177,49 @@ def revoke_session(access_token, *, now=None):
     db.session.commit()
 
     return True
+
+
+def expired_session_count(*, now=None):
+    """Conta sessões cujo refresh token já expirou."""
+    current_time = _now(now)
+
+    return (
+        db.session.scalar(
+            select(
+                func.count(
+                    ApiSession.id
+                )
+            ).where(
+                ApiSession.refresh_expires_at
+                <= current_time
+            )
+        )
+        or 0
+    )
+
+
+def cleanup_expired_sessions(
+    *,
+    now=None,
+    commit=True,
+):
+    """Remove somente sessões que não podem mais ser renovadas."""
+    current_time = _now(now)
+
+    result = db.session.execute(
+        delete(ApiSession).where(
+            ApiSession.refresh_expires_at
+            <= current_time
+        )
+    )
+
+    removed = (
+        result.rowcount
+        if result.rowcount is not None
+        else 0
+    )
+
+    if commit:
+        db.session.commit()
+
+    return removed
