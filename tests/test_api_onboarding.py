@@ -359,6 +359,21 @@ def test_publish_requires_existing_profile_completion_rules(
 
         db.session.commit()
 
+    experience = ProfessionalExperience(
+        professional_id=profile.id,
+        company_name="Studio História",
+        role_title="Nail Designer",
+        description="Experiência pública do perfil.",
+        started_at=date(2024, 1, 1),
+        ended_at=None,
+        is_current=True,
+        verification_status=(
+            ProfessionalExperienceVerification.UNVERIFIED
+        ),
+    )
+    db.session.add(experience)
+    db.session.commit()
+
     published = client.post(
         f"{BASE}/professional/publish",
         headers=headers,
@@ -389,6 +404,18 @@ def test_publish_requires_existing_profile_completion_rules(
             profile.onboarding_completed
             is True
         )
+
+
+    public_profile = client.get(
+        f"/profissionais/{payload['slug']}"
+    )
+
+    assert public_profile.status_code == 200
+    html = public_profile.get_data(
+        as_text=True
+    )
+    assert "Experiência profissional" in html
+    assert "Studio História" in html
 
 
 def test_establishment_draft_updates_mobile_auth_context(
