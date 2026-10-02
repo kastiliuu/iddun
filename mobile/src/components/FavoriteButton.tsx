@@ -1,6 +1,13 @@
-import React from "react";
-import { Pressable } from "react-native";
+import React, {
+  useState,
+} from "react";
+
+import {
+  Pressable,
+} from "react-native";
+
 import * as Haptics from "expo-haptics";
+
 import {
   useAnimatedStyle,
   useSharedValue,
@@ -8,86 +15,303 @@ import {
   withSpring,
 } from "react-native-reanimated";
 
-import { AnimatedIcon } from "@/components/Icon";
+import {
+  saveGraphTarget,
+  type SaveTargetType,
+  unsaveGraphTarget,
+} from "@/api/graph";
+
+import {
+  AnimatedIcon,
+} from "@/components/Icon";
+
+import {
+  useToast,
+} from "@/components/Toast";
+
+import {
+  store,
+  useStoreVersion,
+} from "@/store/local";
+
 import {
   makeStyles,
   touch,
   useTheme,
 } from "@/theme";
-import {
-  store,
-  useStoreVersion,
-} from "@/store/local";
+
 
 export type FavoriteKind =
   | "posts"
   | "professionals"
   | "services";
 
+
 type FavoriteButtonProps = {
   kind: FavoriteKind;
   id: string;
+  targetType?: SaveTargetType;
   size?: number;
   testID?: string;
   accessibilityLabel?: string;
 };
 
+
+function numericTargetId(
+  id: string,
+) {
+  if (
+    !/^\d+$/.test(id)
+  ) {
+    return null;
+  }
+
+  const value =
+    Number(id);
+
+  return (
+    Number.isInteger(
+      value,
+    ) &&
+    value > 0
+  )
+    ? value
+    : null;
+}
+
+
+function saveTargetType(
+  kind: FavoriteKind,
+  explicit?:
+    SaveTargetType,
+) {
+  if (explicit) {
+    return explicit;
+  }
+
+  if (
+    kind ===
+    "services"
+  ) {
+    return "experience";
+  }
+
+  if (
+    kind ===
+    "professionals"
+  ) {
+    return "professional";
+  }
+
+  return null;
+}
+
+
 export function FavoriteButton({
   kind,
   id,
+  targetType,
   size = 22,
   testID,
   accessibilityLabel,
 }: FavoriteButtonProps) {
   useStoreVersion();
 
-  const styles = useStyles();
-  const { colors } = useTheme();
+  const styles =
+    useStyles();
 
-  const active = store.isFavorite(kind, id);
+  const { colors } =
+    useTheme();
 
-  const scale = useSharedValue(1);
+  const toast =
+    useToast();
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.get() }],
-  }));
+  const [
+    busy,
+    setBusy,
+  ] =
+    useState(false);
 
-  const handlePress = () => {
-    Haptics.impactAsync(
-      Haptics.ImpactFeedbackStyle.Medium,
-    ).catch(() => {});
+  const targetId =
+    numericTargetId(id);
 
-    scale.set(withSequence(
-      withSpring(1.28, {
-        damping: 7,
-        stiffness: 260,
+  const graphTargetType =
+    saveTargetType(
+      kind,
+      targetType,
+    );
+
+  const serverBacked =
+    targetId !== null &&
+    graphTargetType !== null;
+
+  const active =
+    serverBacked
+      ? store.isGraphSaved(
+          graphTargetType,
+          targetId,
+        )
+      : store.isFavorite(
+          kind,
+          id,
+        );
+
+  const scale =
+    useSharedValue(1);
+
+  const animatedStyle =
+    useAnimatedStyle(
+      () => ({
+        transform: [
+          {
+            scale:
+              scale.get(),
+          },
+        ],
       }),
-      withSpring(1, {
-        damping: 8,
-        stiffness: 220,
-      }),
-    ));
+    );
 
-    store.toggleFavorite(kind, id);
-  };
+  const handlePress =
+    async () => {
+      if (busy) {
+        return;
+      }
+
+      Haptics.impactAsync(
+        Haptics
+          .ImpactFeedbackStyle
+          .Medium,
+      ).catch(
+        () => {},
+      );
+
+      scale.set(
+        withSequence(
+          withSpring(
+            1.28,
+            {
+              damping: 7,
+              stiffness: 260,
+            },
+          ),
+          withSpring(
+            1,
+            {
+              damping: 8,
+              stiffness: 220,
+            },
+          ),
+        ),
+      );
+
+      if (!serverBacked) {
+        store.toggleFavorite(
+          kind,
+          id,
+        );
+        return;
+      }
+
+      const willSave =
+        !active;
+
+      store.setGraphSaved(
+        graphTargetType,
+        targetId,
+        willSave,
+      );
+
+      const user =
+        store.getUser();
+
+      if (!user) {
+        if (willSave) {
+          toast.show({
+            title:
+              "Salvo neste aparelho",
+            body:
+              "Entre depois para levar essa escolha para sua conta.",
+            icon:
+              "bookmark",
+          });
+        }
+
+        return;
+      }
+
+      setBusy(true);
+
+      try {
+        if (willSave) {
+          await saveGraphTarget(
+            graphTargetType,
+            targetId,
+          );
+        } else {
+          await unsaveGraphTarget(
+            graphTargetType,
+            targetId,
+          );
+        }
+      } catch (error) {
+        store.setGraphSaved(
+          graphTargetType,
+          targetId,
+          !willSave,
+        );
+
+        toast.show({
+          title:
+            "Não foi possível atualizar seus salvos",
+          body:
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setBusy(false);
+      }
+    };
 
   const label =
     accessibilityLabel ??
-    (active
-      ? "Remover dos favoritos"
-      : "Adicionar aos favoritos");
+    (
+      active
+        ? "Remover dos salvos"
+        : "Salvar"
+    );
 
   return (
     <Pressable
-      testID={testID ?? `favorite-${kind}-${id}`}
+      testID={
+        testID ??
+        `favorite-${kind}-${id}`
+      }
       accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ selected: active }}
+      accessibilityLabel={
+        label
+      }
+      accessibilityState={{
+        selected:
+          active,
+        disabled:
+          busy,
+      }}
+      disabled={busy}
       hitSlop={6}
-      onPress={handlePress}
-      style={({ pressed }) => [
+      onPress={() =>
+        void handlePress()
+      }
+      style={({
+        pressed,
+      }) => [
         styles.button,
-        pressed && styles.pressed,
+        pressed &&
+          styles.pressed,
+        busy &&
+          styles.disabled,
       ]}
     >
       <AnimatedIcon
@@ -96,23 +320,38 @@ export function FavoriteButton({
         color={
           active
             ? colors.plum
-            : colors.onSurface
+            : colors
+                .onSurface
         }
-        style={animatedStyle}
+        style={
+          animatedStyle
+        }
       />
     </Pressable>
   );
 }
 
-const useStyles = makeStyles(() => ({
-  button: {
-    width: touch.minimum,
-    height: touch.minimum,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  pressed: {
-    opacity: 0.78,
-  },
-}));
+const useStyles =
+  makeStyles(
+    () => ({
+      button: {
+        width:
+          touch.minimum,
+        height:
+          touch.minimum,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      pressed: {
+        opacity: 0.78,
+      },
+
+      disabled: {
+        opacity: 0.55,
+      },
+    }),
+  );
