@@ -599,7 +599,7 @@ export default function ProfileScreen() {
               title="Privacidade"
               subtitle="Controle seus dados e preferências"
               onPress={() =>
-                showComingSoon("Privacidade")
+                router.push("/privacy")
               }
             />
 
