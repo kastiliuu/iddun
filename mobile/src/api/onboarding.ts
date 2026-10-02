@@ -74,6 +74,10 @@ export type ProfessionalOnboardingProfile = {
   state: string;
   avatarUrl?: string | null;
   coverUrl?: string | null;
+  avatarFocusX: number;
+  avatarFocusY: number;
+  coverFocusX: number;
+  coverFocusY: number;
   portfolioCount: number;
   portfolio: ProfessionalPortfolioItem[];
   isActive: boolean;
