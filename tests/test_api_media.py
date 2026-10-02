@@ -6,7 +6,10 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models.profile import ClientProfile
-from app.models.professional import ProfessionalProfile
+from app.models.professional import (
+    ProfessionalPortfolioItem,
+    ProfessionalProfile,
+)
 from app.models.user import User, UserRole
 from app.services.api_auth import issue_session
 from app.services.mobile_onboarding_service import (
