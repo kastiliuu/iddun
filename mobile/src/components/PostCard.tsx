@@ -154,6 +154,7 @@ export function PostCard({
           {showFollow ? (
             <FollowButton
               id={author.id}
+              targetType={author.kind}
               authorName={author.name}
             />
           ) : null}
