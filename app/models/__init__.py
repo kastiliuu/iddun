@@ -22,6 +22,10 @@ from app.models.plan import (
     PlanSubscription,
 )
 from app.models.profile import ClientProfile
+from app.models.professional_experience import (
+    ProfessionalExperience,
+    ProfessionalExperienceVerification,
+)
 from app.models.professional import (
     ProfilePlan,
     ProfileTheme,
@@ -46,6 +50,8 @@ __all__ = [
     "UserRole",
     "ClientProfile",
     "ProfessionalProfile",
+    "ProfessionalExperience",
+    "ProfessionalExperienceVerification",
     "ProfessionalPortfolioItem",
     "ProfilePlan",
     "ProfileTheme",
