@@ -50,6 +50,7 @@ export type FavoriteKind =
 type FavoriteButtonProps = {
   kind: FavoriteKind;
   id: string;
+  targetId?: number;
   targetType?: SaveTargetType;
   size?: number;
   testID?: string;
@@ -117,6 +118,7 @@ function saveTargetType(
 export function FavoriteButton({
   kind,
   id,
+  targetId: explicitTargetId,
   targetType,
   size = 22,
   testID,
@@ -140,6 +142,7 @@ export function FavoriteButton({
     useState(false);
 
   const targetId =
+    explicitTargetId ??
     numericTargetId(id);
 
   const graphTargetType =
