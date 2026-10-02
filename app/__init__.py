@@ -23,6 +23,7 @@ from app.routes.api_bookings import api_bookings_bp
 from app.routes.api_onboarding import api_onboarding_bp
 from app.routes.api_media import api_media_bp
 from app.routes.api_graph import api_graph_bp
+from app.routes.api_posts import api_posts_bp
 from app.routes.admin import admin_bp
 from app.routes.auth import auth_bp
 from app.routes.bookings import bookings_bp
@@ -470,6 +471,7 @@ def create_app(test_config=None):
     app.register_blueprint(api_onboarding_bp)
     app.register_blueprint(api_media_bp)
     app.register_blueprint(api_graph_bp)
+    app.register_blueprint(api_posts_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(account_bp)
     app.register_blueprint(bookings_bp)
