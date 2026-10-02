@@ -18,6 +18,7 @@ from app.routes.bookings import bookings_bp
 from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
+from app.services.media_storage import resolve_media_url
 
 
 def create_app(test_config=None):
@@ -94,6 +95,10 @@ def create_app(test_config=None):
                 "uploads",
             )
         ),
+        MEDIA_STORAGE_BACKEND=(
+            os.getenv("MEDIA_STORAGE_BACKEND")
+            or "local"
+        ),
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -116,12 +121,7 @@ def create_app(test_config=None):
                 filename="img/category-hair.jpg",
             )
 
-        if value.startswith(
-            ("http://", "https://", "data:", "/")
-        ):
-            return value
-
-        return url_for("static", filename=value)
+        return resolve_media_url(value)
 
     @app.get("/csrf-token")
     def refresh_csrf_token():
