@@ -46,6 +46,11 @@ class User(UserMixin, db.Model):
         default=True
     )
 
+    email_verified_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -74,6 +79,13 @@ class User(UserMixin, db.Model):
 
     establishment_accesses = db.relationship(
         "EstablishmentUserAccess",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    account_tokens = db.relationship(
+        "AccountToken",
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin",
