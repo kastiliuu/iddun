@@ -389,3 +389,49 @@ def test_publish_requires_existing_profile_completion_rules(
             profile.onboarding_completed
             is True
         )
+
+
+def test_establishment_draft_updates_mobile_auth_context(
+    app,
+    client,
+):
+    _, headers = (
+        _authenticated_client(
+            app,
+            email="business-mobile@example.com",
+        )
+    )
+
+    created = client.post(
+        f"{BASE}/establishment",
+        headers=headers,
+        json={
+            "name": "Studio Mobile",
+            "category": "unhas",
+            "city": "Curitiba",
+            "state": "PR",
+            "description": "Studio especializado em unhas.",
+            "phone": "41999999999",
+            "neighborhood": "Batel",
+        },
+    )
+
+    assert created.status_code == 201
+
+    current = client.get(
+        "/api/v1/auth/me",
+        headers=headers,
+    )
+
+    assert current.status_code == 200
+    payload = current.get_json()
+
+    assert payload["role"] == "establishment"
+    assert payload["businessName"] == "Studio Mobile"
+    assert payload["city"] == "Curitiba"
+    assert payload["neighborhood"] == "Batel"
+    assert payload["profileId"] == (
+        created.get_json()[
+            "establishment"
+        ]["id"]
+    )
