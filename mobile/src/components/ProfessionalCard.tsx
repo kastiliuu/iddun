@@ -19,6 +19,7 @@ import {
 
 type ProfessionalCardProps = {
   id: string;
+  routeId?: string;
   name: string;
   avatar?: string | null;
   specialty?: string;
@@ -32,6 +33,7 @@ type ProfessionalCardProps = {
 
 export function ProfessionalCard({
   id,
+  routeId,
   name,
   avatar,
   specialty,
@@ -48,8 +50,8 @@ export function ProfessionalCard({
   const handlePress = () => {
     router.push(
       routeType === "establishment"
-        ? `/establishment/${id}`
-        : `/professional/${id}`,
+        ? `/establishment/${routeId ?? id}`
+        : `/professional/${routeId ?? id}`,
     );
   };
 
