@@ -1,3 +1,4 @@
+from app.models.beauty_graph import Follow, FollowTarget, Save, SaveTarget
 from app.models.account_token import AccountToken, AccountTokenPurpose
 from app.models.api_session import ApiSession
 from app.models.certification import ProfessionalCertification
@@ -40,6 +41,10 @@ __all__ = [
     "AccountToken",
     "AccountTokenPurpose",
     "ApiSession",
+    "Follow",
+    "FollowTarget",
+    "Save",
+    "SaveTarget",
     "ProfessionalCertification",
     "Review",
     "ReviewTarget",
