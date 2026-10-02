@@ -4,8 +4,13 @@ from sqlalchemy import func, select
 
 from app import create_app
 from app.extensions import db
+from app.models.account_token import (
+    AccountToken,
+    AccountTokenPurpose,
+)
 from app.models.api_session import ApiSession
 from app.models.user import User, UserRole
+from app.services.account_security import issue_account_token
 
 
 BASE = "/api/auth"
@@ -42,6 +47,7 @@ def test_register_creates_client_and_returns_mobile_contract(app, client):
     assert data["user"]["name"] == "Cliente Mobile"
     assert data["user"]["email"] == "mobile@example.com"
     assert data["user"]["role"] == "client"
+    assert data["user"]["emailVerified"] is False
     assert data["user"]["profileId"]
 
     user = db.session.scalar(
@@ -323,4 +329,171 @@ def test_versioned_auth_alias_matches_legacy_contract(
     assert (
         current.get_json()["email"]
         == "versioned@example.com"
+    )
+
+
+
+def test_password_recovery_api_does_not_enumerate_accounts(
+    app,
+    client,
+):
+    client.post(
+        "/api/v1/auth/register",
+        json=_registration(),
+    )
+
+    known = client.post(
+        "/api/v1/auth/password/forgot",
+        json={
+            "email": "mobile@example.com",
+        },
+    )
+
+    unknown = client.post(
+        "/api/v1/auth/password/forgot",
+        json={
+            "email": "nobody@example.com",
+        },
+    )
+
+    assert known.status_code == 202
+    assert unknown.status_code == 202
+    assert (
+        known.get_json()
+        == unknown.get_json()
+    )
+
+    with app.app_context():
+        reset_tokens = db.session.scalars(
+            select(AccountToken).where(
+                AccountToken.purpose
+                == AccountTokenPurpose.PASSWORD_RESET
+            )
+        ).all()
+
+        assert len(reset_tokens) == 1
+
+
+def test_password_reset_api_revokes_existing_session(
+    app,
+    client,
+):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json=_registration(),
+    ).get_json()
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email
+                == "mobile@example.com"
+            )
+        )
+
+        issued = issue_account_token(
+            user,
+            AccountTokenPurpose.PASSWORD_RESET,
+        )
+
+    response = client.post(
+        "/api/v1/auth/password/reset",
+        json={
+            "token": issued.token,
+            "password": "nova-senha-456",
+        },
+    )
+
+    assert response.status_code == 200
+
+    assert client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            registered["accessToken"]
+        ),
+    ).status_code == 401
+
+    logged_in = client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "mobile@example.com",
+            "password": "nova-senha-456",
+        },
+    )
+
+    assert logged_in.status_code == 200
+    assert (
+        logged_in.get_json()[
+            "user"
+        ]["emailVerified"]
+        is True
+    )
+
+
+def test_email_verification_api_updates_user_contract(
+    app,
+    client,
+):
+    registered = client.post(
+        "/api/v1/auth/register",
+        json=_registration(),
+    ).get_json()
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email
+                == "mobile@example.com"
+            )
+        )
+
+        issued = issue_account_token(
+            user,
+            AccountTokenPurpose.EMAIL_VERIFICATION,
+        )
+
+    verified = client.post(
+        "/api/v1/auth/email/verification/confirm",
+        json={
+            "token": issued.token,
+        },
+    )
+
+    assert verified.status_code == 200
+    assert (
+        verified.get_json()[
+            "user"
+        ]["emailVerified"]
+        is True
+    )
+
+    current = client.get(
+        "/api/v1/auth/me",
+        headers=_bearer(
+            registered["accessToken"]
+        ),
+    )
+
+    assert current.status_code == 200
+    assert (
+        current.get_json()[
+            "emailVerified"
+        ]
+        is True
+    )
+
+
+def test_email_verification_resend_requires_bearer(
+    client,
+):
+    response = client.post(
+        "/api/v1/auth/email/verification/resend"
+    )
+
+    assert response.status_code == 401
+    assert (
+        response.get_json()[
+            "error"
+        ]["code"]
+        == "authentication_required"
     )
