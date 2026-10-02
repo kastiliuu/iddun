@@ -4,6 +4,7 @@ const DEFAULT_API_URL =
   "https://iddun-web.onrender.com";
 
 const REQUEST_TIMEOUT_MS = 20_000;
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 export const API_URL =
   (
@@ -220,6 +221,11 @@ export async function apiRequest<T>(
       `Bearer ${token}`;
   }
 
+  const timeoutMs =
+    isFormData
+      ? UPLOAD_TIMEOUT_MS
+      : REQUEST_TIMEOUT_MS;
+
   const controller = new AbortController();
   let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -299,7 +305,7 @@ export async function apiRequest<T>(
             0,
           ),
         );
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
     },
   );
 
