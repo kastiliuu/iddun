@@ -126,8 +126,137 @@ def upgrade():
         unique=False,
     )
 
+    op.add_column(
+        "saves",
+        sa.Column(
+            "work_post_id",
+            sa.Integer(),
+            nullable=True,
+        ),
+    )
+    op.create_foreign_key(
+        "fk_saves_work_post_id_work_posts",
+        "saves",
+        "work_posts",
+        ["work_post_id"],
+        ["id"],
+        ondelete="CASCADE",
+    )
+    op.create_index(
+        "ix_saves_work_post_id",
+        "saves",
+        ["work_post_id"],
+        unique=False,
+    )
+    op.create_unique_constraint(
+        "uq_save_user_work_post",
+        "saves",
+        ["user_id", "work_post_id"],
+    )
+    op.drop_constraint(
+        "ck_save_target_shape",
+        "saves",
+        type_="check",
+    )
+    op.create_check_constraint(
+        "ck_save_target_shape",
+        "saves",
+        (
+            "("
+            "target_type = 'professional' "
+            "AND professional_id IS NOT NULL "
+            "AND establishment_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND portfolio_item_id IS NULL "
+            "AND work_post_id IS NULL"
+            ") OR ("
+            "target_type = 'establishment' "
+            "AND establishment_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND portfolio_item_id IS NULL "
+            "AND work_post_id IS NULL"
+            ") OR ("
+            "target_type = 'experience' "
+            "AND experience_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND establishment_id IS NULL "
+            "AND portfolio_item_id IS NULL "
+            "AND work_post_id IS NULL"
+            ") OR ("
+            "target_type = 'portfolio_item' "
+            "AND portfolio_item_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND establishment_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND work_post_id IS NULL"
+            ") OR ("
+            "target_type = 'work_post' "
+            "AND work_post_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND establishment_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND portfolio_item_id IS NULL"
+            ")"
+        ),
+    )
+
 
 def downgrade():
+    op.drop_constraint(
+        "ck_save_target_shape",
+        "saves",
+        type_="check",
+    )
+    op.create_check_constraint(
+        "ck_save_target_shape",
+        "saves",
+        (
+            "("
+            "target_type = 'professional' "
+            "AND professional_id IS NOT NULL "
+            "AND establishment_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND portfolio_item_id IS NULL"
+            ") OR ("
+            "target_type = 'establishment' "
+            "AND establishment_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND experience_id IS NULL "
+            "AND portfolio_item_id IS NULL"
+            ") OR ("
+            "target_type = 'experience' "
+            "AND experience_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND establishment_id IS NULL "
+            "AND portfolio_item_id IS NULL"
+            ") OR ("
+            "target_type = 'portfolio_item' "
+            "AND portfolio_item_id IS NOT NULL "
+            "AND professional_id IS NULL "
+            "AND establishment_id IS NULL "
+            "AND experience_id IS NULL"
+            ")"
+        ),
+    )
+    op.drop_constraint(
+        "uq_save_user_work_post",
+        "saves",
+        type_="unique",
+    )
+    op.drop_index(
+        "ix_saves_work_post_id",
+        table_name="saves",
+    )
+    op.drop_constraint(
+        "fk_saves_work_post_id_work_posts",
+        "saves",
+        type_="foreignkey",
+    )
+    op.drop_column(
+        "saves",
+        "work_post_id",
+    )
     op.drop_index(
         "ix_work_posts_published_at",
         table_name="work_posts",
