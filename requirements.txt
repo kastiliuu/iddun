@@ -8,6 +8,7 @@ SQLAlchemy==2.0.53
 psycopg2-binary==2.9.10
 python-dotenv==1.1.1
 email-validator==2.2.0
+Pillow==12.3.0
 pytest==8.4.2
 tzdata
 cryptography==50.0.1
