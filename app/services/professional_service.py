@@ -7,7 +7,7 @@ from app.data.mock_professionals import PROFESSIONAL_CATALOG
 from app.data.mock_marketplace import EXPERIENCE_CATALOG
 from app.extensions import db
 from app.models.establishment import Establishment, MembershipStatus
-from app.models.experience import Experience, ExperienceStatus
+from app.models.experience import Experience
 from app.models.professional import ProfessionalProfile
 from app.services.public_eligibility import (
     public_establishments_query,
@@ -198,10 +198,9 @@ def get_establishment_public_view(slug):
         and membership.professional.is_active
     ]
     experiences = db.session.scalars(
-        select(Experience)
+        public_experiences_query()
         .where(
             Experience.establishment_id == establishment.id,
-            Experience.status == ExperienceStatus.PUBLISHED,
         )
         .order_by(Experience.is_featured.desc(), Experience.created_at.desc())
     ).all()
