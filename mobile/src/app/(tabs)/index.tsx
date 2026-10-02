@@ -93,10 +93,10 @@ export default function HomeScreen() {
           profile,
         };
       })
-      .filter(Boolean) as Array<{
+      .filter(Boolean) as {
       story: (typeof stories)[number];
       profile: (typeof professionals)[number];
-    }>;
+    }[];
   }, []);
 
   const feedPosts = useMemo(() => {
