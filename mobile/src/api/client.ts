@@ -29,9 +29,19 @@ type RequestOptions = {
   >;
 };
 
+type ApiErrorPayload = {
+  error?: {
+    code?: unknown;
+    message?: unknown;
+    details?: unknown;
+  };
+};
+
 export class ApiError extends Error {
   status: number;
   data?: unknown;
+  code?: string;
+  details?: unknown;
 
   constructor(
     message: string,
@@ -48,6 +58,30 @@ export class ApiError extends Error {
 
     this.data =
       data;
+
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data
+    ) {
+      const error = (
+        data as ApiErrorPayload
+      ).error;
+
+      if (
+        error &&
+        typeof error.code === "string"
+      ) {
+        this.code = error.code;
+      }
+
+      if (
+        error &&
+        "details" in error
+      ) {
+        this.details = error.details;
+      }
+    }
   }
 }
 
