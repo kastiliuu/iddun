@@ -1,5 +1,5 @@
 import React, {
-  useEffect,
+  useMemo,
   useState,
 } from "react";
 import {
@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import {
+  useFocusEffect,
   useRouter,
 } from "expo-router";
 
@@ -31,6 +32,10 @@ import {
   touch,
   useTheme,
 } from "@/theme";
+
+type BookingTab =
+  | "upcoming"
+  | "history";
 
 const STATUS_LABELS: Record<
   Booking["status"],
@@ -105,58 +110,96 @@ export default function BookingsScreen() {
       null,
     );
 
-  useEffect(() => {
-    let active = true;
+  const [tab, setTab] =
+    useState<BookingTab>(
+      "upcoming",
+    );
 
-    const load =
-      async () => {
-        try {
-          const response =
-            await getBookings({
-              limit: 50,
-            });
+  useFocusEffect(
+    React.useCallback(() => {
+      let active = true;
 
-          if (!active) {
-            return;
-          }
+      const load =
+        async () => {
+          setLoading(true);
 
-          setItems(
-            response.items,
-          );
-        } catch (error) {
-          if (!active) {
-            return;
-          }
+          try {
+            const response =
+              await getBookings({
+                limit: 50,
+              });
 
-          if (
-            error instanceof ApiError &&
-            error.status === 401
-          ) {
-            setErrorMessage(
-              "Entre na sua conta para acompanhar seus agendamentos.",
+            if (!active) {
+              return;
+            }
+
+            setItems(
+              response.items,
             );
-          } else {
             setErrorMessage(
-              error instanceof Error
-                ? error.message
-                : "Não foi possível carregar seus agendamentos.",
+              null,
             );
+          } catch (error) {
+            if (!active) {
+              return;
+            }
+
+            if (
+              error instanceof ApiError &&
+              error.status === 401
+            ) {
+              setErrorMessage(
+                "Entre na sua conta para acompanhar seus agendamentos.",
+              );
+            } else {
+              setErrorMessage(
+                error instanceof Error
+                  ? error.message
+                  : "Não foi possível carregar seus agendamentos.",
+              );
+            }
+          } finally {
+            if (active) {
+              setLoading(false);
+            }
           }
-        } finally {
-          if (active) {
-            setLoading(false);
-          }
-        }
+        };
+
+      void load();
+
+      return () => {
+        active = false;
       };
+    }, []),
+  );
 
-    void load();
+  const visibleItems =
+    useMemo(
+      () =>
+        items.filter(
+          (booking) =>
+            tab ===
+              "upcoming"
+              ? (
+                  booking.status
+                  === "pending"
+                  || booking.status
+                  === "confirmed"
+                )
+              : (
+                  booking.status
+                  !== "pending"
+                  && booking.status
+                  !== "confirmed"
+                ),
+        ),
+      [
+        items,
+        tab,
+      ],
+    );
 
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  const refresh =
+  const refresh =  const refresh =
     async () => {
       const response =
         await getBookings({
@@ -338,6 +381,72 @@ export default function BookingsScreen() {
           </Text>
         </View>
 
+        {!errorMessage &&
+        items.length > 0 ? (
+          <View
+            style={
+              styles.tabs
+            }
+          >
+            {(
+              [
+                {
+                  id:
+                    "upcoming",
+                  label:
+                    "Próximos",
+                },
+                {
+                  id:
+                    "history",
+                  label:
+                    "Histórico",
+                },
+              ] as const
+            ).map(
+              (item) => {
+                const selected =
+                  tab ===
+                  item.id;
+
+                return (
+                  <Pressable
+                    key={
+                      item.id
+                    }
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected,
+                    }}
+                    onPress={() =>
+                      setTab(
+                        item.id,
+                      )
+                    }
+                    style={[
+                      styles.tab,
+                      selected &&
+                        styles.tabActive,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        selected &&
+                          styles.tabTextActive,
+                      ]}
+                    >
+                      {
+                        item.label
+                      }
+                    </Text>
+                  </Pressable>
+                );
+              },
+            )}
+          </View>
+        ) : null}
+
         {errorMessage ? (
           <EmptyState
             title="Não foi possível abrir seus agendamentos"
@@ -366,13 +475,35 @@ export default function BookingsScreen() {
               )
             }
           />
+        ) : visibleItems.length ===
+          0 ? (
+          <EmptyState
+            title={
+              tab ===
+                "upcoming"
+                ? "Nenhum agendamento futuro"
+                : "Seu histórico está vazio"
+            }
+            description={
+              tab ===
+                "upcoming"
+                ? "Quando você reservar uma experiência, ela aparece aqui."
+                : "Atendimentos concluídos ou cancelados aparecem aqui."
+            }
+            actionLabel="Explorar experiências"
+            onActionPress={() =>
+              router.replace(
+                "/(tabs)/discover",
+              )
+            }
+          />
         ) : (
           <View
             style={
               styles.list
             }
           >
-            {items.map(
+            {visibleItems.map(
               (booking) => (
                 <View
                   key={
@@ -688,6 +819,52 @@ const useStyles =
           fonts.sans,
         fontSize: 12,
         lineHeight: 19,
+      },
+
+      tabs: {
+        marginTop:
+          spacing.xl,
+        flexDirection:
+          "row",
+        gap: spacing.sm,
+      },
+
+      tab: {
+        minHeight:
+          touch.minimum,
+        paddingHorizontal:
+          spacing.lg,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        borderRadius:
+          radius.pill,
+        backgroundColor:
+          colors.glassSoft,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      tabActive: {
+        backgroundColor:
+          colors.plum,
+        borderColor:
+          colors.plum,
+      },
+
+      tabText: {
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 11,
+      },
+
+      tabTextActive: {
+        color:
+          colors.onBrandPrimary,
       },
 
       list: {
