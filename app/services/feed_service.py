@@ -149,12 +149,45 @@ def _media_url(value):
     )
 
 
+def _review_summary(author):
+    reviews = [
+        review
+        for review
+        in author.reviews_received
+        if review.is_visible
+    ]
+
+    if not reviews:
+        return (
+            None,
+            0,
+        )
+
+    return (
+        round(
+            sum(
+                review.rating
+                for review
+                in reviews
+            )
+            / len(reviews),
+            1,
+        ),
+        len(reviews),
+    )
+
+
 def _author_payload(post):
     if (
         post.author_type
         == WorkPostAuthorType.PROFESSIONAL
     ):
         author = post.professional
+        rating, reviews_count = (
+            _review_summary(
+                author
+            )
+        )
 
         return {
             "id": str(
@@ -170,9 +203,17 @@ def _author_payload(post):
             "specialty": (
                 author.primary_specialty
             ),
+            "rating": rating,
+            "reviewsCount":
+                reviews_count,
         }
 
     author = post.establishment
+    rating, reviews_count = (
+        _review_summary(
+            author
+        )
+    )
 
     return {
         "id": str(
@@ -186,6 +227,9 @@ def _author_payload(post):
         "specialty": (
             author.category
         ),
+        "rating": rating,
+        "reviewsCount":
+            reviews_count,
     }
 
 
@@ -215,6 +259,12 @@ def _service_payload(
             experience.price
         ),
         "availabilityLabel": None,
+        "image": _media_url(
+            experience.image_url
+        ),
+        "category": (
+            experience.category
+        ),
     }
 
 
