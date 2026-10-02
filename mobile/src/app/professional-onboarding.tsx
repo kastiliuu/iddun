@@ -97,6 +97,14 @@ export default function ProfessionalOnboardingScreen() {
     useState("");
 
   const [
+    establishmentId,
+    setEstablishmentId,
+  ] =
+    useState<number | null>(
+      null,
+    );
+
+  const [
     roleTitle,
     setRoleTitle,
   ] =
@@ -166,7 +174,10 @@ export default function ProfessionalOnboardingScreen() {
   const handleAddExperience =
     async () => {
       if (
-        !companyName.trim() ||
+        (
+          !companyName.trim() &&
+          establishmentId === null
+        ) ||
         !roleTitle.trim() ||
         !startedAt.trim()
       ) {
@@ -189,6 +200,7 @@ export default function ProfessionalOnboardingScreen() {
         await addProfessionalExperience({
           companyName:
             companyName.trim(),
+          establishmentId,
           roleTitle:
             roleTitle.trim(),
           description:
@@ -204,6 +216,9 @@ export default function ProfessionalOnboardingScreen() {
         });
 
         setCompanyName("");
+        setEstablishmentId(
+          null,
+        );
         setRoleTitle("");
         setDescription("");
         setStartedAt("");
@@ -750,6 +765,110 @@ export default function ProfessionalOnboardingScreen() {
               Adicionar experiência
             </Text>
 
+            {profile.memberships.filter(
+              (membership) =>
+                membership.status ===
+                "active",
+            ).length > 0 ? (
+              <View
+                style={
+                  styles.membershipChoices
+                }
+              >
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Se esta experiência aconteceu em um vínculo confirmado no IDDUN, selecione o local para receber o selo verificado.
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected:
+                      establishmentId ===
+                      null,
+                  }}
+                  onPress={() => {
+                    setEstablishmentId(
+                      null,
+                    );
+                  }}
+                  style={[
+                    styles.membershipChip,
+                    establishmentId ===
+                      null &&
+                      styles.membershipChipSelected,
+                  ]}
+                >
+                  <Text
+                    style={
+                      styles.membershipChipText
+                    }
+                  >
+                    Experiência externa
+                  </Text>
+                </Pressable>
+
+                {profile.memberships
+                  .filter(
+                    (membership) =>
+                      membership.status ===
+                      "active",
+                  )
+                  .map(
+                    (membership) => (
+                      <Pressable
+                        key={
+                          membership.id
+                        }
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          selected:
+                            establishmentId ===
+                            membership
+                              .establishment
+                              .id,
+                        }}
+                        onPress={() => {
+                          setEstablishmentId(
+                            membership
+                              .establishment
+                              .id,
+                          );
+                          setCompanyName(
+                            membership
+                              .establishment
+                              .name,
+                          );
+                        }}
+                        style={[
+                          styles.membershipChip,
+                          establishmentId ===
+                            membership
+                              .establishment
+                              .id &&
+                            styles.membershipChipSelected,
+                        ]}
+                      >
+                        <Text
+                          style={
+                            styles.membershipChipText
+                          }
+                        >
+                          {
+                            membership
+                              .establishment
+                              .name
+                          }
+                        </Text>
+                      </Pressable>
+                    ),
+                  )}
+              </View>
+            ) : null}
+
             <TextInput
               value={
                 companyName
@@ -757,13 +876,20 @@ export default function ProfessionalOnboardingScreen() {
               onChangeText={
                 setCompanyName
               }
+              editable={
+                establishmentId ===
+                null
+              }
               placeholder="Empresa ou studio"
               placeholderTextColor={
                 colors.muted
               }
-              style={
-                styles.input
-              }
+              style={[
+                styles.input,
+                establishmentId !==
+                  null &&
+                  styles.inputDisabled,
+              ]}
             />
 
             <TextInput
@@ -1297,6 +1423,45 @@ const useStyles =
         fontFamily:
           fonts.sans,
         fontSize: 14,
+        color:
+          colors.onSurface,
+      },
+
+      inputDisabled: {
+        opacity: 0.7,
+      },
+
+      membershipChoices: {
+        gap: spacing.sm,
+      },
+
+      membershipChip: {
+        minHeight: 42,
+        paddingHorizontal:
+          spacing.md,
+        borderRadius:
+          radius.pill,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        alignItems: "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.surface,
+      },
+
+      membershipChipSelected: {
+        borderColor:
+          colors.plum,
+        backgroundColor:
+          colors.plumSoft,
+      },
+
+      membershipChipText: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
         color:
           colors.onSurface,
       },
