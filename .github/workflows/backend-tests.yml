@@ -63,3 +63,43 @@ jobs:
 
       - name: Validar TypeScript
         run: npm run typecheck
+
+
+  mobile-eslint-bootstrap:
+    name: Expo 57 / gerar lock do ESLint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v7
+
+      - name: Configurar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependências atuais
+        run: npm ci
+
+      - name: Resolver ESLint compatível com Expo 57
+        run: npx expo install eslint eslint-config-expo --dev
+
+      - name: Executar lint
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Salvar package files gerados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-eslint-package-files
+          path: |
+            mobile/package.json
+            mobile/package-lock.json
+          retention-days: 1
