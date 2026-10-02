@@ -124,6 +124,15 @@ def create_app(test_config=None):
         EMAIL_FROM=os.getenv(
             "EMAIL_FROM"
         ),
+        LEGAL_ENTITY_NAME=(
+            os.getenv(
+                "LEGAL_ENTITY_NAME"
+            )
+            or "IDDUN"
+        ),
+        PRIVACY_CONTACT_EMAIL=os.getenv(
+            "PRIVACY_CONTACT_EMAIL"
+        ),
         SMTP_HOST=os.getenv(
             "SMTP_HOST"
         ),
