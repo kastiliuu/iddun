@@ -571,6 +571,136 @@ def delete_work_post(
     return image_url
 
 
+def creator_options(user):
+    _require_user(user)
+
+    authors = []
+    professional_ids = []
+    establishment_ids = []
+
+    professional = (
+        user.professional_profile
+    )
+
+    if (
+        professional is not None
+        and professional_is_public(
+            professional
+        )
+    ):
+        professional_ids.append(
+            professional.id
+        )
+        authors.append(
+            {
+                "type":
+                    WorkPostAuthorType.PROFESSIONAL,
+                "id":
+                    professional.id,
+                "name":
+                    professional.display_name,
+            }
+        )
+
+    for access in (
+        user.establishment_accesses
+    ):
+        if (
+            access.status
+            != EstablishmentAccessStatus.ACTIVE
+            or access.establishment
+            is None
+            or not establishment_is_public(
+                access.establishment
+            )
+        ):
+            continue
+
+        establishment_ids.append(
+            access.establishment_id
+        )
+        authors.append(
+            {
+                "type":
+                    WorkPostAuthorType.ESTABLISHMENT,
+                "id":
+                    access.establishment_id,
+                "name":
+                    access.establishment.name,
+            }
+        )
+
+    conditions = []
+
+    if professional_ids:
+        conditions.append(
+            Experience.professional_id.in_(
+                professional_ids
+            )
+        )
+
+    if establishment_ids:
+        conditions.append(
+            Experience.establishment_id.in_(
+                establishment_ids
+            )
+        )
+
+    experiences = []
+
+    if conditions:
+        from sqlalchemy import or_
+
+        rows = db.session.scalars(
+            select(Experience)
+            .where(
+                Experience.status
+                == ExperienceStatus.PUBLISHED,
+                or_(*conditions),
+            )
+            .order_by(
+                Experience.title.asc(),
+                Experience.id.asc(),
+            )
+        ).all()
+
+        for item in rows:
+            if (
+                item.professional_id
+                in professional_ids
+            ):
+                experiences.append(
+                    {
+                        "id": item.id,
+                        "title": item.title,
+                        "authorType":
+                            WorkPostAuthorType.PROFESSIONAL,
+                        "authorId":
+                            item.professional_id,
+                    }
+                )
+
+            if (
+                item.establishment_id
+                in establishment_ids
+            ):
+                experiences.append(
+                    {
+                        "id": item.id,
+                        "title": item.title,
+                        "authorType":
+                            WorkPostAuthorType.ESTABLISHMENT,
+                        "authorId":
+                            item.establishment_id,
+                    }
+                )
+
+    return {
+        "authors": authors,
+        "experiences": experiences,
+    }
+
+
 def owned_posts_query(user):
     _require_user(user)
 
