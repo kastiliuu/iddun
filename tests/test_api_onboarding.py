@@ -357,22 +357,21 @@ def test_publish_requires_existing_profile_completion_rules(
                 )
             )
 
+        db.session.add(
+            ProfessionalExperience(
+                professional_id=profile.id,
+                company_name="Studio História",
+                role_title="Nail Designer",
+                description="Experiência pública do perfil.",
+                started_at=date(2024, 1, 1),
+                ended_at=None,
+                is_current=True,
+                verification_status=(
+                    ProfessionalExperienceVerification.UNVERIFIED
+                ),
+            )
+        )
         db.session.commit()
-
-    experience = ProfessionalExperience(
-        professional_id=profile.id,
-        company_name="Studio História",
-        role_title="Nail Designer",
-        description="Experiência pública do perfil.",
-        started_at=date(2024, 1, 1),
-        ended_at=None,
-        is_current=True,
-        verification_status=(
-            ProfessionalExperienceVerification.UNVERIFIED
-        ),
-    )
-    db.session.add(experience)
-    db.session.commit()
 
     published = client.post(
         f"{BASE}/professional/publish",
