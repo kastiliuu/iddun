@@ -54,6 +54,22 @@ class ApiSession(db.Model):
         index=True,
     )
 
+    device_name = db.Column(
+        db.String(120),
+        nullable=True,
+    )
+
+    platform = db.Column(
+        db.String(32),
+        nullable=True,
+    )
+
+    last_seen_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
     revoked_at = db.Column(
         db.DateTime(timezone=True),
         nullable=True,

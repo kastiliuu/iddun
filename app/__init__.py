@@ -17,6 +17,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
+from app.routes.api_account import api_account_bp
 from app.routes.api_auth import api_auth_bp
 from app.routes.api_bookings import api_bookings_bp
 from app.routes.admin import admin_bp
@@ -112,6 +113,53 @@ def create_app(test_config=None):
             or "memory://"
         ),
         RATELIMIT_HEADERS_ENABLED=True,
+        EMAIL_BACKEND=(
+            os.getenv("EMAIL_BACKEND")
+            or (
+                "console"
+                if app_env == "development"
+                else "disabled"
+            )
+        ),
+        EMAIL_FROM=os.getenv(
+            "EMAIL_FROM"
+        ),
+        LEGAL_ENTITY_NAME=(
+            os.getenv(
+                "LEGAL_ENTITY_NAME"
+            )
+            or "IDDUN"
+        ),
+        PRIVACY_CONTACT_EMAIL=os.getenv(
+            "PRIVACY_CONTACT_EMAIL"
+        ),
+        SMTP_HOST=os.getenv(
+            "SMTP_HOST"
+        ),
+        SMTP_PORT=int(
+            os.getenv(
+                "SMTP_PORT",
+                "587",
+            )
+        ),
+        SMTP_USERNAME=os.getenv(
+            "SMTP_USERNAME"
+        ),
+        SMTP_PASSWORD=os.getenv(
+            "SMTP_PASSWORD"
+        ),
+        SMTP_USE_TLS=(
+            os.getenv(
+                "SMTP_USE_TLS",
+                "true",
+            ).strip().lower()
+            in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        ),
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -408,6 +456,7 @@ def create_app(test_config=None):
 
     app.register_blueprint(public_bp)
     app.register_blueprint(api_v1_bp)
+    app.register_blueprint(api_account_bp)
     app.register_blueprint(api_auth_bp)
     app.register_blueprint(
         api_auth_bp,

@@ -1,0 +1,98 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Política de Privacidade | IDDUN{% endblock %}
+{% block body_class %}legal-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/legal.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="legal-shell">
+  <div class="container legal-container">
+    <a class="legal-back" href="{{ url_for('public.home') }}">← Voltar ao IDDUN</a>
+
+    <header class="legal-hero">
+      <span class="legal-kicker">PRIVACIDADE</span>
+      <h1>Política de Privacidade</h1>
+      <p>Última atualização: 2 de outubro de 2026.</p>
+      {% if legal_draft %}
+      <div class="legal-draft">
+        <strong>Versão pré-lançamento.</strong>
+        A identificação jurídica final e o canal oficial de privacidade serão preenchidos antes do lançamento público da plataforma.
+      </div>
+      {% endif %}
+    </header>
+
+    <article class="legal-content">
+      <section>
+        <h2>1. Quem trata seus dados</h2>
+        <p>
+          Esta política descreve o tratamento realizado pelo {{ legal_entity }} no IDDUN.
+          {% if privacy_contact %}
+            Para assuntos de privacidade, entre em contato por <a href="mailto:{{ privacy_contact }}">{{ privacy_contact }}</a>.
+          {% else %}
+            O canal oficial de privacidade ainda não foi configurado neste ambiente de desenvolvimento e preview.
+          {% endif %}
+        </p>
+      </section>
+
+      <section>
+        <h2>2. Dados que o IDDUN trata</h2>
+        <p>Conforme as funcionalidades utilizadas, o IDDUN pode tratar dados de conta e perfil, como nome, e-mail, senha armazenada de forma protegida por hash, telefone, data de nascimento, cidade, estado, foto e informações de perfil profissional ou estabelecimento.</p>
+        <p>Também podem existir dados gerados pelo uso da plataforma, como reservas, horários, avaliações, vínculos entre profissionais e estabelecimentos, cliques de contato, sessões autenticadas e preferências.</p>
+        <p>Quando você conecta o Google Calendar, o IDDUN trata os dados necessários para sincronizar disponibilidade e eventos conforme a integração autorizada por você.</p>
+      </section>
+
+      <section>
+        <h2>3. Sessões e segurança</h2>
+        <p>Para autenticação do aplicativo, o IDDUN armazena apenas hashes dos tokens de acesso e renovação. A área de dispositivos utiliza plataforma, um rótulo genérico do aplicativo e o último uso da sessão. O recurso não depende de localização ou IP para identificar dispositivos.</p>
+        <p>Links de recuperação de senha e confirmação de e-mail utilizam tokens de uso único, com prazo de validade, armazenados somente em forma de hash.</p>
+      </section>
+
+      <section>
+        <h2>4. Para que usamos os dados</h2>
+        <ul>
+          <li>criar, autenticar e proteger contas;</li>
+          <li>permitir descoberta de profissionais, estabelecimentos e experiências;</li>
+          <li>processar disponibilidade, reservas, cancelamentos e histórico;</li>
+          <li>exibir perfis, portfólios e reputação quando aplicável;</li>
+          <li>sincronizar integrações autorizadas;</li>
+          <li>prevenir abuso, investigar falhas e manter a segurança e confiabilidade do serviço;</li>
+          <li>cumprir obrigações legais e exercer direitos em processos administrativos ou judiciais quando necessário.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>5. Compartilhamento e fornecedores</h2>
+        <p>Dados podem ser processados por provedores de infraestrutura e serviços necessários à operação do IDDUN, sempre de acordo com a finalidade contratada. Integrações de terceiros, como Google Calendar, somente recebem ou fornecem dados quando a funcionalidade é ativada pelo usuário.</p>
+        <p>O IDDUN não vende dados pessoais a anunciantes.</p>
+      </section>
+
+      <section>
+        <h2>6. Conservação e exclusão</h2>
+        <p>Você pode solicitar a exclusão da conta nas configurações de privacidade. A conta é desativada e os dados pessoais que não precisam ser mantidos são removidos ou anonimizados.</p>
+        <p>Alguns registros transacionais, como reservas e avaliações, podem ser preservados de forma anonimizada quando necessário para integridade do histórico, cumprimento de obrigação legal ou outra hipótese permitida pela legislação aplicável.</p>
+        <p>Perfis profissionais associados à conta excluída deixam de ser públicos e experiências publicadas são arquivadas. Se a conta for titular ativa de um estabelecimento, a exclusão fica bloqueada até a transferência da titularidade.</p>
+      </section>
+
+      <section>
+        <h2>7. Seus direitos</h2>
+        <p>Nos limites da legislação aplicável, você pode solicitar confirmação de tratamento, acesso, correção, portabilidade quando aplicável, informação sobre compartilhamentos, revisão de consentimentos e eliminação de dados tratados com consentimento, observadas as hipóteses legais de conservação.</p>
+        <p>O IDDUN também disponibiliza controles de sessão, confirmação de e-mail e exclusão de conta diretamente na experiência do produto.</p>
+      </section>
+
+      <section>
+        <h2>8. Segurança</h2>
+        <p>O IDDUN utiliza medidas técnicas como senhas com hash, tokens revogáveis, limitação de tentativas, proteção CSRF no ambiente web, headers de segurança, validação de uploads e segregação das credenciais de integração.</p>
+        <p>Nenhum sistema é totalmente imune a incidentes. A arquitetura e os procedimentos de segurança continuarão sendo revisados antes e depois do lançamento público.</p>
+      </section>
+
+      <section>
+        <h2>9. Alterações desta política</h2>
+        <p>Esta política pode ser atualizada conforme o IDDUN evoluir. Mudanças relevantes serão refletidas nesta página com nova data de atualização.</p>
+      </section>
+    </article>
+  </div>
+</main>
+{% endblock %}

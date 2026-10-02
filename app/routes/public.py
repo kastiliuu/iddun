@@ -655,3 +655,49 @@ def establishment_whatsapp(slug):
     return redirect(
         target
     )
+
+
+
+# ============================================================
+# LEGAL / PRIVACY
+# ============================================================
+
+def _legal_context():
+    privacy_contact = (
+        current_app.config.get(
+            "PRIVACY_CONTACT_EMAIL"
+        )
+        or ""
+    ).strip()
+
+    legal_entity = (
+        current_app.config.get(
+            "LEGAL_ENTITY_NAME"
+        )
+        or "IDDUN"
+    ).strip()
+
+    return {
+        "legal_entity": legal_entity,
+        "privacy_contact": privacy_contact or None,
+        "legal_draft": not bool(
+            privacy_contact
+        ),
+        "current_page": "legal",
+    }
+
+
+@public_bp.get("/privacidade")
+def privacy_policy():
+    return render_template(
+        "public/privacy-policy.html",
+        **_legal_context(),
+    )
+
+
+@public_bp.get("/termos")
+def terms_of_use():
+    return render_template(
+        "public/terms-of-use.html",
+        **_legal_context(),
+    )

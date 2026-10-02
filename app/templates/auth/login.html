@@ -26,7 +26,7 @@
     <div class="auth-story-copy">
       <span class="auth-eyebrow">SEU IDDUN, DO SEU JEITO</span>
       <h1>Continue descobrindo experiências.</h1>
-      <p>Entre para acessar sua conta, seus favoritos e, em breve, suas reservas.</p>
+      <p>Entre para acessar sua conta, seus favoritos e suas reservas.</p>
 
       <div class="auth-trust-list" aria-label="Benefícios da conta">
         <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.2 4.2L19 7"/></svg>Descoberta personalizada</span>
@@ -92,7 +92,7 @@
         <div class="auth-field{% if form.password.errors %} has-error{% endif %}" data-field>
           <div class="auth-label-row">
             {{ form.password.label(class_='auth-label') }}
-            <a href="#auth-integration-note" class="auth-forgot-link" aria-controls="auth-integration-note" data-auth-unavailable="A recuperação de senha por e-mail estará disponível em breve.">Esqueci minha senha</a>
+            <a href="{{ url_for('auth.forgot_password') }}" class="auth-forgot-link">Esqueci minha senha</a>
           </div>
           <div class="auth-password-shell auth-input-shell">
             <svg class="auth-input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>

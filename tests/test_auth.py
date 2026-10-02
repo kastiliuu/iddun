@@ -3,8 +3,13 @@ from sqlalchemy import select
 
 from app import create_app
 from app.extensions import db
+from app.models.account_token import (
+    AccountToken,
+    AccountTokenPurpose,
+)
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
+from app.services.account_security import issue_account_token
 
 
 def register(
@@ -313,3 +318,154 @@ def test_csrf_failure_is_json_for_json_request(csrf_client):
         },
     }
 
+
+
+
+def test_password_reset_request_does_not_enumerate_accounts(
+    app,
+    client,
+):
+    register(client)
+    client.post("/logout")
+
+    known = client.post(
+        "/senha/esqueci",
+        data={
+            "email": "gabriel@example.com",
+        },
+    )
+
+    unknown = client.post(
+        "/senha/esqueci",
+        data={
+            "email": "nobody@example.com",
+        },
+    )
+
+    assert known.status_code == 200
+    assert unknown.status_code == 200
+
+    message = (
+        "Se existir uma conta IDDUN com esse endereço"
+    )
+
+    assert message in known.get_data(
+        as_text=True
+    )
+    assert message in unknown.get_data(
+        as_text=True
+    )
+
+    with app.app_context():
+        reset_tokens = db.session.scalars(
+            select(AccountToken).where(
+                AccountToken.purpose
+                == AccountTokenPurpose.PASSWORD_RESET
+            )
+        ).all()
+
+        assert len(reset_tokens) == 1
+
+
+def test_web_password_reset_changes_password(
+    app,
+    client,
+):
+    register(client)
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email
+                == "gabriel@example.com"
+            )
+        )
+
+        issued = issue_account_token(
+            user,
+            AccountTokenPurpose.PASSWORD_RESET,
+        )
+
+    response = client.post(
+        (
+            "/senha/redefinir/"
+            f"{issued.token}"
+        ),
+        data={
+            "password": "nova-senha-456",
+            "confirm_password": (
+                "nova-senha-456"
+            ),
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert "/login" in response.headers[
+        "Location"
+    ]
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email
+                == "gabriel@example.com"
+            )
+        )
+
+        assert user.check_password(
+            "nova-senha-456"
+        )
+        assert (
+            user.is_email_verified
+            is True
+        )
+
+
+def test_web_email_verification_is_single_use(
+    app,
+    client,
+):
+    register(client)
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email
+                == "gabriel@example.com"
+            )
+        )
+
+        issued = issue_account_token(
+            user,
+            AccountTokenPurpose.EMAIL_VERIFICATION,
+        )
+
+    first = client.get(
+        (
+            "/email/verificar/"
+            f"{issued.token}"
+        )
+    )
+
+    second = client.get(
+        (
+            "/email/verificar/"
+            f"{issued.token}"
+        )
+    )
+
+    assert first.status_code == 200
+    assert (
+        "Seu e-mail foi verificado"
+        in first.get_data(
+            as_text=True
+        )
+    )
+    assert second.status_code == 200
+    assert (
+        "Não foi possível verificar"
+        in second.get_data(
+            as_text=True
+        )
+    )

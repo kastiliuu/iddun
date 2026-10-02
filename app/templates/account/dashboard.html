@@ -284,7 +284,11 @@
           <div><dt>Conta</dt><dd>IDDUN</dd></div>
           <div><dt>Status</dt><dd class="account-status"><span></span> Ativa</dd></div>
           <div><dt>Membro desde</dt><dd>{{ current_user.created_at.strftime('%m/%Y') }}</dd></div>
+          <div><dt>E-mail</dt><dd>{{ 'Confirmado' if current_user.is_email_verified else 'Não confirmado' }}</dd></div>
         </dl>
+        <a class="account-side-card__cta" href="{{ url_for('account.privacy') }}">
+          Privacidade e segurança {{ icon('chevron-right') }}
+        </a>
       </section>
 
       <form class="account-logout" action="{{ url_for('auth.logout') }}" method="post">

@@ -158,6 +158,18 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="forgot-password"
+              />
+
+              <Stack.Screen
+                name="sessions"
+              />
+
+              <Stack.Screen
+                name="privacy"
+              />
+
+              <Stack.Screen
                 name="(tabs)"
               />
 

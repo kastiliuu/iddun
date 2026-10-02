@@ -37,6 +37,7 @@ export type CurrentUser =
       specialty?: string;
       city?: string;
       neighborhood?: string;
+      emailVerified?: boolean;
     }
   | null;
 

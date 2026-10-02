@@ -1,7 +1,7 @@
 """Autenticação JSON do aplicativo, separada da sessão web."""
 
 from email_validator import EmailNotValidError, validate_email
-from flask import Blueprint, request
+from flask import Blueprint, current_app, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -9,14 +9,26 @@ from app.extensions import csrf, db, limiter
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
 from app.services.api_auth import (
+    current_session_id,
     get_user_by_access_token,
     issue_session,
+    list_user_sessions,
+    revoke_other_user_sessions,
     revoke_session,
+    revoke_user_session,
     rotate_refresh_token,
 )
 from app.services.api_contract import (
     api_error,
     api_json,
+)
+from app.services.account_notifications import (
+    send_email_verification,
+    send_password_reset_email,
+)
+from app.services.account_security import (
+    reset_password_token,
+    verify_email_token,
 )
 
 
@@ -104,6 +116,9 @@ def _user_payload(user):
         "email": user.email,
         "role": "professional" if professional is not None else "client",
         "accountRole": user.role,
+        "emailVerified": (
+            user.is_email_verified
+        ),
     }
 
     if professional is not None:
@@ -120,6 +135,50 @@ def _user_payload(user):
     return payload
 
 
+def _device_metadata(payload):
+    device = payload.get(
+        "device"
+    )
+
+    if not isinstance(
+        device,
+        dict,
+    ):
+        return None, None
+
+    name = device.get(
+        "name"
+    )
+    platform = device.get(
+        "platform"
+    )
+
+    device_name = (
+        name.strip()[:120]
+        if isinstance(
+            name,
+            str,
+        )
+        and name.strip()
+        else None
+    )
+
+    device_platform = (
+        platform.strip().lower()[:32]
+        if isinstance(
+            platform,
+            str,
+        )
+        and platform.strip()
+        else None
+    )
+
+    return (
+        device_name,
+        device_platform,
+    )
+
+
 def _tokens_payload(tokens):
     return {
         "accessToken": tokens.access_token,
@@ -127,6 +186,42 @@ def _tokens_payload(tokens):
         "accessExpiresAt": tokens.access_expires_at.isoformat(),
         "refreshExpiresAt": tokens.refresh_expires_at.isoformat(),
     }
+
+
+def _try_send_verification(
+    user,
+):
+    try:
+        return send_email_verification(
+            user
+        )
+    except Exception:
+        current_app.logger.exception(
+            (
+                "Falha inesperada ao preparar "
+                "verificação de e-mail user_id=%s"
+            ),
+            user.id,
+        )
+        return False
+
+
+def _try_send_password_reset(
+    user,
+):
+    try:
+        return send_password_reset_email(
+            user
+        )
+    except Exception:
+        current_app.logger.exception(
+            (
+                "Falha inesperada ao preparar "
+                "recuperação de senha user_id=%s"
+            ),
+            user.id,
+        )
+        return False
 
 
 @api_auth_bp.post("/login")
@@ -168,7 +263,18 @@ def login():
             401,
         )
 
-    tokens = issue_session(user)
+    (
+        device_name,
+        device_platform,
+    ) = _device_metadata(
+        payload
+    )
+
+    tokens = issue_session(
+        user,
+        device_name=device_name,
+        platform=device_platform,
+    )
 
     return _auth_json(
         {
@@ -247,8 +353,19 @@ def register():
         db.session.flush()
         db.session.add(ClientProfile(user=user))
 
+        (
+            device_name,
+            device_platform,
+        ) = _device_metadata(
+            payload
+        )
+
         # O serviço faz um único commit da conta, do perfil e da sessão.
-        tokens = issue_session(user)
+        tokens = issue_session(
+            user,
+            device_name=device_name,
+            platform=device_platform,
+        )
     except IntegrityError:
         db.session.rollback()
         return api_error(
@@ -256,6 +373,10 @@ def register():
             "Já existe uma conta cadastrada com este e-mail.",
             409,
         )
+
+    _try_send_verification(
+        user
+    )
 
     return _auth_json(
         {
@@ -300,6 +421,347 @@ def me():
         )
 
     return _auth_json(_user_payload(user))
+
+
+@api_auth_bp.post("/password/forgot")
+@csrf.exempt
+@limiter.limit("5 per minute")
+def forgot_password():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    email = _normalized_email(
+        payload.get("email")
+    )
+
+    if email is not None:
+        user = db.session.scalar(
+            select(User).where(
+                User.email == email,
+                User.is_active_account.is_(
+                    True
+                ),
+            )
+        )
+
+        if user is not None:
+            _try_send_password_reset(
+                user
+            )
+
+    return _auth_json(
+        {
+            "message": (
+                "Se existir uma conta IDDUN "
+                "com este e-mail, enviaremos "
+                "as instruções de recuperação."
+            )
+        },
+        202,
+    )
+
+
+@api_auth_bp.post("/password/reset")
+@csrf.exempt
+@limiter.limit("10 per minute")
+def reset_password():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    token = payload.get("token")
+    password = payload.get(
+        "password"
+    )
+
+    if (
+        not isinstance(
+            token,
+            str,
+        )
+        or not isinstance(
+            password,
+            str,
+        )
+        or not 8
+        <= len(password)
+        <= 128
+    ):
+        return api_error(
+            "invalid_reset_request",
+            (
+                "Token ou nova senha inválidos."
+            ),
+            400,
+        )
+
+    user = reset_password_token(
+        token,
+        password,
+    )
+
+    if user is None:
+        return api_error(
+            "invalid_or_expired_token",
+            (
+                "Este link de recuperação "
+                "expirou ou já foi utilizado."
+            ),
+            400,
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "Senha redefinida com sucesso."
+            )
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/email/verification/resend"
+)
+@csrf.exempt
+@limiter.limit("3 per hour")
+def resend_verification():
+    token = _bearer_token()
+    user = get_user_by_access_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "authentication_required",
+            (
+                "Entre na sua conta "
+                "para continuar."
+            ),
+            401,
+        )
+
+    if not user.is_email_verified:
+        _try_send_verification(
+            user
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "Se necessário, um novo link "
+                "de confirmação foi enviado."
+            ),
+            "emailVerified": (
+                user.is_email_verified
+            ),
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/email/verification/confirm"
+)
+@csrf.exempt
+@limiter.limit("10 per minute")
+def confirm_email_verification():
+    payload, error = _json_body()
+
+    if error is not None:
+        return error
+
+    token = payload.get(
+        "token"
+    )
+
+    if not isinstance(
+        token,
+        str,
+    ):
+        return api_error(
+            "invalid_verification_token",
+            (
+                "Token de verificação inválido."
+            ),
+            400,
+        )
+
+    user = verify_email_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "invalid_or_expired_token",
+            (
+                "Este link de verificação "
+                "expirou ou já foi utilizado."
+            ),
+            400,
+        )
+
+    return _auth_json(
+        {
+            "message": (
+                "E-mail confirmado com sucesso."
+            ),
+            "user": _user_payload(
+                user
+            ),
+        }
+    )
+
+
+def _session_payload(
+    session,
+    current_id,
+):
+    last_seen = (
+        session.last_seen_at
+        or session.created_at
+    )
+
+    return {
+        "id": str(session.id),
+        "deviceName": (
+            session.device_name
+            or "Aplicativo IDDUN"
+        ),
+        "platform": (
+            session.platform
+            or "unknown"
+        ),
+        "createdAt": (
+            session.created_at.isoformat()
+        ),
+        "lastSeenAt": (
+            last_seen.isoformat()
+        ),
+        "current": (
+            session.id
+            == current_id
+        ),
+    }
+
+
+@api_auth_bp.get("/sessions")
+def sessions():
+    token = _bearer_token()
+    user = get_user_by_access_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "authentication_required",
+            "Entre na sua conta para continuar.",
+            401,
+        )
+
+    current_id = (
+        current_session_id(
+            token
+        )
+    )
+
+    return _auth_json(
+        {
+            "items": [
+                _session_payload(
+                    session,
+                    current_id,
+                )
+                for session in (
+                    list_user_sessions(
+                        user.id
+                    )
+                )
+            ]
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/sessions/<int:session_id>/revoke"
+)
+@csrf.exempt
+@limiter.limit("30 per minute")
+def revoke_device_session(
+    session_id,
+):
+    token = _bearer_token()
+    user = get_user_by_access_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "authentication_required",
+            "Entre na sua conta para continuar.",
+            401,
+        )
+
+    current_id = (
+        current_session_id(
+            token
+        )
+    )
+
+    if not revoke_user_session(
+        user.id,
+        session_id,
+    ):
+        return api_error(
+            "session_not_found",
+            "Sessão não encontrada.",
+            404,
+        )
+
+    return _auth_json(
+        {
+            "revoked": True,
+            "currentSessionRevoked": (
+                session_id
+                == current_id
+            ),
+        }
+    )
+
+
+@api_auth_bp.post(
+    "/sessions/revoke-others"
+)
+@csrf.exempt
+@limiter.limit("10 per minute")
+def revoke_other_sessions():
+    token = _bearer_token()
+    user = get_user_by_access_token(
+        token
+    )
+
+    if user is None:
+        return api_error(
+            "authentication_required",
+            "Entre na sua conta para continuar.",
+            401,
+        )
+
+    removed = (
+        revoke_other_user_sessions(
+            user.id,
+            token,
+        )
+    )
+
+    return _auth_json(
+        {
+            "revokedCount": (
+                removed
+            ),
+        }
+    )
 
 
 @api_auth_bp.post("/logout")

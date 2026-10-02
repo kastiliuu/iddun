@@ -524,6 +524,31 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          {!isSignup ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Esqueci minha senha"
+              onPress={() =>
+                router.push(
+                  "/forgot-password",
+                )
+              }
+              style={({ pressed }) => [
+                styles.forgotButton,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Text
+                style={
+                  styles.forgotText
+                }
+              >
+                Esqueci minha senha
+              </Text>
+            </Pressable>
+          ) : null}
+
           {error ? (
             <View style={styles.errorBox}>
               <Icon
@@ -803,6 +828,18 @@ const useStyles = makeStyles((colors) => ({
   dividerText: {
     color: colors.muted,
     fontFamily: fonts.sans,
+    fontSize: 11,
+  },
+  forgotButton: {
+    alignSelf: "flex-end",
+    minHeight: touch.minimum,
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    marginTop: -spacing.xs,
+  },
+  forgotText: {
+    color: colors.plum,
+    fontFamily: fonts.sansMedium,
     fontSize: 11,
   },
   visitorButton: {

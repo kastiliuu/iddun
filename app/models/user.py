@@ -46,6 +46,17 @@ class User(UserMixin, db.Model):
         default=True
     )
 
+    email_verified_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    deleted_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -79,6 +90,13 @@ class User(UserMixin, db.Model):
         lazy="selectin",
     )
 
+    account_tokens = db.relationship(
+        "AccountToken",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
@@ -91,3 +109,10 @@ class User(UserMixin, db.Model):
     @property
     def is_active(self):
         return self.is_active_account
+
+    @property
+    def is_email_verified(self):
+        return (
+            self.email_verified_at
+            is not None
+        )

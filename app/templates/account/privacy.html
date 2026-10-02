@@ -1,0 +1,107 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% block title %}Privacidade da conta | IDDUN{% endblock %}
+{% block body_class %}account-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/account.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="account-content">
+  <div class="container account-layout">
+    <div class="account-main">
+      <section class="account-panel" aria-labelledby="privacy-title">
+        <div class="account-panel__head">
+          <div>
+            <span class="account-section-kicker">PRIVACIDADE E SEGURANÇA</span>
+            <h1 id="privacy-title">Controle sua conta.</h1>
+            <p>Revise o estado do seu e-mail, seus acessos e as opções relacionadas aos seus dados.</p>
+          </div>
+        </div>
+
+        <div class="account-context-grid">
+          <div class="account-context-card">
+            <span class="account-context-card__icon">{{ icon('mail') }}</span>
+            <span>
+              <strong>E-mail</strong>
+              <small>
+                {% if current_user.is_email_verified %}
+                  Confirmado
+                {% else %}
+                  Ainda não confirmado
+                {% endif %}
+              </small>
+            </span>
+          </div>
+
+          {% if not current_user.is_email_verified %}
+          <form method="post" action="{{ url_for('auth.resend_email_verification') }}" class="account-context-card">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <span class="account-context-card__icon">{{ icon('send') }}</span>
+            <button type="submit" class="account-side-card__cta">Reenviar verificação</button>
+          </form>
+          {% endif %}
+
+          <a class="account-context-card" href="{{ url_for('public.privacy_policy') }}">
+            <span class="account-context-card__icon">{{ icon('shield-check') }}</span>
+            <span><strong>Política de Privacidade</strong><small>Como o IDDUN trata dados pessoais.</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+
+          <a class="account-context-card" href="{{ url_for('public.terms_of_use') }}">
+            <span class="account-context-card__icon">{{ icon('file-text') }}</span>
+            <span><strong>Termos de Uso</strong><small>Regras essenciais da plataforma.</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+        </div>
+      </section>
+
+      <section class="account-panel" aria-labelledby="delete-account-title">
+        <div class="account-panel__head">
+          <div>
+            <span class="account-section-kicker">EXCLUSÃO DA CONTA</span>
+            <h2 id="delete-account-title">Remover minha conta</h2>
+            <p>
+              A exclusão é irreversível. Dados pessoais são anonimizados; reservas e avaliações podem ser preservadas de forma anonimizada para manter a integridade do histórico transacional.
+            </p>
+          </div>
+        </div>
+
+        <form method="post" class="account-form" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="account-field account-field--wide">
+            {{ form.password.label(class_='account-label') }}
+            {{ form.password(class_='account-input', autocomplete='current-password', placeholder='Confirme sua senha atual') }}
+            {{ field_errors(form.password) }}
+          </div>
+
+          <label class="account-check">
+            {{ form.confirm() }}
+            <span>{{ form.confirm.label.text }}</span>
+          </label>
+          {{ field_errors(form.confirm) }}
+
+          <div class="account-form__actions">
+            {{ form.submit(class_='btn btn-secondary') }}
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <aside class="account-side">
+      <section class="account-side-card account-trust-card">
+        <div class="account-trust-card__title">
+          <span class="account-side-card__icon">{{ icon('shield-check') }}</span>
+          <div><span class="account-section-kicker">SEGURANÇA</span><strong>Antes de excluir</strong></div>
+        </div>
+        <p>Se você administra um estabelecimento como titular, transfira a titularidade antes da exclusão.</p>
+        <a href="{{ url_for('account.dashboard') }}">Voltar para Minha Conta {{ icon('chevron-right') }}</a>
+      </section>
+    </aside>
+  </div>
+</section>
+{% endblock %}

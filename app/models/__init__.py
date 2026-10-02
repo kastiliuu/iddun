@@ -1,3 +1,4 @@
+from app.models.account_token import AccountToken, AccountTokenPurpose
 from app.models.api_session import ApiSession
 from app.models.certification import ProfessionalCertification
 from app.models.reputation import ContactClick, Review, ReviewTarget
@@ -32,6 +33,8 @@ from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatu
 
 
 __all__ = [
+    "AccountToken",
+    "AccountTokenPurpose",
     "ApiSession",
     "ProfessionalCertification",
     "Review",

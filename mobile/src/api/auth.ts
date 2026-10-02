@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 
 import {
@@ -12,6 +13,16 @@ import {
 
 const AUTH_BASE =
   "/api/v1/auth";
+
+const DEVICE_METADATA = {
+  name:
+    Platform.OS === "ios"
+      ? "IDDUN no iOS"
+      : Platform.OS === "android"
+        ? "IDDUN no Android"
+        : "IDDUN",
+  platform: Platform.OS,
+};
 
 const ACCESS_TOKEN_KEY =
   "iddun_access_token";
@@ -47,6 +58,20 @@ export type AuthResponse = {
 export type RefreshResponse = {
   accessToken: string;
   refreshToken?: string | null;
+};
+
+
+export type DeviceSession = {
+  id: string;
+  deviceName: string;
+  platform: string;
+  createdAt: string;
+  lastSeenAt: string;
+  current: boolean;
+};
+
+export type DeviceSessionList = {
+  items: DeviceSession[];
 };
 
 function isAuthenticationError(
@@ -159,6 +184,7 @@ export async function login(
           .trim()
           .toLowerCase(),
         password: payload.password,
+        device: DEVICE_METADATA,
       },
     );
 
@@ -185,6 +211,7 @@ export async function registerClient(
           .toLowerCase(),
         password: payload.password,
         role: "client",
+        device: DEVICE_METADATA,
       },
     );
 
@@ -370,4 +397,151 @@ export async function hasStoredSession() {
     await getRefreshToken();
 
   return Boolean(refreshToken);
+}
+
+
+async function authenticatedRequest<T>(
+  operation: (
+    token: string,
+  ) => Promise<T>,
+) {
+  let token =
+    await getAccessToken();
+
+  if (!token) {
+    token =
+      await refreshSession();
+  }
+
+  try {
+    return await operation(
+      token,
+    );
+  } catch (error) {
+    if (
+      !isAuthenticationError(
+        error,
+      )
+    ) {
+      throw error;
+    }
+
+    token =
+      await refreshSession();
+
+    return operation(
+      token,
+    );
+  }
+}
+
+
+export async function requestPasswordReset(
+  email: string,
+) {
+  return api.post<{
+    message: string;
+  }>(
+    `${AUTH_BASE}/password/forgot`,
+    {
+      email:
+        email
+          .trim()
+          .toLowerCase(),
+    },
+  );
+}
+
+export async function resendEmailVerification() {
+  const token =
+    await getAccessToken();
+
+  if (!token) {
+    throw new ApiError(
+      "Entre na sua conta para continuar.",
+      401,
+    );
+  }
+
+  return api.post<{
+    message: string;
+    emailVerified: boolean;
+  }>(
+    `${AUTH_BASE}/email/verification/resend`,
+    undefined,
+    { token },
+  );
+}
+
+
+
+export async function getDeviceSessions() {
+  return authenticatedRequest(
+    (token) =>
+      api.get<DeviceSessionList>(
+        `${AUTH_BASE}/sessions`,
+        { token },
+      ),
+  );
+}
+
+export async function revokeDeviceSession(
+  sessionId: string,
+) {
+  const response =
+    await authenticatedRequest(
+      (token) =>
+        api.post<{
+          revoked: boolean;
+          currentSessionRevoked: boolean;
+        }>(
+          `${AUTH_BASE}/sessions/${sessionId}/revoke`,
+          undefined,
+          { token },
+        ),
+    );
+
+  if (
+    response.currentSessionRevoked
+  ) {
+    await clearSession();
+  }
+
+  return response;
+}
+
+export async function revokeOtherDeviceSessions() {
+  return authenticatedRequest(
+    (token) =>
+      api.post<{
+        revokedCount: number;
+      }>(
+        `${AUTH_BASE}/sessions/revoke-others`,
+        undefined,
+        { token },
+      ),
+  );
+}
+
+
+
+export async function deleteAccount(
+  password: string,
+) {
+  const response =
+    await authenticatedRequest(
+      (token) =>
+        api.post<{
+          deleted: boolean;
+          anonymized: boolean;
+        }>(
+          "/api/v1/account/delete",
+          { password },
+          { token },
+        ),
+    );
+
+  await clearSession();
+
+  return response;
 }
