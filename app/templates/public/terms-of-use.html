@@ -1,0 +1,91 @@
+{% extends 'layouts/base.html' %}
+
+{% block title %}Termos de Uso | IDDUN{% endblock %}
+{% block body_class %}legal-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/legal.css') }}">
+{% endblock %}
+
+{% block content %}
+<main class="legal-shell">
+  <div class="container legal-container">
+    <a class="legal-back" href="{{ url_for('public.home') }}">← Voltar ao IDDUN</a>
+
+    <header class="legal-hero">
+      <span class="legal-kicker">TERMOS</span>
+      <h1>Termos de Uso</h1>
+      <p>Última atualização: 2 de outubro de 2026.</p>
+      {% if legal_draft %}
+      <div class="legal-draft">
+        <strong>Versão pré-lançamento.</strong>
+        A identificação jurídica final e o canal oficial de contato serão preenchidos antes do lançamento público.
+      </div>
+      {% endif %}
+    </header>
+
+    <article class="legal-content">
+      <section>
+        <h2>1. Sobre o IDDUN</h2>
+        <p>O IDDUN é uma plataforma de descoberta, conexão e reserva de experiências de beleza e autocuidado. Profissionais e estabelecimentos podem apresentar sua presença, serviços e disponibilidade; clientes podem descobrir perfis e realizar reservas.</p>
+      </section>
+
+      <section>
+        <h2>2. Conta e acesso</h2>
+        <p>Você deve fornecer informações verdadeiras e manter suas credenciais protegidas. A conta é pessoal e você é responsável pelos atos realizados por meio dela, salvo uso não autorizado devidamente comunicado.</p>
+        <p>O IDDUN pode suspender ou restringir acessos em caso de fraude, abuso, tentativa de comprometer a segurança ou violação destes termos.</p>
+      </section>
+
+      <section>
+        <h2>3. Profissionais e estabelecimentos</h2>
+        <p>Profissionais e estabelecimentos são responsáveis pela exatidão das informações que publicam, pelas autorizações necessárias ao exercício de suas atividades e pelo cumprimento de obrigações legais, sanitárias, profissionais e consumeristas aplicáveis.</p>
+        <p>Vínculos entre profissional e estabelecimento podem exigir confirmação das partes. Selos e estados de verificação do IDDUN não substituem licenças profissionais ou verificações exigidas por lei.</p>
+      </section>
+
+      <section>
+        <h2>4. Reservas e disponibilidade</h2>
+        <p>Horários exibidos dependem da disponibilidade registrada no IDDUN e, quando aplicável, de calendários conectados. Um horário pode ficar temporariamente bloqueado durante o processo de confirmação.</p>
+        <p>Cancelamentos, prazos e demais condições específicas podem variar conforme a experiência e o profissional. O IDDUN deve apresentar essas condições antes da confirmação sempre que forem aplicáveis.</p>
+      </section>
+
+      <section>
+        <h2>5. Conteúdo e avaliações</h2>
+        <p>Ao publicar conteúdo, você declara possuir os direitos ou autorizações necessários para utilizá-lo e não deve publicar material ilegal, enganoso, ofensivo, discriminatório ou que viole direitos de terceiros.</p>
+        <p>Avaliações ligadas a reservas concluídas podem ser identificadas como experiências verificadas. O IDDUN pode moderar ou remover conteúdo que viole estes termos ou as regras de segurança da plataforma.</p>
+      </section>
+
+      <section>
+        <h2>6. Recursos de terceiros</h2>
+        <p>O IDDUN pode integrar serviços de terceiros, como calendários e provedores de infraestrutura. O uso dessas integrações também pode estar sujeito aos termos e políticas dos respectivos provedores.</p>
+      </section>
+
+      <section>
+        <h2>7. Disponibilidade da plataforma</h2>
+        <p>Buscamos manter o IDDUN disponível e confiável, mas não garantimos funcionamento ininterrupto. Manutenções, falhas de terceiros e eventos fora do controle razoável da plataforma podem causar indisponibilidade temporária.</p>
+      </section>
+
+      <section>
+        <h2>8. Privacidade</h2>
+        <p>O tratamento de dados pessoais é descrito na <a href="{{ url_for('public.privacy_policy') }}">Política de Privacidade</a>. A exclusão de conta e outros controles de privacidade ficam disponíveis nas configurações da conta conforme a plataforma evolui.</p>
+      </section>
+
+      <section>
+        <h2>9. Alterações</h2>
+        <p>Estes termos podem ser atualizados para refletir novos recursos, obrigações legais ou mudanças operacionais. A versão vigente e sua data de atualização serão publicadas nesta página.</p>
+      </section>
+
+      <section>
+        <h2>10. Contato</h2>
+        <p>
+          O responsável indicado para este ambiente é {{ legal_entity }}.
+          {% if privacy_contact %}
+            Contato: <a href="mailto:{{ privacy_contact }}">{{ privacy_contact }}</a>.
+          {% else %}
+            O canal oficial de contato será configurado antes do lançamento público.
+          {% endif %}
+        </p>
+      </section>
+    </article>
+  </div>
+</main>
+{% endblock %}
