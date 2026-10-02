@@ -51,7 +51,7 @@ def test_normalize_media_key_accepts_only_upload_namespace():
 def test_local_storage_keeps_existing_database_contract(
     app,
 ):
-    with app.app_context():
+    with app.test_request_context("/"):
         stored_path = save_uploaded_image(
             _file(),
             "professionals/portfolio",
