@@ -23,6 +23,7 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import {
   deletePost,
   getPost,
+  replacePostImage,
   updatePost,
   type WorkPost,
 } from "@/api/feed";
@@ -36,6 +37,11 @@ import { FollowButton } from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
 import { Rating } from "@/components/Rating";
 import { useToast } from "@/components/Toast";
+
+import {
+  pickAndPrepareImage,
+  type MediaSource,
+} from "@/media/imagePipeline";
 
 import {
   fonts,
@@ -416,6 +422,90 @@ export default function PostDetailScreen() {
       }
     };
 
+  const changeImage =
+    async (
+      source: MediaSource,
+    ) => {
+      try {
+        const image =
+          await pickAndPrepareImage(
+            source,
+            "post",
+          );
+
+        if (!image) {
+          return;
+        }
+
+        setSaving(
+          true,
+        );
+
+        const response =
+          await replacePostImage(
+            post.id,
+            image,
+          );
+
+        setPost(
+          response.post,
+        );
+
+        toast.show({
+          title:
+            "Imagem atualizada",
+          icon:
+            "check",
+        });
+      } catch (
+        imageError
+      ) {
+        toast.show({
+          title:
+            "Não foi possível trocar a imagem",
+          body:
+            imageError instanceof
+              Error
+              ? imageError.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const chooseNewImage =
+    () => {
+      Alert.alert(
+        "Trocar imagem",
+        "Escolha a origem da nova imagem.",
+        [
+          {
+            text: "Galeria",
+            onPress: () =>
+              void changeImage(
+                "library",
+              ),
+          },
+          {
+            text: "Câmera",
+            onPress: () =>
+              void changeImage(
+                "camera",
+              ),
+          },
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+        ],
+      );
+    };
+
   const openManageMenu =
     () => {
       Alert.alert(
@@ -433,6 +523,12 @@ export default function PostDetailScreen() {
                 true,
               );
             },
+          },
+          {
+            text:
+              "Trocar imagem",
+            onPress:
+              chooseNewImage,
           },
           {
             text:
