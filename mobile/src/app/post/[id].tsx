@@ -279,6 +279,9 @@ export default function PostDetailScreen() {
             id={
               author.id
             }
+            targetType={
+              author.kind
+            }
             authorName={
               author.name
             }
