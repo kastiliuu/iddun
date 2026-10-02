@@ -583,9 +583,13 @@ export default function BookingScreen() {
               {
                 text: "Entrar",
                 onPress: () =>
-                  router.push(
-                    "/login",
-                  ),
+                  router.push({
+                    pathname: "/login",
+                    params: {
+                      returnToBooking:
+                        experienceSlug,
+                    },
+                  }),
               },
             ],
           );
