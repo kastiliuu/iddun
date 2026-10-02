@@ -1515,20 +1515,20 @@ export default function BookingScreen() {
               }
             >
               <Button
-                title="Descobrir mais experiências"
+                title="Ver meus agendamentos"
                 onPress={() =>
                   router.replace(
-                    "/(tabs)/discover",
+                    "/bookings",
                   )
                 }
                 fullWidth
               />
 
               <Button
-                title="Voltar ao início"
+                title="Descobrir mais experiências"
                 onPress={() =>
                   router.replace(
-                    "/(tabs)",
+                    "/(tabs)/discover",
                   )
                 }
                 variant="secondary"
