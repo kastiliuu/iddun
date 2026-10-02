@@ -63,7 +63,13 @@ def _new_tokens(now):
     )
 
 
-def issue_session(user, *, now=None):
+def issue_session(
+    user,
+    *,
+    now=None,
+    device_name=None,
+    platform=None,
+):
     """Cria uma sessão para um usuário já persistido e ativo.
 
     Faz o commit antes de devolver os tokens ao chamador. O chamador
@@ -82,6 +88,15 @@ def issue_session(user, *, now=None):
             refresh_token_hash=_token_hash(tokens.refresh_token),
             access_expires_at=tokens.access_expires_at,
             refresh_expires_at=tokens.refresh_expires_at,
+            device_name=(
+                (device_name or "").strip()[:120]
+                or None
+            ),
+            platform=(
+                (platform or "").strip().lower()[:32]
+                or None
+            ),
+            last_seen_at=current_time,
             created_at=current_time,
         )
     )
@@ -151,6 +166,7 @@ def rotate_refresh_token(refresh_token, *, now=None):
     api_session.refresh_token_hash = _token_hash(tokens.refresh_token)
     api_session.access_expires_at = tokens.access_expires_at
     api_session.refresh_expires_at = tokens.refresh_expires_at
+    api_session.last_seen_at = current_time
 
     db.session.commit()
 
@@ -223,3 +239,131 @@ def cleanup_expired_sessions(
         db.session.commit()
 
     return removed
+
+
+
+def _access_token_session(
+    access_token,
+):
+    token_hash = _token_hash(
+        access_token
+    )
+
+    if token_hash is None:
+        return None
+
+    return db.session.scalar(
+        select(ApiSession).where(
+            ApiSession.access_token_hash
+            == token_hash
+        )
+    )
+
+
+def list_user_sessions(
+    user_id,
+    *,
+    now=None,
+):
+    current_time = _now(now)
+
+    return db.session.scalars(
+        select(ApiSession)
+        .where(
+            ApiSession.user_id
+            == user_id,
+            ApiSession.revoked_at.is_(
+                None
+            ),
+            ApiSession.refresh_expires_at
+            > current_time,
+        )
+        .order_by(
+            ApiSession.last_seen_at.desc(),
+            ApiSession.created_at.desc(),
+        )
+    ).all()
+
+
+def current_session_id(
+    access_token,
+):
+    session = _access_token_session(
+        access_token
+    )
+
+    if session is None:
+        return None
+
+    return session.id
+
+
+def revoke_user_session(
+    user_id,
+    session_id,
+    *,
+    now=None,
+):
+    session = db.session.scalar(
+        select(ApiSession).where(
+            ApiSession.id
+            == session_id,
+            ApiSession.user_id
+            == user_id,
+        )
+    )
+
+    if session is None:
+        return False
+
+    if session.revoked_at is None:
+        session.revoked_at = _now(
+            now
+        )
+        db.session.commit()
+
+    return True
+
+
+def revoke_other_user_sessions(
+    user_id,
+    current_access_token,
+    *,
+    now=None,
+):
+    current_id = current_session_id(
+        current_access_token
+    )
+
+    current_time = _now(now)
+
+    query = (
+        update(ApiSession)
+        .where(
+            ApiSession.user_id
+            == user_id,
+            ApiSession.revoked_at.is_(
+                None
+            ),
+        )
+    )
+
+    if current_id is not None:
+        query = query.where(
+            ApiSession.id
+            != current_id
+        )
+
+    result = db.session.execute(
+        query.values(
+            revoked_at=current_time
+        )
+    )
+
+    db.session.commit()
+
+    return (
+        result.rowcount
+        if result.rowcount is not None
+        else 0
+    )
