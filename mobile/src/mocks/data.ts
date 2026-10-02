@@ -24,8 +24,10 @@ export type Professional = {
 
 export type Service = {
   id: string;
+  entityId?: number | null;
 
   authorId: string;
+  authorRouteId?: string;
   authorKind: ProfileKind;
 
   name: string;
