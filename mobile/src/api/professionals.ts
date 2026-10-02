@@ -3,11 +3,6 @@ import {
 } from "@/api/client";
 
 import {
-  getAccessToken,
-  refreshSession,
-} from "@/api/auth";
-
-import {
   followGraphTarget,
   saveGraphTarget,
   unfollowGraphTarget,
@@ -17,8 +12,11 @@ import {
 import type {
   Professional,
   Service,
-  Post,
 } from "@/mocks/data";
+
+import type {
+  WorkPost,
+} from "@/api/feed";
 
 export type ProfessionalListResponse = {
   items: Professional[];
@@ -36,7 +34,7 @@ export type ProfessionalSearchParams = {
 export type ProfessionalProfileResponse = {
   professional: Professional;
   services: Service[];
-  posts: Post[];
+  posts: WorkPost[];
 };
 
 export type FollowResponse = {
@@ -114,22 +112,6 @@ function buildQuery(
   return query.toString();
 }
 
-async function withAuthenticatedRequest<T>(
-  request: (
-    token: string,
-  ) => Promise<T>,
-) {
-  let token =
-    await getAccessToken();
-
-  if (!token) {
-    token =
-      await refreshSession();
-  }
-
-  return request(token);
-}
-
 export async function getProfessionals(
   params: ProfessionalSearchParams = {},
 ) {
@@ -167,7 +149,7 @@ export async function getProfessional(
    * }
    */
   return api.get<ProfessionalProfileResponse>(
-    `/api/professionals/${professionalId}`,
+    `/api/v1/professionals/${encodeURIComponent(professionalId)}`,
   );
 }
 
@@ -269,7 +251,7 @@ export async function getProfessionalPosts(
   );
 
   return api.get<{
-    items: Post[];
+    items: WorkPost[];
     nextCursor?: string | null;
   }>(
     `/api/professionals/${professionalId}/posts?${query.toString()}`,

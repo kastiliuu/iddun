@@ -1,11 +1,16 @@
 import React, {
-  useMemo,
+  useEffect,
   useRef,
+  useState,
 } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
+  Share,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Image } from "expo-image";
@@ -15,19 +20,28 @@ import {
 } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 
+import {
+  deletePost,
+  getPost,
+  replacePostImage,
+  updatePost,
+  type WorkPost,
+} from "@/api/feed";
+
 import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/Button";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FollowButton } from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
 import { Rating } from "@/components/Rating";
+import { useToast } from "@/components/Toast";
 
 import {
-  getPostAuthor,
-  getPostById,
-  getPostService,
-} from "@/mocks/data";
+  pickAndPrepareImage,
+  type MediaSource,
+} from "@/media/imagePipeline";
 
 import {
   fonts,
@@ -58,24 +72,126 @@ export default function PostDetailScreen() {
   const commentsRef =
     useRef<BottomSheetModal>(null);
 
-  const post =
-    getPostById(params.id);
+  const toast =
+    useToast();
 
-  const author = useMemo(
-    () =>
-      post
-        ? getPostAuthor(post)
-        : undefined,
-    [post],
+  const [
+    post,
+    setPost,
+  ] =
+    useState<WorkPost | null>(
+      null,
+    );
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    editing,
+    setEditing,
+  ] =
+    useState(false);
+
+  const [
+    draftCaption,
+    setDraftCaption,
+  ] =
+    useState("");
+
+  const [
+    saving,
+    setSaving,
+  ] =
+    useState(false);
+
+  useEffect(
+    () => {
+      let mounted =
+        true;
+
+      getPost(
+        params.id,
+      )
+        .then(
+          (response) => {
+            if (!mounted) {
+              return;
+            }
+
+            setPost(
+              response,
+            );
+            setError(
+              null,
+            );
+          },
+        )
+        .catch(
+          (requestError) => {
+            if (!mounted) {
+              return;
+            }
+
+            setError(
+              requestError instanceof
+                Error
+                ? requestError.message
+                : "Essa publicação não está disponível no momento.",
+            );
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setLoading(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [params.id],
   );
 
-  const service = useMemo(
-    () =>
-      post
-        ? getPostService(post)
-        : undefined,
-    [post],
-  );
+  if (loading) {
+    return (
+      <View
+        style={
+          styles.loading
+        }
+        accessibilityRole="progressbar"
+        accessibilityLabel="Carregando publicação"
+      >
+        <ActivityIndicator
+          color={
+            colors.plum
+          }
+        />
+      </View>
+    );
+  }
+
+  const author =
+    post?.author;
+
+  const service =
+    post?.service ??
+    undefined;
 
   if (!post || !author) {
     return (
@@ -113,7 +229,10 @@ export default function PostDetailScreen() {
 
         <EmptyState
           title="Publicação não encontrada"
-          description="Essa publicação não está disponível no momento."
+          description={
+            error ??
+            "Essa publicação não está disponível no momento."
+          }
           actionLabel="Voltar ao início"
           onActionPress={() =>
             router.replace(
@@ -129,8 +248,8 @@ export default function PostDetailScreen() {
     router.push(
       author.kind ===
         "establishment"
-        ? `/establishment/${author.id}`
-        : `/professional/${author.id}`,
+        ? `/establishment/${author.routeId}`
+        : `/professional/${author.routeId}`,
     );
   };
 
@@ -147,6 +266,313 @@ export default function PostDetailScreen() {
       `/service/${service.id}`,
     );
   };
+
+  const handleShare =
+    async () => {
+      await Share.share({
+        message:
+          (
+            post.caption
+              ? post.caption
+                + "\n\n"
+              : ""
+          )
+          + "Veja este trabalho no IDDUN: "
+          + post.deepLink,
+      });
+    };
+
+  const saveCaption =
+    async () => {
+      try {
+        setSaving(
+          true,
+        );
+
+        const response =
+          await updatePost(
+            post.id,
+            {
+              caption:
+                draftCaption.trim(),
+            },
+          );
+
+        setPost(
+          response.post,
+        );
+        setEditing(
+          false,
+        );
+
+        toast.show({
+          title:
+            "Publicação atualizada",
+          icon:
+            "check",
+        });
+      } catch (
+        updateError
+      ) {
+        toast.show({
+          title:
+            "Não foi possível editar",
+          body:
+            updateError instanceof
+              Error
+              ? updateError.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const archivePost =
+    async () => {
+      try {
+        setSaving(
+          true,
+        );
+
+        await updatePost(
+          post.id,
+          {
+            status:
+              "archived",
+          },
+        );
+
+        toast.show({
+          title:
+            "Publicação arquivada",
+          body:
+            "Ela saiu do feed e continua disponível para você gerenciar.",
+          icon:
+            "check",
+        });
+
+        router.replace(
+          "/(tabs)",
+        );
+      } catch (
+        archiveError
+      ) {
+        toast.show({
+          title:
+            "Não foi possível arquivar",
+          body:
+            archiveError instanceof
+              Error
+              ? archiveError.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const removePost =
+    async () => {
+      try {
+        setSaving(
+          true,
+        );
+
+        await deletePost(
+          post.id,
+        );
+
+        toast.show({
+          title:
+            "Publicação excluída",
+          icon:
+            "check",
+        });
+
+        router.replace(
+          "/(tabs)",
+        );
+      } catch (
+        deleteError
+      ) {
+        toast.show({
+          title:
+            "Não foi possível excluir",
+          body:
+            deleteError instanceof
+              Error
+              ? deleteError.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const changeImage =
+    async (
+      source: MediaSource,
+    ) => {
+      try {
+        const image =
+          await pickAndPrepareImage(
+            source,
+            "post",
+          );
+
+        if (!image) {
+          return;
+        }
+
+        setSaving(
+          true,
+        );
+
+        const response =
+          await replacePostImage(
+            post.id,
+            image,
+          );
+
+        setPost(
+          response.post,
+        );
+
+        toast.show({
+          title:
+            "Imagem atualizada",
+          icon:
+            "check",
+        });
+      } catch (
+        imageError
+      ) {
+        toast.show({
+          title:
+            "Não foi possível trocar a imagem",
+          body:
+            imageError instanceof
+              Error
+              ? imageError.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setSaving(
+          false,
+        );
+      }
+    };
+
+  const chooseNewImage =
+    () => {
+      Alert.alert(
+        "Trocar imagem",
+        "Escolha a origem da nova imagem.",
+        [
+          {
+            text: "Galeria",
+            onPress: () =>
+              void changeImage(
+                "library",
+              ),
+          },
+          {
+            text: "Câmera",
+            onPress: () =>
+              void changeImage(
+                "camera",
+              ),
+          },
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+        ],
+      );
+    };
+
+  const openManageMenu =
+    () => {
+      Alert.alert(
+        "Gerenciar publicação",
+        "Escolha o que deseja fazer.",
+        [
+          {
+            text:
+              "Editar legenda",
+            onPress: () => {
+              setDraftCaption(
+                post.caption,
+              );
+              setEditing(
+                true,
+              );
+            },
+          },
+          {
+            text:
+              "Trocar imagem",
+            onPress:
+              chooseNewImage,
+          },
+          {
+            text:
+              "Arquivar",
+            onPress: () =>
+              void archivePost(),
+          },
+          {
+            text:
+              "Excluir",
+            style:
+              "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Excluir publicação?",
+                "Essa ação remove a publicação e a imagem definitivamente.",
+                [
+                  {
+                    text:
+                      "Cancelar",
+                    style:
+                      "cancel",
+                  },
+                  {
+                    text:
+                      "Excluir",
+                    style:
+                      "destructive",
+                    onPress: () =>
+                      void removePost(),
+                  },
+                ],
+              );
+            },
+          },
+          {
+            text:
+              "Cancelar",
+            style:
+              "cancel",
+          },
+        ],
+      );
+    };
 
   return (
     <View style={styles.container}>
@@ -198,26 +624,37 @@ export default function PostDetailScreen() {
             Publicação
           </Text>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Mais opções"
-            onPress={() => {
-              // Menu real entra depois.
-            }}
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Icon
-              name="more-horizontal"
-              size={20}
-              color={
-                colors.onSurface
+          {post.canManage ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Gerenciar publicação"
+              disabled={
+                saving
+              }
+              onPress={
+                openManageMenu
+              }
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Icon
+                name="more-horizontal"
+                size={20}
+                color={
+                  colors.onSurface
+                }
+              />
+            </Pressable>
+          ) : (
+            <View
+              style={
+                styles.headerButton
               }
             />
-          </Pressable>
+          )}
         </View>
 
         <View
@@ -347,9 +784,9 @@ export default function PostDetailScreen() {
               accessibilityRole="button"
               accessibilityLabel="Compartilhar publicação"
               hitSlop={6}
-              onPress={() => {
-                // Share real entra depois.
-              }}
+              onPress={() =>
+                void handleShare()
+              }
               style={({ pressed }) => [
                 styles.iconButton,
                 pressed &&
@@ -366,11 +803,11 @@ export default function PostDetailScreen() {
             </Pressable>
           </View>
 
-          {typeof post.rating ===
+          {typeof author.rating ===
           "number" ? (
             <Rating
               value={
-                post.rating
+                author.rating
               }
             />
           ) : null}
@@ -381,21 +818,71 @@ export default function PostDetailScreen() {
             styles.postContent
           }
         >
-          <Text
-            style={
-              styles.caption
-            }
-          >
-            <Text
+          {editing ? (
+            <View
               style={
-                styles.captionAuthor
+                styles.editor
               }
             >
-              {author.name}{" "}
-            </Text>
+              <TextInput
+                value={
+                  draftCaption
+                }
+                onChangeText={
+                  setDraftCaption
+                }
+                multiline
+                maxLength={1200}
+                textAlignVertical="top"
+                style={
+                  styles.editorInput
+                }
+                accessibilityLabel="Editar legenda da publicação"
+              />
 
-            {post.caption}
-          </Text>
+              <View
+                style={
+                  styles.editorActions
+                }
+              >
+                <Button
+                  title="Cancelar"
+                  variant="secondary"
+                  onPress={() =>
+                    setEditing(
+                      false,
+                    )
+                  }
+                />
+
+                <Button
+                  title="Salvar"
+                  loading={
+                    saving
+                  }
+                  onPress={() =>
+                    void saveCaption()
+                  }
+                />
+              </View>
+            </View>
+          ) : (
+            <Text
+              style={
+                styles.caption
+              }
+            >
+              <Text
+                style={
+                  styles.captionAuthor
+                }
+              >
+                {author.name}{" "}
+              </Text>
+
+              {post.caption}
+            </Text>
+          )}
 
           <Pressable
             accessibilityRole="button"
@@ -447,17 +934,34 @@ export default function PostDetailScreen() {
                   styles.pressed,
               ]}
             >
-              <Image
-                source={{
-                  uri: service.image,
-                }}
-                style={
-                  styles.serviceImage
-                }
-                contentFit="cover"
-                transition={180}
-                accessibilityLabel={`Serviço ${service.name}`}
-              />
+              {service.image ? (
+                <Image
+                  source={{
+                    uri:
+                      service.image,
+                  }}
+                  style={
+                    styles.serviceImage
+                  }
+                  contentFit="cover"
+                  transition={180}
+                  accessibilityLabel={`Serviço ${service.name}`}
+                />
+              ) : (
+                <View
+                  style={
+                    styles.serviceImagePlaceholder
+                  }
+                >
+                  <Icon
+                    name="scissors"
+                    size={20}
+                    color={
+                      colors.plum
+                    }
+                  />
+                </View>
+              )}
 
               <View
                 style={
@@ -469,7 +973,8 @@ export default function PostDetailScreen() {
                     styles.serviceCategory
                   }
                 >
-                  {service.category.toUpperCase()}
+                  {(service.category ??
+                    "Serviço").toUpperCase()}
                 </Text>
 
                 <Text
@@ -491,9 +996,12 @@ export default function PostDetailScreen() {
                       styles.servicePrice
                     }
                   >
-                    {formatCurrency(
-                      service.price,
-                    )}
+                    {typeof service.price ===
+                    "number"
+                      ? formatCurrency(
+                          service.price,
+                        )
+                      : "Consultar"}
                   </Text>
 
                   {service.availabilityLabel ? (
@@ -590,29 +1098,31 @@ export default function PostDetailScreen() {
                 }
               </Text>
 
-              <View
-                style={
-                  styles.authorCardMeta
-                }
-              >
-                <Rating
-                  value={
-                    author.rating
-                  }
-                  small
-                />
-
-                <Text
+              {typeof author.rating ===
+              "number" ? (
+                <View
                   style={
-                    styles.authorCardReviews
+                    styles.authorCardMeta
                   }
                 >
-                  {
-                    author.reviewsCount
-                  }{" "}
-                  avaliações
-                </Text>
-              </View>
+                  <Rating
+                    value={
+                      author.rating
+                    }
+                    small
+                  />
+
+                  <Text
+                    style={
+                      styles.authorCardReviews
+                    }
+                  >
+                    {author.reviewsCount ??
+                      0}{" "}
+                    avaliações
+                  </Text>
+                </View>
+              ) : null}
             </View>
 
             <Icon
@@ -656,9 +1166,12 @@ export default function PostDetailScreen() {
                 styles.stickyPrice
               }
             >
-              {formatCurrency(
-                service.price,
-              )}
+              {typeof service.price ===
+              "number"
+                ? formatCurrency(
+                    service.price,
+                  )
+                : "Consultar"}
             </Text>
           </View>
 
@@ -719,6 +1232,16 @@ const useStyles = makeStyles(
   (colors) => ({
     container: {
       flex: 1,
+      backgroundColor:
+        colors.surface,
+    },
+
+    loading: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       backgroundColor:
         colors.surface,
     },
@@ -904,6 +1427,39 @@ const useStyles = makeStyles(
         spacing.lg,
     },
 
+    editor: {
+      gap:
+        spacing.md,
+    },
+
+    editorInput: {
+      minHeight: 110,
+      padding:
+        spacing.md,
+      borderRadius:
+        radius.md,
+      borderWidth: 1,
+      borderColor:
+        colors.border,
+      backgroundColor:
+        colors.surfaceSecondary,
+      color:
+        colors.onSurface,
+      fontFamily:
+        fonts.sans,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+
+    editorActions: {
+      flexDirection:
+        "row",
+      justifyContent:
+        "flex-end",
+      gap:
+        spacing.sm,
+    },
+
     caption: {
       color:
         colors.onSurfaceSecondary,
@@ -995,6 +1551,19 @@ const useStyles = makeStyles(
 
       borderColor:
         colors.glassBorder,
+    },
+
+    serviceImagePlaceholder: {
+      width: 64,
+      height: 64,
+      borderRadius:
+        radius.md,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
+      backgroundColor:
+        colors.plumSoft,
     },
 
     serviceImage: {

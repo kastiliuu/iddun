@@ -30,7 +30,8 @@ function isSaveTargetType(
     value === "professional" ||
     value === "establishment" ||
     value === "experience" ||
-    value === "portfolio_item"
+    value === "portfolio_item" ||
+    value === "work_post"
   );
 }
 

@@ -14,6 +14,11 @@ from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
 )
+from app.models.work_post import (
+    WorkPost,
+    WorkPostAuthorType,
+    WorkPostStatus,
+)
 from app.services.public_eligibility import (
     establishment_is_public,
     professional_is_public,
@@ -98,6 +103,49 @@ def _public_portfolio_item(target_id):
     return item
 
 
+def _public_work_post(target_id):
+    item = db.session.get(
+        WorkPost,
+        target_id,
+    )
+
+    if (
+        item is None
+        or item.status
+        != WorkPostStatus.PUBLISHED
+    ):
+        raise BeautyGraphError(
+            "Publicação não encontrada."
+        )
+
+    if (
+        item.author_type
+        == WorkPostAuthorType.PROFESSIONAL
+    ):
+        if not professional_is_public(
+            item.professional
+        ):
+            raise BeautyGraphError(
+                "Publicação não encontrada."
+            )
+    elif (
+        item.author_type
+        == WorkPostAuthorType.ESTABLISHMENT
+    ):
+        if not establishment_is_public(
+            item.establishment
+        ):
+            raise BeautyGraphError(
+                "Publicação não encontrada."
+            )
+    else:
+        raise BeautyGraphError(
+            "Publicação não encontrada."
+        )
+
+    return item
+
+
 def resolve_follow_target(
     target_type,
     target_id,
@@ -138,6 +186,11 @@ def resolve_save_target(
 
     if target_type == SaveTarget.PORTFOLIO_ITEM:
         return _public_portfolio_item(
+            target_id
+        )
+
+    if target_type == SaveTarget.WORK_POST:
+        return _public_work_post(
             target_id
         )
 
@@ -189,6 +242,8 @@ def _save_filters(
             Save.experience_id,
         SaveTarget.PORTFOLIO_ITEM:
             Save.portfolio_item_id,
+        SaveTarget.WORK_POST:
+            Save.work_post_id,
     }
 
     column = mapping.get(
@@ -340,6 +395,8 @@ def save_target(
             "experience_id",
         SaveTarget.PORTFOLIO_ITEM:
             "portfolio_item_id",
+        SaveTarget.WORK_POST:
+            "work_post_id",
     }
 
     kwargs[
@@ -424,6 +481,8 @@ def save_reference(item):
             item.experience_id,
         SaveTarget.PORTFOLIO_ITEM:
             item.portfolio_item_id,
+        SaveTarget.WORK_POST:
+            item.work_post_id,
     }
 
     return {

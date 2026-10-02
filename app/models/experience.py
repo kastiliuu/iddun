@@ -208,6 +208,12 @@ class Experience(db.Model):
         order_by="Booking.created_at.desc()",
     )
 
+    work_posts = db.relationship(
+        "WorkPost",
+        back_populates="experience",
+        order_by="WorkPost.published_at.desc(), WorkPost.id.desc()",
+    )
+
     @property
     def status_label(self):
         return ExperienceStatus.LABELS.get(

@@ -117,6 +117,13 @@ class Establishment(db.Model):
         order_by="EstablishmentGalleryItem.sort_order.asc(), EstablishmentGalleryItem.created_at.asc()",
     )
 
+    work_posts = db.relationship(
+        "WorkPost",
+        back_populates="establishment",
+        cascade="all, delete-orphan",
+        order_by="WorkPost.published_at.desc(), WorkPost.id.desc()",
+    )
+
     @property
     def active_memberships(self):
         return [item for item in self.memberships if item.status == MembershipStatus.ACTIVE]

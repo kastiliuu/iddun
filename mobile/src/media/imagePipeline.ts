@@ -22,7 +22,8 @@ import type {
 export type MediaKind =
   | "avatar"
   | "cover"
-  | "portfolio";
+  | "portfolio"
+  | "post";
 
 export type MediaSource =
   | "camera"
@@ -43,6 +44,7 @@ const MAX_SIDE_BY_KIND:
     avatar: 1400,
     cover: 2200,
     portfolio: 2000,
+    post: 2000,
   };
 
 const QUALITY_BY_KIND:
@@ -50,6 +52,7 @@ const QUALITY_BY_KIND:
     avatar: 0.88,
     cover: 0.84,
     portfolio: 0.86,
+    post: 0.86,
   };
 
 

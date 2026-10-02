@@ -22,12 +22,14 @@ class SaveTarget:
     ESTABLISHMENT = "establishment"
     EXPERIENCE = "experience"
     PORTFOLIO_ITEM = "portfolio_item"
+    WORK_POST = "work_post"
 
     VALUES = (
         PROFESSIONAL,
         ESTABLISHMENT,
         EXPERIENCE,
         PORTFOLIO_ITEM,
+        WORK_POST,
     )
 
 
@@ -172,6 +174,15 @@ class Save(db.Model):
         nullable=True,
         index=True,
     )
+    work_post_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "work_posts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
+    )
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -194,6 +205,9 @@ class Save(db.Model):
     portfolio_item = db.relationship(
         "ProfessionalPortfolioItem"
     )
+    work_post = db.relationship(
+        "WorkPost"
+    )
 
     __table_args__ = (
         db.CheckConstraint(
@@ -203,25 +217,36 @@ class Save(db.Model):
                 "AND professional_id IS NOT NULL "
                 "AND establishment_id IS NULL "
                 "AND experience_id IS NULL "
-                "AND portfolio_item_id IS NULL"
+                "AND portfolio_item_id IS NULL "
+                "AND work_post_id IS NULL"
                 ") OR ("
                 "target_type = 'establishment' "
                 "AND establishment_id IS NOT NULL "
                 "AND professional_id IS NULL "
                 "AND experience_id IS NULL "
-                "AND portfolio_item_id IS NULL"
+                "AND portfolio_item_id IS NULL "
+                "AND work_post_id IS NULL"
                 ") OR ("
                 "target_type = 'experience' "
                 "AND experience_id IS NOT NULL "
                 "AND professional_id IS NULL "
                 "AND establishment_id IS NULL "
-                "AND portfolio_item_id IS NULL"
+                "AND portfolio_item_id IS NULL "
+                "AND work_post_id IS NULL"
                 ") OR ("
                 "target_type = 'portfolio_item' "
                 "AND portfolio_item_id IS NOT NULL "
                 "AND professional_id IS NULL "
                 "AND establishment_id IS NULL "
-                "AND experience_id IS NULL"
+                "AND experience_id IS NULL "
+                "AND work_post_id IS NULL"
+                ") OR ("
+                "target_type = 'work_post' "
+                "AND work_post_id IS NOT NULL "
+                "AND professional_id IS NULL "
+                "AND establishment_id IS NULL "
+                "AND experience_id IS NULL "
+                "AND portfolio_item_id IS NULL"
                 ")"
             ),
             name="ck_save_target_shape",
@@ -245,5 +270,10 @@ class Save(db.Model):
             "user_id",
             "portfolio_item_id",
             name="uq_save_user_portfolio_item",
+        ),
+        db.UniqueConstraint(
+            "user_id",
+            "work_post_id",
+            name="uq_save_user_work_post",
         ),
     )

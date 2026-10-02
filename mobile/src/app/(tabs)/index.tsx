@@ -1,12 +1,15 @@
 import React, {
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   RefreshControl,
+  Share,
   ScrollView,
   Text,
   View,
@@ -14,6 +17,12 @@ import {
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+
+import {
+  getFeed,
+  type FeedMode,
+  type WorkPost,
+} from "@/api/feed";
 
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EditorialBlock } from "@/components/EditorialBlock";
@@ -27,11 +36,8 @@ import { StoryAvatar } from "@/components/StoryAvatar";
 
 import {
   getIDDUNNowData,
-  getPostAuthor,
-  getPostService,
   getStoryProfile,
   iddunNowItems,
-  posts,
   professionals,
   stories,
 } from "@/mocks/data";
@@ -48,10 +54,6 @@ import {
   touch,
   useTheme,
 } from "@/theme";
-
-type FeedMode =
-  | "for-you"
-  | "following";
 
 export default function HomeScreen() {
   useStoreVersion();
@@ -72,11 +74,42 @@ export default function HomeScreen() {
   const [feedMode, setFeedMode] =
     useState<FeedMode>("for-you");
 
+  const [
+    feedPosts,
+    setFeedPosts,
+  ] =
+    useState<WorkPost[]>([]);
+
+  const [
+    feedLoading,
+    setFeedLoading,
+  ] =
+    useState(true);
+
+  const [
+    feedError,
+    setFeedError,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    nextCursor,
+    setNextCursor,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    loadingMore,
+    setLoadingMore,
+  ] =
+    useState(false);
+
   const notificationsCount =
     store.unreadCount();
-
-  const followingIds =
-    store.following();
 
   const storyData = useMemo(() => {
     return stories
@@ -99,26 +132,69 @@ export default function HomeScreen() {
     }[];
   }, []);
 
-  const feedPosts = useMemo(() => {
-    if (
-      feedMode === "for-you"
-    ) {
-      return posts;
-    }
+  useEffect(
+    () => {
+      let mounted =
+        true;
 
-    return posts.filter((post) =>
-      followingIds.includes(
-        post.authorId,
-      ),
-    );
-  }, [
-    feedMode,
-    followingIds,
-  ]);
+      getFeed({
+        mode:
+          feedMode,
+      })
+        .then(
+          (response) => {
+            if (!mounted) {
+              return;
+            }
+
+            setFeedPosts(
+              response.items,
+            );
+            setNextCursor(
+              response.nextCursor ??
+              null,
+            );
+            setFeedError(
+              null,
+            );
+          },
+        )
+        .catch(
+          (error) => {
+            if (!mounted) {
+              return;
+            }
+
+            setFeedPosts(
+              [],
+            );
+            setFeedError(
+              error instanceof Error
+                ? error.message
+                : "Não foi possível carregar o feed.",
+            );
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setFeedLoading(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [feedMode],
+  );
 
   const selectedPost =
     selectedPostId
-      ? posts.find(
+      ? feedPosts.find(
           (post) =>
             post.id ===
             selectedPostId,
@@ -126,11 +202,7 @@ export default function HomeScreen() {
       : undefined;
 
   const selectedPostAuthor =
-    selectedPost
-      ? getPostAuthor(
-          selectedPost,
-        )
-      : undefined;
+    selectedPost?.author;
 
   const handleOpenComments = (
     postId: string,
@@ -151,30 +223,118 @@ export default function HomeScreen() {
       setRefreshing(true);
 
       try {
-        await new Promise(
-          (resolve) =>
-            setTimeout(
-              resolve,
-              700,
-            ),
+        const response =
+          await getFeed({
+            mode:
+              feedMode,
+          });
+
+        setFeedPosts(
+          response.items,
+        );
+        setNextCursor(
+          response.nextCursor ??
+          null,
+        );
+        setFeedError(
+          null,
+        );
+      } catch (error) {
+        setFeedError(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível atualizar o feed.",
         );
       } finally {
         setRefreshing(false);
       }
     };
 
+  const handleLoadMore =
+    async () => {
+      if (
+        !nextCursor ||
+        loadingMore
+      ) {
+        return;
+      }
+
+      try {
+        setLoadingMore(
+          true,
+        );
+
+        const response =
+          await getFeed({
+            mode:
+              feedMode,
+            cursor:
+              nextCursor,
+          });
+
+        setFeedPosts(
+          (current) => {
+            const ids =
+              new Set(
+                current.map(
+                  (item) =>
+                    item.id,
+                ),
+              );
+
+            return [
+              ...current,
+              ...response.items.filter(
+                (item) =>
+                  !ids.has(
+                    item.id,
+                  ),
+              ),
+            ];
+          },
+        );
+
+        setNextCursor(
+          response.nextCursor ??
+          null,
+        );
+      } catch (error) {
+        setFeedError(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar mais publicações.",
+        );
+      } finally {
+        setLoadingMore(
+          false,
+        );
+      }
+    };
+
   const renderFeedPost = (
-    post: (typeof posts)[number],
+    post: WorkPost,
   ) => {
     const author =
-      getPostAuthor(post);
-
-    if (!author) {
-      return null;
-    }
+      post.author;
 
     const service =
-      getPostService(post);
+      post.service ??
+      undefined;
+
+    const handleShare =
+      async () => {
+        await Share.share({
+          message:
+            (
+              post.caption
+                ? post.caption
+                  + "\n\n"
+                : ""
+            )
+            + "Veja este trabalho no IDDUN: "
+            + post.deepLink,
+        });
+      };
 
     return (
       <PostCard
@@ -182,20 +342,24 @@ export default function HomeScreen() {
         id={post.id}
         author={{
           id: author.id,
+          routeId:
+            author.routeId,
           name: author.name,
           avatar:
             author.avatar,
           kind:
             author.kind,
           specialty:
-            author.specialty,
+            author.specialty ??
+            undefined,
         }}
         image={post.image}
         caption={
           post.caption
         }
         rating={
-          post.rating
+          author.rating ??
+          undefined
         }
         commentsCount={
           post.commentsCount
@@ -210,7 +374,8 @@ export default function HomeScreen() {
                 price:
                   service.price,
                 availabilityLabel:
-                  service.availabilityLabel,
+                  service.availabilityLabel ??
+                  undefined,
               }
             : undefined
         }
@@ -218,6 +383,9 @@ export default function HomeScreen() {
           handleOpenComments(
             post.id,
           )
+        }
+        onSharePress={() =>
+          void handleShare()
         }
       />
     );
@@ -629,15 +797,84 @@ export default function HomeScreen() {
             styles.feedSection
           }
         >
-          {feedPosts.length >
+          {feedLoading ? (
+            <View
+              style={
+                styles.feedLoading
+              }
+              accessibilityRole="progressbar"
+              accessibilityLabel="Carregando publicações"
+            >
+              <ActivityIndicator
+                color={
+                  colors.plum
+                }
+              />
+            </View>
+          ) : feedPosts.length >
           0 ? (
-            feedPosts.map(
-              renderFeedPost,
-            )
+            <>
+              {feedPosts.map(
+                renderFeedPost,
+              )}
+
+              {nextCursor ? (
+                <View
+                  style={
+                    styles.loadMoreWrap
+                  }
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Carregar mais publicações"
+                    disabled={
+                      loadingMore
+                    }
+                    onPress={() =>
+                      void handleLoadMore()
+                    }
+                    style={({ pressed }) => [
+                      styles.loadMoreButton,
+                      pressed &&
+                        styles.pressed,
+                    ]}
+                  >
+                    {loadingMore ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={
+                          colors.plum
+                        }
+                      />
+                    ) : (
+                      <Text
+                        style={
+                          styles.loadMoreText
+                        }
+                      >
+                        Carregar mais
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+            </>
           ) : (
             <EmptyState
-              title="Seu feed está começando"
-              description="Siga profissionais e estabelecimentos para acompanhar trabalhos, novidades e horários disponíveis."
+              title={
+                feedError
+                  ? "Não foi possível carregar o feed"
+                  : "Seu feed está começando"
+              }
+              description={
+                feedError ??
+                (
+                  feedMode ===
+                  "following"
+                    ? "Siga profissionais e estabelecimentos para acompanhar os trabalhos deles aqui."
+                    : "Ainda não há publicações disponíveis. Os próximos trabalhos publicados aparecem aqui."
+                )
+              }
               actionLabel="Descobrir perfis"
               onActionPress={() =>
                 router.push(
@@ -927,6 +1164,44 @@ const useStyles =
 
         gap:
           spacing.xxl,
+      },
+
+      feedLoading: {
+        minHeight: 180,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      loadMoreWrap: {
+        paddingHorizontal:
+          spacing.lg,
+        alignItems:
+          "center",
+      },
+
+      loadMoreButton: {
+        minHeight:
+          touch.minimum,
+        paddingHorizontal:
+          spacing.xl,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      loadMoreText: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
+        color:
+          colors.onSurface,
       },
 
       bottomSpace: {

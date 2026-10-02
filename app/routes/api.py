@@ -150,6 +150,9 @@ def _public_image_url(value):
 def _experience_payload(item):
     return {
         "id": item["slug"],
+        "entityId": item.get(
+            "database_id"
+        ),
         "slug": item["slug"],
         "title": item["title"],
         "description": item["description"],

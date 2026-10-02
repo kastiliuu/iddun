@@ -487,8 +487,8 @@ export default function CreateScreen() {
                   title="Nova publicação"
                   description="Compartilhe um trabalho no feed do IDDUN."
                   onPress={() =>
-                    showComingSoon(
-                      "Nova publicação",
+                    router.push(
+                      "/create-post",
                     )
                   }
                 />
