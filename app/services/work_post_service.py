@@ -543,6 +543,17 @@ def replace_work_post_image(
     return post, previous
 
 
+def owned_work_post(
+    *,
+    user,
+    post_id,
+):
+    return _owned_post(
+        user=user,
+        post_id=post_id,
+    )
+
+
 def delete_work_post(
     *,
     user,
