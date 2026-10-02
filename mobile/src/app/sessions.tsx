@@ -184,10 +184,7 @@ export default function SessionsScreen() {
   ) => {
     Alert.alert(
       "Encerrar esta sessão?",
-      (
-        "Esse dispositivo precisará entrar "
-        "novamente no IDDUN."
-      ),
+      "Esse dispositivo precisará entrar novamente no IDDUN.",
       [
         {
           text: "Cancelar",
