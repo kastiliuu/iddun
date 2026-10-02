@@ -51,6 +51,12 @@ class User(UserMixin, db.Model):
         nullable=True,
     )
 
+    deleted_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
