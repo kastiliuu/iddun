@@ -38,3 +38,28 @@ jobs:
 
       - name: Executar testes
         run: python -m pytest -q
+
+  mobile-typecheck:
+    name: Node 22 / mobile typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v7
+
+      - name: Configurar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar TypeScript
+        run: npm run typecheck
