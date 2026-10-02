@@ -1,9 +1,11 @@
 import React, {
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -15,6 +17,11 @@ import {
   useRouter,
 } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+
+import {
+  getProfessional,
+  type ProfessionalProfileResponse,
+} from "@/api/professionals";
 
 import { Avatar } from "@/components/Avatar";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -75,10 +82,80 @@ export default function ProfessionalProfileScreen() {
       id: string;
     }>();
 
-  const profile =
+  const mockProfile =
     getProfessionalById(
       params.id,
     );
+
+  const [
+    remoteData,
+    setRemoteData,
+  ] =
+    useState<ProfessionalProfileResponse | null>(
+      null,
+    );
+
+  const [
+    remoteLoading,
+    setRemoteLoading,
+  ] =
+    useState(
+      !mockProfile,
+    );
+
+  useEffect(
+    () => {
+      if (mockProfile) {
+        return;
+      }
+
+      let mounted =
+        true;
+
+      getProfessional(
+        params.id,
+      )
+        .then(
+          (response) => {
+            if (mounted) {
+              setRemoteData(
+                response,
+              );
+            }
+          },
+        )
+        .catch(
+          () => {
+            if (mounted) {
+              setRemoteData(
+                null,
+              );
+            }
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setRemoteLoading(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [
+      mockProfile,
+      params.id,
+    ],
+  );
+
+  const profile =
+    mockProfile ??
+    remoteData?.professional;
 
   const [activeTab, setActiveTab] =
     useState<ProfileTab>("work");
@@ -90,23 +167,61 @@ export default function ProfessionalProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () =>
-      profile
-        ? getPostsByAuthorId(
-            profile.id,
-          )
-        : [],
-    [profile],
+    () => {
+      if (mockProfile) {
+        return getPostsByAuthorId(
+          mockProfile.id,
+        );
+      }
+
+      return (
+        remoteData?.posts ??
+        []
+      ).map(
+        (post) => ({
+          id: post.id,
+          authorId:
+            post.authorId,
+          image:
+            post.image,
+          caption:
+            post.caption,
+          rating:
+            post.author
+              .rating ??
+            undefined,
+          commentsCount:
+            post.commentsCount,
+          serviceId:
+            post.service?.id ??
+            undefined,
+          createdAt:
+            post.publishedAt ??
+            "",
+        }),
+      );
+    },
+    [
+      mockProfile,
+      remoteData,
+    ],
   );
 
   const services = useMemo(
     () =>
-      profile
+      mockProfile
         ? getServicesByAuthorId(
-            profile.id,
+            mockProfile.id,
           )
-        : [],
-    [profile],
+        : (
+            remoteData
+              ?.services ??
+            []
+          ),
+    [
+      mockProfile,
+      remoteData,
+    ],
   );
 
   const selectedPost =
@@ -117,6 +232,27 @@ export default function ProfessionalProfileScreen() {
             selectedPostId,
         )
       : undefined;
+
+  if (
+    remoteLoading &&
+    !profile
+  ) {
+    return (
+      <View
+        style={
+          styles.loading
+        }
+        accessibilityRole="progressbar"
+        accessibilityLabel="Carregando perfil profissional"
+      >
+        <ActivityIndicator
+          color={
+            colors.plum
+          }
+        />
+      </View>
+    );
+  }
 
   if (!profile) {
     return (
@@ -613,9 +749,15 @@ export default function ProfessionalProfileScreen() {
                 {posts.map(
                   (post) => {
                     const service =
-                      getPostService(
-                        post,
-                      );
+                      mockProfile
+                        ? getPostService(
+                            post,
+                          )
+                        : services.find(
+                            (item) =>
+                              item.id ===
+                              post.serviceId,
+                          );
 
                     return (
                       <PostCard
@@ -628,6 +770,9 @@ export default function ProfessionalProfileScreen() {
                         author={{
                           id:
                             profile.id,
+                          routeId:
+                            profile.routeId ??
+                            params.id,
                           name:
                             profile.name,
                           avatar:
@@ -992,6 +1137,16 @@ const useStyles = makeStyles(
   (colors) => ({
     container: {
       flex: 1,
+      backgroundColor:
+        colors.surface,
+    },
+
+    loading: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       backgroundColor:
         colors.surface,
     },
