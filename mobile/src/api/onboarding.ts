@@ -43,6 +43,13 @@ export type ProfessionalExperience = {
   } | null;
 };
 
+export type ProfessionalPortfolioItem = {
+  id: number;
+  imageUrl: string;
+  caption?: string | null;
+  sortOrder: number;
+};
+
 export type ProfessionalMembership = {
   id: number;
   status: string;
@@ -68,6 +75,7 @@ export type ProfessionalOnboardingProfile = {
   avatarUrl?: string | null;
   coverUrl?: string | null;
   portfolioCount: number;
+  portfolio: ProfessionalPortfolioItem[];
   isActive: boolean;
   onboardingCompleted: boolean;
   publishedAt?: string | null;
