@@ -6,6 +6,7 @@ import {
   requestMediaLibraryPermissionsAsync,
   UIImagePickerPreferredAssetRepresentationMode,
   type ImagePickerAsset,
+  type ImagePickerOptions,
 } from "expo-image-picker";
 
 import {
@@ -87,9 +88,10 @@ async function selectAsset(
   const allowsEditing =
     kind === "avatar";
 
-  const options = {
+  const options:
+    ImagePickerOptions = {
     mediaTypes:
-      ["images"] as const,
+      ["images"],
     allowsEditing,
     aspect:
       kind === "avatar"
