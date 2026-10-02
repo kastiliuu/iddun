@@ -85,3 +85,42 @@ export function getRealExperiences(
   );
 }
 
+
+
+export type ExperienceAvailabilitySlot = {
+  id: number;
+  startsAt: string;
+  endsAt: string;
+  deadline: string;
+};
+
+export type ExperienceAvailabilityDay = {
+  date: string;
+  slots: ExperienceAvailabilitySlot[];
+};
+
+export type ExperienceAvailabilityResponse = {
+  experienceId: string;
+  timezone: string;
+  days: ExperienceAvailabilityDay[];
+};
+
+export function getRealExperience(
+  slug: string,
+  signal?: AbortSignal,
+) {
+  return api.get<CatalogExperience>(
+    `/api/v1/experiences/${encodeURIComponent(slug)}`,
+    { signal },
+  );
+}
+
+export function getExperienceAvailability(
+  slug: string,
+  signal?: AbortSignal,
+) {
+  return api.get<ExperienceAvailabilityResponse>(
+    `/api/v1/experiences/${encodeURIComponent(slug)}/availability`,
+    { signal },
+  );
+}
