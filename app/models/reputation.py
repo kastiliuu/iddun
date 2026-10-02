@@ -61,8 +61,27 @@ class Review(db.Model):
     establishment = db.relationship("Establishment", back_populates="reviews_received")
 
     __table_args__ = (
-        db.UniqueConstraint("booking_id", "target_type", name="uq_review_booking_target"),
-        db.CheckConstraint("rating >= 1 AND rating <= 5", name="ck_review_rating_1_5"),
+        db.UniqueConstraint(
+            "booking_id",
+            "target_type",
+            name="uq_review_booking_target",
+        ),
+        db.CheckConstraint(
+            "rating >= 1 AND rating <= 5",
+            name="ck_review_rating_1_5",
+        ),
+        db.CheckConstraint(
+            (
+                "(target_type = 'professional' "
+                "AND professional_id IS NOT NULL "
+                "AND establishment_id IS NULL) "
+                "OR "
+                "(target_type = 'establishment' "
+                "AND establishment_id IS NOT NULL "
+                "AND professional_id IS NULL)"
+            ),
+            name="ck_review_target_consistency",
+        ),
     )
 
     @property
