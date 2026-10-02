@@ -371,3 +371,41 @@ export async function hasStoredSession() {
 
   return Boolean(refreshToken);
 }
+
+
+export async function requestPasswordReset(
+  email: string,
+) {
+  return api.post<{
+    message: string;
+  }>(
+    `${AUTH_BASE}/password/forgot`,
+    {
+      email:
+        email
+          .trim()
+          .toLowerCase(),
+    },
+  );
+}
+
+export async function resendEmailVerification() {
+  const token =
+    await getAccessToken();
+
+  if (!token) {
+    throw new ApiError(
+      "Entre na sua conta para continuar.",
+      401,
+    );
+  }
+
+  return api.post<{
+    message: string;
+    emailVerified: boolean;
+  }>(
+    `${AUTH_BASE}/email/verification/resend`,
+    undefined,
+    { token },
+  );
+}
