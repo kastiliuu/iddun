@@ -17,8 +17,11 @@ import {
 import type {
   Professional,
   Service,
-  Post,
 } from "@/mocks/data";
+
+import type {
+  WorkPost,
+} from "@/api/feed";
 
 export type ProfessionalListResponse = {
   items: Professional[];
@@ -36,7 +39,7 @@ export type ProfessionalSearchParams = {
 export type ProfessionalProfileResponse = {
   professional: Professional;
   services: Service[];
-  posts: Post[];
+  posts: WorkPost[];
 };
 
 export type FollowResponse = {
@@ -167,7 +170,7 @@ export async function getProfessional(
    * }
    */
   return api.get<ProfessionalProfileResponse>(
-    `/api/professionals/${professionalId}`,
+    `/api/v1/professionals/${encodeURIComponent(professionalId)}`,
   );
 }
 
@@ -269,7 +272,7 @@ export async function getProfessionalPosts(
   );
 
   return api.get<{
-    items: Post[];
+    items: WorkPost[];
     nextCursor?: string | null;
   }>(
     `/api/professionals/${professionalId}/posts?${query.toString()}`,
