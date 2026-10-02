@@ -17,8 +17,11 @@ import {
 import type {
   Professional,
   Service,
-  Post,
 } from "@/mocks/data";
+
+import type {
+  WorkPost,
+} from "@/api/feed";
 
 export type EstablishmentListResponse = {
   items: Professional[];
@@ -36,7 +39,7 @@ export type EstablishmentSearchParams = {
 export type EstablishmentProfileResponse = {
   establishment: Professional;
   services: Service[];
-  posts: Post[];
+  posts: WorkPost[];
   team: Professional[];
 };
 
@@ -173,7 +176,7 @@ export async function getEstablishment(
    * }
    */
   return api.get<EstablishmentProfileResponse>(
-    `/api/establishments/${establishmentId}`,
+    `/api/v1/establishments/${encodeURIComponent(establishmentId)}`,
   );
 }
 
@@ -207,7 +210,7 @@ export async function getEstablishmentPosts(
   );
 
   return api.get<{
-    items: Post[];
+    items: WorkPost[];
     nextCursor?: string | null;
   }>(
     `/api/establishments/${establishmentId}/posts?${query.toString()}`,
