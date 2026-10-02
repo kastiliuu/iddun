@@ -166,6 +166,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="privacy"
+              />
+
+              <Stack.Screen
                 name="(tabs)"
               />
 
