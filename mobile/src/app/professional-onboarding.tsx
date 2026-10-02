@@ -71,6 +71,105 @@ import {
 } from "@/theme";
 
 
+type MediaSourceActionsProps = {
+  disabled: boolean;
+  onLibrary: () => void;
+  onCamera: () => void;
+};
+
+function MediaSourceActions({
+  disabled,
+  onLibrary,
+  onCamera,
+}: MediaSourceActionsProps) {
+  const styles =
+    useStyles();
+
+  const { colors } =
+    useTheme();
+
+  return (
+    <View
+      style={
+        styles.mediaActions
+      }
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Escolher imagem da galeria"
+        accessibilityState={{
+          disabled,
+        }}
+        disabled={disabled}
+        onPress={
+          onLibrary
+        }
+        style={({ pressed }) => [
+          styles.mediaAction,
+          disabled &&
+            styles.mediaActionDisabled,
+          pressed &&
+            !disabled &&
+            styles.mediaActionPressed,
+        ]}
+      >
+        <Icon
+          name="image"
+          size={16}
+          color={
+            colors.plum
+          }
+        />
+
+        <Text
+          style={
+            styles.mediaActionText
+          }
+        >
+          Galeria
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tirar uma foto"
+        accessibilityState={{
+          disabled,
+        }}
+        disabled={disabled}
+        onPress={
+          onCamera
+        }
+        style={({ pressed }) => [
+          styles.mediaAction,
+          disabled &&
+            styles.mediaActionDisabled,
+          pressed &&
+            !disabled &&
+            styles.mediaActionPressed,
+        ]}
+      >
+        <Icon
+          name="camera"
+          size={16}
+          color={
+            colors.plum
+          }
+        />
+
+        <Text
+          style={
+            styles.mediaActionText
+          }
+        >
+          Câmera
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
+
 export default function ProfessionalOnboardingScreen() {
   const styles =
     useStyles();
@@ -875,6 +974,582 @@ export default function ProfessionalOnboardingScreen() {
               )
             }
           />
+        </View>
+
+        <View
+          style={
+            styles.section
+          }
+        >
+          <Text
+            style={
+              styles.sectionEyebrow
+            }
+          >
+            MÍDIA DO PERFIL
+          </Text>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Mostre seu trabalho antes mesmo da primeira conversa.
+          </Text>
+
+          <Text
+            style={
+              styles.sectionDescription
+            }
+          >
+            As imagens são otimizadas antes do envio e o IDDUN também valida o arquivo no servidor.
+          </Text>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Foto de perfil
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Obrigatória · corte quadrado · até 5 MB no servidor
+                </Text>
+              </View>
+
+              {profile.avatarUrl ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            <View
+              style={
+                styles.avatarMediaRow
+              }
+            >
+              {profile.avatarUrl ? (
+                <Image
+                  source={{
+                    uri:
+                      profile.avatarUrl,
+                  }}
+                  style={
+                    styles.avatarMediaPreview
+                  }
+                  contentFit="cover"
+                  transition={160}
+                  accessibilityLabel={
+                    `Foto de perfil de ${profile.displayName}`
+                  }
+                />
+              ) : (
+                <View
+                  style={
+                    styles.avatarMediaPlaceholder
+                  }
+                >
+                  <Text
+                    style={
+                      styles.avatarMediaInitial
+                    }
+                  >
+                    {profile.displayName
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+              )}
+
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardBody
+                  }
+                >
+                  Use uma foto nítida, com seu rosto ou identidade profissional bem visível.
+                </Text>
+              </View>
+            </View>
+
+            <MediaSourceActions
+              disabled={
+                mediaBusy !==
+                null
+              }
+              onLibrary={() =>
+                void handleMediaUpload(
+                  "avatar",
+                  "library",
+                )
+              }
+              onCamera={() =>
+                void handleMediaUpload(
+                  "avatar",
+                  "camera",
+                )
+              }
+            />
+
+            {mediaBusy ===
+            "avatar" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Preparando e enviando foto...
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Capa
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Opcional · composição horizontal recomendada
+                </Text>
+              </View>
+
+              {profile.coverUrl ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            {profile.coverUrl ? (
+              <Image
+                source={{
+                  uri:
+                    profile.coverUrl,
+                }}
+                style={
+                  styles.coverMediaPreview
+                }
+                contentFit="cover"
+                transition={160}
+                accessibilityLabel={
+                  `Capa do perfil de ${profile.displayName}`
+                }
+              />
+            ) : (
+              <View
+                style={
+                  styles.coverMediaPlaceholder
+                }
+              >
+                <Icon
+                  name="image"
+                  size={24}
+                  color={
+                    colors.muted
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Adicione uma imagem que represente seu estilo de trabalho.
+                </Text>
+              </View>
+            )}
+
+            <MediaSourceActions
+              disabled={
+                mediaBusy !==
+                null
+              }
+              onLibrary={() =>
+                void handleMediaUpload(
+                  "cover",
+                  "library",
+                )
+              }
+              onCamera={() =>
+                void handleMediaUpload(
+                  "cover",
+                  "camera",
+                )
+              }
+            />
+
+            {mediaBusy ===
+            "cover" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Preparando e enviando capa...
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Portfólio
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  {profile.portfolioCount}/8 imagens · mínimo de 3 para publicar
+                </Text>
+              </View>
+
+              {profile.portfolioCount >=
+              3 ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            {profile.portfolio.length >
+            0 ? (
+              <View
+                style={
+                  styles.portfolioGrid
+                }
+              >
+                {profile.portfolio.map(
+                  (
+                    item,
+                    index,
+                  ) => (
+                    <View
+                      key={
+                        item.id
+                      }
+                      style={
+                        styles.portfolioItem
+                      }
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            item.imageUrl,
+                        }}
+                        style={
+                          styles.portfolioImage
+                        }
+                        contentFit="cover"
+                        transition={140}
+                        accessibilityLabel={
+                          item.caption ||
+                          `Trabalho ${index + 1} do portfólio`
+                        }
+                      />
+
+                      <View
+                        style={
+                          styles.portfolioOrder
+                        }
+                      >
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Mover trabalho ${index + 1} para a esquerda`
+                          }
+                          accessibilityState={{
+                            disabled:
+                              index ===
+                              0,
+                          }}
+                          disabled={
+                            index ===
+                              0 ||
+                            mediaBusy !==
+                              null
+                          }
+                          onPress={() =>
+                            void movePortfolioItem(
+                              item.id,
+                              -1,
+                            )
+                          }
+                          style={
+                            styles.portfolioIconButton
+                          }
+                        >
+                          <Icon
+                            name="chevron-left"
+                            size={17}
+                            color={
+                              index ===
+                              0
+                                ? colors.muted
+                                : colors.onSurface
+                            }
+                          />
+                        </Pressable>
+
+                        <Text
+                          style={
+                            styles.portfolioPosition
+                          }
+                        >
+                          {index + 1}
+                        </Text>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Mover trabalho ${index + 1} para a direita`
+                          }
+                          accessibilityState={{
+                            disabled:
+                              index ===
+                              profile.portfolio.length -
+                                1,
+                          }}
+                          disabled={
+                            index ===
+                              profile.portfolio.length -
+                                1 ||
+                            mediaBusy !==
+                              null
+                          }
+                          onPress={() =>
+                            void movePortfolioItem(
+                              item.id,
+                              1,
+                            )
+                          }
+                          style={
+                            styles.portfolioIconButton
+                          }
+                        >
+                          <Icon
+                            name="chevron-right"
+                            size={17}
+                            color={
+                              index ===
+                              profile.portfolio.length -
+                                1
+                                ? colors.muted
+                                : colors.onSurface
+                            }
+                          />
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Remover trabalho ${index + 1}`
+                          }
+                          disabled={
+                            mediaBusy !==
+                            null
+                          }
+                          onPress={() =>
+                            removePortfolioItem(
+                              item.id,
+                            )
+                          }
+                          style={[
+                            styles.portfolioIconButton,
+                            styles.portfolioDeleteButton,
+                          ]}
+                        >
+                          <Icon
+                            name="trash-2"
+                            size={15}
+                            color={
+                              colors.error
+                            }
+                          />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ),
+                )}
+              </View>
+            ) : (
+              <View
+                style={
+                  styles.portfolioEmpty
+                }
+              >
+                <Icon
+                  name="grid"
+                  size={24}
+                  color={
+                    colors.muted
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.mediaCardBody
+                  }
+                >
+                  Seu portfólio ainda está vazio. Adicione pelo menos três trabalhos para liberar a publicação.
+                </Text>
+              </View>
+            )}
+
+            {profile.portfolioCount <
+            8 ? (
+              <MediaSourceActions
+                disabled={
+                  mediaBusy !==
+                  null
+                }
+                onLibrary={() =>
+                  void handleMediaUpload(
+                    "portfolio",
+                    "library",
+                  )
+                }
+                onCamera={() =>
+                  void handleMediaUpload(
+                    "portfolio",
+                    "camera",
+                  )
+                }
+              />
+            ) : (
+              <Text
+                style={
+                  styles.fieldHint
+                }
+              >
+                Você atingiu o limite de 8 imagens. Remova uma para adicionar outra.
+              </Text>
+            )}
+
+            {mediaBusy ===
+            "portfolio" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Otimizando e enviando trabalho...
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <View
