@@ -87,6 +87,8 @@ type PersistedScope = {
   professionals?: string[];
   services?: string[];
   follows?: string[];
+  graphFollows?: string[];
+  graphSaves?: string[];
   comments?: Record<string, Comment[]>;
   notifications?: Notification[];
 };
@@ -144,6 +146,12 @@ class LocalStore {
   };
 
   private follows = new Set<string>();
+
+  private graphFollows =
+    new Set<string>();
+
+  private graphSaves =
+    new Set<string>();
 
   private user: CurrentUser = null;
 
@@ -252,6 +260,12 @@ class LocalStore {
       professionals: [...this.data.professionals],
       services: [...this.data.services],
       follows: [...this.follows],
+      graphFollows: [
+        ...this.graphFollows,
+      ],
+      graphSaves: [
+        ...this.graphSaves,
+      ],
       comments: this.comments,
       notifications: this.notifications,
     };
@@ -266,6 +280,14 @@ class LocalStore {
       scope?.services ?? [],
     );
     this.follows = new Set(scope?.follows ?? []);
+    this.graphFollows =
+      new Set(
+        scope?.graphFollows ?? [],
+      );
+    this.graphSaves =
+      new Set(
+        scope?.graphSaves ?? [],
+      );
     this.comments = scope?.comments ?? {};
     this.notifications =
       scope?.notifications ?? [];
@@ -356,6 +378,209 @@ class LocalStore {
 
   following() {
     return [...this.follows];
+  }
+
+  private graphKey(
+    targetType: string,
+    targetId: number,
+  ) {
+    return (
+      targetType
+      + ":"
+      + targetId
+    );
+  }
+
+  private parseGraphKey(
+    key: string,
+  ) {
+    const separator =
+      key.lastIndexOf(":");
+
+    if (
+      separator <= 0 ||
+      separator ===
+        key.length - 1
+    ) {
+      return null;
+    }
+
+    const targetType =
+      key.slice(
+        0,
+        separator,
+      );
+
+    const targetId =
+      Number(
+        key.slice(
+          separator + 1,
+        ),
+      );
+
+    if (
+      !Number.isInteger(
+        targetId,
+      ) ||
+      targetId <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      targetType,
+      targetId,
+    };
+  }
+
+  isGraphFollowing(
+    targetType: string,
+    targetId: number,
+  ) {
+    return this.graphFollows.has(
+      this.graphKey(
+        targetType,
+        targetId,
+      ),
+    );
+  }
+
+  isGraphSaved(
+    targetType: string,
+    targetId: number,
+  ) {
+    return this.graphSaves.has(
+      this.graphKey(
+        targetType,
+        targetId,
+      ),
+    );
+  }
+
+  setGraphFollowing(
+    targetType: string,
+    targetId: number,
+    value: boolean,
+  ) {
+    const key =
+      this.graphKey(
+        targetType,
+        targetId,
+      );
+
+    if (value) {
+      this.graphFollows.add(
+        key,
+      );
+    } else {
+      this.graphFollows.delete(
+        key,
+      );
+    }
+
+    this.persistAndEmit();
+  }
+
+  setGraphSaved(
+    targetType: string,
+    targetId: number,
+    value: boolean,
+  ) {
+    const key =
+      this.graphKey(
+        targetType,
+        targetId,
+      );
+
+    if (value) {
+      this.graphSaves.add(
+        key,
+      );
+    } else {
+      this.graphSaves.delete(
+        key,
+      );
+    }
+
+    this.persistAndEmit();
+  }
+
+  graphState() {
+    const follows =
+      [...this.graphFollows]
+        .map((key) =>
+          this.parseGraphKey(
+            key,
+          ),
+        )
+        .filter(
+          (
+            item,
+          ): item is {
+            targetType: string;
+            targetId: number;
+          } =>
+            item !== null,
+        );
+
+    const saves =
+      [...this.graphSaves]
+        .map((key) =>
+          this.parseGraphKey(
+            key,
+          ),
+        )
+        .filter(
+          (
+            item,
+          ): item is {
+            targetType: string;
+            targetId: number;
+          } =>
+            item !== null,
+        );
+
+    return {
+      follows,
+      saves,
+    };
+  }
+
+  replaceGraphState(
+    state: {
+      follows: {
+        targetType: string;
+        targetId: number;
+      }[];
+      saves: {
+        targetType: string;
+        targetId: number;
+      }[];
+    },
+  ) {
+    this.graphFollows =
+      new Set(
+        state.follows.map(
+          (item) =>
+            this.graphKey(
+              item.targetType,
+              item.targetId,
+            ),
+        ),
+      );
+
+    this.graphSaves =
+      new Set(
+        state.saves.map(
+          (item) =>
+            this.graphKey(
+              item.targetType,
+              item.targetId,
+            ),
+        ),
+      );
+
+    this.persistAndEmit();
   }
 
   private scheduleMockFollowAlert(
@@ -483,9 +708,16 @@ class LocalStore {
    */
 
   setUser(user: CurrentUser) {
-    const nextScopeKey = scopeKeyFor(user);
+    const nextScopeKey =
+      scopeKeyFor(user);
 
-    if (nextScopeKey !== this.activeScopeKey) {
+    if (
+      nextScopeKey !==
+      this.activeScopeKey
+    ) {
+      const previousScopeKey =
+        this.activeScopeKey;
+
       this.saveActiveScope();
       this.cancelAllFollowAlerts();
 
@@ -498,20 +730,98 @@ class LocalStore {
           emailScopeKeyFor(user);
 
         if (
-          !this.scopes[nextScopeKey] &&
-          this.scopes[emailScopeKey]
+          !this.scopes[
+            nextScopeKey
+          ] &&
+          this.scopes[
+            emailScopeKey
+          ]
         ) {
-          this.scopes[nextScopeKey] =
-            this.scopes[emailScopeKey];
+          this.scopes[
+            nextScopeKey
+          ] =
+            this.scopes[
+              emailScopeKey
+            ];
 
-          delete this.scopes[emailScopeKey];
+          delete this.scopes[
+            emailScopeKey
+          ];
+        }
+
+        if (
+          previousScopeKey ===
+          GUEST_SCOPE
+        ) {
+          const guest =
+            this.scopes[
+              GUEST_SCOPE
+            ] ?? {};
+
+          const account =
+            this.scopes[
+              nextScopeKey
+            ] ?? {};
+
+          const mergeStrings = (
+            current:
+              string[] | undefined,
+            incoming:
+              string[] | undefined,
+          ) => [
+            ...new Set([
+              ...(current ?? []),
+              ...(incoming ?? []),
+            ]),
+          ];
+
+          this.scopes[
+            nextScopeKey
+          ] = {
+            ...account,
+            posts:
+              mergeStrings(
+                account.posts,
+                guest.posts,
+              ),
+            professionals:
+              mergeStrings(
+                account.professionals,
+                guest.professionals,
+              ),
+            services:
+              mergeStrings(
+                account.services,
+                guest.services,
+              ),
+            follows:
+              mergeStrings(
+                account.follows,
+                guest.follows,
+              ),
+            graphFollows:
+              mergeStrings(
+                account.graphFollows,
+                guest.graphFollows,
+              ),
+            graphSaves:
+              mergeStrings(
+                account.graphSaves,
+                guest.graphSaves,
+              ),
+          };
         }
       }
 
-      this.activeScopeKey = nextScopeKey;
+      this.activeScopeKey =
+        nextScopeKey;
+
       this.applyScope(
-        this.scopes[nextScopeKey],
+        this.scopes[
+          nextScopeKey
+        ],
       );
+
       this.seedEmptyScope();
     }
 

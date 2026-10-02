@@ -129,6 +129,7 @@ export function ProfessionalCard({
         <View style={styles.followWrap}>
           <FollowButton
             id={id}
+            targetType={routeType}
             authorName={name}
           />
         </View>

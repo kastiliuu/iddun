@@ -97,6 +97,22 @@ class User(UserMixin, db.Model):
         lazy="selectin",
     )
 
+    follows = db.relationship(
+        "Follow",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="Follow.created_at.asc()",
+    )
+
+    saves = db.relationship(
+        "Save",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="Save.created_at.asc()",
+    )
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

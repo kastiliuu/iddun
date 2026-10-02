@@ -10,6 +10,10 @@ from sqlalchemy import delete, update
 from app.extensions import db
 from app.models.account_token import AccountToken
 from app.models.api_session import ApiSession
+from app.models.beauty_graph import (
+    Follow,
+    Save,
+)
 from app.models.booking import (
     BookingStatus,
     SlotStatus,
@@ -352,6 +356,20 @@ def anonymize_account(
     db.session.execute(
         delete(ApiSession).where(
             ApiSession.user_id
+            == user.id
+        )
+    )
+
+    db.session.execute(
+        delete(Follow).where(
+            Follow.user_id
+            == user.id
+        )
+    )
+
+    db.session.execute(
+        delete(Save).where(
+            Save.user_id
             == user.id
         )
     )

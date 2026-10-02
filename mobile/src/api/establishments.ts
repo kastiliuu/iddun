@@ -7,6 +7,13 @@ import {
   refreshSession,
 } from "@/api/auth";
 
+import {
+  followGraphTarget,
+  saveGraphTarget,
+  unfollowGraphTarget,
+  unsaveGraphTarget,
+} from "@/api/graph";
+
 import type {
   Professional,
   Service,
@@ -44,6 +51,29 @@ export type FollowEstablishmentResponse = {
 export type FavoriteEstablishmentResponse = {
   favorited: boolean;
 };
+
+function requireGraphId(
+  value: string,
+) {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(
+      "Este item ainda não possui um ID real do backend.",
+    );
+  }
+
+  const id = Number(value);
+
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw new Error(
+      "ID inválido para sincronização.",
+    );
+  }
+
+  return id;
+}
 
 function buildQuery(
   params: EstablishmentSearchParams,
@@ -195,59 +225,69 @@ export async function getEstablishmentTeam(
 export async function followEstablishment(
   establishmentId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<FollowEstablishmentResponse>(
-        `/api/establishments/${establishmentId}/follow`,
-        undefined,
-        {
-          token,
-        },
+  const response =
+    await followGraphTarget(
+      "establishment",
+      requireGraphId(
+        establishmentId,
       ),
-  );
+    );
+
+  return {
+    following:
+      response.following,
+  };
 }
 
 export async function unfollowEstablishment(
   establishmentId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.delete<FollowEstablishmentResponse>(
-        `/api/establishments/${establishmentId}/follow`,
-        {
-          token,
-        },
+  const response =
+    await unfollowGraphTarget(
+      "establishment",
+      requireGraphId(
+        establishmentId,
       ),
-  );
+    );
+
+  return {
+    following:
+      response.following,
+  };
 }
 
 export async function favoriteEstablishment(
   establishmentId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<FavoriteEstablishmentResponse>(
-        `/api/establishments/${establishmentId}/favorite`,
-        undefined,
-        {
-          token,
-        },
+  const response =
+    await saveGraphTarget(
+      "establishment",
+      requireGraphId(
+        establishmentId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export async function unfavoriteEstablishment(
   establishmentId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.delete<FavoriteEstablishmentResponse>(
-        `/api/establishments/${establishmentId}/favorite`,
-        {
-          token,
-        },
+  const response =
+    await unsaveGraphTarget(
+      "establishment",
+      requireGraphId(
+        establishmentId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export type LinkProfessionalPayload = {

@@ -41,6 +41,10 @@ import {
 } from "@/store/local";
 
 import {
+  syncBeautyGraph,
+} from "@/store/graphSync";
+
+import {
   makeStyles,
   useTheme,
 } from "@/theme";
@@ -74,6 +78,12 @@ export default function RootLayout() {
 
               if (!user) {
                 store.setUser(null);
+              } else {
+                try {
+                  await syncBeautyGraph();
+                } catch {
+                  // Mantém escolhas locais para reconciliar depois.
+                }
               }
             } catch {
               // Uma falha de rede não apaga os tokens salvos.
