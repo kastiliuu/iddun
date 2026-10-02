@@ -4,6 +4,7 @@ export type ProfileKind =
 
 export type Professional = {
   id: string;
+  routeId?: string;
   kind: ProfileKind;
 
   name: string;
