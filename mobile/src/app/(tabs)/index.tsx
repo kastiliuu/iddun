@@ -94,6 +94,20 @@ export default function HomeScreen() {
       null,
     );
 
+  const [
+    nextCursor,
+    setNextCursor,
+  ] =
+    useState<string | null>(
+      null,
+    );
+
+  const [
+    loadingMore,
+    setLoadingMore,
+  ] =
+    useState(false);
+
   const notificationsCount =
     store.unreadCount();
 
@@ -135,6 +149,10 @@ export default function HomeScreen() {
 
             setFeedPosts(
               response.items,
+            );
+            setNextCursor(
+              response.nextCursor ??
+              null,
             );
             setFeedError(
               null,
@@ -214,6 +232,10 @@ export default function HomeScreen() {
         setFeedPosts(
           response.items,
         );
+        setNextCursor(
+          response.nextCursor ??
+          null,
+        );
         setFeedError(
           null,
         );
@@ -225,6 +247,67 @@ export default function HomeScreen() {
         );
       } finally {
         setRefreshing(false);
+      }
+    };
+
+  const handleLoadMore =
+    async () => {
+      if (
+        !nextCursor ||
+        loadingMore
+      ) {
+        return;
+      }
+
+      try {
+        setLoadingMore(
+          true,
+        );
+
+        const response =
+          await getFeed({
+            mode:
+              feedMode,
+            cursor:
+              nextCursor,
+          });
+
+        setFeedPosts(
+          (current) => {
+            const ids =
+              new Set(
+                current.map(
+                  (item) =>
+                    item.id,
+                ),
+              );
+
+            return [
+              ...current,
+              ...response.items.filter(
+                (item) =>
+                  !ids.has(
+                    item.id,
+                  ),
+              ),
+            ];
+          },
+        );
+
+        setNextCursor(
+          response.nextCursor ??
+          null,
+        );
+      } catch (error) {
+        setFeedError(
+          error instanceof Error
+            ? error.message
+            : "Não foi possível carregar mais publicações.",
+        );
+      } finally {
+        setLoadingMore(
+          false,
+        );
       }
     };
 
@@ -728,9 +811,52 @@ export default function HomeScreen() {
             </View>
           ) : feedPosts.length >
           0 ? (
-            feedPosts.map(
-              renderFeedPost,
-            )
+            <>
+              {feedPosts.map(
+                renderFeedPost,
+              )}
+
+              {nextCursor ? (
+                <View
+                  style={
+                    styles.loadMoreWrap
+                  }
+                >
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Carregar mais publicações"
+                    disabled={
+                      loadingMore
+                    }
+                    onPress={() =>
+                      void handleLoadMore()
+                    }
+                    style={({ pressed }) => [
+                      styles.loadMoreButton,
+                      pressed &&
+                        styles.pressed,
+                    ]}
+                  >
+                    {loadingMore ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={
+                          colors.plum
+                        }
+                      />
+                    ) : (
+                      <Text
+                        style={
+                          styles.loadMoreText
+                        }
+                      >
+                        Carregar mais
+                      </Text>
+                    )}
+                  </Pressable>
+                </View>
+              ) : null}
+            </>
           ) : (
             <EmptyState
               title={
@@ -1044,6 +1170,36 @@ const useStyles =
           "center",
         justifyContent:
           "center",
+      },
+
+      loadMoreWrap: {
+        paddingHorizontal:
+          spacing.lg,
+        alignItems:
+          "center",
+      },
+
+      loadMoreButton: {
+        minHeight:
+          touch.minimum,
+        paddingHorizontal:
+          spacing.xl,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      loadMoreText: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
+        color:
+          colors.onSurface,
       },
 
       bottomSpace: {
