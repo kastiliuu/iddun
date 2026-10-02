@@ -1,5 +1,8 @@
+from io import BytesIO
 from uuid import uuid4
+import warnings
 
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
 from app.services.media_storage import (
@@ -21,8 +24,23 @@ ALLOWED_CERTIFICATE_EXTENSIONS = (
     | {"pdf"}
 )
 
+IMAGE_FORMAT_BY_EXTENSION = {
+    "jpg": "JPEG",
+    "jpeg": "JPEG",
+    "png": "PNG",
+    "webp": "WEBP",
+}
+
+IMAGE_MIMETYPE_BY_FORMAT = {
+    "JPEG": "image/jpeg",
+    "PNG": "image/png",
+    "WEBP": "image/webp",
+}
+
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
+MAX_IMAGE_SIDE = 8_192
 
 
 def _stream_size(file_storage):
@@ -80,6 +98,227 @@ def _stored_path(folder, filename):
     return normalized
 
 
+def _read_upload_bytes(
+    file_storage,
+    max_bytes,
+):
+    stream = getattr(
+        file_storage,
+        "stream",
+        None,
+    )
+
+    if stream is None:
+        raise ValueError(
+            "Não foi possível ler o arquivo enviado."
+        )
+
+    try:
+        stream.seek(0)
+        content = stream.read(
+            max_bytes + 1
+        )
+        stream.seek(0)
+    except (OSError, AttributeError) as exc:
+        raise ValueError(
+            "Não foi possível ler o arquivo enviado."
+        ) from exc
+
+    if len(content) > max_bytes:
+        raise _maximum_size_error(
+            max_bytes
+        )
+
+    return content
+
+
+def _normalized_image_bytes(
+    content,
+    extension,
+):
+    expected_format = (
+        IMAGE_FORMAT_BY_EXTENSION[
+            extension
+        ]
+    )
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "error",
+                Image.DecompressionBombWarning,
+            )
+
+            with Image.open(
+                BytesIO(content)
+            ) as probe:
+                actual_format = probe.format
+
+                if (
+                    actual_format
+                    != expected_format
+                ):
+                    raise ValueError(
+                        (
+                            "O conteúdo da imagem não "
+                            "corresponde à extensão "
+                            f".{extension}."
+                        )
+                    )
+
+                if getattr(
+                    probe,
+                    "is_animated",
+                    False,
+                ):
+                    raise ValueError(
+                        (
+                            "Imagens animadas não são "
+                            "aceitas."
+                        )
+                    )
+
+                width, height = probe.size
+
+                if (
+                    width <= 0
+                    or height <= 0
+                    or width > MAX_IMAGE_SIDE
+                    or height > MAX_IMAGE_SIDE
+                    or (
+                        width * height
+                        > MAX_IMAGE_PIXELS
+                    )
+                ):
+                    raise ValueError(
+                        (
+                            "A imagem possui dimensões "
+                            "maiores que o permitido."
+                        )
+                    )
+
+                probe.verify()
+
+            with Image.open(
+                BytesIO(content)
+            ) as source:
+                image = ImageOps.exif_transpose(
+                    source
+                )
+                image.load()
+
+                if expected_format == "JPEG":
+                    if image.mode not in (
+                        "RGB",
+                        "L",
+                    ):
+                        image = image.convert(
+                            "RGB"
+                        )
+
+                output = BytesIO()
+
+                save_options = {
+                    "format": expected_format,
+                }
+
+                if expected_format == "JPEG":
+                    save_options.update(
+                        {
+                            "quality": 88,
+                            "optimize": True,
+                            "progressive": True,
+                        }
+                    )
+                elif expected_format == "PNG":
+                    save_options.update(
+                        {
+                            "optimize": True,
+                        }
+                    )
+                elif expected_format == "WEBP":
+                    save_options.update(
+                        {
+                            "quality": 88,
+                            "method": 4,
+                        }
+                    )
+
+                image.save(
+                    output,
+                    **save_options,
+                )
+
+                return output.getvalue()
+    except ValueError:
+        raise
+    except (
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        UnidentifiedImageError,
+        OSError,
+        SyntaxError,
+    ) as exc:
+        raise ValueError(
+            (
+                "O arquivo enviado não é uma "
+                "imagem válida."
+            )
+        ) from exc
+
+
+def _prepare_image_upload(
+    file_storage,
+    extension,
+    max_bytes,
+):
+    content = _read_upload_bytes(
+        file_storage,
+        max_bytes,
+    )
+
+    normalized = _normalized_image_bytes(
+        content,
+        extension,
+    )
+
+    if len(normalized) > max_bytes:
+        raise _maximum_size_error(
+            max_bytes
+        )
+
+    file_storage.stream = BytesIO(
+        normalized
+    )
+    file_storage.content_length = len(
+        normalized
+    )
+    file_storage.content_type = (
+        IMAGE_MIMETYPE_BY_FORMAT[
+            IMAGE_FORMAT_BY_EXTENSION[
+                extension
+            ]
+        ]
+    )
+
+
+def _validate_pdf_upload(
+    file_storage,
+    max_bytes,
+):
+    content = _read_upload_bytes(
+        file_storage,
+        max_bytes,
+    )
+
+    if not content.startswith(
+        b"%PDF-"
+    ):
+        raise ValueError(
+            "O arquivo enviado não é um PDF válido."
+        )
+
+
 def save_uploaded_file(
     file_storage,
     folder,
@@ -87,6 +326,7 @@ def save_uploaded_file(
     allowed_extensions,
     max_bytes,
     error_message,
+    validate_content=True,
 ):
     if (
         not file_storage
@@ -120,6 +360,21 @@ def save_uploaded_file(
         raise _maximum_size_error(
             max_bytes
         )
+
+    if validate_content:
+        if extension in (
+            ALLOWED_IMAGE_EXTENSIONS
+        ):
+            _prepare_image_upload(
+                file_storage,
+                extension,
+                max_bytes,
+            )
+        elif extension == "pdf":
+            _validate_pdf_upload(
+                file_storage,
+                max_bytes,
+            )
 
     filename = (
         f"{uuid4().hex}.{extension}"
