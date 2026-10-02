@@ -137,6 +137,9 @@ def get_professional_public_view(slug):
             "specialties": profile.specialties,
             "verified": profile.is_verified,
             "portfolio": list(profile.portfolio_items),
+            "professional_experiences": list(
+                profile.professional_experiences
+            ),
             "workplaces": workplaces,
             "experiences": experiences,
             "theme": profile.visual_theme or "beauty",
@@ -172,6 +175,7 @@ def get_professional_public_view(slug):
         "specialties": mock.get("specialties", []),
         "verified": True,
         "portfolio": [],
+        "professional_experiences": [],
         "workplaces": [],
         "experiences": [
             {**deepcopy(item), "image_url": item.get("image"), "duration_minutes": item.get("duration_minutes", 90)}

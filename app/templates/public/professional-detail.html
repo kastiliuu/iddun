@@ -46,6 +46,44 @@
         {% if professional.specialties %}<div class="public-profile-tags">{% for item in professional.specialties %}<span>{{ item }}</span>{% endfor %}</div>{% endif %}
       </section>
 
+      {% if professional.professional_experiences %}
+      <section class="public-profile-section" data-reveal>
+        <div class="public-profile-section__head">
+          <div>
+            <span class="public-profile-section__kicker">TRAJETÓRIA</span>
+            <h2>Experiência profissional</h2>
+          </div>
+        </div>
+
+        <div class="public-profile-certifications">
+          {% for item in professional.professional_experiences %}
+          <article>
+            <span>{{ icon('briefcase') }}</span>
+            <div>
+              <strong>{{ item.role_title }}</strong>
+              <small>
+                {{ item.company_name }}
+                · {{ item.started_at.strftime('%Y') }}
+                —
+                {% if item.is_current %}
+                  atual
+                {% elif item.ended_at %}
+                  {{ item.ended_at.strftime('%Y') }}
+                {% endif %}
+              </small>
+              {% if item.description %}
+                <em>{{ item.description }}</em>
+              {% endif %}
+              {% if item.verified %}
+                <em>{{ icon('shield-check') }} Vínculo verificado no IDDUN</em>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
       <section class="public-profile-section" id="portfolio" data-reveal>
         <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">PORTFÓLIO</span><h2>Trabalhos recentes</h2></div>{% if professional.portfolio|length > 1 %}<div class="public-profile-gallery-nav"><button type="button" data-gallery-prev aria-label="Trabalho anterior">‹</button><button type="button" data-gallery-next aria-label="Próximo trabalho">›</button></div>{% endif %}</div>
         {% if professional.portfolio %}<div class="public-profile-portfolio" data-gallery-track tabindex="0" aria-label="Galeria de trabalhos de {{ professional.name }}">{% for item in professional.portfolio %}<figure><img src="{{ item.image_url|media_url }}" alt="Trabalho {{ loop.index }} de {{ professional.name }}" loading="lazy">{% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">O portfólio deste perfil será publicado em breve.</div>{% endif %}
