@@ -3,11 +3,6 @@ import {
 } from "@/api/client";
 
 import {
-  getAccessToken,
-  refreshSession,
-} from "@/api/auth";
-
-import {
   followGraphTarget,
   saveGraphTarget,
   unfollowGraphTarget,
@@ -115,22 +110,6 @@ function buildQuery(
   );
 
   return query.toString();
-}
-
-async function withAuthenticatedRequest<T>(
-  request: (
-    token: string,
-  ) => Promise<T>,
-) {
-  let token =
-    await getAccessToken();
-
-  if (!token) {
-    token =
-      await refreshSession();
-  }
-
-  return request(token);
 }
 
 export async function getProfessionals(
