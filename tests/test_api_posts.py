@@ -784,3 +784,246 @@ def test_feed_cursor_is_stable_and_does_not_repeat_items(
     ) == set(
         created_ids
     )
+
+
+def test_creator_options_only_return_authors_and_services_owned_by_account(
+    app,
+    client,
+):
+    user_id, profile_id, headers = (
+        _user(
+            app,
+            email=(
+                "creator-options@example.com"
+            ),
+        )
+    )
+
+    professional_experience = (
+        _experience(
+            app,
+            professional_id=profile_id,
+            slug=(
+                "creator-options-pro"
+            ),
+        )
+    )
+
+    with app.app_context():
+        establishment = Establishment(
+            name="Studio Options",
+            slug="studio-options",
+            description=(
+                "Studio público."
+            ),
+            category="unhas",
+            city="Curitiba",
+            state="PR",
+            is_active=True,
+        )
+        db.session.add(
+            establishment
+        )
+        db.session.flush()
+        db.session.add(
+            EstablishmentUserAccess(
+                user_id=user_id,
+                establishment_id=(
+                    establishment.id
+                ),
+                role=(
+                    EstablishmentAccessRole.OWNER
+                ),
+                status=(
+                    EstablishmentAccessStatus.ACTIVE
+                ),
+            )
+        )
+        db.session.commit()
+        establishment_id = (
+            establishment.id
+        )
+
+    establishment_experience = (
+        _experience(
+            app,
+            professional_id=profile_id,
+            establishment_id=(
+                establishment_id
+            ),
+            slug=(
+                "creator-options-est"
+            ),
+        )
+    )
+
+    response = client.get(
+        POSTS
+        + "/options",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert {
+        (
+            item["type"],
+            item["id"],
+        )
+        for item
+        in payload["authors"]
+    } == {
+        (
+            "professional",
+            profile_id,
+        ),
+        (
+            "establishment",
+            establishment_id,
+        ),
+    }
+
+    assert {
+        item["id"]
+        for item
+        in payload[
+            "experiences"
+        ]
+    } == {
+        professional_experience,
+        establishment_experience,
+    }
+
+
+def test_real_work_post_can_be_saved_in_beauty_graph(
+    app,
+    client,
+):
+    _, profile_id, creator_headers = (
+        _user(
+            app,
+            email=(
+                "saved-post-creator@example.com"
+            ),
+        )
+    )
+    _, _, viewer_headers = (
+        _user(
+            app,
+            email=(
+                "saved-post-viewer@example.com"
+            ),
+            with_professional=False,
+        )
+    )
+
+    created = client.post(
+        POSTS,
+        headers=creator_headers,
+        data=_multipart(
+            author_id=profile_id,
+        ),
+        content_type=(
+            "multipart/form-data"
+        ),
+    )
+
+    post_id = int(
+        created.get_json()[
+            "post"
+        ]["id"]
+    )
+
+    saved = client.put(
+        (
+            "/api/v1/graph/saves/"
+            "work_post/"
+            f"{post_id}"
+        ),
+        headers=viewer_headers,
+    )
+
+    assert saved.status_code == 200
+    assert saved.get_json()[
+        "saved"
+    ] is True
+
+    state = client.get(
+        "/api/v1/graph",
+        headers=viewer_headers,
+    ).get_json()
+
+    assert state["saves"] == [
+        {
+            "targetType":
+                "work_post",
+            "targetId":
+                post_id,
+        }
+    ]
+
+
+def test_another_account_cannot_edit_or_delete_post(
+    app,
+    client,
+):
+    _, profile_id, owner_headers = (
+        _user(
+            app,
+            email=(
+                "post-owner@example.com"
+            ),
+        )
+    )
+    _, _, other_headers = (
+        _user(
+            app,
+            email=(
+                "post-intruder@example.com"
+            ),
+        )
+    )
+
+    created = client.post(
+        POSTS,
+        headers=owner_headers,
+        data=_multipart(
+            author_id=profile_id,
+        ),
+        content_type=(
+            "multipart/form-data"
+        ),
+    ).get_json()["post"]
+
+    edited = client.put(
+        POSTS
+        + "/"
+        + created["id"],
+        headers=other_headers,
+        json={
+            "caption":
+                "Tentativa indevida",
+        },
+    )
+
+    deleted = client.delete(
+        POSTS
+        + "/"
+        + created["id"],
+        headers=other_headers,
+    )
+
+    assert edited.status_code == 400
+    assert deleted.status_code == 404
+
+    detail = client.get(
+        POSTS
+        + "/"
+        + created["id"],
+    )
+
+    assert detail.status_code == 200
+    assert detail.get_json()[
+        "caption"
+    ] == "Resultado incrível."
