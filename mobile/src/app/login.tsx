@@ -38,6 +38,8 @@ export default function LoginScreen() {
   const params = useLocalSearchParams<{
     mode?: string | string[];
     accountType?: string | string[];
+    returnToBooking?: string | string[];
+    returnTo?: string | string[];
   }>();
 
   const requestedMode = Array.isArray(params.mode)
@@ -49,6 +51,18 @@ export default function LoginScreen() {
   )
     ? params.accountType[0]
     : params.accountType;
+
+  const requestedBooking = Array.isArray(
+    params.returnToBooking,
+  )
+    ? params.returnToBooking[0]
+    : params.returnToBooking;
+
+  const requestedReturnTo = Array.isArray(
+    params.returnTo,
+  )
+    ? params.returnTo[0]
+    : params.returnTo;
 
   const [mode, setMode] = useState<AuthMode>(
     requestedMode === "signup" ? "signup" : "login",
@@ -156,6 +170,24 @@ export default function LoginScreen() {
       }
 
       await markLoggedIn();
+
+      if (requestedBooking) {
+        router.replace(
+          `/booking/${requestedBooking}`,
+        );
+        return;
+      }
+
+      if (
+        requestedReturnTo ===
+        "bookings"
+      ) {
+        router.replace(
+          "/bookings",
+        );
+        return;
+      }
+
       router.replace("/(tabs)");
     } catch (cause) {
       setError(
@@ -169,6 +201,13 @@ export default function LoginScreen() {
   };
 
   const handleVisitor = () => {
+    if (requestedBooking) {
+      router.replace(
+        `/booking/${requestedBooking}`,
+      );
+      return;
+    }
+
     router.replace("/(tabs)");
   };
 
