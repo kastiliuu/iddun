@@ -20,14 +20,21 @@ import type {
 
 export type ProfessionalListResponse = {
   items: Professional[];
-  nextCursor?: string | null;
+  nextOffset?: number | null;
+  pagination?: {
+    offset: number;
+    limit: number;
+    total: number;
+    nextOffset: number | null;
+    hasMore: boolean;
+  };
 };
 
 export type ProfessionalSearchParams = {
   search?: string;
   category?: string;
   city?: string;
-  cursor?: string | null;
+  offset?: number;
   limit?: number;
 };
 
@@ -95,12 +102,10 @@ function buildQuery(
     );
   }
 
-  if (params.cursor) {
-    query.set(
-      "cursor",
-      params.cursor,
-    );
-  }
+  query.set(
+    "offset",
+    String(params.offset ?? 0),
+  );
 
   query.set(
     "limit",
@@ -130,7 +135,7 @@ export async function getProfessionals(
    * /api/professionals?city=Curitiba
    */
   return api.get<ProfessionalListResponse>(
-    `/api/professionals?${query}`,
+    `/api/v1/professionals?${query}`,
   );
 }
 

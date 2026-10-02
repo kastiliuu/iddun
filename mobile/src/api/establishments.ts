@@ -25,14 +25,21 @@ import type {
 
 export type EstablishmentListResponse = {
   items: Professional[];
-  nextCursor?: string | null;
+  nextOffset?: number | null;
+  pagination?: {
+    offset: number;
+    limit: number;
+    total: number;
+    nextOffset: number | null;
+    hasMore: boolean;
+  };
 };
 
 export type EstablishmentSearchParams = {
   search?: string;
   category?: string;
   city?: string;
-  cursor?: string | null;
+  offset?: number;
   limit?: number;
 };
 
@@ -105,12 +112,10 @@ function buildQuery(
     );
   }
 
-  if (params.cursor) {
-    query.set(
-      "cursor",
-      params.cursor,
-    );
-  }
+  query.set(
+    "offset",
+    String(params.offset ?? 0),
+  );
 
   query.set(
     "limit",
@@ -156,7 +161,7 @@ export async function getEstablishments(
    * /api/establishments?search=Atelier
    */
   return api.get<EstablishmentListResponse>(
-    `/api/establishments?${query}`,
+    `/api/v1/establishments?${query}`,
   );
 }
 

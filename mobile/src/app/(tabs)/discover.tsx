@@ -24,12 +24,20 @@ import {
   getRealExperiences,
   type CatalogExperience,
 } from "@/api/experiences";
-
 import {
-  categories,
-  discoverItems,
-  professionals,
-} from "@/mocks/data";
+  getDiscovery,
+  type DiscoveryResponse,
+} from "@/api/discovery";
+
+const categories = [
+  "Todos",
+  "Unhas",
+  "Cabelo",
+  "Barbearia",
+  "Tatuagem",
+  "Sobrancelhas",
+  "Estética",
+];
 
 import {
   fonts,
@@ -66,6 +74,12 @@ export default function DiscoverScreen() {
     useState(true);
   const [realError, setRealError] =
     useState(false);
+  const [discovery, setDiscovery] =
+    useState<DiscoveryResponse>({
+      professionals: [],
+      establishments: [],
+      posts: [],
+    });
 
   useEffect(() => {
     const controller = new AbortController();
@@ -105,6 +119,42 @@ export default function DiscoverScreen() {
     };
   }, [search, selectedCategory]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      getDiscovery(
+        {
+          search,
+          category: CATEGORY_CODES[selectedCategory],
+          city: "Curitiba",
+          limit: 8,
+        },
+        controller.signal,
+      )
+        .then((response) => {
+          setDiscovery(response);
+        })
+        .catch((error: unknown) => {
+          if (
+            error instanceof Error &&
+            error.name === "AbortError"
+          ) {
+            return;
+          }
+          setDiscovery({
+            professionals: [],
+            establishments: [],
+            posts: [],
+          });
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, selectedCategory]);
+
   const openRealExperience = (
     experience: CatalogExperience,
   ) => {
@@ -113,70 +163,101 @@ export default function DiscoverScreen() {
     );
   };
 
-  const filteredItems =
-    useMemo(() => {
-      const normalizedSearch =
-        search
-          .trim()
-          .toLowerCase();
-
-      return discoverItems.filter(
-        (item) => {
-          const matchesCategory =
-            selectedCategory ===
-              "Todos" ||
-            item.category ===
-              selectedCategory;
-
-          const matchesSearch =
-            !normalizedSearch ||
-            item.title
-              .toLowerCase()
-              .includes(
-                normalizedSearch,
-              ) ||
-            item.subtitle
-              ?.toLowerCase()
-              .includes(
-                normalizedSearch,
-              ) ||
-            item.location
-              ?.toLowerCase()
-              .includes(
-                normalizedSearch,
-              );
-
-          return (
-            matchesCategory &&
-            matchesSearch
-          );
-        },
-      );
-    }, [
-      search,
-      selectedCategory,
-    ]);
+  const discoveryItems = useMemo(
+    () => [
+      ...discovery.posts.map(
+        (post, index) => ({
+          id: `post-${post.id}`,
+          sourceId: post.id,
+          type: "post" as const,
+          title:
+            post.author?.name
+            ?? "Trabalho IDDUN",
+          subtitle:
+            post.caption,
+          image: post.image,
+          rating:
+            post.author?.rating
+            ?? undefined,
+          location: undefined,
+          height:
+            index % 2 === 0
+              ? 310
+              : 250,
+        }),
+      ),
+      ...discovery.professionals.map(
+        (professional, index) => ({
+          id:
+            `professional-${professional.id}`,
+          sourceId:
+            professional.routeId
+            ?? professional.id,
+          type:
+            "professional" as const,
+          title:
+            professional.name,
+          subtitle:
+            professional.specialty,
+          image:
+            professional.cover
+            ?? professional.avatar,
+          rating:
+            professional.rating,
+          location:
+            professional.location,
+          height:
+            index % 2 === 0
+              ? 230
+              : 290,
+        }),
+      ),
+      ...discovery.establishments.map(
+        (establishment, index) => ({
+          id:
+            `establishment-${establishment.id}`,
+          sourceId:
+            establishment.routeId
+            ?? establishment.id,
+          type:
+            "establishment" as const,
+          title:
+            establishment.name,
+          subtitle:
+            establishment.specialty,
+          image:
+            establishment.cover
+            ?? establishment.avatar,
+          rating:
+            establishment.rating,
+          location:
+            establishment.location,
+          height:
+            index % 2 === 0
+              ? 280
+              : 330,
+        }),
+      ),
+    ],
+    [discovery],
+  );
 
   const leftColumn =
-    filteredItems.filter(
+    discoveryItems.filter(
       (_, index) =>
         index % 2 === 0,
     );
 
   const rightColumn =
-    filteredItems.filter(
+    discoveryItems.filter(
       (_, index) =>
         index % 2 !== 0,
     );
 
   const nearbyProfessionals =
-    useMemo(
-      () =>
-        professionals.slice(
-          0,
-          4,
-        ),
-      [],
+    discovery.professionals.slice(
+      0,
+      4,
     );
 
   return (
@@ -426,12 +507,12 @@ export default function DiscoverScreen() {
             subtitle={
               search
                 ? `Resultados para "${search}"`
-                : "Prévia de estilos e perfis; dados ilustrativos"
+                : "Trabalhos, profissionais e espaços reais"
             }
           />
         </View>
 
-        {filteredItems.length >
+        {discoveryItems.length >
         0 ? (
           <View
             style={
@@ -541,10 +622,8 @@ export default function DiscoverScreen() {
             }
           >
             <SectionHeader
-              title="Perfis de exemplo"
-              subtitle="Prévia visual do IDDUN"
-              actionLabel="Ver mais"
-              onActionPress={() => {}}
+              title="Profissionais em destaque"
+              subtitle="Perfis públicos próximos de você"
             />
 
             <View
@@ -562,6 +641,9 @@ export default function DiscoverScreen() {
                     }
                     id={
                       professional.id
+                    }
+                    routeId={
+                      professional.routeId
                     }
                     name={
                       professional.name
