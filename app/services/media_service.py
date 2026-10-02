@@ -1,8 +1,12 @@
-from pathlib import Path
 from uuid import uuid4
 
-from flask import current_app
 from werkzeug.utils import secure_filename
+
+from app.services.media_storage import (
+    MediaStorageFileTooLargeError,
+    get_media_storage,
+    normalize_media_key,
+)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {
@@ -46,63 +50,34 @@ def _stream_size(file_storage):
         return None
 
 
-def _upload_root():
-    return Path(
-        current_app.config["UPLOAD_FOLDER"]
-    ).resolve()
+def _maximum_size_error(max_bytes):
+    max_megabytes = (
+        max_bytes
+        // (1024 * 1024)
+    )
+
+    return ValueError(
+        "O arquivo deve ter no máximo "
+        f"{max_megabytes} MB."
+    )
 
 
-def _safe_upload_directory(folder):
-    upload_root = _upload_root()
+def _stored_path(folder, filename):
+    value = (
+        f"uploads/{folder}/{filename}"
+        .replace("\\", "/")
+    )
 
-    target_dir = (
-        upload_root
-        / folder
-    ).resolve()
+    normalized = normalize_media_key(
+        value
+    )
 
-    try:
-        target_dir.relative_to(upload_root)
-    except ValueError as exc:
+    if normalized is None:
         raise ValueError(
             "Destino de upload inválido."
-        ) from exc
+        )
 
-    return target_dir
-
-
-def _stored_path_to_file(stored_path):
-    if not isinstance(stored_path, str):
-        return None
-
-    normalized = (
-        stored_path
-        .replace("\\", "/")
-        .strip()
-    )
-
-    if not normalized.startswith("uploads/"):
-        return None
-
-    relative_path = normalized.removeprefix(
-        "uploads/"
-    )
-
-    if not relative_path:
-        return None
-
-    upload_root = _upload_root()
-
-    candidate = (
-        upload_root
-        / relative_path
-    ).resolve()
-
-    try:
-        candidate.relative_to(upload_root)
-    except ValueError:
-        return None
-
-    return candidate
+    return normalized
 
 
 def save_uploaded_file(
@@ -142,78 +117,33 @@ def save_uploaded_file(
         size is not None
         and size > max_bytes
     ):
-        max_megabytes = (
+        raise _maximum_size_error(
             max_bytes
-            // (1024 * 1024)
         )
-
-        raise ValueError(
-            "O arquivo deve ter no máximo "
-            f"{max_megabytes} MB."
-        )
-
-    target_dir = _safe_upload_directory(
-        folder
-    )
-
-    target_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
 
     filename = (
         f"{uuid4().hex}.{extension}"
     )
 
-    target_path = (
-        target_dir
-        / filename
+    stored_path = _stored_path(
+        folder,
+        filename,
     )
 
-    temporary_path = (
-        target_dir
-        / (
-            f".{filename}."
-            f"{uuid4().hex}.part"
-        )
-    )
+    storage = get_media_storage()
 
     try:
-        file_storage.save(
-            temporary_path
+        storage.save_upload(
+            file_storage,
+            stored_path,
+            max_bytes=max_bytes,
         )
+    except MediaStorageFileTooLargeError as exc:
+        raise _maximum_size_error(
+            exc.max_bytes
+        ) from exc
 
-        if (
-            temporary_path.stat().st_size
-            > max_bytes
-        ):
-            max_megabytes = (
-                max_bytes
-                // (1024 * 1024)
-            )
-
-            raise ValueError(
-                "O arquivo deve ter no máximo "
-                f"{max_megabytes} MB."
-            )
-
-        temporary_path.replace(
-            target_path
-        )
-    except Exception:
-        temporary_path.unlink(
-            missing_ok=True
-        )
-
-        target_path.unlink(
-            missing_ok=True
-        )
-
-        raise
-
-    return (
-        f"uploads/{folder}/{filename}"
-    )
+    return stored_path
 
 
 def save_uploaded_image(
@@ -252,30 +182,14 @@ def save_uploaded_certificate(
 
 
 def delete_uploaded_file(stored_path):
-    target_path = _stored_path_to_file(
+    if normalize_media_key(
+        stored_path
+    ) is None:
+        return False
+
+    return get_media_storage().delete(
         stored_path
     )
-
-    if target_path is None:
-        return False
-
-    try:
-        target_path.unlink(
-            missing_ok=True
-        )
-    except OSError:
-        current_app.logger.warning(
-            (
-                "Não foi possível remover "
-                "o upload %s."
-            ),
-            stored_path,
-            exc_info=True,
-        )
-
-        return False
-
-    return True
 
 
 def delete_uploaded_files(stored_paths):
