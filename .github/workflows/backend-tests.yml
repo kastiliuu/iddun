@@ -1,4 +1,4 @@
-name: Testes do backend
+name: Qualidade IDDUN
 
 on:
   pull_request:
@@ -10,10 +10,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  group: iddun-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -39,8 +39,8 @@ jobs:
       - name: Executar testes
         run: python -m pytest -q
 
-  mobile-typecheck:
-    name: Node 22 / mobile typecheck
+  mobile-quality:
+    name: Node 22 / mobile quality
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -64,55 +64,5 @@ jobs:
       - name: Validar TypeScript
         run: npm run typecheck
 
-
-  mobile-eslint-bootstrap:
-    name: Expo 57 / gerar lock do ESLint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: mobile
-
-    steps:
-      - name: Obter código
-        uses: actions/checkout@v7
-
-      - name: Configurar Node
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22.13"
-          cache: npm
-          cache-dependency-path: mobile/package-lock.json
-
-      - name: Instalar dependências atuais
-        run: npm ci
-
-      - name: Resolver ESLint compatível com Expo 57
-        run: npx expo install eslint eslint-config-expo --dev
-
-      - name: Executar lint
+      - name: Validar ESLint
         run: npm run lint
-
-      - name: Versionar package files gerados
-        shell: bash
-        run: |
-          if git diff --quiet -- package.json package-lock.json; then
-            echo "Package files já estão atualizados."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          git commit -m "build: configura ESLint compatível com Expo 57"
-          git push origin "HEAD:${GITHUB_HEAD_REF}"
-
-      - name: Salvar package files gerados
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mobile-eslint-package-files
-          path: |
-            mobile/package.json
-            mobile/package-lock.json
-          retention-days: 1
