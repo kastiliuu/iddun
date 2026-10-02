@@ -162,6 +162,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="sessions"
+              />
+
+              <Stack.Screen
                 name="(tabs)"
               />
 
