@@ -15,7 +15,6 @@ import {
   makeStyles,
   radius,
   spacing,
-  useTheme,
 } from "@/theme";
 
 type ProfessionalCardProps = {
@@ -44,7 +43,6 @@ export function ProfessionalCard({
   testID,
 }: ProfessionalCardProps) {
   const styles = useStyles();
-  const { colors } = useTheme();
   const router = useRouter();
 
   const handlePress = () => {
