@@ -6,6 +6,9 @@ services:
     plan: free
     branch: main
 
+    # Ambiente hospedado de desenvolvimento/preview.
+    # APP_ENV permanece production para ativar cookies Secure e secrets obrigatórios.
+    # O plano free não é a infraestrutura definitiva da V1 pública.
     # No plano gratuito, a migração fica no build.
     buildCommand: pip install -r requirements.txt && flask --app run:app db upgrade
 
@@ -28,8 +31,14 @@ services:
       - key: TOKEN_ENCRYPTION_KEY
         generateValue: true
 
+      - key: MEDIA_STORAGE_BACKEND
+        value: local
+
       - key: UPLOAD_FOLDER
         value: /opt/render/project/src/app/static/uploads
+
+      - key: RATELIMIT_STORAGE_URI
+        value: memory://
 
 databases:
   - name: iddun-db

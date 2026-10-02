@@ -2,6 +2,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from PIL import Image
 from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.datastructures import FileStorage
 
@@ -15,14 +16,69 @@ from app.services.media_service import (
 )
 
 
+def _image_bytes(
+    image_format="JPEG",
+    *,
+    exif=None,
+):
+    output = BytesIO()
+
+    kwargs = {
+        "format": image_format,
+    }
+
+    if exif is not None:
+        kwargs["exif"] = exif
+
+    Image.new(
+        "RGB",
+        (8, 8),
+        (120, 80, 160),
+    ).save(
+        output,
+        **kwargs,
+    )
+
+    return output.getvalue()
+
+
 def _file(
     filename="image.jpg",
-    content=b"image-content",
+    content=None,
 ):
+    extension = (
+        filename.rsplit(".", 1)[-1].lower()
+        if "." in filename
+        else ""
+    )
+
+    image_format = (
+        "PNG"
+        if extension == "png"
+        else (
+            "WEBP"
+            if extension == "webp"
+            else "JPEG"
+        )
+    )
+
+    if content is None:
+        content = _image_bytes(
+            image_format
+        )
+
     return FileStorage(
         stream=BytesIO(content),
         filename=filename,
-        content_type="image/jpeg",
+        content_type=(
+            "image/png"
+            if image_format == "PNG"
+            else (
+                "image/webp"
+                if image_format == "WEBP"
+                else "image/jpeg"
+            )
+        ),
     )
 
 
@@ -83,20 +139,28 @@ def _onboarding_payload():
         "state": "PR",
         "visual_theme": "beauty",
         "avatar_file": (
-            BytesIO(b"avatar"),
+            BytesIO(
+                _image_bytes()
+            ),
             "avatar.jpg",
         ),
         "portfolio_files": [
             (
-                BytesIO(b"portfolio-1"),
+                BytesIO(
+                    _image_bytes()
+                ),
                 "portfolio-1.jpg",
             ),
             (
-                BytesIO(b"portfolio-2"),
+                BytesIO(
+                    _image_bytes()
+                ),
                 "portfolio-2.jpg",
             ),
             (
-                BytesIO(b"portfolio-3"),
+                BytesIO(
+                    _image_bytes()
+                ),
                 "portfolio-3.jpg",
             ),
         ],
@@ -284,3 +348,72 @@ def test_onboarding_database_failure_rolls_back_new_uploads(
         saved_files = _upload_files(app)
 
     assert saved_files == []
+
+
+def test_invalid_image_content_is_rejected(
+    app,
+):
+    with app.app_context():
+        with pytest.raises(
+            ValueError,
+            match="não é uma imagem válida",
+        ):
+            save_uploaded_image(
+                _file(
+                    "fake.jpg",
+                    b"not-an-image",
+                ),
+                "professionals/portfolio",
+            )
+
+
+def test_image_extension_must_match_content(
+    app,
+):
+    png_content = _image_bytes(
+        "PNG"
+    )
+
+    with app.app_context():
+        with pytest.raises(
+            ValueError,
+            match="não corresponde à extensão",
+        ):
+            save_uploaded_image(
+                _file(
+                    "mismatch.jpg",
+                    png_content,
+                ),
+                "professionals/portfolio",
+            )
+
+
+def test_image_normalization_removes_exif(
+    app,
+):
+    exif = Image.Exif()
+    exif[0x010E] = "metadata privada"
+
+    with app.app_context():
+        stored_path = save_uploaded_image(
+            _file(
+                "with-exif.jpg",
+                _image_bytes(
+                    "JPEG",
+                    exif=exif,
+                ),
+            ),
+            "professionals/portfolio",
+        )
+
+        saved_path = (
+            Path(app.config["UPLOAD_FOLDER"])
+            / stored_path.removeprefix(
+                "uploads/"
+            )
+        )
+
+        with Image.open(
+            saved_path
+        ) as image:
+            assert len(image.getexif()) == 0

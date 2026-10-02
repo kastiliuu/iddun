@@ -1,6 +1,7 @@
 from io import BytesIO
 
 from flask import request
+from PIL import Image
 from sqlalchemy import select
 
 from app.extensions import csrf, db
@@ -46,8 +47,24 @@ def _login_session(client, user_id):
 
 
 def _image(filename):
+    output = BytesIO()
+    image_format = (
+        "PNG"
+        if filename.lower().endswith(".png")
+        else "JPEG"
+    )
+    Image.new(
+        "RGB",
+        (8, 8),
+        (120, 80, 160),
+    ).save(
+        output,
+        format=image_format,
+    )
+    output.seek(0)
+
     return (
-        BytesIO(b"fake-image-content"),
+        output,
         filename,
     )
 

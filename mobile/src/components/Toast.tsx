@@ -92,23 +92,27 @@ export function ToastProvider({
   const hide = useCallback(() => {
     clearTimer();
 
-    translateY.value = withTiming(
-      -140,
-      {
-        duration: 220,
-      },
+    translateY.set(
+      withTiming(
+        -140,
+        {
+          duration: 220,
+        },
+      ),
     );
 
-    opacity.value = withTiming(
-      0,
-      {
-        duration: 180,
-      },
-      (finished) => {
-        if (finished) {
-          runOnJS(removePayload)();
-        }
-      },
+    opacity.set(
+      withTiming(
+        0,
+        {
+          duration: 180,
+        },
+        (finished) => {
+          if (finished) {
+            runOnJS(removePayload)();
+          }
+        },
+      ),
     );
   }, [
     clearTimer,
@@ -126,23 +130,28 @@ export function ToastProvider({
       /**
        * Começamos um pouco acima da área segura.
        */
-      translateY.value =
-        -(insets.top + 100);
-
-      opacity.value = 0;
-
-      translateY.value = withTiming(
-        insets.top + spacing.md,
-        {
-          duration: 260,
-        },
+      translateY.set(
+        -(insets.top + 100),
       );
 
-      opacity.value = withTiming(
-        1,
-        {
-          duration: 180,
-        },
+      opacity.set(0);
+
+      translateY.set(
+        withTiming(
+          insets.top + spacing.md,
+          {
+            duration: 260,
+          },
+        ),
+      );
+
+      opacity.set(
+        withTiming(
+          1,
+          {
+            duration: 180,
+          },
+        ),
       );
 
       timerRef.current = setTimeout(
@@ -169,11 +178,11 @@ export function ToastProvider({
 
   const animatedStyle =
     useAnimatedStyle(() => ({
-      opacity: opacity.value,
+      opacity: opacity.get(),
       transform: [
         {
           translateY:
-            translateY.value,
+            translateY.get(),
         },
       ],
     }));

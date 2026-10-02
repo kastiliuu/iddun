@@ -11,7 +11,6 @@ import {
 
 import {
   makeStyles,
-  SPARK,
   useTheme,
 } from "@/theme";
 

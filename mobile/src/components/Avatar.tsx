@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -6,7 +6,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import {
   fonts,
   makeStyles,
-  radius,
   useTheme,
 } from "@/theme";
 
@@ -44,17 +43,14 @@ export function Avatar({
 }: AvatarProps) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [uri]);
+  const [failedUri, setFailedUri] =
+    useState<string | null>(null);
 
   const initials = useMemo(() => getInitials(name), [name]);
 
   const imageSize = ring === "plum" ? size - 4 : size;
 
-  const avatarContent = uri && !failed ? (
+  const avatarContent = uri && failedUri !== uri ? (
     <Image
       source={{ uri }}
       style={{
@@ -65,7 +61,7 @@ export function Avatar({
       }}
       contentFit="cover"
       transition={180}
-      onError={() => setFailed(true)}
+      onError={() => setFailedUri(uri)}
       accessibilityLabel={accessibilityLabel ?? `Foto de ${name}`}
     />
   ) : (

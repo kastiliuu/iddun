@@ -1,14 +1,16 @@
 import os
+import re
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from dotenv import load_dotenv
-from flask import Flask, flash, jsonify, redirect, request, url_for
+from flask import Flask, flash, g, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFError, generate_csrf
 from sqlalchemy import text
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
 from app.routes.api_auth import api_auth_bp
@@ -18,6 +20,7 @@ from app.routes.bookings import bookings_bp
 from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
+from app.services.media_storage import resolve_media_url
 
 
 def create_app(test_config=None):
@@ -94,6 +97,15 @@ def create_app(test_config=None):
                 "uploads",
             )
         ),
+        MEDIA_STORAGE_BACKEND=(
+            os.getenv("MEDIA_STORAGE_BACKEND")
+            or "local"
+        ),
+        RATELIMIT_STORAGE_URI=(
+            os.getenv("RATELIMIT_STORAGE_URI")
+            or "memory://"
+        ),
+        RATELIMIT_HEADERS_ENABLED=True,
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -107,6 +119,129 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
+
+
+
+    request_id_pattern = re.compile(
+        r"^[A-Za-z0-9._:-]{1,64}$"
+    )
+
+    @app.before_request
+    def assign_request_id():
+        incoming = (
+            request.headers.get(
+                "X-Request-ID",
+                "",
+            )
+            .strip()
+        )
+
+        if request_id_pattern.fullmatch(
+            incoming
+        ):
+            g.request_id = incoming
+        else:
+            g.request_id = uuid4().hex
+
+    @app.teardown_request
+    def log_unhandled_request_error(error):
+        if error is None:
+            return
+
+        app.logger.error(
+            (
+                "Unhandled request error "
+                "request_id=%s method=%s path=%s"
+            ),
+            getattr(
+                g,
+                "request_id",
+                "unknown",
+            ),
+            request.method,
+            request.path,
+            exc_info=(
+                type(error),
+                error,
+                error.__traceback__,
+            ),
+        )
+
+    @app.after_request
+    def apply_security_headers(response):
+        response.headers.setdefault(
+            "X-Request-ID",
+            getattr(
+                g,
+                "request_id",
+                uuid4().hex,
+            ),
+        )
+        response.headers.setdefault(
+            "X-Content-Type-Options",
+            "nosniff",
+        )
+        response.headers.setdefault(
+            "X-Frame-Options",
+            "DENY",
+        )
+        response.headers.setdefault(
+            "Referrer-Policy",
+            "strict-origin-when-cross-origin",
+        )
+        response.headers.setdefault(
+            "Permissions-Policy",
+            (
+                "camera=(), microphone=(), "
+                "geolocation=()"
+            ),
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            (
+                "default-src 'self'; "
+                "base-uri 'self'; "
+                "form-action 'self'; "
+                "frame-ancestors 'none'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data: "
+                "https://fonts.gstatic.com; "
+                "style-src 'self' 'unsafe-inline' "
+                "https://fonts.googleapis.com; "
+                "script-src 'self' 'unsafe-inline'; "
+                "connect-src 'self';"
+            ),
+        )
+
+        return response
+
+    @app.errorhandler(429)
+    def handle_rate_limit(error):
+        if (
+            request.path.startswith("/api/")
+            or request.is_json
+        ):
+            return (
+                jsonify(
+                    {
+                        "error": {
+                            "code": "rate_limit_exceeded",
+                            "message": (
+                                "Muitas tentativas. "
+                                "Aguarde um pouco e tente novamente."
+                            ),
+                        }
+                    }
+                ),
+                429,
+            )
+
+        return (
+            "Muitas tentativas. Aguarde um pouco "
+            "e tente novamente.",
+            429,
+        )
 
     @app.template_filter("media_url")
     def media_url(value):
@@ -116,12 +251,7 @@ def create_app(test_config=None):
                 filename="img/category-hair.jpg",
             )
 
-        if value.startswith(
-            ("http://", "https://", "data:", "/")
-        ):
-            return value
-
-        return url_for("static", filename=value)
+        return resolve_media_url(value)
 
     @app.get("/csrf-token")
     def refresh_csrf_token():

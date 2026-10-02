@@ -1,8 +1,15 @@
-from pathlib import Path
+from io import BytesIO
 from uuid import uuid4
+import warnings
 
-from flask import current_app
+from PIL import Image, ImageOps, UnidentifiedImageError
 from werkzeug.utils import secure_filename
+
+from app.services.media_storage import (
+    MediaStorageFileTooLargeError,
+    get_media_storage,
+    normalize_media_key,
+)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {
@@ -17,8 +24,17 @@ ALLOWED_CERTIFICATE_EXTENSIONS = (
     | {"pdf"}
 )
 
+IMAGE_FORMAT_BY_EXTENSION = {
+    "jpg": "JPEG",
+    "jpeg": "JPEG",
+    "png": "PNG",
+    "webp": "WEBP",
+}
+
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
+MAX_IMAGE_PIXELS = 40_000_000
+MAX_IMAGE_SIDE = 8_192
 
 
 def _stream_size(file_storage):
@@ -46,63 +62,245 @@ def _stream_size(file_storage):
         return None
 
 
-def _upload_root():
-    return Path(
-        current_app.config["UPLOAD_FOLDER"]
-    ).resolve()
+def _maximum_size_error(max_bytes):
+    max_megabytes = (
+        max_bytes
+        // (1024 * 1024)
+    )
+
+    return ValueError(
+        "O arquivo deve ter no máximo "
+        f"{max_megabytes} MB."
+    )
 
 
-def _safe_upload_directory(folder):
-    upload_root = _upload_root()
+def _stored_path(folder, filename):
+    value = (
+        f"uploads/{folder}/{filename}"
+        .replace("\\", "/")
+    )
 
-    target_dir = (
-        upload_root
-        / folder
-    ).resolve()
+    normalized = normalize_media_key(
+        value
+    )
 
-    try:
-        target_dir.relative_to(upload_root)
-    except ValueError as exc:
+    if normalized is None:
         raise ValueError(
             "Destino de upload inválido."
-        ) from exc
+        )
 
-    return target_dir
+    return normalized
 
 
-def _stored_path_to_file(stored_path):
-    if not isinstance(stored_path, str):
-        return None
-
-    normalized = (
-        stored_path
-        .replace("\\", "/")
-        .strip()
+def _read_upload_bytes(
+    file_storage,
+    max_bytes,
+):
+    stream = getattr(
+        file_storage,
+        "stream",
+        None,
     )
 
-    if not normalized.startswith("uploads/"):
-        return None
-
-    relative_path = normalized.removeprefix(
-        "uploads/"
-    )
-
-    if not relative_path:
-        return None
-
-    upload_root = _upload_root()
-
-    candidate = (
-        upload_root
-        / relative_path
-    ).resolve()
+    if stream is None:
+        raise ValueError(
+            "Não foi possível ler o arquivo enviado."
+        )
 
     try:
-        candidate.relative_to(upload_root)
-    except ValueError:
-        return None
+        stream.seek(0)
+        content = stream.read(
+            max_bytes + 1
+        )
+        stream.seek(0)
+    except (OSError, AttributeError) as exc:
+        raise ValueError(
+            "Não foi possível ler o arquivo enviado."
+        ) from exc
 
-    return candidate
+    if len(content) > max_bytes:
+        raise _maximum_size_error(
+            max_bytes
+        )
+
+    return content
+
+
+def _normalized_image_bytes(
+    content,
+    extension,
+):
+    expected_format = (
+        IMAGE_FORMAT_BY_EXTENSION[
+            extension
+        ]
+    )
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter(
+                "error",
+                Image.DecompressionBombWarning,
+            )
+
+            with Image.open(
+                BytesIO(content)
+            ) as probe:
+                actual_format = probe.format
+
+                if (
+                    actual_format
+                    != expected_format
+                ):
+                    raise ValueError(
+                        (
+                            "O conteúdo da imagem não "
+                            "corresponde à extensão "
+                            f".{extension}."
+                        )
+                    )
+
+                if getattr(
+                    probe,
+                    "is_animated",
+                    False,
+                ):
+                    raise ValueError(
+                        (
+                            "Imagens animadas não são "
+                            "aceitas."
+                        )
+                    )
+
+                width, height = probe.size
+
+                if (
+                    width <= 0
+                    or height <= 0
+                    or width > MAX_IMAGE_SIDE
+                    or height > MAX_IMAGE_SIDE
+                    or (
+                        width * height
+                        > MAX_IMAGE_PIXELS
+                    )
+                ):
+                    raise ValueError(
+                        (
+                            "A imagem possui dimensões "
+                            "maiores que o permitido."
+                        )
+                    )
+
+                probe.verify()
+
+            with Image.open(
+                BytesIO(content)
+            ) as source:
+                image = ImageOps.exif_transpose(
+                    source
+                )
+                image.load()
+
+                if expected_format == "JPEG":
+                    if image.mode not in (
+                        "RGB",
+                        "L",
+                    ):
+                        image = image.convert(
+                            "RGB"
+                        )
+
+                output = BytesIO()
+
+                save_options = {
+                    "format": expected_format,
+                }
+
+                if expected_format == "JPEG":
+                    save_options.update(
+                        {
+                            "quality": 88,
+                            "optimize": True,
+                            "progressive": True,
+                        }
+                    )
+                elif expected_format == "PNG":
+                    save_options.update(
+                        {
+                            "optimize": True,
+                        }
+                    )
+                elif expected_format == "WEBP":
+                    save_options.update(
+                        {
+                            "quality": 88,
+                            "method": 4,
+                        }
+                    )
+
+                image.save(
+                    output,
+                    **save_options,
+                )
+
+                return output.getvalue()
+    except ValueError:
+        raise
+    except (
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+        UnidentifiedImageError,
+        OSError,
+        SyntaxError,
+    ) as exc:
+        raise ValueError(
+            (
+                "O arquivo enviado não é uma "
+                "imagem válida."
+            )
+        ) from exc
+
+
+def _prepare_image_upload(
+    file_storage,
+    extension,
+    max_bytes,
+):
+    content = _read_upload_bytes(
+        file_storage,
+        max_bytes,
+    )
+
+    normalized = _normalized_image_bytes(
+        content,
+        extension,
+    )
+
+    if len(normalized) > max_bytes:
+        raise _maximum_size_error(
+            max_bytes
+        )
+
+    file_storage.stream = BytesIO(
+        normalized
+    )
+
+
+def _validate_pdf_upload(
+    file_storage,
+    max_bytes,
+):
+    content = _read_upload_bytes(
+        file_storage,
+        max_bytes,
+    )
+
+    if not content.startswith(
+        b"%PDF-"
+    ):
+        raise ValueError(
+            "O arquivo enviado não é um PDF válido."
+        )
 
 
 def save_uploaded_file(
@@ -112,6 +310,7 @@ def save_uploaded_file(
     allowed_extensions,
     max_bytes,
     error_message,
+    validate_content=True,
 ):
     if (
         not file_storage
@@ -142,78 +341,48 @@ def save_uploaded_file(
         size is not None
         and size > max_bytes
     ):
-        max_megabytes = (
+        raise _maximum_size_error(
             max_bytes
-            // (1024 * 1024)
         )
 
-        raise ValueError(
-            "O arquivo deve ter no máximo "
-            f"{max_megabytes} MB."
-        )
-
-    target_dir = _safe_upload_directory(
-        folder
-    )
-
-    target_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    if validate_content:
+        if extension in (
+            ALLOWED_IMAGE_EXTENSIONS
+        ):
+            _prepare_image_upload(
+                file_storage,
+                extension,
+                max_bytes,
+            )
+        elif extension == "pdf":
+            _validate_pdf_upload(
+                file_storage,
+                max_bytes,
+            )
 
     filename = (
         f"{uuid4().hex}.{extension}"
     )
 
-    target_path = (
-        target_dir
-        / filename
+    stored_path = _stored_path(
+        folder,
+        filename,
     )
 
-    temporary_path = (
-        target_dir
-        / (
-            f".{filename}."
-            f"{uuid4().hex}.part"
-        )
-    )
+    storage = get_media_storage()
 
     try:
-        file_storage.save(
-            temporary_path
+        storage.save_upload(
+            file_storage,
+            stored_path,
+            max_bytes=max_bytes,
         )
+    except MediaStorageFileTooLargeError as exc:
+        raise _maximum_size_error(
+            exc.max_bytes
+        ) from exc
 
-        if (
-            temporary_path.stat().st_size
-            > max_bytes
-        ):
-            max_megabytes = (
-                max_bytes
-                // (1024 * 1024)
-            )
-
-            raise ValueError(
-                "O arquivo deve ter no máximo "
-                f"{max_megabytes} MB."
-            )
-
-        temporary_path.replace(
-            target_path
-        )
-    except Exception:
-        temporary_path.unlink(
-            missing_ok=True
-        )
-
-        target_path.unlink(
-            missing_ok=True
-        )
-
-        raise
-
-    return (
-        f"uploads/{folder}/{filename}"
-    )
+    return stored_path
 
 
 def save_uploaded_image(
@@ -252,30 +421,14 @@ def save_uploaded_certificate(
 
 
 def delete_uploaded_file(stored_path):
-    target_path = _stored_path_to_file(
+    if normalize_media_key(
+        stored_path
+    ) is None:
+        return False
+
+    return get_media_storage().delete(
         stored_path
     )
-
-    if target_path is None:
-        return False
-
-    try:
-        target_path.unlink(
-            missing_ok=True
-        )
-    except OSError:
-        current_app.logger.warning(
-            (
-                "Não foi possível remover "
-                "o upload %s."
-            ),
-            stored_path,
-            exc_info=True,
-        )
-
-        return False
-
-    return True
 
 
 def delete_uploaded_files(stored_paths):

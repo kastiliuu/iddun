@@ -1,4 +1,4 @@
-name: Testes do backend
+name: Qualidade IDDUN
 
 on:
   pull_request:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: backend-tests-${{ github.workflow }}-${{ github.ref }}
+  group: iddun-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -38,3 +38,31 @@ jobs:
 
       - name: Executar testes
         run: python -m pytest -q
+
+  mobile-quality:
+    name: Node 22 / mobile quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v7
+
+      - name: Configurar Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.13"
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Validar TypeScript
+        run: npm run typecheck
+
+      - name: Validar ESLint
+        run: npm run lint

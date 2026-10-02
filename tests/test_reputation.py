@@ -178,7 +178,10 @@ def test_professional_can_add_certificate(app, client):
             "credential_id": "CERT-2026",
             "verification_url": "https://example.com/cert/CERT-2026",
             "is_public": "y",
-            "document_file": (BytesIO(b"fake-pdf"), "certificado.pdf"),
+            "document_file": (
+                BytesIO(b"%PDF-1.4\n%%EOF\n"),
+                "certificado.pdf",
+            ),
         },
         content_type="multipart/form-data",
         follow_redirects=False,

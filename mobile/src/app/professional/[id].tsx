@@ -47,10 +47,10 @@ type ProfileTab =
   | "services"
   | "reviews";
 
-const tabs: Array<{
+const tabs: {
   id: ProfileTab;
   label: string;
-}> = [
+}[] = [
   {
     id: "work",
     label: "Trabalhos",

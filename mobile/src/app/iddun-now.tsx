@@ -33,10 +33,10 @@ type NowFilter =
   | "today"
   | "soon";
 
-const filters: Array<{
+const filters: {
   id: NowFilter;
   label: string;
-}> = [
+}[] = [
   {
     id: "all",
     label: "Todos",
@@ -68,13 +68,11 @@ export default function IDDUNNowScreen() {
               item,
             ),
           )
-          .filter(Boolean) as Array<
-          NonNullable<
-            ReturnType<
-              typeof getIDDUNNowData
-            >
+          .filter(Boolean) as NonNullable<
+          ReturnType<
+            typeof getIDDUNNowData
           >
-        >;
+        >[];
 
       if (filter === "all") {
         return hydrated;

@@ -5,7 +5,7 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from app.extensions import csrf, db
+from app.extensions import csrf, db, limiter
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
 from app.services.api_auth import (
@@ -138,6 +138,7 @@ def _tokens_payload(tokens):
 
 @api_auth_bp.post("/login")
 @csrf.exempt
+@limiter.limit("10 per minute")
 def login():
     payload, error = _json_body()
 
@@ -186,6 +187,7 @@ def login():
 
 @api_auth_bp.post("/register")
 @csrf.exempt
+@limiter.limit("5 per minute")
 def register():
     payload, error = _json_body()
 
@@ -273,6 +275,7 @@ def register():
 
 @api_auth_bp.post("/refresh")
 @csrf.exempt
+@limiter.limit("30 per minute")
 def refresh():
     payload, error = _json_body()
 
@@ -308,6 +311,7 @@ def me():
 
 @api_auth_bp.post("/logout")
 @csrf.exempt
+@limiter.limit("60 per minute")
 def logout():
     token = _bearer_token()
 
