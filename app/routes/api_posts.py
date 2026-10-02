@@ -27,6 +27,7 @@ from app.services.media_service import (
 from app.services.work_post_service import (
     WorkPostError,
     create_work_post,
+    creator_options,
     delete_work_post,
     owned_work_post,
     owned_posts_query,
@@ -346,6 +347,25 @@ def get_post(
     return api_json(
         _creator_payload(
             post
+        ),
+        cache_control=(
+            "private, no-store"
+        ),
+    )
+
+
+@api_posts_bp.get(
+    "/posts/options"
+)
+def get_post_options():
+    user, error = _require_user()
+
+    if error is not None:
+        return error
+
+    return api_json(
+        creator_options(
+            user
         ),
         cache_control=(
             "private, no-store"
