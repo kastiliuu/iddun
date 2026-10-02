@@ -162,7 +162,92 @@ def reset_data(dry_run, confirmed, allow_production):
     )
 
 
+
+@click.command("cleanup-media")
+@click.option(
+    "--delete",
+    "delete_files",
+    is_flag=True,
+    help=(
+        "Remove os arquivos órfãos encontrados. "
+        "Sem esta opção, apenas lista."
+    ),
+)
+@click.option(
+    "--allow-production",
+    is_flag=True,
+    help=(
+        "Libera explicitamente a remoção quando "
+        "APP_ENV=production."
+    ),
+)
+@with_appcontext
+def cleanup_media(
+    delete_files,
+    allow_production,
+):
+    """Lista ou remove uploads sem referência no banco."""
+    from app.services.media_maintenance import (
+        delete_orphaned_media,
+        orphaned_media_paths,
+    )
+
+    orphaned = orphaned_media_paths()
+
+    click.echo(
+        (
+            f"Mídias órfãs encontradas: "
+            f"{len(orphaned)}"
+        )
+    )
+
+    for stored_path in orphaned:
+        click.echo(
+            f"  {stored_path}"
+        )
+
+    if not delete_files:
+        click.echo(
+            (
+                "Simulação concluída. "
+                "Nenhum arquivo foi removido."
+            )
+        )
+        return
+
+    if not orphaned:
+        click.echo(
+            "Nenhuma mídia órfã para remover."
+        )
+        return
+
+    if (
+        current_app.config.get(
+            "APP_ENV"
+        )
+        == "production"
+        and not allow_production
+    ):
+        raise click.ClickException(
+            (
+                "Ambiente de produção bloqueado. "
+                "Revise a lista e repita com "
+                "--delete --allow-production."
+            )
+        )
+
+    removed = delete_orphaned_media()
+
+    click.echo(
+        (
+            f"Limpeza concluída: "
+            f"{len(removed)} arquivo(s) removido(s)."
+        )
+    )
+
+
 def register_cli(app):
     app.cli.add_command(make_admin)
     app.cli.add_command(sync_calendars)
     app.cli.add_command(reset_data)
+    app.cli.add_command(cleanup_media)
