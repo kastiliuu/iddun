@@ -33,6 +33,7 @@ export type WorkPostStatus =
 
 export type WorkPostAuthor = {
   id: string;
+  routeId: string;
   kind: WorkPostAuthorKind;
   name: string;
   avatar?: string | null;
