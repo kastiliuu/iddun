@@ -1,3 +1,4 @@
+from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus
 from app.models.beauty_graph import Follow, FollowTarget, Save, SaveTarget
 from app.models.account_token import AccountToken, AccountTokenPurpose
 from app.models.api_session import ApiSession
@@ -80,4 +81,7 @@ __all__ = [
     "PlanSource",
     "PlanSubscription",
     "PlanChangeEvent",
+    "WorkPost",
+    "WorkPostAuthorType",
+    "WorkPostStatus",
 ]
