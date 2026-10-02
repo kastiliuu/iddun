@@ -193,6 +193,7 @@ def _author_payload(post):
             "id": str(
                 author.id
             ),
+            "routeId": author.slug,
             "kind": "professional",
             "name": (
                 author.display_name
@@ -219,6 +220,7 @@ def _author_payload(post):
         "id": str(
             author.id
         ),
+        "routeId": author.slug,
         "kind": "establishment",
         "name": author.name,
         "avatar": _media_url(
@@ -249,9 +251,7 @@ def _service_payload(
         return None
 
     return {
-        "id": str(
-            experience.id
-        ),
+        "id": experience.slug,
         "name": (
             experience.title
         ),
@@ -311,14 +311,14 @@ def serialize_work_post(
             post.caption or ""
         ),
         "serviceId": (
-            str(
-                post.experience_id
-            )
+            post.experience.slug
             if (
                 post.experience_id
                 is not None
                 and post.experience_id
                 in public_experience_ids
+                and post.experience
+                is not None
             )
             else None
         ),
