@@ -409,6 +409,11 @@ def create_app(test_config=None):
     app.register_blueprint(public_bp)
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(api_auth_bp)
+    app.register_blueprint(
+        api_auth_bp,
+        url_prefix="/api/v1/auth",
+        name="api_auth_v1",
+    )
     app.register_blueprint(api_bookings_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(account_bp)
