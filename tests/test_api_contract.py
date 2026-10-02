@@ -1,4 +1,5 @@
 from app.extensions import db
+from app.models.establishment import Establishment
 from app.models.experience import (
     Experience,
     ExperienceStatus,
@@ -204,3 +205,165 @@ def test_catalog_returns_compatible_and_structured_pagination(
     assert len(next_page["items"]) == 1
     assert next_page["nextOffset"] is None
     assert next_page["pagination"]["hasMore"] is False
+
+
+
+def test_catalog_database_pagination_preserves_category_filter(
+    app,
+    client,
+):
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Profissional Categorias",
+            slug="profissional-categorias",
+            city="Curitiba",
+        )
+        db.session.add_all(
+            [
+                Experience(
+                    professional=professional,
+                    title="Unhas API",
+                    slug="unhas-api",
+                    category="unhas",
+                    short_description="Unhas",
+                    regular_price="120.00",
+                    price="100.00",
+                    duration_minutes=60,
+                    status=ExperienceStatus.PUBLISHED,
+                ),
+                Experience(
+                    professional=professional,
+                    title="Cabelo API",
+                    slug="cabelo-api",
+                    category="cabelo",
+                    short_description="Cabelo",
+                    regular_price="220.00",
+                    price="180.00",
+                    duration_minutes=90,
+                    status=ExperienceStatus.PUBLISHED,
+                ),
+            ]
+        )
+        db.session.commit()
+
+    response = client.get(
+        "/api/v1/experiences",
+        query_string={
+            "category": "Unhas",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload["total"] == 1
+    assert [
+        item["slug"]
+        for item in payload["items"]
+    ] == ["unhas-api"]
+
+
+def test_catalog_search_keeps_accent_insensitive_semantics(
+    app,
+    client,
+):
+    with app.app_context():
+        establishment = Establishment(
+            name="Studio Água Verde",
+            slug="studio-agua-verde",
+            city="Curitiba",
+            neighborhood="Água Verde",
+        )
+        professional = ProfessionalProfile(
+            display_name="Profissional Busca",
+            slug="profissional-busca",
+            city="Curitiba",
+        )
+        experience = Experience(
+            professional=professional,
+            establishment=establishment,
+            title="Experiência Busca",
+            slug="experiencia-busca",
+            category="unhas",
+            short_description="Atendimento",
+            regular_price="120.00",
+            price="100.00",
+            duration_minutes=60,
+            status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add_all(
+            [
+                establishment,
+                professional,
+                experience,
+            ]
+        )
+        db.session.commit()
+
+    response = client.get(
+        "/api/v1/experiences",
+        query_string={
+            "location": "Agua Verde",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload["total"] == 1
+    assert payload["items"][0]["slug"] == (
+        "experiencia-busca"
+    )
+
+
+def test_catalog_lowest_price_sort_is_applied_before_pagination(
+    app,
+    client,
+):
+    with app.app_context():
+        professional = ProfessionalProfile(
+            display_name="Profissional Preço",
+            slug="profissional-preco",
+            city="Curitiba",
+        )
+
+        for title, slug, price in (
+            ("Mais cara", "mais-cara", "190.00"),
+            ("Mais barata", "mais-barata", "80.00"),
+            ("Intermediária", "intermediaria", "120.00"),
+        ):
+            db.session.add(
+                Experience(
+                    professional=professional,
+                    title=title,
+                    slug=slug,
+                    category="unhas",
+                    short_description="Preço",
+                    regular_price="200.00",
+                    price=price,
+                    duration_minutes=60,
+                    status=ExperienceStatus.PUBLISHED,
+                )
+            )
+
+        db.session.commit()
+
+    response = client.get(
+        "/api/v1/experiences",
+        query_string={
+            "sort": "lowest_price",
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert [
+        item["slug"]
+        for item in payload["items"]
+    ] == [
+        "mais-barata",
+        "intermediaria",
+    ]
+    assert payload["nextOffset"] == 2
