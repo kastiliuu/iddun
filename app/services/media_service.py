@@ -31,12 +31,6 @@ IMAGE_FORMAT_BY_EXTENSION = {
     "webp": "WEBP",
 }
 
-IMAGE_MIMETYPE_BY_FORMAT = {
-    "JPEG": "image/jpeg",
-    "PNG": "image/png",
-    "WEBP": "image/webp",
-}
-
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_CERTIFICATE_BYTES = 8 * 1024 * 1024
 MAX_IMAGE_PIXELS = 40_000_000
@@ -289,16 +283,6 @@ def _prepare_image_upload(
 
     file_storage.stream = BytesIO(
         normalized
-    )
-    file_storage.content_length = len(
-        normalized
-    )
-    file_storage.content_type = (
-        IMAGE_MIMETYPE_BY_FORMAT[
-            IMAGE_FORMAT_BY_EXTENSION[
-                extension
-            ]
-        ]
     )
 
 
