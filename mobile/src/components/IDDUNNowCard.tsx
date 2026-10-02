@@ -24,6 +24,7 @@ import {
 type IDDUNNowCardProps = {
   serviceId: string;
   professionalId: string;
+  professionalRouteId?: string;
   professionalName: string;
   professionalAvatar?: string | null;
 
@@ -51,6 +52,7 @@ function formatCurrency(value: number) {
 export function IDDUNNowCard({
   serviceId,
   professionalId,
+  professionalRouteId,
   professionalName,
   professionalAvatar,
   serviceName,
@@ -73,8 +75,8 @@ export function IDDUNNowCard({
   const handleOpenProfile = () => {
     router.push(
       routeType === "establishment"
-        ? `/establishment/${professionalId}`
-        : `/professional/${professionalId}`,
+        ? `/establishment/${professionalRouteId ?? professionalId}`
+        : `/professional/${professionalRouteId ?? professionalId}`,
     );
   };
 

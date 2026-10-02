@@ -29,6 +29,15 @@ import {
   type DiscoveryResponse,
 } from "@/api/discovery";
 
+import {
+  fonts,
+  makeStyles,
+  radius,
+  spacing,
+  touch,
+  useTheme,
+} from "@/theme";
+
 const categories = [
   "Todos",
   "Unhas",
@@ -38,15 +47,6 @@ const categories = [
   "Sobrancelhas",
   "Estética",
 ];
-
-import {
-  fonts,
-  makeStyles,
-  radius,
-  spacing,
-  touch,
-  useTheme,
-} from "@/theme";
 
 const CATEGORY_CODES: Record<string, string> = {
   Unhas: "unhas",

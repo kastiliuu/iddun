@@ -1,7 +1,9 @@
 import React, {
-  useMemo,
+  useEffect,
+  useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -15,9 +17,10 @@ import { IDDUNNowCard } from "@/components/IDDUNNowCard";
 import { Icon } from "@/components/Icon";
 
 import {
-  getIDDUNNowData,
-  iddunNowItems,
-} from "@/mocks/data";
+  getIDDUNNow,
+  type IDDUNNowFilter,
+  type IDDUNNowItem,
+} from "@/api/availability";
 
 import {
   fonts,
@@ -28,13 +31,8 @@ import {
   useTheme,
 } from "@/theme";
 
-type NowFilter =
-  | "all"
-  | "today"
-  | "soon";
-
 const filters: {
-  id: NowFilter;
+  id: IDDUNNowFilter;
   label: string;
 }[] = [
   {
@@ -57,47 +55,65 @@ export default function IDDUNNowScreen() {
   const router = useRouter();
 
   const [filter, setFilter] =
-    React.useState<NowFilter>("all");
+    useState<IDDUNNowFilter>("all");
+  const [items, setItems] =
+    useState<IDDUNNowItem[]>([]);
+  const [loading, setLoading] =
+    useState(true);
+  const [error, setError] =
+    useState(false);
+  const [reloadKey, setReloadKey] =
+    useState(0);
 
-  const items =
-    useMemo(() => {
-      const hydrated =
-        iddunNowItems
-          .map((item) =>
-            getIDDUNNowData(
-              item,
-            ),
-          )
-          .filter(Boolean) as NonNullable<
-          ReturnType<
-            typeof getIDDUNNowData
-          >
-        >[];
+  const selectFilter = (
+    nextFilter: IDDUNNowFilter,
+  ) => {
+    setLoading(true);
+    setError(false);
+    setFilter(nextFilter);
+  };
 
-      if (filter === "all") {
-        return hydrated;
-      }
+  const retry = () => {
+    setLoading(true);
+    setError(false);
+    setReloadKey(
+      (current) => current + 1,
+    );
+  };
 
-      if (filter === "today") {
-        return hydrated.filter(
-          ({ item }) =>
-            item.timeLabel
-              .toLowerCase()
-              .startsWith(
-                "hoje",
-              ),
-        );
-      }
+  useEffect(() => {
+    const controller =
+      new AbortController();
 
-      return hydrated.filter(
-        ({ item }) =>
-          !item.timeLabel
-            .toLowerCase()
-            .startsWith(
-              "hoje",
-            ),
-      );
-    }, [filter]);
+    getIDDUNNow(
+      filter,
+      controller.signal,
+    )
+      .then((response) => {
+        setItems(response.items);
+        setError(false);
+      })
+      .catch((requestError: unknown) => {
+        if (
+          requestError instanceof Error &&
+          requestError.name === "AbortError"
+        ) {
+          return;
+        }
+
+        setItems([]);
+        setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
+  }, [filter, reloadKey]);
 
   return (
     <View
@@ -235,7 +251,7 @@ export default function IDDUNNowScreen() {
                       active,
                   }}
                   onPress={() =>
-                    setFilter(
+                    selectFilter(
                       item.id,
                     )
                   }
@@ -291,19 +307,27 @@ export default function IDDUNNowScreen() {
           </Text>
         </View>
 
-        {items.length >
-        0 ? (
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator
+              color={colors.plum}
+            />
+          </View>
+        ) : error ? (
+          <EmptyState
+            title="Não foi possível carregar"
+            description="Tente novamente em instantes."
+            actionLabel="Tentar novamente"
+            onActionPress={retry}
+          />
+        ) : items.length > 0 ? (
           <View
             style={
               styles.list
             }
           >
             {items.map(
-              ({
-                item,
-                service,
-                professional,
-              }) => (
+              (item) => (
                 <View
                   key={
                     item.id
@@ -314,35 +338,36 @@ export default function IDDUNNowScreen() {
                 >
                   <IDDUNNowCard
                     serviceId={
-                      service.id
+                      item.serviceId
                     }
                     professionalId={
-                      professional.id
+                      item.professionalId
+                    }
+                    professionalRouteId={
+                      item.professionalRouteId
                     }
                     professionalName={
-                      professional.name
+                      item.professionalName
                     }
                     professionalAvatar={
-                      professional.avatar
+                      item.professionalAvatar
                     }
                     serviceName={
-                      service.name
+                      item.serviceName
                     }
                     image={
-                      service.image
+                      item.image
                     }
                     price={
-                      service.price
+                      item.price
                     }
                     timeLabel={
                       item.timeLabel
                     }
                     location={
-                      service.location
+                      item.location
                     }
-                    routeType={
-                      professional.kind
-                    }
+                    routeType="professional"
                     urgent={
                       item.urgent
                     }
@@ -638,6 +663,12 @@ const useStyles =
 
         fontSize: 13,
         lineHeight: 17,
+      },
+
+      loadingWrap: {
+        minHeight: 140,
+        alignItems: "center",
+        justifyContent: "center",
       },
 
       list: {

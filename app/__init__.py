@@ -18,6 +18,7 @@ from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
 from app.routes.api_account import api_account_bp
+from app.routes.api_availability import api_availability_bp
 from app.routes.api_auth import api_auth_bp
 from app.routes.api_bookings import api_bookings_bp
 from app.routes.api_onboarding import api_onboarding_bp
@@ -462,6 +463,7 @@ def create_app(test_config=None):
     app.register_blueprint(public_bp)
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(api_account_bp)
+    app.register_blueprint(api_availability_bp)
     app.register_blueprint(api_auth_bp)
     app.register_blueprint(
         api_auth_bp,
