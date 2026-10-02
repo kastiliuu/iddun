@@ -17,7 +17,8 @@ export type SaveTargetType =
   | "professional"
   | "establishment"
   | "experience"
-  | "portfolio_item";
+  | "portfolio_item"
+  | "work_post";
 
 export type GraphReference<
   T extends string = string,
