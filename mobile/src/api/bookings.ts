@@ -1,5 +1,6 @@
 import {
   api,
+  ApiError,
 } from "@/api/client";
 
 import {
@@ -11,74 +12,76 @@ export type BookingStatus =
   | "pending"
   | "confirmed"
   | "cancelled"
-  | "completed";
+  | "completed"
+  | "no_show";
+
+export type BookingParty = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+export type BookingExperience = {
+  id: string;
+  slug: string;
+  title: string;
+  durationMinutes: number;
+};
+
+export type BookingSlot = {
+  id: number;
+  startsAt: string;
+  endsAt: string;
+  localDate: string;
+  localTime: string;
+  localEndsAt: string;
+  timezone: string;
+};
 
 export type Booking = {
   id: string;
-
-  serviceId: string;
-
-  professionalId?: string | null;
-
-  establishmentId?: string | null;
-
-  customerId: string;
-
-  serviceName: string;
-
-  professionalName?: string | null;
-
-  establishmentName?: string | null;
-
-  date: string;
-
-  time: string;
-
-  startsAt: string;
-
-  durationMinutes: number;
-
-  price: number;
-
   status: BookingStatus;
-
-  location?: string | null;
-
-  notes?: string | null;
-
+  price: number;
+  experience: BookingExperience;
+  professional: BookingParty;
+  establishment: BookingParty | null;
+  slot: BookingSlot;
+  holdExpiresAt: string | null;
+  confirmedAt: string | null;
+  cancelledAt: string | null;
+  completedAt: string | null;
+  cancellationReason: string | null;
   createdAt: string;
+  canConfirm: boolean;
+  canCancel: boolean;
 };
 
-export type CreateBookingPayload = {
-  serviceId: string;
-
-  date: string;
-
-  time: string;
-
-  notes?: string | null;
-};
-
-export type CreateBookingResponse = {
+export type BookingResponse = {
   booking: Booking;
+};
+
+export type ConfirmBookingResponse = {
+  booking: Booking;
+  calendarSynced: boolean;
+};
+
+export type BookingPagination = {
+  offset: number;
+  limit: number;
+  total: number;
+  nextOffset: number | null;
+  hasMore: boolean;
 };
 
 export type BookingListResponse = {
   items: Booking[];
-
-  nextCursor?: string | null;
+  pagination: BookingPagination;
 };
 
 export type BookingListParams = {
   status?: BookingStatus;
-
-  cursor?: string | null;
-
+  offset?: number;
   limit?: number;
-};
-
-export type CancelBookingResponse = {
-  booking: Booking;
 };
 
 function buildQuery(
@@ -94,12 +97,12 @@ function buildQuery(
     );
   }
 
-  if (params.cursor) {
-    query.set(
-      "cursor",
-      params.cursor,
-    );
-  }
+  query.set(
+    "offset",
+    String(
+      params.offset ?? 0,
+    ),
+  );
 
   query.set(
     "limit",
@@ -112,7 +115,7 @@ function buildQuery(
 }
 
 async function withAuthenticatedRequest<T>(
-  request: (
+  operation: (
     token: string,
   ) => Promise<T>,
 ) {
@@ -124,162 +127,98 @@ async function withAuthenticatedRequest<T>(
       await refreshSession();
   }
 
-  return request(token);
+  try {
+    return await operation(
+      token,
+    );
+  } catch (error) {
+    if (
+      !(
+        error instanceof ApiError
+      ) ||
+      error.status !== 401
+    ) {
+      throw error;
+    }
+
+    const refreshedToken =
+      await refreshSession();
+
+    return operation(
+      refreshedToken,
+    );
+  }
 }
 
-export async function createBooking(
-  payload: CreateBookingPayload,
+export function holdExperienceSlot(
+  experienceSlug: string,
+  slotId: number,
 ) {
-  /*
-   * Endpoint previsto:
-   *
-   * POST /api/bookings
-   *
-   * {
-   *   serviceId: "srv_1",
-   *   date: "2026-09-23",
-   *   time: "14:30",
-   *   notes: null
-   * }
-   *
-   * O backend DEVE validar novamente:
-   *
-   * - serviço existe
-   * - profissional/estabelecimento existe
-   * - horário ainda está livre
-   * - não existe conflito
-   * - duração
-   * - preço atual
-   * - regras de agenda
-   *
-   * O app nunca deve ser
-   * a fonte da verdade.
-   */
   return withAuthenticatedRequest(
     (token) =>
-      api.post<CreateBookingResponse>(
-        "/api/bookings",
-        {
-          serviceId:
-            payload.serviceId,
-
-          date:
-            payload.date,
-
-          time:
-            payload.time,
-
-          notes:
-            payload.notes?.trim() ||
-            null,
-        },
-        {
-          token,
-        },
+      api.post<BookingResponse>(
+        (
+          "/api/v1/experiences/"
+          + encodeURIComponent(
+            experienceSlug,
+          )
+          + `/slots/${slotId}/hold`
+        ),
+        undefined,
+        { token },
       ),
   );
 }
 
-export async function getBookings(
+export function getBookings(
   params: BookingListParams = {},
 ) {
   const query =
     buildQuery(params);
 
-  /*
-   * Retorna agendamentos
-   * do usuário autenticado.
-   */
   return withAuthenticatedRequest(
     (token) =>
       api.get<BookingListResponse>(
-        `/api/bookings?${query}`,
-        {
-          token,
-        },
+        `/api/v1/bookings?${query}`,
+        { token },
       ),
   );
 }
 
-export async function getBooking(
+export function getBooking(
   bookingId: string,
 ) {
   return withAuthenticatedRequest(
     (token) =>
-      api.get<Booking>(
-        `/api/bookings/${bookingId}`,
-        {
-          token,
-        },
+      api.get<BookingResponse>(
+        `/api/v1/bookings/${bookingId}`,
+        { token },
       ),
   );
 }
 
-export async function cancelBooking(
+export function confirmBooking(
   bookingId: string,
 ) {
-  /*
-   * Preferimos uma ação explícita
-   * de cancelamento em vez de
-   * simplesmente DELETE.
-   *
-   * Isso preserva histórico,
-   * auditoria e possíveis regras
-   * de cancelamento.
-   */
   return withAuthenticatedRequest(
     (token) =>
-      api.post<CancelBookingResponse>(
-        `/api/bookings/${bookingId}/cancel`,
+      api.post<ConfirmBookingResponse>(
+        `/api/v1/bookings/${bookingId}/confirm`,
         undefined,
-        {
-          token,
-        },
+        { token },
       ),
   );
 }
 
-export async function confirmBooking(
+export function cancelBooking(
   bookingId: string,
 ) {
-  /*
-   * Esse endpoint será mais útil
-   * para profissional/estabelecimento
-   * quando o fluxo permitir
-   * confirmação manual.
-   */
   return withAuthenticatedRequest(
     (token) =>
-      api.post<{
-        booking: Booking;
-      }>(
-        `/api/bookings/${bookingId}/confirm`,
+      api.post<BookingResponse>(
+        `/api/v1/bookings/${bookingId}/cancel`,
         undefined,
-        {
-          token,
-        },
-      ),
-  );
-}
-
-export async function completeBooking(
-  bookingId: string,
-) {
-  /*
-   * Depois poderemos usar isso
-   * para liberar automaticamente
-   * a etapa de avaliação.
-   */
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<{
-        booking: Booking;
-      }>(
-        `/api/bookings/${bookingId}/complete`,
-        undefined,
-        {
-          token,
-        },
+        { token },
       ),
   );
 }
