@@ -21,7 +21,7 @@ from app.services.entitlements import (
 from app.services.experience_service import (
     get_database_experience_by_slug,
     get_experience_by_slug,
-    list_experiences,
+    list_database_experiences_page,
 )
 from app.services.media_storage import resolve_media_url
 
@@ -353,24 +353,20 @@ def experiences():
     if error is not None:
         return error
 
-    # Web e app consultam o mesmo catálogo. Entradas de protótipo
-    # não são expostas pela API transacional.
-    items = [
-        item
-        for item in list_experiences(
+    # A API expõe apenas experiências reais. O service pagina no
+    # banco sempre que isso não altera a semântica da busca textual.
+    page, total = (
+        list_database_experiences_page(
             search=search,
             category=category,
             location=location,
             sort=sort,
+            offset=offset,
+            limit=limit,
         )
-        if item["source"] == "database"
-    ]
-
-    page = items[
-        offset:offset + limit
-    ]
+    )
     pagination = pagination_payload(
-        total=len(items),
+        total=total,
         offset=offset,
         limit=limit,
     )
