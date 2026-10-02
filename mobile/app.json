@@ -26,6 +26,30 @@
     "plugins": [
       "expo-router",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "O IDDUN acessa suas fotos para você adicionar imagens ao seu perfil profissional.",
+          "cameraPermission": "O IDDUN usa sua câmera para você fotografar trabalhos e atualizar seu perfil profissional.",
+          "microphonePermission": false,
+          "colors": {
+            "cropToolbarColor": "#0B0B0F",
+            "cropToolbarIconColor": "#FFFFFF",
+            "cropToolbarActionTextColor": "#6B2EFF",
+            "cropBackButtonIconColor": "#FFFFFF",
+            "cropBackgroundColor": "#0B0B0F"
+          },
+          "dark": {
+            "colors": {
+              "cropToolbarColor": "#0B0B0F",
+              "cropToolbarIconColor": "#FFFFFF",
+              "cropToolbarActionTextColor": "#6B2EFF",
+              "cropBackButtonIconColor": "#FFFFFF",
+              "cropBackgroundColor": "#0B0B0F"
+            }
+          }
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",

@@ -4,6 +4,7 @@ const DEFAULT_API_URL =
   "https://iddun-web.onrender.com";
 
 const REQUEST_TIMEOUT_MS = 20_000;
+const UPLOAD_TIMEOUT_MS = 60_000;
 
 export const API_URL =
   (
@@ -191,6 +192,11 @@ export async function apiRequest<T>(
     headers = {},
   } = options;
 
+  const isFormData =
+    typeof FormData !==
+      "undefined" &&
+    body instanceof FormData;
+
   const requestHeaders: Record<
     string,
     string
@@ -201,7 +207,8 @@ export async function apiRequest<T>(
   };
 
   if (
-    body !== undefined
+    body !== undefined &&
+    !isFormData
   ) {
     requestHeaders[
       "Content-Type"
@@ -213,6 +220,11 @@ export async function apiRequest<T>(
     requestHeaders.Authorization =
       `Bearer ${token}`;
   }
+
+  const timeoutMs =
+    isFormData
+      ? UPLOAD_TIMEOUT_MS
+      : REQUEST_TIMEOUT_MS;
 
   const controller = new AbortController();
   let timedOut = false;
@@ -253,9 +265,13 @@ export async function apiRequest<T>(
         method,
         headers: requestHeaders,
         body:
-          body !== undefined
-            ? JSON.stringify(body)
-            : undefined,
+          body === undefined
+            ? undefined
+            : isFormData
+              ? body
+              : JSON.stringify(
+                  body,
+                ),
         signal: controller.signal,
       },
     );
@@ -289,7 +305,7 @@ export async function apiRequest<T>(
             0,
           ),
         );
-      }, REQUEST_TIMEOUT_MS);
+      }, timeoutMs);
     },
   );
 

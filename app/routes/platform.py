@@ -489,6 +489,13 @@ def edit_profile():
                 ):
                     profile.published_at = utcnow()
 
+                if (
+                    profile.is_active
+                    and not profile.ready_to_publish
+                ):
+                    profile.is_active = False
+                    profile.published_at = None
+
                 db.session.commit()
                 uploads.commit()
 
@@ -561,6 +568,7 @@ def remove_portfolio_item(item_id):
     )
 
     if not profile.onboarding_completed:
+        profile.is_active = False
         profile.published_at = None
 
     db.session.commit()

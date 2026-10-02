@@ -6,6 +6,7 @@ import React, {
 
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   Switch,
@@ -13,6 +14,10 @@ import {
   TextInput,
   View,
 } from "react-native";
+
+import {
+  Image,
+} from "expo-image";
 
 import {
   useRouter,
@@ -31,6 +36,15 @@ import {
 } from "@/api/onboarding";
 
 import {
+  deleteProfessionalPortfolioItem,
+  reorderProfessionalPortfolio,
+  updateProfessionalCoverFocus,
+  uploadProfessionalAvatar,
+  uploadProfessionalCover,
+  uploadProfessionalPortfolioItem,
+} from "@/api/media";
+
+import {
   Button,
 } from "@/components/Button";
 
@@ -43,12 +57,176 @@ import {
 } from "@/components/Toast";
 
 import {
+  MediaPermissionError,
+  pickAndPrepareImage,
+  type MediaKind,
+  type MediaSource,
+} from "@/media/imagePipeline";
+
+import {
   fonts,
   makeStyles,
   radius,
   spacing,
   useTheme,
 } from "@/theme";
+
+
+const COVER_FOCUS_POINTS = [
+  {
+    x: 15,
+    y: 15,
+    label:
+      "Topo esquerdo",
+  },
+  {
+    x: 50,
+    y: 15,
+    label:
+      "Topo central",
+  },
+  {
+    x: 85,
+    y: 15,
+    label:
+      "Topo direito",
+  },
+  {
+    x: 15,
+    y: 50,
+    label:
+      "Centro esquerdo",
+  },
+  {
+    x: 50,
+    y: 50,
+    label:
+      "Centro",
+  },
+  {
+    x: 85,
+    y: 50,
+    label:
+      "Centro direito",
+  },
+  {
+    x: 15,
+    y: 85,
+    label:
+      "Base esquerda",
+  },
+  {
+    x: 50,
+    y: 85,
+    label:
+      "Base central",
+  },
+  {
+    x: 85,
+    y: 85,
+    label:
+      "Base direita",
+  },
+] as const;
+
+
+type MediaSourceActionsProps = {
+  disabled: boolean;
+  onLibrary: () => void;
+  onCamera: () => void;
+};
+
+function MediaSourceActions({
+  disabled,
+  onLibrary,
+  onCamera,
+}: MediaSourceActionsProps) {
+  const styles =
+    useStyles();
+
+  const { colors } =
+    useTheme();
+
+  return (
+    <View
+      style={
+        styles.mediaActions
+      }
+    >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Escolher imagem da galeria"
+        accessibilityState={{
+          disabled,
+        }}
+        disabled={disabled}
+        onPress={
+          onLibrary
+        }
+        style={({ pressed }) => [
+          styles.mediaAction,
+          disabled &&
+            styles.mediaActionDisabled,
+          pressed &&
+            !disabled &&
+            styles.mediaActionPressed,
+        ]}
+      >
+        <Icon
+          name="image"
+          size={16}
+          color={
+            colors.plum
+          }
+        />
+
+        <Text
+          style={
+            styles.mediaActionText
+          }
+        >
+          Galeria
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tirar uma foto"
+        accessibilityState={{
+          disabled,
+        }}
+        disabled={disabled}
+        onPress={
+          onCamera
+        }
+        style={({ pressed }) => [
+          styles.mediaAction,
+          disabled &&
+            styles.mediaActionDisabled,
+          pressed &&
+            !disabled &&
+            styles.mediaActionPressed,
+        ]}
+      >
+        <Icon
+          name="camera"
+          size={16}
+          color={
+            colors.plum
+          }
+        />
+
+        <Text
+          style={
+            styles.mediaActionText
+          }
+        >
+          Câmera
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
 
 
 export default function ProfessionalOnboardingScreen() {
@@ -87,6 +265,20 @@ export default function ProfessionalOnboardingScreen() {
   const [
     publishing,
     setPublishing,
+  ] =
+    useState(false);
+
+  const [
+    mediaBusy,
+    setMediaBusy,
+  ] =
+    useState<MediaKind | null>(
+      null,
+    );
+
+  const [
+    coverFocusBusy,
+    setCoverFocusBusy,
   ] =
     useState(false);
 
@@ -209,6 +401,252 @@ export default function ProfessionalOnboardingScreen() {
     },
     [toast],
   );
+
+  const handleMediaUpload =
+    async (
+      kind: MediaKind,
+      source: MediaSource,
+    ) => {
+      if (mediaBusy) {
+        return;
+      }
+
+      try {
+        const image =
+          await pickAndPrepareImage(
+            source,
+            kind,
+          );
+
+        if (!image) {
+          return;
+        }
+
+        setMediaBusy(
+          kind,
+        );
+
+        if (kind === "avatar") {
+          await uploadProfessionalAvatar(
+            image,
+          );
+        } else if (
+          kind === "cover"
+        ) {
+          await uploadProfessionalCover(
+            image,
+          );
+        } else {
+          await uploadProfessionalPortfolioItem(
+            image,
+          );
+        }
+
+        await load();
+
+        toast.show({
+          title:
+            kind === "portfolio"
+              ? "Trabalho adicionado"
+              : kind === "avatar"
+                ? "Foto atualizada"
+                : "Capa atualizada",
+          body:
+            "A imagem foi salva no seu perfil.",
+          icon:
+            "check",
+        });
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível salvar a imagem",
+          body:
+            error instanceof
+              MediaPermissionError ||
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setMediaBusy(
+          null,
+        );
+      }
+    };
+
+  const handleCoverFocus =
+    async (
+      focusX: number,
+      focusY: number,
+    ) => {
+      if (
+        coverFocusBusy ||
+        !profile?.coverUrl
+      ) {
+        return;
+      }
+
+      try {
+        setCoverFocusBusy(
+          true,
+        );
+
+        await updateProfessionalCoverFocus(
+          focusX,
+          focusY,
+        );
+
+        setProfile(
+          (current) =>
+            current
+              ? {
+                  ...current,
+                  coverFocusX:
+                    focusX,
+                  coverFocusY:
+                    focusY,
+                }
+              : current,
+        );
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível ajustar a capa",
+          body:
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      } finally {
+        setCoverFocusBusy(
+          false,
+        );
+      }
+    };
+
+  const removePortfolioItem =
+    (
+      itemId: number,
+    ) => {
+      Alert.alert(
+        "Remover trabalho?",
+        (
+          "A imagem será removida do "
+          + "seu portfólio."
+        ),
+        [
+          {
+            text: "Cancelar",
+            style: "cancel",
+          },
+          {
+            text: "Remover",
+            style:
+              "destructive",
+            onPress: () => {
+              void (
+                async () => {
+                  try {
+                    await deleteProfessionalPortfolioItem(
+                      itemId,
+                    );
+
+                    await load();
+
+                    toast.show({
+                      title:
+                        "Trabalho removido",
+                      icon:
+                        "check",
+                    });
+                  } catch (
+                    error
+                  ) {
+                    toast.show({
+                      title:
+                        "Não foi possível remover",
+                      body:
+                        error instanceof
+                          Error
+                          ? error.message
+                          : "Tente novamente.",
+                      icon:
+                        "alert-circle",
+                    });
+                  }
+                }
+              )();
+            },
+          },
+        ],
+      );
+    };
+
+  const movePortfolioItem =
+    async (
+      itemId: number,
+      direction: -1 | 1,
+    ) => {
+      const items =
+        profile?.portfolio ||
+        [];
+
+      const currentIndex =
+        items.findIndex(
+          (item) =>
+            item.id ===
+            itemId,
+        );
+
+      const targetIndex =
+        currentIndex +
+        direction;
+
+      if (
+        currentIndex < 0 ||
+        targetIndex < 0 ||
+        targetIndex >=
+          items.length
+      ) {
+        return;
+      }
+
+      const ids =
+        items.map(
+          (item) =>
+            item.id,
+        );
+
+      [
+        ids[currentIndex],
+        ids[targetIndex],
+      ] = [
+        ids[targetIndex],
+        ids[currentIndex],
+      ];
+
+      try {
+        await reorderProfessionalPortfolio(
+          ids,
+        );
+        await load();
+      } catch (error) {
+        toast.show({
+          title:
+            "Não foi possível reorganizar",
+          body:
+            error instanceof Error
+              ? error.message
+              : "Tente novamente.",
+          icon:
+            "alert-circle",
+        });
+      }
+    };
 
   const handleAddExperience =
     async () => {
@@ -665,6 +1103,682 @@ export default function ProfessionalOnboardingScreen() {
               styles.sectionEyebrow
             }
           >
+            MÍDIA DO PERFIL
+          </Text>
+
+          <Text
+            style={
+              styles.sectionTitle
+            }
+          >
+            Mostre seu trabalho antes mesmo da primeira conversa.
+          </Text>
+
+          <Text
+            style={
+              styles.sectionDescription
+            }
+          >
+            As imagens são otimizadas antes do envio e o IDDUN também valida o arquivo no servidor.
+          </Text>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Foto de perfil
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Obrigatória · corte quadrado · até 5 MB no servidor
+                </Text>
+              </View>
+
+              {profile.avatarUrl ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            <View
+              style={
+                styles.avatarMediaRow
+              }
+            >
+              {profile.avatarUrl ? (
+                <Image
+                  source={{
+                    uri:
+                      profile.avatarUrl,
+                  }}
+                  style={
+                    styles.avatarMediaPreview
+                  }
+                  contentFit="cover"
+                  transition={160}
+                  accessibilityLabel={
+                    `Foto de perfil de ${profile.displayName}`
+                  }
+                />
+              ) : (
+                <View
+                  style={
+                    styles.avatarMediaPlaceholder
+                  }
+                >
+                  <Text
+                    style={
+                      styles.avatarMediaInitial
+                    }
+                  >
+                    {profile.displayName
+                      .charAt(0)
+                      .toUpperCase()}
+                  </Text>
+                </View>
+              )}
+
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardBody
+                  }
+                >
+                  Use uma foto nítida, com seu rosto ou identidade profissional bem visível.
+                </Text>
+              </View>
+            </View>
+
+            <MediaSourceActions
+              disabled={
+                mediaBusy !==
+                null
+              }
+              onLibrary={() =>
+                void handleMediaUpload(
+                  "avatar",
+                  "library",
+                )
+              }
+              onCamera={() =>
+                void handleMediaUpload(
+                  "avatar",
+                  "camera",
+                )
+              }
+            />
+
+            {mediaBusy ===
+            "avatar" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Preparando e enviando foto...
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Capa
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Opcional · composição horizontal recomendada
+                </Text>
+              </View>
+
+              {profile.coverUrl ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            {profile.coverUrl ? (
+              <>
+                <View
+                  style={
+                    styles.coverMediaFrame
+                  }
+                >
+                  <Image
+                    source={{
+                      uri:
+                        profile.coverUrl,
+                    }}
+                    style={
+                      styles.coverMediaPreview
+                    }
+                    contentFit="cover"
+                    contentPosition={{
+                      left:
+                        `${profile.coverFocusX}%`,
+                      top:
+                        `${profile.coverFocusY}%`,
+                    }}
+                    transition={160}
+                    accessibilityLabel={
+                      `Capa do perfil de ${profile.displayName}`
+                    }
+                  />
+
+                  <View
+                    style={
+                      styles.coverFocusGrid
+                    }
+                  >
+                    {COVER_FOCUS_POINTS.map(
+                      (
+                        point,
+                      ) => {
+                        const selected =
+                          profile.coverFocusX ===
+                            point.x &&
+                          profile.coverFocusY ===
+                            point.y;
+
+                        return (
+                          <Pressable
+                            key={
+                              `${point.x}-${point.y}`
+                            }
+                            accessibilityRole="button"
+                            accessibilityLabel={
+                              `Enquadrar capa em ${point.label}`
+                            }
+                            accessibilityState={{
+                              selected,
+                              disabled:
+                                coverFocusBusy,
+                            }}
+                            disabled={
+                              coverFocusBusy
+                            }
+                            onPress={() =>
+                              void handleCoverFocus(
+                                point.x,
+                                point.y,
+                              )
+                            }
+                            style={
+                              styles.coverFocusCell
+                            }
+                          >
+                            {selected ? (
+                              <View
+                                style={
+                                  styles.coverFocusDot
+                                }
+                              />
+                            ) : null}
+                          </Pressable>
+                        );
+                      },
+                    )}
+                  </View>
+                </View>
+
+                <View
+                  style={
+                    styles.coverFocusHint
+                  }
+                >
+                  {coverFocusBusy ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={
+                        colors.plum
+                      }
+                    />
+                  ) : (
+                    <Icon
+                      name="move"
+                      size={14}
+                      color={
+                        colors.plum
+                      }
+                    />
+                  )}
+
+                  <Text
+                    style={
+                      styles.fieldHint
+                    }
+                  >
+                    Toque na região que deve permanecer em destaque no recorte da capa.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <View
+                style={
+                  styles.coverMediaPlaceholder
+                }
+              >
+                <Icon
+                  name="image"
+                  size={24}
+                  color={
+                    colors.muted
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Adicione uma imagem que represente seu estilo de trabalho.
+                </Text>
+              </View>
+            )}
+
+            <MediaSourceActions
+              disabled={
+                mediaBusy !==
+                null
+              }
+              onLibrary={() =>
+                void handleMediaUpload(
+                  "cover",
+                  "library",
+                )
+              }
+              onCamera={() =>
+                void handleMediaUpload(
+                  "cover",
+                  "camera",
+                )
+              }
+            />
+
+            {mediaBusy ===
+            "cover" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Preparando e enviando capa...
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            style={
+              styles.mediaCard
+            }
+          >
+            <View
+              style={
+                styles.mediaCardHeader
+              }
+            >
+              <View
+                style={
+                  styles.mediaCardCopy
+                }
+              >
+                <Text
+                  style={
+                    styles.mediaCardTitle
+                  }
+                >
+                  Portfólio
+                </Text>
+
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  {profile.portfolioCount}/8 imagens · mínimo de 3 para publicar
+                </Text>
+              </View>
+
+              {profile.portfolioCount >=
+              3 ? (
+                <Icon
+                  name="check-circle"
+                  size={18}
+                  color={
+                    colors.plum
+                  }
+                />
+              ) : null}
+            </View>
+
+            {profile.portfolio.length >
+            0 ? (
+              <View
+                style={
+                  styles.portfolioGrid
+                }
+              >
+                {profile.portfolio.map(
+                  (
+                    item,
+                    index,
+                  ) => (
+                    <View
+                      key={
+                        item.id
+                      }
+                      style={
+                        styles.portfolioItem
+                      }
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            item.imageUrl,
+                        }}
+                        style={
+                          styles.portfolioImage
+                        }
+                        contentFit="cover"
+                        transition={140}
+                        accessibilityLabel={
+                          item.caption ||
+                          `Trabalho ${index + 1} do portfólio`
+                        }
+                      />
+
+                      <View
+                        style={
+                          styles.portfolioOrder
+                        }
+                      >
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Mover trabalho ${index + 1} para a esquerda`
+                          }
+                          accessibilityState={{
+                            disabled:
+                              index ===
+                              0,
+                          }}
+                          disabled={
+                            index ===
+                              0 ||
+                            mediaBusy !==
+                              null
+                          }
+                          onPress={() =>
+                            void movePortfolioItem(
+                              item.id,
+                              -1,
+                            )
+                          }
+                          style={
+                            styles.portfolioIconButton
+                          }
+                        >
+                          <Icon
+                            name="chevron-left"
+                            size={17}
+                            color={
+                              index ===
+                              0
+                                ? colors.muted
+                                : colors.onSurface
+                            }
+                          />
+                        </Pressable>
+
+                        <Text
+                          style={
+                            styles.portfolioPosition
+                          }
+                        >
+                          {index + 1}
+                        </Text>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Mover trabalho ${index + 1} para a direita`
+                          }
+                          accessibilityState={{
+                            disabled:
+                              index ===
+                              profile.portfolio.length -
+                                1,
+                          }}
+                          disabled={
+                            index ===
+                              profile.portfolio.length -
+                                1 ||
+                            mediaBusy !==
+                              null
+                          }
+                          onPress={() =>
+                            void movePortfolioItem(
+                              item.id,
+                              1,
+                            )
+                          }
+                          style={
+                            styles.portfolioIconButton
+                          }
+                        >
+                          <Icon
+                            name="chevron-right"
+                            size={17}
+                            color={
+                              index ===
+                              profile.portfolio.length -
+                                1
+                                ? colors.muted
+                                : colors.onSurface
+                            }
+                          />
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={
+                            `Remover trabalho ${index + 1}`
+                          }
+                          disabled={
+                            mediaBusy !==
+                            null
+                          }
+                          onPress={() =>
+                            removePortfolioItem(
+                              item.id,
+                            )
+                          }
+                          style={[
+                            styles.portfolioIconButton,
+                            styles.portfolioDeleteButton,
+                          ]}
+                        >
+                          <Icon
+                            name="trash-2"
+                            size={15}
+                            color={
+                              colors.error
+                            }
+                          />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ),
+                )}
+              </View>
+            ) : (
+              <View
+                style={
+                  styles.portfolioEmpty
+                }
+              >
+                <Icon
+                  name="grid"
+                  size={24}
+                  color={
+                    colors.muted
+                  }
+                />
+
+                <Text
+                  style={
+                    styles.mediaCardBody
+                  }
+                >
+                  Seu portfólio ainda está vazio. Adicione pelo menos três trabalhos para liberar a publicação.
+                </Text>
+              </View>
+            )}
+
+            {profile.portfolioCount <
+            8 ? (
+              <MediaSourceActions
+                disabled={
+                  mediaBusy !==
+                  null
+                }
+                onLibrary={() =>
+                  void handleMediaUpload(
+                    "portfolio",
+                    "library",
+                  )
+                }
+                onCamera={() =>
+                  void handleMediaUpload(
+                    "portfolio",
+                    "camera",
+                  )
+                }
+              />
+            ) : (
+              <Text
+                style={
+                  styles.fieldHint
+                }
+              >
+                Você atingiu o limite de 8 imagens. Remova uma para adicionar outra.
+              </Text>
+            )}
+
+            {mediaBusy ===
+            "portfolio" ? (
+              <View
+                style={
+                  styles.mediaProgress
+                }
+              >
+                <ActivityIndicator
+                  size="small"
+                  color={
+                    colors.plum
+                  }
+                />
+                <Text
+                  style={
+                    styles.fieldHint
+                  }
+                >
+                  Otimizando e enviando trabalho...
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        <View
+          style={
+            styles.section
+          }
+        >
+          <Text
+            style={
+              styles.sectionEyebrow
+            }
+          >
             EXPERIÊNCIA PROFISSIONAL
           </Text>
 
@@ -1089,7 +2203,7 @@ export default function ProfessionalOnboardingScreen() {
           >
             {profile.completion.readyToPublish
               ? "Revise a prévia e publique quando estiver confortável."
-              : "Foto e portfólio serão concluídos no fluxo de mídia. Você pode sair agora e continuar depois sem perder seus dados."}
+              : "Complete os itens pendentes acima. Tudo fica salvo para você continuar depois sem perder seus dados."}
           </Text>
 
           <Button
@@ -1332,6 +2446,310 @@ const useStyles =
         lineHeight: 21,
         color:
           colors.muted,
+      },
+
+      mediaCard: {
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.lg,
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        gap: spacing.md,
+      },
+
+      mediaCardHeader: {
+        flexDirection:
+          "row",
+        alignItems:
+          "flex-start",
+        justifyContent:
+          "space-between",
+        gap: spacing.md,
+      },
+
+      mediaCardCopy: {
+        flex: 1,
+        gap: spacing.xs,
+      },
+
+      mediaCardTitle: {
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 15,
+        color:
+          colors.onSurface,
+      },
+
+      mediaCardBody: {
+        fontFamily:
+          fonts.sans,
+        fontSize: 13,
+        lineHeight: 19,
+        color:
+          colors.onSurfaceSecondary,
+      },
+
+      mediaActions: {
+        flexDirection:
+          "row",
+        gap: spacing.sm,
+      },
+
+      mediaAction: {
+        flex: 1,
+        minHeight: 46,
+        paddingHorizontal:
+          spacing.md,
+        borderRadius:
+          radius.pill,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
+      },
+
+      mediaActionPressed: {
+        opacity: 0.82,
+      },
+
+      mediaActionDisabled: {
+        opacity: 0.48,
+      },
+
+      mediaActionText: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
+        color:
+          colors.onSurface,
+      },
+
+      mediaProgress: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.sm,
+      },
+
+      avatarMediaRow: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.md,
+      },
+
+      avatarMediaPreview: {
+        width: 78,
+        height: 78,
+        borderRadius: 39,
+        backgroundColor:
+          colors.graphite,
+      },
+
+      avatarMediaPlaceholder: {
+        width: 78,
+        height: 78,
+        borderRadius: 39,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.plumSoft,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+      },
+
+      avatarMediaInitial: {
+        fontFamily:
+          fonts.display,
+        fontSize: 30,
+        color:
+          colors.plum,
+      },
+
+      coverMediaFrame: {
+        position:
+          "relative",
+        width: "100%",
+        aspectRatio: 16 / 7,
+        borderRadius:
+          radius.md,
+        overflow:
+          "hidden",
+        backgroundColor:
+          colors.graphite,
+      },
+
+      coverMediaPreview: {
+        width: "100%",
+        height: "100%",
+        backgroundColor:
+          colors.graphite,
+      },
+
+      coverFocusGrid: {
+        position:
+          "absolute",
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: 0,
+        flexDirection:
+          "row",
+        flexWrap:
+          "wrap",
+      },
+
+      coverFocusCell: {
+        width: "33.3333%",
+        height: "33.3333%",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      coverFocusDot: {
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor:
+          colors.plum,
+        borderWidth: 3,
+        borderColor:
+          colors.white,
+      },
+
+      coverFocusHint: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.sm,
+      },
+
+      coverMediaPlaceholder: {
+        width: "100%",
+        minHeight: 132,
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.md,
+        borderWidth: 1,
+        borderStyle:
+          "dashed",
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
+      },
+
+      portfolioGrid: {
+        flexDirection:
+          "row",
+        flexWrap:
+          "wrap",
+        gap: spacing.sm,
+      },
+
+      portfolioItem: {
+        width: "48%",
+        borderRadius:
+          radius.md,
+        overflow:
+          "hidden",
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+      },
+
+      portfolioImage: {
+        width: "100%",
+        aspectRatio: 1,
+        backgroundColor:
+          colors.graphite,
+      },
+
+      portfolioOrder: {
+        minHeight: 42,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "space-between",
+        paddingHorizontal:
+          spacing.xs,
+      },
+
+      portfolioIconButton: {
+        width: 34,
+        height: 34,
+        borderRadius:
+          radius.pill,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      portfolioDeleteButton: {
+        backgroundColor:
+          "rgba(239,68,68,0.08)",
+      },
+
+      portfolioPosition: {
+        minWidth: 18,
+        textAlign:
+          "center",
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 11,
+        color:
+          colors.muted,
+      },
+
+      portfolioEmpty: {
+        minHeight: 120,
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.md,
+        borderWidth: 1,
+        borderStyle:
+          "dashed",
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
       },
 
       experienceCard: {
