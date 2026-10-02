@@ -241,3 +241,24 @@ export function reorderProfessionalPortfolio(
       ),
   );
 }
+
+
+export function updateProfessionalCoverFocus(
+  focusX: number,
+  focusY: number,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.put<{
+        focusX: number;
+        focusY: number;
+      }>(
+        "/api/v1/media/professional/cover/focus",
+        {
+          focusX,
+          focusY,
+        },
+        { token },
+      ),
+  );
+}
