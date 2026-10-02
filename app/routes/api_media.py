@@ -455,6 +455,18 @@ def upload_professional_portfolio():
     if error is not None:
         return error
 
+    if len(
+        profile.portfolio_items
+    ) >= 8:
+        return api_error(
+            "portfolio_limit_reached",
+            (
+                "Seu portfólio pode ter "
+                "no máximo 8 imagens."
+            ),
+            409,
+        )
+
     caption = (
         request.form.get(
             "caption",
