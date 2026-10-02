@@ -584,6 +584,17 @@ export default function ProfileScreen() {
             <View style={styles.menuDivider} />
 
             <MenuItem
+              icon="smartphone"
+              title="Dispositivos e sessões"
+              subtitle="Revise onde sua conta está conectada"
+              onPress={() =>
+                router.push("/sessions")
+              }
+            />
+
+            <View style={styles.menuDivider} />
+
+            <MenuItem
               icon="shield"
               title="Privacidade"
               subtitle="Controle seus dados e preferências"
