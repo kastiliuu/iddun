@@ -68,6 +68,7 @@ export type WorkPost = {
   experienceId?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  canManage?: boolean;
 };
 
 export type FeedResponse = {
@@ -304,8 +305,14 @@ export async function getFeed(
 export async function getPost(
   postId: string,
 ) {
+  const token =
+    await getAccessToken();
+
   return api.get<WorkPost>(
     `/api/v1/posts/${postId}`,
+    token
+      ? { token }
+      : undefined,
   );
 }
 
