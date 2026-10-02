@@ -211,6 +211,10 @@ def _professional_payload(profile):
             if profile.cover_url
             else None
         ),
+        "avatarFocusX": profile.avatar_focus_x,
+        "avatarFocusY": profile.avatar_focus_y,
+        "coverFocusX": profile.cover_focus_x,
+        "coverFocusY": profile.cover_focus_y,
         "portfolioCount": len(
             profile.portfolio_items
         ),
