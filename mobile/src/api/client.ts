@@ -191,6 +191,11 @@ export async function apiRequest<T>(
     headers = {},
   } = options;
 
+  const isFormData =
+    typeof FormData !==
+      "undefined" &&
+    body instanceof FormData;
+
   const requestHeaders: Record<
     string,
     string
@@ -201,7 +206,8 @@ export async function apiRequest<T>(
   };
 
   if (
-    body !== undefined
+    body !== undefined &&
+    !isFormData
   ) {
     requestHeaders[
       "Content-Type"
@@ -253,9 +259,13 @@ export async function apiRequest<T>(
         method,
         headers: requestHeaders,
         body:
-          body !== undefined
-            ? JSON.stringify(body)
-            : undefined,
+          body === undefined
+            ? undefined
+            : isFormData
+              ? body
+              : JSON.stringify(
+                  body,
+                ),
         signal: controller.signal,
       },
     );
