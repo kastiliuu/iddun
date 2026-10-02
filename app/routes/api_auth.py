@@ -29,6 +29,16 @@ api_auth_bp = Blueprint(
 MAX_AUTH_BODY_BYTES = 16_384
 
 
+def _auth_json(payload, status=200):
+    response = api_json(
+        payload,
+        status,
+        cache_control="no-store",
+    )
+    response.headers["Pragma"] = "no-cache"
+    return response
+
+
 def _json_body():
     if (
         request.content_length is not None
@@ -160,7 +170,7 @@ def login():
 
     tokens = issue_session(user)
 
-    return api_json(
+    return _auth_json(
         {
             "user": _user_payload(user),
             **_tokens_payload(tokens),
@@ -247,7 +257,7 @@ def register():
             409,
         )
 
-    return api_json(
+    return _auth_json(
         {
             "user": _user_payload(user),
             **_tokens_payload(tokens),
