@@ -537,6 +537,21 @@ export default function ProfileScreen() {
                 }
               />
 
+              {user.role === "professional" ? (
+                <>
+                  <View style={styles.menuDivider} />
+
+                  <MenuItem
+                    icon="briefcase"
+                    title="Minha presença profissional"
+                    subtitle="Progresso, experiência e publicação"
+                    onPress={() =>
+                      router.push("/professional-onboarding")
+                    }
+                  />
+                </>
+              ) : null}
+
               <View style={styles.menuDivider} />
 
               <MenuItem
