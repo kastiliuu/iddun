@@ -1,7 +1,10 @@
 import React, {
+  useEffect,
   useMemo,
+  useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -22,7 +25,18 @@ import { Rating } from "@/components/Rating";
 import {
   getProfessionalById,
   getServiceById,
+  type Service,
 } from "@/mocks/data";
+
+import {
+  getRealExperience,
+  type CatalogExperience,
+} from "@/api/experiences";
+
+import {
+  getProfessional,
+  type ProfessionalProfileResponse,
+} from "@/api/professionals";
 
 import {
   fonts,
@@ -69,21 +83,199 @@ export default function ServiceDetailScreen() {
       id: string;
     }>();
 
-  const service =
+  const mockService =
     getServiceById(
       params.id,
     );
 
-  const author =
-    useMemo(
-      () =>
-        service
-          ? getProfessionalById(
-              service.authorId,
-            )
-          : undefined,
-      [service],
+  const [
+    remoteExperience,
+    setRemoteExperience,
+  ] =
+    useState<CatalogExperience | null>(
+      null,
     );
+
+  const [
+    remoteAuthor,
+    setRemoteAuthor,
+  ] =
+    useState<ProfessionalProfileResponse | null>(
+      null,
+    );
+
+  const [
+    remoteLoading,
+    setRemoteLoading,
+  ] =
+    useState(
+      !mockService,
+    );
+
+  useEffect(
+    () => {
+      if (mockService) {
+        return;
+      }
+
+      let mounted =
+        true;
+
+      getRealExperience(
+        params.id,
+      )
+        .then(
+          async (
+            experience,
+          ) => {
+            if (!mounted) {
+              return;
+            }
+
+            setRemoteExperience(
+              experience,
+            );
+
+            try {
+              const profile =
+                await getProfessional(
+                  experience
+                    .professionalSlug,
+                );
+
+              if (mounted) {
+                setRemoteAuthor(
+                  profile,
+                );
+              }
+            } catch {
+              if (mounted) {
+                setRemoteAuthor(
+                  null,
+                );
+              }
+            }
+          },
+        )
+        .catch(
+          () => {
+            if (mounted) {
+              setRemoteExperience(
+                null,
+              );
+            }
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setRemoteLoading(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [
+      mockService,
+      params.id,
+    ],
+  );
+
+  const service =
+    useMemo<Service | undefined>(
+      () => {
+        if (mockService) {
+          return mockService;
+        }
+
+        if (!remoteExperience) {
+          return undefined;
+        }
+
+        return {
+          id:
+            remoteExperience.slug,
+          entityId:
+            remoteExperience.entityId,
+          authorId:
+            remoteAuthor
+              ?.professional.id ??
+            remoteExperience
+              .professionalSlug,
+          authorRouteId:
+            remoteExperience
+              .professionalSlug,
+          authorKind:
+            "professional",
+          name:
+            remoteExperience.title,
+          category:
+            remoteExperience.category,
+          description:
+            remoteExperience
+              .description,
+          image:
+            remoteExperience.imageUrl,
+          durationMinutes:
+            remoteExperience
+              .durationMinutes,
+          price:
+            remoteExperience.price,
+          location:
+            remoteExperience.location,
+          availabilityLabel:
+            remoteExperience
+              .availableSlotsCount >
+            0
+              ? (
+                  remoteExperience
+                    .availableSlotsCount
+                  + " horários disponíveis"
+                )
+              : "Novos horários em breve",
+          availableSlots: [],
+        };
+      },
+      [
+        mockService,
+        remoteExperience,
+        remoteAuthor,
+      ],
+    );
+
+  const author =
+    mockService
+      ? getProfessionalById(
+          mockService.authorId,
+        )
+      : remoteAuthor
+          ?.professional;
+
+  if (
+    remoteLoading &&
+    !service
+  ) {
+    return (
+      <View
+        style={
+          styles.loading
+        }
+        accessibilityRole="progressbar"
+        accessibilityLabel="Carregando serviço"
+      >
+        <ActivityIndicator
+          color={
+            colors.plum
+          }
+        />
+      </View>
+    );
+  }
 
   if (!service) {
     return (
@@ -147,8 +339,8 @@ export default function ServiceDetailScreen() {
     router.push(
       author.kind ===
         "establishment"
-        ? `/establishment/${author.id}`
-        : `/professional/${author.id}`,
+        ? `/establishment/${author.routeId ?? author.id}`
+        : `/professional/${author.routeId ?? service.authorRouteId ?? author.id}`,
     );
   };
 
@@ -233,6 +425,10 @@ export default function ServiceDetailScreen() {
               <FavoriteButton
                 kind="services"
                 id={service.id}
+                targetId={
+                  service.entityId ??
+                  undefined
+                }
               />
 
               <Pressable
@@ -630,6 +826,16 @@ const useStyles = makeStyles(
   (colors) => ({
     container: {
       flex: 1,
+      backgroundColor:
+        colors.surface,
+    },
+
+    loading: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       backgroundColor:
         colors.surface,
     },
