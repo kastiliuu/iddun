@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.models.establishment import Establishment
 from app.models.professional import ProfessionalProfile
+from app.models.experience import Experience
 from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
@@ -118,6 +119,149 @@ def _service_payload(
         "availabilityLabel": None,
         "availableSlots": [],
     }
+
+
+def _discovery_post_query(
+    search,
+):
+    query = select(
+        WorkPost
+    ).where(
+        WorkPost.status
+        == WorkPostStatus.PUBLISHED,
+        WorkPost.published_at.is_not(
+            None
+        ),
+    )
+
+    if search:
+        needle = (
+            f"%{search.lower()}%"
+        )
+        query = (
+            query
+            .outerjoin(
+                ProfessionalProfile,
+                WorkPost.professional_id
+                == ProfessionalProfile.id,
+            )
+            .outerjoin(
+                Establishment,
+                WorkPost.establishment_id
+                == Establishment.id,
+            )
+            .outerjoin(
+                Experience,
+                WorkPost.experience_id
+                == Experience.id,
+            )
+            .where(
+                or_(
+                    _normalized_sql(
+                        WorkPost.caption
+                    ).like(needle),
+                    _normalized_sql(
+                        ProfessionalProfile
+                        .display_name
+                    ).like(needle),
+                    _normalized_sql(
+                        Establishment.name
+                    ).like(needle),
+                    _normalized_sql(
+                        Experience.title
+                    ).like(needle),
+                )
+            )
+        )
+
+    return query.order_by(
+        WorkPost.published_at.desc(),
+        WorkPost.id.desc(),
+    )
+
+
+@api_profiles_bp.get(
+    "/discovery"
+)
+def discovery():
+    limit, error = _query_int(
+        "limit",
+        8,
+        minimum=1,
+        maximum=20,
+    )
+    if error is not None:
+        return error
+
+    search, error = _query_text(
+        "search"
+    )
+    if error is not None:
+        return error
+
+    category, error = _query_text(
+        "category",
+        maximum=80,
+    )
+    if error is not None:
+        return error
+
+    city, error = _query_text(
+        "city",
+        maximum=120,
+    )
+    if error is not None:
+        return error
+
+    professionals, _ = _list_profiles(
+        kind="professional",
+        search=search,
+        category=category,
+        city=city,
+        offset=0,
+        limit=limit,
+    )
+    establishments, _ = _list_profiles(
+        kind="establishment",
+        search=search,
+        category=category,
+        city=city,
+        offset=0,
+        limit=limit,
+    )
+    posts = db.session.scalars(
+        _discovery_post_query(
+            search
+        ).limit(limit)
+    ).all()
+
+    return api_json(
+        {
+            "professionals": [
+                _profile_payload(
+                    item,
+                    kind="professional",
+                )
+                for item in professionals
+            ],
+            "establishments": [
+                _profile_payload(
+                    item,
+                    kind="establishment",
+                )
+                for item in establishments
+            ],
+            "posts": [
+                serialize_work_post(
+                    item
+                )
+                for item in posts
+            ],
+        },
+        cache_control=(
+            "public, max-age=30"
+        ),
+    )
 
 
 def _posts(
