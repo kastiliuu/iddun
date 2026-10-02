@@ -158,6 +158,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="forgot-password"
+              />
+
+              <Stack.Screen
                 name="(tabs)"
               />
 
