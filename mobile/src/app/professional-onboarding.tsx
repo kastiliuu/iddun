@@ -138,8 +138,6 @@ export default function ProfessionalOnboardingScreen() {
     useCallback(
       async () => {
         try {
-          setLoading(true);
-
           const response =
             await getProfessionalOnboarding();
 
