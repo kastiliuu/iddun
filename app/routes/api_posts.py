@@ -311,19 +311,41 @@ def get_feed():
 def get_post(
     post_id,
 ):
+    user = _optional_user()
     payload = public_post(
         post_id
     )
 
     if payload is not None:
+        can_manage = False
+
+        if user is not None:
+            try:
+                owned = (
+                    owned_work_post(
+                        user=user,
+                        post_id=post_id,
+                    )
+                )
+                can_manage = True
+                payload["status"] = (
+                    owned.status
+                )
+            except WorkPostError:
+                pass
+
+        payload[
+            "canManage"
+        ] = can_manage
+
         return api_json(
             payload,
             cache_control=(
-                "public, max-age=30"
+                "private, no-store"
+                if user is not None
+                else "public, max-age=30"
             ),
         )
-
-    user = _optional_user()
 
     if user is None:
         return api_error(
@@ -344,10 +366,17 @@ def get_post(
             404,
         )
 
-    return api_json(
+    private_payload = (
         _creator_payload(
             post
-        ),
+        )
+    )
+    private_payload[
+        "canManage"
+    ] = True
+
+    return api_json(
+        private_payload,
         cache_control=(
             "private, no-store"
         ),
