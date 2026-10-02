@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
 from flask import current_app
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
@@ -107,6 +107,84 @@ def _normalize_text(value):
     )
 
     return without_accents.casefold()
+
+
+_SQL_ACCENT_REPLACEMENTS = (
+    ("á", "a"),
+    ("à", "a"),
+    ("ã", "a"),
+    ("â", "a"),
+    ("ä", "a"),
+    ("Á", "a"),
+    ("À", "a"),
+    ("Ã", "a"),
+    ("Â", "a"),
+    ("Ä", "a"),
+    ("é", "e"),
+    ("è", "e"),
+    ("ê", "e"),
+    ("ë", "e"),
+    ("É", "e"),
+    ("È", "e"),
+    ("Ê", "e"),
+    ("Ë", "e"),
+    ("í", "i"),
+    ("ì", "i"),
+    ("î", "i"),
+    ("ï", "i"),
+    ("Í", "i"),
+    ("Ì", "i"),
+    ("Î", "i"),
+    ("Ï", "i"),
+    ("ó", "o"),
+    ("ò", "o"),
+    ("õ", "o"),
+    ("ô", "o"),
+    ("ö", "o"),
+    ("Ó", "o"),
+    ("Ò", "o"),
+    ("Õ", "o"),
+    ("Ô", "o"),
+    ("Ö", "o"),
+    ("ú", "u"),
+    ("ù", "u"),
+    ("û", "u"),
+    ("ü", "u"),
+    ("Ú", "u"),
+    ("Ù", "u"),
+    ("Û", "u"),
+    ("Ü", "u"),
+    ("ç", "c"),
+    ("Ç", "c"),
+)
+
+
+def _sql_normalized_text(
+    expression,
+):
+    """
+    Normalização SQL portátil para os caracteres usados na busca PT-BR.
+
+    Evita depender da extensão PostgreSQL unaccent e mantém os
+    testes SQLite semanticamente equivalentes à produção.
+    """
+    normalized = func.coalesce(
+        expression,
+        "",
+    )
+
+    for source, target in (
+        _SQL_ACCENT_REPLACEMENTS
+    ):
+        normalized = func.replace(
+            normalized,
+            source,
+            target,
+        )
+
+    return func.lower(
+        normalized
+    )
 
 
 # ============================================================
@@ -1084,10 +1162,9 @@ def list_database_experiences_page(
     """
     Página de experiências reais para API.
 
-    Consultas sem busca textual são paginadas diretamente
-    no banco. Busca/localização mantêm o caminho normalizado
-    em Python para preservar equivalência semântica entre
-    SQLite e PostgreSQL, inclusive busca sem acentos.
+    Busca, filtros, ordenação, contagem e paginação acontecem
+    no banco. A normalização SQL preserva a busca PT-BR sem
+    acentos tanto em SQLite quanto em PostgreSQL.
     """
     normalized_search = _normalize_text(
         search
@@ -1099,34 +1176,79 @@ def list_database_experiences_page(
         category
     )
 
-    if (
-        normalized_search
-        or normalized_location
-    ):
-        items = [
-            item
-            for item in list_experiences(
-                search=search,
-                category=category,
-                location=location,
-                sort=sort,
-            )
-            if item["source"] == "database"
-        ]
-
-        return (
-            items[
-                offset:offset + limit
-            ],
-            len(items),
-        )
-
     query = _published_db_query()
 
     if normalized_category:
         query = query.where(
-            Experience.category
+            _sql_normalized_text(
+                Experience.category
+            )
             == normalized_category
+        )
+
+    if normalized_search:
+        pattern = (
+            f"%{normalized_search}%"
+        )
+
+        query = query.where(
+            or_(
+                _sql_normalized_text(
+                    Experience.title
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.short_description
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.description
+                ).like(pattern),
+                _sql_normalized_text(
+                    Experience.category
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.display_name
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.primary_specialty
+                ).like(pattern),
+                _sql_normalized_text(
+                    ProfessionalProfile.city
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.name
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.neighborhood
+                ).like(pattern),
+                _sql_normalized_text(
+                    Establishment.city
+                ).like(pattern),
+            )
+        )
+
+    if normalized_location:
+        location_pattern = (
+            f"%{normalized_location}%"
+        )
+
+        query = query.where(
+            or_(
+                _sql_normalized_text(
+                    Establishment.neighborhood
+                ).like(
+                    location_pattern
+                ),
+                _sql_normalized_text(
+                    Establishment.city
+                ).like(
+                    location_pattern
+                ),
+                _sql_normalized_text(
+                    ProfessionalProfile.city
+                ).like(
+                    location_pattern
+                ),
+            )
         )
 
     total_query = (
