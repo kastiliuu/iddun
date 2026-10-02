@@ -342,6 +342,8 @@ export default function HomeScreen() {
         id={post.id}
         author={{
           id: author.id,
+          routeId:
+            author.routeId,
           name: author.name,
           avatar:
             author.avatar,
