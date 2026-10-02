@@ -435,6 +435,91 @@ def upload_professional_cover():
     )
 
 
+@api_media_bp.put(
+    "/professional/cover/focus"
+)
+@csrf.exempt
+@limiter.limit("60 per hour")
+def update_professional_cover_focus():
+    profile, error = (
+        _authenticated_profile()
+    )
+
+    if error is not None:
+        return error
+
+    if not request.is_json:
+        return api_error(
+            "json_required",
+            "Envie os dados em formato JSON.",
+            415,
+        )
+
+    payload = request.get_json(
+        silent=True
+    )
+
+    if not isinstance(payload, dict):
+        return api_error(
+            "invalid_json",
+            "Não foi possível ler os dados enviados.",
+            400,
+        )
+
+    if not profile.cover_url:
+        return api_error(
+            "cover_required",
+            "Adicione uma capa antes de ajustar o enquadramento.",
+            409,
+        )
+
+    try:
+        focus_x = _focus_value(
+            payload.get(
+                "focusX"
+            )
+        )
+        focus_y = _focus_value(
+            payload.get(
+                "focusY"
+            )
+        )
+
+        profile.cover_focus_x = (
+            focus_x
+        )
+        profile.cover_focus_y = (
+            focus_y
+        )
+        db.session.commit()
+
+    except ValueError as exc:
+        db.session.rollback()
+        return api_error(
+            "invalid_focus",
+            str(exc),
+            400,
+        )
+    except SQLAlchemyError:
+        db.session.rollback()
+        return api_error(
+            "cover_update_failed",
+            (
+                "Não foi possível ajustar "
+                "a capa agora."
+            ),
+            503,
+        )
+
+    return api_json(
+        {
+            "focusX": focus_x,
+            "focusY": focus_y,
+        },
+        cache_control="no-store",
+    )
+
+
 @api_media_bp.post(
     "/professional/portfolio"
 )
