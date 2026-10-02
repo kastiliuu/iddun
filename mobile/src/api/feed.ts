@@ -376,6 +376,44 @@ export async function updatePost(
 }
 
 
+export async function replacePostImage(
+  postId: string,
+  image: UploadableImage,
+  focusX = 50,
+  focusY = 50,
+) {
+  const form =
+    new FormData();
+
+  form.append(
+    "file",
+    {
+      uri: image.uri,
+      name: image.name,
+      type: image.type,
+    } as unknown as Blob,
+  );
+
+  form.append(
+    "focusX",
+    String(focusX),
+  );
+  form.append(
+    "focusY",
+    String(focusY),
+  );
+
+  return withAuthenticatedRequest(
+    (token) =>
+      api.post<CreatePostResponse>(
+        `/api/v1/posts/${postId}/image`,
+        form,
+        { token },
+      ),
+  );
+}
+
+
 export async function deletePost(
   postId: string,
 ) {
