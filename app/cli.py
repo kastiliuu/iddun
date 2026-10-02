@@ -246,8 +246,64 @@ def cleanup_media(
     )
 
 
+
+@click.command("cleanup-api-sessions")
+@click.option(
+    "--delete",
+    "delete_rows",
+    is_flag=True,
+    help=(
+        "Remove as sessões expiradas. "
+        "Sem esta opção, apenas informa a quantidade."
+    ),
+)
+@with_appcontext
+def cleanup_api_sessions(
+    delete_rows,
+):
+    """Lista ou remove sessões mobile cujo refresh token expirou."""
+    from app.services.api_auth import (
+        cleanup_expired_sessions,
+        expired_session_count,
+    )
+
+    count = expired_session_count()
+
+    click.echo(
+        (
+            "Sessões mobile expiradas: "
+            f"{count}"
+        )
+    )
+
+    if not delete_rows:
+        click.echo(
+            (
+                "Simulação concluída. "
+                "Nenhuma sessão foi removida."
+            )
+        )
+        return
+
+    if count == 0:
+        click.echo(
+            "Nenhuma sessão expirada para remover."
+        )
+        return
+
+    removed = cleanup_expired_sessions()
+
+    click.echo(
+        (
+            "Limpeza concluída: "
+            f"{removed} sessão(ões) removida(s)."
+        )
+    )
+
+
 def register_cli(app):
     app.cli.add_command(make_admin)
     app.cli.add_command(sync_calendars)
     app.cli.add_command(reset_data)
     app.cli.add_command(cleanup_media)
+    app.cli.add_command(cleanup_api_sessions)
