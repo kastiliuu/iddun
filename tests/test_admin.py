@@ -386,14 +386,14 @@ def test_membership_service_requires_professional_acceptance(app):
         pending = db.session.get(ProfessionalEstablishmentMembership, pending_id)
         assert pending.status == MembershipStatus.PENDING
 
-        # Representa um vínculo que já foi confirmado pelo profissional.
-        confirmed = ProfessionalEstablishmentMembership(
-            professional_id=professional.id,
-            establishment_id=establishment.id,
-            status=MembershipStatus.ACTIVE,
-            is_primary=True,
+        # Representa o mesmo convite após aceite pelo profissional.
+        # O vínculo é único por par; o aceite promove a própria linha pendente.
+        confirmed = db.session.get(
+            ProfessionalEstablishmentMembership,
+            pending_id,
         )
-        db.session.add(confirmed)
+        confirmed.status = MembershipStatus.ACTIVE
+        confirmed.is_primary = True
         db.session.commit()
         confirmed_id = confirmed.id
 
