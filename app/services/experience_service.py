@@ -10,6 +10,10 @@ from sqlalchemy.orm import selectinload
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
 from app.data.mock_professionals import PROFESSIONAL_CATALOG
 from app.extensions import db
+from app.models.booking import (
+    ExperienceSlot,
+    SlotStatus,
+)
 from app.models.establishment import Establishment
 from app.models.experience import (
     Experience,
@@ -21,7 +25,10 @@ from app.models.reputation import (
     Review,
     ReviewTarget,
 )
-from app.services.booking_service import available_slots_for_experience
+from app.services.booking_service import (
+    available_slots_for_experience,
+    release_expired_holds,
+)
 from app.services.public_eligibility import (
     public_experiences_query,
 )
@@ -630,14 +637,56 @@ def _published_db_query():
     return public_experiences_query()
 
 
+def _catalog_loader_options(
+    now,
+):
+    """
+    Evita carregar o histórico inteiro de slots no catálogo.
+
+    Holds expirados são liberados antes da consulta; por isso,
+    nesta carga interessam apenas slots futuros ainda disponíveis.
+    """
+    return (
+        selectinload(
+            Experience.professional
+        ).selectinload(
+            ProfessionalProfile.reviews_received
+        ),
+        selectinload(
+            Experience.establishment
+        ).selectinload(
+            Establishment.reviews_received
+        ),
+        selectinload(
+            Experience.slots.and_(
+                ExperienceSlot.starts_at
+                > now,
+                ExperienceSlot.status
+                == SlotStatus.AVAILABLE,
+            )
+        ),
+    )
+
+
 def _published_db_experiences():
+    now = utcnow()
+
+    release_expired_holds(
+        now=now,
+    )
+
     items = db.session.scalars(
         _published_db_query()
+        .options(
+            *_catalog_loader_options(
+                now
+            )
+        )
         .order_by(
             Experience.is_featured.desc(),
             Experience.created_at.desc(),
         )
-    ).all()
+    ).unique().all()
 
     return [
         _db_item(item)
@@ -1101,22 +1150,18 @@ def list_database_experiences_page(
         or 0
     )
 
+    now = utcnow()
+
+    release_expired_holds(
+        now=now,
+    )
+
     query = (
         query
         .options(
-            selectinload(
-                Experience.professional
-            ).selectinload(
-                ProfessionalProfile.reviews_received
-            ),
-            selectinload(
-                Experience.establishment
-            ).selectinload(
-                Establishment.reviews_received
-            ),
-            selectinload(
-                Experience.slots
-            ),
+            *_catalog_loader_options(
+                now
+            )
         )
         .order_by(
             *_database_catalog_order(
