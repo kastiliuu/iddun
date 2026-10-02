@@ -24,10 +24,19 @@ export type CatalogExperience = {
   webUrl: string;
 };
 
+export type CatalogPagination = {
+  offset: number;
+  limit: number;
+  total: number;
+  nextOffset: number | null;
+  hasMore: boolean;
+};
+
 export type CatalogResponse = {
   items: CatalogExperience[];
   total: number;
   nextOffset: number | null;
+  pagination: CatalogPagination;
 };
 
 export function getRealExperiences(
@@ -35,6 +44,14 @@ export function getRealExperiences(
     search?: string;
     category?: string;
     limit?: number;
+    offset?: number;
+    location?: string;
+    sort?:
+      | "recommended"
+      | "lowest_price"
+      | "highest_rating"
+      | "biggest_saving"
+      | "newest";
   } = {},
   signal?: AbortSignal,
 ) {
@@ -45,7 +62,23 @@ export function getRealExperiences(
   if (params.category) {
     query.set("category", params.category);
   }
-  query.set("limit", String(params.limit ?? 20));
+  if (params.location?.trim()) {
+    query.set(
+      "location",
+      params.location.trim(),
+    );
+  }
+  if (params.sort) {
+    query.set("sort", params.sort);
+  }
+  query.set(
+    "limit",
+    String(params.limit ?? 20),
+  );
+  query.set(
+    "offset",
+    String(params.offset ?? 0),
+  );
   return api.get<CatalogResponse>(
     `/api/v1/experiences?${query.toString()}`,
     { signal },
