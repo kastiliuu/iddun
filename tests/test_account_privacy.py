@@ -252,3 +252,89 @@ def test_delete_account_requires_owner_transfer(
         assert user is not None
         assert user.is_active
         assert user.deleted_at is None
+
+
+
+def test_web_privacy_delete_anonymizes_logged_in_account(
+    app,
+    client,
+):
+    registered = client.post(
+        "/cadastro",
+        data={
+            "name": "Conta Web",
+            "email": "web-privacy@example.com",
+            "password": "senha-forte-123",
+            "confirm_password": "senha-forte-123",
+        },
+        follow_redirects=False,
+    )
+
+    assert registered.status_code == 302
+
+    page = client.get(
+        "/minha-conta/privacidade"
+    )
+
+    assert page.status_code == 200
+    assert (
+        "Controle sua conta."
+        in page.get_data(
+            as_text=True
+        )
+    )
+
+    wrong = client.post(
+        "/minha-conta/privacidade",
+        data={
+            "password": "senha-errada",
+            "confirm": "y",
+        },
+        follow_redirects=False,
+    )
+
+    assert wrong.status_code == 200
+    assert (
+        "Senha atual incorreta."
+        in wrong.get_data(
+            as_text=True
+        )
+    )
+
+    deleted = client.post(
+        "/minha-conta/privacidade",
+        data={
+            "password": "senha-forte-123",
+            "confirm": "y",
+        },
+        follow_redirects=False,
+    )
+
+    assert deleted.status_code == 302
+    assert (
+        deleted.headers["Location"]
+        .endswith("/")
+    )
+
+    with app.app_context():
+        user = db.session.scalar(
+            select(User).where(
+                User.email.like(
+                    "deleted-%@deleted.iddun.invalid"
+                )
+            )
+        )
+
+        assert user is not None
+        assert not user.is_active
+        assert user.deleted_at is not None
+
+    protected = client.get(
+        "/minha-conta",
+        follow_redirects=False,
+    )
+
+    assert protected.status_code == 302
+    assert "/login" in protected.headers[
+        "Location"
+    ]
