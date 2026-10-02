@@ -39,6 +39,16 @@ jobs:
       - name: Executar testes
         run: python -m pytest -q
 
+      - name: Validar migrations Alembic
+        env:
+          DATABASE_URL: sqlite:////tmp/iddun-migrations.db
+          SECRET_KEY: ci-migration-secret
+          APP_ENV: development
+        run: |
+          rm -f /tmp/iddun-migrations.db
+          python -m flask --app run:app db upgrade
+          python -m flask --app run:app db current
+
   mobile-quality:
     name: Node 22 / mobile quality
     runs-on: ubuntu-latest
