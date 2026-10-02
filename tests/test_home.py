@@ -238,10 +238,8 @@ def test_home_links_to_how_it_works_and_keeps_safe_footer_links(
         in text
     )
 
-    assert (
-        'aria-label="Termos de uso — em breve"'
-        in text
-    )
+    assert 'href="/privacidade"' in text
+    assert 'href="/termos"' in text
 
     assert (
         'aria-label="Instagram do IDDUN — em breve"'
@@ -473,4 +471,46 @@ def test_establishments_directory_returns_200(
         in response.get_data(
             as_text=True
         )
+    )
+
+
+def test_public_legal_pages_are_available(
+    client,
+):
+    privacy = client.get(
+        "/privacidade"
+    )
+    terms = client.get(
+        "/termos"
+    )
+
+    assert privacy.status_code == 200
+    assert terms.status_code == 200
+
+    privacy_text = (
+        privacy.get_data(
+            as_text=True
+        )
+    )
+    terms_text = (
+        terms.get_data(
+            as_text=True
+        )
+    )
+
+    assert (
+        "Política de Privacidade"
+        in privacy_text
+    )
+    assert (
+        "Versão pré-lançamento"
+        in privacy_text
+    )
+    assert (
+        "Termos de Uso"
+        in terms_text
+    )
+    assert (
+        "Versão pré-lançamento"
+        in terms_text
     )
