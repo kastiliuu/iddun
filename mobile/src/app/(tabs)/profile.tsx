@@ -126,11 +126,15 @@ export default function ProfileScreen() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const user = store.getUser();
-  const followingCount = store.following().length;
+  const graphState = store.graphState();
+  const followingCount =
+    store.following().length +
+    graphState.follows.length;
   const favoriteCount =
     store.favorites("posts").length +
     store.favorites("professionals").length +
-    store.favorites("services").length;
+    store.favorites("services").length +
+    graphState.saves.length;
 
   const roleLabel = useMemo(() => {
     if (!user) return null;
