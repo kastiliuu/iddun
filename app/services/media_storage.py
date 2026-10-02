@@ -121,6 +121,34 @@ class LocalMediaStorage:
 
         return stored_path
 
+    def list_stored_paths(self):
+        if not self.upload_root.exists():
+            return []
+
+        stored_paths = []
+
+        for path in self.upload_root.rglob("*"):
+            if (
+                not path.is_file()
+                or path.name.startswith(".")
+            ):
+                continue
+
+            relative = path.relative_to(
+                self.upload_root
+            ).as_posix()
+
+            normalized = normalize_media_key(
+                f"uploads/{relative}"
+            )
+
+            if normalized is not None:
+                stored_paths.append(
+                    normalized
+                )
+
+        return sorted(stored_paths)
+
     def delete(self, stored_path):
         try:
             target_path = self._target_path(
