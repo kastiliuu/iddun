@@ -129,6 +129,13 @@ class ProfessionalProfile(db.Model):
         order_by="ProfessionalPortfolioItem.sort_order.asc(), ProfessionalPortfolioItem.created_at.asc()",
     )
 
+    professional_experiences = db.relationship(
+        "ProfessionalExperience",
+        back_populates="professional",
+        cascade="all, delete-orphan",
+        order_by="ProfessionalExperience.is_current.desc(), ProfessionalExperience.started_at.desc()",
+    )
+
     @property
     def specialties(self):
         values = []
