@@ -1,12 +1,21 @@
 from flask import Blueprint, flash, redirect, render_template, url_for
-from flask_login import current_user, login_required
+from flask_login import (
+    current_user,
+    login_required,
+    logout_user,
+)
 
 from app.extensions import db
+from app.forms.auth import DeleteAccountForm
 from app.forms.profile import ClientProfileForm
 from app.models.booking import BookingStatus
 from app.services.profile_service import ensure_client_profile
 from app.services.media_service import save_uploaded_image
 from app.models.establishment import EstablishmentAccessStatus
+from app.services.account_privacy import (
+    AccountDeletionBlocked,
+    anonymize_account,
+)
 
 
 account_bp = Blueprint("account", __name__)
@@ -90,3 +99,61 @@ def dashboard():
         return redirect(url_for("account.dashboard"))
 
     return render_template("account/dashboard.html", **_dashboard_context(form, profile))
+
+
+
+@account_bp.route(
+    "/minha-conta/privacidade",
+    methods=["GET", "POST"],
+)
+@login_required
+def privacy():
+    form = DeleteAccountForm()
+
+    if form.validate_on_submit():
+        if not current_user.check_password(
+            form.password.data
+        ):
+            form.password.errors.append(
+                "Senha atual incorreta."
+            )
+        else:
+            try:
+                anonymize_account(
+                    current_user
+                )
+            except AccountDeletionBlocked as exc:
+                names = ", ".join(
+                    exc.establishments
+                )
+                flash(
+                    (
+                        "Antes de excluir a conta, "
+                        "transfira a titularidade de: "
+                        f"{names}."
+                    ),
+                    "error",
+                )
+            else:
+                logout_user()
+
+                flash(
+                    (
+                        "Sua conta foi removida e "
+                        "os dados pessoais foram "
+                        "anonimizados."
+                    ),
+                    "success",
+                )
+
+                return redirect(
+                    url_for(
+                        "public.home"
+                    )
+                )
+
+    return render_template(
+        "account/privacy.html",
+        form=form,
+        current_page="account",
+    )
