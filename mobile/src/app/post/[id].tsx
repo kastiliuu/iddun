@@ -900,9 +900,12 @@ export default function PostDetailScreen() {
                       styles.servicePrice
                     }
                   >
-                    {formatCurrency(
-                      service.price,
-                    )}
+                    {typeof service.price ===
+                    "number"
+                      ? formatCurrency(
+                          service.price,
+                        )
+                      : "Consultar"}
                   </Text>
 
                   {service.availabilityLabel ? (
@@ -1067,9 +1070,12 @@ export default function PostDetailScreen() {
                 styles.stickyPrice
               }
             >
-              {formatCurrency(
-                service.price,
-              )}
+              {typeof service.price ===
+              "number"
+                ? formatCurrency(
+                    service.price,
+                  )
+                : "Consultar"}
             </Text>
           </View>
 
