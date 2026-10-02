@@ -9,6 +9,11 @@ from app.extensions import db
 from app.models.establishment import Establishment, MembershipStatus
 from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import ProfessionalProfile
+from app.services.public_eligibility import (
+    public_establishments_query,
+    public_experiences_query,
+    public_professionals_query,
+)
 from app.services.reputation_service import reputation_summary
 
 
@@ -50,8 +55,7 @@ def list_professionals():
     database_items = [
         _db_item(item)
         for item in db.session.scalars(
-            select(ProfessionalProfile)
-            .where(ProfessionalProfile.is_active.is_(True))
+            public_professionals_query()
             .order_by(ProfessionalProfile.is_verified.desc(), ProfessionalProfile.created_at.desc())
         ).all()
     ]
@@ -73,9 +77,8 @@ def list_professionals():
 
 def get_professional_profile_by_slug(slug):
     return db.session.scalar(
-        select(ProfessionalProfile).where(
+        public_professionals_query().where(
             ProfessionalProfile.slug == slug,
-            ProfessionalProfile.is_active.is_(True),
         )
     )
 
@@ -90,10 +93,9 @@ def get_professional_public_view(slug):
             and membership.establishment.is_active
         ]
         experiences = db.session.scalars(
-            select(Experience)
+            public_experiences_query()
             .where(
                 Experience.professional_id == profile.id,
-                Experience.status == ExperienceStatus.PUBLISHED,
             )
             .order_by(Experience.is_featured.desc(), Experience.created_at.desc())
         ).all()
@@ -176,16 +178,14 @@ def get_professional_public_view(slug):
 
 def list_establishments():
     return db.session.scalars(
-        select(Establishment)
-        .where(Establishment.is_active.is_(True))
+        public_establishments_query()
         .order_by(Establishment.is_verified.desc(), Establishment.created_at.desc())
     ).all()
 
 def get_establishment_public_view(slug):
     establishment = db.session.scalar(
-        select(Establishment).where(
+        public_establishments_query().where(
             Establishment.slug == slug,
-            Establishment.is_active.is_(True),
         )
     )
     if establishment is None:
