@@ -381,6 +381,8 @@ def _db_item(experience):
             f"db-{experience.id}"
         ),
 
+        "database_id": experience.id,
+
         "source": "database",
 
         "slug": (
