@@ -111,10 +111,29 @@ def _bearer_token():
 def _user_payload(user):
     professional = user.professional_profile
 
+    establishment_access = next(
+        (
+            access
+            for access in user.establishment_accesses
+            if (
+                access.status == "active"
+                and access.establishment is not None
+            )
+        ),
+        None,
+    )
+
+    mobile_role = "client"
+
+    if professional is not None:
+        mobile_role = "professional"
+    elif establishment_access is not None:
+        mobile_role = "establishment"
+
     payload = {
         "name": user.name,
         "email": user.email,
-        "role": "professional" if professional is not None else "client",
+        "role": mobile_role,
         "accountRole": user.role,
         "emailVerified": (
             user.is_email_verified
@@ -129,6 +148,26 @@ def _user_payload(user):
 
         if professional.city:
             payload["city"] = professional.city
+    elif establishment_access is not None:
+        establishment = (
+            establishment_access.establishment
+        )
+        payload["profileId"] = str(
+            establishment.id
+        )
+        payload["businessName"] = (
+            establishment.name
+        )
+
+        if establishment.city:
+            payload["city"] = (
+                establishment.city
+            )
+
+        if establishment.neighborhood:
+            payload["neighborhood"] = (
+                establishment.neighborhood
+            )
     elif user.client_profile is not None:
         payload["profileId"] = str(user.client_profile.id)
 
