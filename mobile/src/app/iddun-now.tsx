@@ -62,12 +62,28 @@ export default function IDDUNNowScreen() {
     useState(true);
   const [error, setError] =
     useState(false);
+  const [reloadKey, setReloadKey] =
+    useState(0);
+
+  const selectFilter = (
+    nextFilter: IDDUNNowFilter,
+  ) => {
+    setLoading(true);
+    setError(false);
+    setFilter(nextFilter);
+  };
+
+  const retry = () => {
+    setLoading(true);
+    setError(false);
+    setReloadKey(
+      (current) => current + 1,
+    );
+  };
 
   useEffect(() => {
     const controller =
       new AbortController();
-
-    setLoading(true);
 
     getIDDUNNow(
       filter,
@@ -97,7 +113,7 @@ export default function IDDUNNowScreen() {
     return () => {
       controller.abort();
     };
-  }, [filter]);
+  }, [filter, reloadKey]);
 
   return (
     <View
@@ -235,7 +251,7 @@ export default function IDDUNNowScreen() {
                       active,
                   }}
                   onPress={() =>
-                    setFilter(
+                    selectFilter(
                       item.id,
                     )
                   }
@@ -302,14 +318,7 @@ export default function IDDUNNowScreen() {
             title="Não foi possível carregar"
             description="Tente novamente em instantes."
             actionLabel="Tentar novamente"
-            onActionPress={() => {
-              setFilter(
-                (current) =>
-                  current === "all"
-                    ? "today"
-                    : "all",
-              );
-            }}
+            onActionPress={retry}
           />
         ) : items.length > 0 ? (
           <View
