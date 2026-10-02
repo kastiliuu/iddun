@@ -346,9 +346,12 @@ export default function BookingsScreen() {
             }
             actionLabel="Entrar"
             onActionPress={() =>
-              router.push(
-                "/login",
-              )
+              router.push({
+                pathname: "/login",
+                params: {
+                  returnTo: "bookings",
+                },
+              })
             }
           />
         ) : items.length ===
