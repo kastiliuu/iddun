@@ -18,6 +18,7 @@ from app.services.experience_service import (
     get_experience_by_slug,
     list_experiences,
 )
+from app.services.media_storage import resolve_media_url
 
 
 api_v1_bp = Blueprint("api_v1", __name__, url_prefix="/api/v1")
@@ -33,12 +34,10 @@ def _natural_arg(name, default, maximum):
 
 
 def _public_image_url(value):
-    if value.startswith(("https://", "http://", "data:", "/")):
-        if value.startswith("/"):
-            return request.host_url.rstrip("/") + value
-        return value
-
-    return url_for("static", filename=value, _external=True)
+    return resolve_media_url(
+        value,
+        external=True,
+    )
 
 
 def _experience_payload(item):
