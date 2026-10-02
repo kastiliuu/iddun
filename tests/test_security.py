@@ -74,3 +74,51 @@ def test_rate_limit_headers_are_enabled(
         "X-RateLimit-Remaining"
         in response.headers
     )
+
+
+
+def test_request_id_is_generated(
+    client,
+):
+    response = client.get("/health")
+
+    request_id = response.headers.get(
+        "X-Request-ID"
+    )
+
+    assert request_id
+    assert len(request_id) == 32
+
+
+def test_safe_request_id_is_preserved(
+    client,
+):
+    response = client.get(
+        "/health",
+        headers={
+            "X-Request-ID": "mobile-request-123",
+        },
+    )
+
+    assert (
+        response.headers["X-Request-ID"]
+        == "mobile-request-123"
+    )
+
+
+def test_unsafe_request_id_is_replaced(
+    client,
+):
+    response = client.get(
+        "/health",
+        headers={
+            "X-Request-ID": (
+                "bad request id with spaces"
+            ),
+        },
+    )
+
+    assert (
+        response.headers["X-Request-ID"]
+        != "bad request id with spaces"
+    )
