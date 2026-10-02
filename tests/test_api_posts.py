@@ -289,8 +289,10 @@ def test_professional_can_publish_real_post_linked_to_own_experience(
     )
     assert post["service"][
         "id"
-    ] == str(
-        experience_id
+    ] == "creator-post-service"
+    assert (
+        post["serviceId"]
+        == "creator-post-service"
     )
     assert post["image"].startswith(
         "http://"
