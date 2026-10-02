@@ -8,7 +8,7 @@ from sqlalchemy import text
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from app.extensions import csrf, db, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
 from app.routes.api_auth import api_auth_bp
@@ -99,6 +99,11 @@ def create_app(test_config=None):
             os.getenv("MEDIA_STORAGE_BACKEND")
             or "local"
         ),
+        RATELIMIT_STORAGE_URI=(
+            os.getenv("RATELIMIT_STORAGE_URI")
+            or "memory://"
+        ),
+        RATELIMIT_HEADERS_ENABLED=True,
         SQLALCHEMY_ENGINE_OPTIONS={
             "pool_pre_ping": True,
             "pool_recycle": 300,
@@ -112,6 +117,75 @@ def create_app(test_config=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     csrf.init_app(app)
+    limiter.init_app(app)
+
+
+    @app.after_request
+    def apply_security_headers(response):
+        response.headers.setdefault(
+            "X-Content-Type-Options",
+            "nosniff",
+        )
+        response.headers.setdefault(
+            "X-Frame-Options",
+            "DENY",
+        )
+        response.headers.setdefault(
+            "Referrer-Policy",
+            "strict-origin-when-cross-origin",
+        )
+        response.headers.setdefault(
+            "Permissions-Policy",
+            (
+                "camera=(), microphone=(), "
+                "geolocation=()"
+            ),
+        )
+        response.headers.setdefault(
+            "Content-Security-Policy",
+            (
+                "default-src 'self'; "
+                "base-uri 'self'; "
+                "form-action 'self'; "
+                "frame-ancestors 'none'; "
+                "img-src 'self' data: https:; "
+                "font-src 'self' data: "
+                "https://fonts.gstatic.com; "
+                "style-src 'self' 'unsafe-inline' "
+                "https://fonts.googleapis.com; "
+                "script-src 'self' 'unsafe-inline'; "
+                "connect-src 'self';"
+            ),
+        )
+
+        return response
+
+    @app.errorhandler(429)
+    def handle_rate_limit(error):
+        if (
+            request.path.startswith("/api/")
+            or request.is_json
+        ):
+            return (
+                jsonify(
+                    {
+                        "error": {
+                            "code": "rate_limit_exceeded",
+                            "message": (
+                                "Muitas tentativas. "
+                                "Aguarde um pouco e tente novamente."
+                            ),
+                        }
+                    }
+                ),
+                429,
+            )
+
+        return (
+            "Muitas tentativas. Aguarde um pouco "
+            "e tente novamente.",
+            429,
+        )
 
     @app.template_filter("media_url")
     def media_url(value):
