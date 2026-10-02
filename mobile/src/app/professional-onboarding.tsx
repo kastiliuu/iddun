@@ -2231,6 +2231,258 @@ const useStyles =
           colors.muted,
       },
 
+      mediaCard: {
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.lg,
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        gap: spacing.md,
+      },
+
+      mediaCardHeader: {
+        flexDirection:
+          "row",
+        alignItems:
+          "flex-start",
+        justifyContent:
+          "space-between",
+        gap: spacing.md,
+      },
+
+      mediaCardCopy: {
+        flex: 1,
+        gap: spacing.xs,
+      },
+
+      mediaCardTitle: {
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 15,
+        color:
+          colors.onSurface,
+      },
+
+      mediaCardBody: {
+        fontFamily:
+          fonts.sans,
+        fontSize: 13,
+        lineHeight: 19,
+        color:
+          colors.onSurfaceSecondary,
+      },
+
+      mediaActions: {
+        flexDirection:
+          "row",
+        gap: spacing.sm,
+      },
+
+      mediaAction: {
+        flex: 1,
+        minHeight: 46,
+        paddingHorizontal:
+          spacing.md,
+        borderRadius:
+          radius.pill,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
+      },
+
+      mediaActionPressed: {
+        opacity: 0.82,
+      },
+
+      mediaActionDisabled: {
+        opacity: 0.48,
+      },
+
+      mediaActionText: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 12,
+        color:
+          colors.onSurface,
+      },
+
+      mediaProgress: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.sm,
+      },
+
+      avatarMediaRow: {
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.md,
+      },
+
+      avatarMediaPreview: {
+        width: 78,
+        height: 78,
+        borderRadius: 39,
+        backgroundColor:
+          colors.graphite,
+      },
+
+      avatarMediaPlaceholder: {
+        width: 78,
+        height: 78,
+        borderRadius: 39,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        backgroundColor:
+          colors.plumSoft,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+      },
+
+      avatarMediaInitial: {
+        fontFamily:
+          fonts.display,
+        fontSize: 30,
+        color:
+          colors.plum,
+      },
+
+      coverMediaPreview: {
+        width: "100%",
+        aspectRatio: 16 / 7,
+        borderRadius:
+          radius.md,
+        backgroundColor:
+          colors.graphite,
+      },
+
+      coverMediaPlaceholder: {
+        width: "100%",
+        minHeight: 132,
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.md,
+        borderWidth: 1,
+        borderStyle:
+          "dashed",
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
+      },
+
+      portfolioGrid: {
+        flexDirection:
+          "row",
+        flexWrap:
+          "wrap",
+        gap: spacing.sm,
+      },
+
+      portfolioItem: {
+        width: "48%",
+        borderRadius:
+          radius.md,
+        overflow:
+          "hidden",
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+      },
+
+      portfolioImage: {
+        width: "100%",
+        aspectRatio: 1,
+        backgroundColor:
+          colors.graphite,
+      },
+
+      portfolioOrder: {
+        minHeight: 42,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        justifyContent:
+          "space-between",
+        paddingHorizontal:
+          spacing.xs,
+      },
+
+      portfolioIconButton: {
+        width: 34,
+        height: 34,
+        borderRadius:
+          radius.pill,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+      },
+
+      portfolioDeleteButton: {
+        backgroundColor:
+          "rgba(239,68,68,0.08)",
+      },
+
+      portfolioPosition: {
+        minWidth: 18,
+        textAlign:
+          "center",
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 11,
+        color:
+          colors.muted,
+      },
+
+      portfolioEmpty: {
+        minHeight: 120,
+        padding:
+          spacing.lg,
+        borderRadius:
+          radius.md,
+        borderWidth: 1,
+        borderStyle:
+          "dashed",
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surface,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap: spacing.sm,
+      },
+
       experienceCard: {
         padding:
           spacing.lg,
