@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
 from flask import current_app
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
@@ -22,6 +22,9 @@ from app.models.reputation import (
     ReviewTarget,
 )
 from app.services.booking_service import available_slots_for_experience
+from app.services.public_eligibility import (
+    public_experiences_query,
+)
 from app.services.reputation_service import reputation_summary
 from app.services.time_service import to_local, utcnow
 
@@ -623,43 +626,8 @@ def _normalize_mock_item(item):
 # ============================================================
 
 def _published_db_query():
-    """(c) Centraliza a elegibilidade da listagem e do estado vazio."""
-    return (
-        select(
-            Experience
-        )
-        .join(
-            ProfessionalProfile,
-            (
-                Experience.professional_id
-                == ProfessionalProfile.id
-            ),
-        )
-        .outerjoin(
-            Establishment,
-            (
-                Experience.establishment_id
-                == Establishment.id
-            ),
-        )
-        .where(
-            Experience.status
-            == ExperienceStatus.PUBLISHED,
-
-            ProfessionalProfile.is_active.is_(
-                True
-            ),
-
-            or_(
-                Experience.establishment_id.is_(
-                    None
-                ),
-                Establishment.is_active.is_(
-                    True
-                ),
-            ),
-        )
-    )
+    """Compatibilidade interna para a política pública centralizada."""
+    return public_experiences_query()
 
 
 def _published_db_experiences():
