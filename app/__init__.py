@@ -1,8 +1,10 @@
 import os
+import re
 from urllib.parse import urlsplit
+from uuid import uuid4
 
 from dotenv import load_dotenv
-from flask import Flask, flash, jsonify, redirect, request, url_for
+from flask import Flask, flash, g, jsonify, redirect, request, url_for
 from flask_wtf.csrf import CSRFError, generate_csrf
 from sqlalchemy import text
 from werkzeug.exceptions import RequestEntityTooLarge
@@ -120,8 +122,62 @@ def create_app(test_config=None):
     limiter.init_app(app)
 
 
+
+    request_id_pattern = re.compile(
+        r"^[A-Za-z0-9._:-]{1,64}$"
+    )
+
+    @app.before_request
+    def assign_request_id():
+        incoming = (
+            request.headers.get(
+                "X-Request-ID",
+                "",
+            )
+            .strip()
+        )
+
+        if request_id_pattern.fullmatch(
+            incoming
+        ):
+            g.request_id = incoming
+        else:
+            g.request_id = uuid4().hex
+
+    @app.teardown_request
+    def log_unhandled_request_error(error):
+        if error is None:
+            return
+
+        app.logger.error(
+            (
+                "Unhandled request error "
+                "request_id=%s method=%s path=%s"
+            ),
+            getattr(
+                g,
+                "request_id",
+                "unknown",
+            ),
+            request.method,
+            request.path,
+            exc_info=(
+                type(error),
+                error,
+                error.__traceback__,
+            ),
+        )
+
     @app.after_request
     def apply_security_headers(response):
+        response.headers.setdefault(
+            "X-Request-ID",
+            getattr(
+                g,
+                "request_id",
+                uuid4().hex,
+            ),
+        )
         response.headers.setdefault(
             "X-Content-Type-Options",
             "nosniff",
