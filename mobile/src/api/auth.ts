@@ -522,3 +522,26 @@ export async function revokeOtherDeviceSessions() {
       ),
   );
 }
+
+
+
+export async function deleteAccount(
+  password: string,
+) {
+  const response =
+    await authenticatedRequest(
+      (token) =>
+        api.post<{
+          deleted: boolean;
+          anonymized: boolean;
+        }>(
+          "/api/v1/account/delete",
+          { password },
+          { token },
+        ),
+    );
+
+  await clearSession();
+
+  return response;
+}
