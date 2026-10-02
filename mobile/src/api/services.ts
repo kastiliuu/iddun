@@ -7,6 +7,11 @@ import {
   refreshSession,
 } from "@/api/auth";
 
+import {
+  saveGraphTarget,
+  unsaveGraphTarget,
+} from "@/api/graph";
+
 import type {
   Service,
 } from "@/mocks/data";
@@ -39,6 +44,29 @@ export type ServiceAvailabilityResponse = {
 export type FavoriteServiceResponse = {
   favorited: boolean;
 };
+
+function requireGraphId(
+  value: string,
+) {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(
+      "Este item ainda não possui um ID real do backend.",
+    );
+  }
+
+  const id = Number(value);
+
+  if (
+    !Number.isInteger(id) ||
+    id <= 0
+  ) {
+    throw new Error(
+      "ID inválido para sincronização.",
+    );
+  }
+
+  return id;
+}
 
 function buildQuery(
   params: ServiceSearchParams,
@@ -163,30 +191,35 @@ export async function getServiceAvailability(
 export async function favoriteService(
   serviceId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<FavoriteServiceResponse>(
-        `/api/services/${serviceId}/favorite`,
-        undefined,
-        {
-          token,
-        },
+  const response =
+    await saveGraphTarget(
+      "experience",
+      requireGraphId(
+        serviceId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export async function unfavoriteService(
   serviceId: string,
 ) {
-  return withAuthenticatedRequest(
-    (token) =>
-      api.delete<FavoriteServiceResponse>(
-        `/api/services/${serviceId}/favorite`,
-        {
-          token,
-        },
+  const response =
+    await unsaveGraphTarget(
+      "experience",
+      requireGraphId(
+        serviceId,
       ),
-  );
+    );
+
+  return {
+    favorited:
+      response.saved,
+  };
 }
 
 export type CreateServicePayload = {
