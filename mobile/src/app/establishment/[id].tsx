@@ -1,9 +1,11 @@
 import React, {
+  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -15,6 +17,11 @@ import {
   useRouter,
 } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+
+import {
+  getEstablishment,
+  type EstablishmentProfileResponse,
+} from "@/api/establishments";
 
 import { Avatar } from "@/components/Avatar";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -82,10 +89,82 @@ export default function EstablishmentProfileScreen() {
       id: string;
     }>();
 
-  const establishment =
+  const mockEstablishment =
     getProfessionalById(
       params.id,
     );
+
+  const [
+    remoteData,
+    setRemoteData,
+  ] =
+    useState<EstablishmentProfileResponse | null>(
+      null,
+    );
+
+  const [
+    remoteLoading,
+    setRemoteLoading,
+  ] =
+    useState(
+      !mockEstablishment,
+    );
+
+  useEffect(
+    () => {
+      if (
+        mockEstablishment
+      ) {
+        return;
+      }
+
+      let mounted =
+        true;
+
+      getEstablishment(
+        params.id,
+      )
+        .then(
+          (response) => {
+            if (mounted) {
+              setRemoteData(
+                response,
+              );
+            }
+          },
+        )
+        .catch(
+          () => {
+            if (mounted) {
+              setRemoteData(
+                null,
+              );
+            }
+          },
+        )
+        .finally(
+          () => {
+            if (mounted) {
+              setRemoteLoading(
+                false,
+              );
+            }
+          },
+        );
+
+      return () => {
+        mounted = false;
+      };
+    },
+    [
+      mockEstablishment,
+      params.id,
+    ],
+  );
+
+  const establishment =
+    mockEstablishment ??
+    remoteData?.establishment;
 
   const [activeTab, setActiveTab] =
     useState<EstablishmentTab>("work");
@@ -97,42 +176,84 @@ export default function EstablishmentProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () =>
-      establishment
-        ? getPostsByAuthorId(
-            establishment.id,
-          )
-        : [],
-    [establishment],
+    () => {
+      if (
+        mockEstablishment
+      ) {
+        return getPostsByAuthorId(
+          mockEstablishment.id,
+        );
+      }
+
+      return (
+        remoteData?.posts ??
+        []
+      ).map(
+        (post) => ({
+          id: post.id,
+          authorId:
+            post.authorId,
+          image:
+            post.image,
+          caption:
+            post.caption,
+          rating:
+            post.author
+              .rating ??
+            undefined,
+          commentsCount:
+            post.commentsCount,
+          serviceId:
+            post.service?.id ??
+            undefined,
+          createdAt:
+            post.publishedAt ??
+            "",
+        }),
+      );
+    },
+    [
+      mockEstablishment,
+      remoteData,
+    ],
   );
 
   const services = useMemo(
     () =>
-      establishment
+      mockEstablishment
         ? getServicesByAuthorId(
-            establishment.id,
+            mockEstablishment.id,
           )
-        : [],
-    [establishment],
+        : (
+            remoteData
+              ?.services ??
+            []
+          ),
+    [
+      mockEstablishment,
+      remoteData,
+    ],
   );
 
-  /*
-   * Mock temporário de equipe.
-   *
-   * Quando o backend estiver integrado,
-   * isso virá da relação entre estabelecimento
-   * e profissionais vinculados.
-   */
   const team = useMemo(
     () =>
-      professionals
-        .filter(
-          (profile) =>
-            profile.kind ===
-            "professional",
-        )
-        .slice(0, 3),
-    [],
+      mockEstablishment
+        ? professionals
+            .filter(
+              (profile) =>
+                profile.kind ===
+                "professional",
+            )
+            .slice(0, 3)
+        : (
+            remoteData
+              ?.team ??
+            []
+          ),
+    [
+      mockEstablishment,
+      remoteData,
+    ],
   );
 
   const selectedPost =
@@ -143,6 +264,27 @@ export default function EstablishmentProfileScreen() {
             selectedPostId,
         )
       : undefined;
+
+  if (
+    remoteLoading &&
+    !establishment
+  ) {
+    return (
+      <View
+        style={
+          styles.loading
+        }
+        accessibilityRole="progressbar"
+        accessibilityLabel="Carregando estabelecimento"
+      >
+        <ActivityIndicator
+          color={
+            colors.plum
+          }
+        />
+      </View>
+    );
+  }
 
   if (
     !establishment ||
@@ -684,9 +826,15 @@ export default function EstablishmentProfileScreen() {
                 {posts.map(
                   (post) => {
                     const service =
-                      getPostService(
-                        post,
-                      );
+                      mockEstablishment
+                        ? getPostService(
+                            post,
+                          )
+                        : services.find(
+                            (item) =>
+                              item.id ===
+                              post.serviceId,
+                          );
 
                     return (
                       <PostCard
@@ -699,6 +847,9 @@ export default function EstablishmentProfileScreen() {
                         author={{
                           id:
                             establishment.id,
+                          routeId:
+                            establishment.routeId ??
+                            params.id,
                           name:
                             establishment.name,
                           avatar:
@@ -837,6 +988,9 @@ export default function EstablishmentProfileScreen() {
                         }
                         id={
                           professional.id
+                        }
+                        routeId={
+                          professional.routeId
                         }
                         name={
                           professional.name
@@ -1124,6 +1278,16 @@ const useStyles = makeStyles(
   (colors) => ({
     container: {
       flex: 1,
+      backgroundColor:
+        colors.surface,
+    },
+
+    loading: {
+      flex: 1,
+      alignItems:
+        "center",
+      justifyContent:
+        "center",
       backgroundColor:
         colors.surface,
     },
