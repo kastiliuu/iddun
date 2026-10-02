@@ -1,7 +1,7 @@
 """Autenticação JSON do aplicativo, separada da sessão web."""
 
 from email_validator import EmailNotValidError, validate_email
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, request
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -284,7 +284,7 @@ def refresh():
             401,
         )
 
-    return api_json(_tokens_payload(tokens))
+    return _auth_json(_tokens_payload(tokens))
 
 
 @api_auth_bp.get("/me")
@@ -299,7 +299,7 @@ def me():
             401,
         )
 
-    return api_json(_user_payload(user))
+    return _auth_json(_user_payload(user))
 
 
 @api_auth_bp.post("/logout")
