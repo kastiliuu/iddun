@@ -19,6 +19,9 @@ import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { markLoggedIn } from "@/store/local";
 import {
+  syncBeautyGraph,
+} from "@/store/graphSync";
+import {
   fonts,
   makeStyles,
   radius,
@@ -170,6 +173,12 @@ export default function LoginScreen() {
       }
 
       await markLoggedIn();
+
+      try {
+        await syncBeautyGraph();
+      } catch {
+        // Login continua válido; o estado local será reconciliado depois.
+      }
 
       if (requestedBooking) {
         router.replace(
