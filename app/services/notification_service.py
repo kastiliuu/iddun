@@ -344,3 +344,150 @@ def serialize_notification(
             notification.created_at
             .isoformat(),
     }
+
+
+def notify_booking_confirmed(
+    booking,
+):
+    user = getattr(
+        booking.client,
+        "user",
+        None,
+    )
+
+    if user is None:
+        return None
+
+    return create_notification(
+        user=user,
+        kind=NotificationKind.BOOKING,
+        title="Reserva confirmada",
+        body=(
+            f"{booking.experience.title} "
+            f"com {booking.professional.display_name} "
+            "está confirmada."
+        ),
+        action_type="booking",
+        action_id=str(
+            booking.id
+        ),
+    )
+
+
+def notify_booking_cancelled(
+    booking,
+):
+    user = getattr(
+        booking.client,
+        "user",
+        None,
+    )
+
+    if user is None:
+        return None
+
+    return create_notification(
+        user=user,
+        kind=NotificationKind.BOOKING,
+        title="Reserva cancelada",
+        body=(
+            f"{booking.experience.title} "
+            "foi cancelada."
+        ),
+        action_type="booking",
+        action_id=str(
+            booking.id
+        ),
+    )
+
+
+def notify_iddun_now_followers(
+    slot,
+):
+    from app.models.beauty_graph import (
+        Follow,
+        FollowTarget,
+    )
+
+    clauses = [
+        (
+            Follow.target_type
+            == FollowTarget.PROFESSIONAL
+        ),
+        (
+            Follow.professional_id
+            == slot.professional_id
+        ),
+    ]
+
+    if (
+        slot.establishment_id
+        is not None
+    ):
+        from sqlalchemy import and_, or_
+
+        query = select(Follow).where(
+            or_(
+                and_(
+                    Follow.target_type
+                    == FollowTarget.PROFESSIONAL,
+                    Follow.professional_id
+                    == slot.professional_id,
+                ),
+                and_(
+                    Follow.target_type
+                    == FollowTarget.ESTABLISHMENT,
+                    Follow.establishment_id
+                    == slot.establishment_id,
+                ),
+            )
+        )
+    else:
+        query = select(Follow).where(
+            *clauses
+        )
+
+    follows = db.session.scalars(
+        query
+    ).all()
+
+    created = 0
+    seen_user_ids = set()
+
+    for follow in follows:
+        if (
+            follow.user_id
+            in seen_user_ids
+        ):
+            continue
+
+        seen_user_ids.add(
+            follow.user_id
+        )
+
+        notification = (
+            create_notification(
+                user=follow.user,
+                kind=(
+                    NotificationKind
+                    .IDDUN_NOW
+                ),
+                title=(
+                    "Novo horário disponível"
+                ),
+                body=(
+                    f"{slot.professional.display_name} "
+                    f"abriu um horário para "
+                    f"{slot.experience.title}."
+                ),
+                action_type="experience",
+                action_id=(
+                    slot.experience.slug
+                ),
+            )
+        )
+
+        if notification is not None:
+            created += 1
+
+    return created
