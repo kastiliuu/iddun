@@ -126,7 +126,6 @@ export default function DiscoverScreen() {
         {
           search,
           category: CATEGORY_CODES[selectedCategory],
-          city: "Curitiba",
           limit: 8,
         },
         controller.signal,
