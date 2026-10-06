@@ -333,12 +333,8 @@ export default function DiscoverScreen() {
             sourceId:
               item.routeId,
             type:
-              item.kind ===
-                "experience"
-                ? (
-                    "service"
-                    as const
-                  )
+              item.kind === "experience"
+                ? ("service" as const)
                 : item.kind,
             title:
               item.title,
