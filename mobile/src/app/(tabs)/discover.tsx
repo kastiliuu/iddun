@@ -71,6 +71,8 @@ export default function DiscoverScreen() {
 
   const [selectedCategory, setSelectedCategory] =
     useState("Todos");
+  const [location, setLocation] =
+    useState("");
   const [
     globalResults,
     setGlobalResults,
@@ -102,6 +104,7 @@ export default function DiscoverScreen() {
         {
           search,
           category: CATEGORY_CODES[selectedCategory],
+          location,
         },
         controller.signal,
       )
@@ -130,7 +133,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, location]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -139,6 +142,7 @@ export default function DiscoverScreen() {
         {
           search,
           category: CATEGORY_CODES[selectedCategory],
+          city: location,
           limit: 8,
         },
         controller.signal,
@@ -165,7 +169,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, location]);
 
   useEffect(() => {
     const normalizedSearch =
@@ -187,6 +191,7 @@ export default function DiscoverScreen() {
             CATEGORY_CODES[
               selectedCategory
             ],
+          location,
           limit: 8,
         },
         controller.signal,
@@ -225,7 +230,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, location]);
 
   const openRealExperience = (
     experience: CatalogExperience,
@@ -520,6 +525,62 @@ export default function DiscoverScreen() {
           ) : null}
         </View>
 
+        <View
+          style={
+            styles.locationWrap
+          }
+        >
+          <Icon
+            name="map-pin"
+            size={17}
+            color={
+              colors.muted
+            }
+          />
+
+          <TextInput
+            value={
+              location
+            }
+            onChangeText={
+              setLocation
+            }
+            placeholder="Cidade ou bairro (opcional)"
+            placeholderTextColor={
+              colors.muted
+            }
+            autoCorrect={false}
+            returnKeyType="search"
+            style={
+              styles.locationInput
+            }
+            accessibilityLabel="Filtrar por cidade ou bairro"
+          />
+
+          {location.length >
+          0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Limpar localidade"
+              hitSlop={8}
+              onPress={() =>
+                setLocation("")
+              }
+              style={
+                styles.clearButton
+              }
+            >
+              <Icon
+                name="x"
+                size={17}
+                color={
+                  colors.onSurfaceSecondary
+                }
+              />
+            </Pressable>
+          ) : null}
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={
@@ -552,14 +613,16 @@ export default function DiscoverScreen() {
           )}
         </ScrollView>
 
-        <View style={styles.sectionHeaderWrap}>
-          <SectionHeader
-            title="Experiências publicadas"
-            subtitle="Disponibilidade e preços do catálogo IDDUN"
-          />
-        </View>
+        {!search.trim() ? (
+          <>
+            <View style={styles.sectionHeaderWrap}>
+              <SectionHeader
+                title="Experiências publicadas"
+                subtitle="Disponibilidade e preços do catálogo IDDUN"
+              />
+            </View>
 
-        <View style={styles.realList}>
+            <View style={styles.realList}>
           {realLoading ? (
             <ActivityIndicator color={colors.plum} />
           ) : realError ? (
@@ -609,7 +672,9 @@ export default function DiscoverScreen() {
               </Pressable>
             ))
           )}
-        </View>
+            </View>
+          </>
+        ) : null}
 
         <View
           style={
@@ -989,6 +1054,40 @@ const useStyles =
 
         justifyContent:
           "center",
+      },
+
+      locationWrap: {
+        marginTop:
+          spacing.sm,
+        marginHorizontal:
+          spacing.lg,
+        minHeight:
+          touch.minimum,
+        paddingHorizontal:
+          spacing.md,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap:
+          spacing.sm,
+        borderRadius:
+          radius.pill,
+        backgroundColor:
+          colors.surfaceSecondary,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
+      },
+
+      locationInput: {
+        flex: 1,
+        minWidth: 0,
+        color:
+          colors.onSurface,
+        fontFamily:
+          fonts.sans,
+        fontSize: 13,
       },
 
       categories: {
