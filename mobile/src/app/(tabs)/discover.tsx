@@ -172,8 +172,6 @@ export default function DiscoverScreen() {
       search.trim();
 
     if (!normalizedSearch) {
-      setGlobalResults([]);
-      setGlobalSearchLoading(false);
       return;
     }
 
