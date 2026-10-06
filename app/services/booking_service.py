@@ -394,6 +394,10 @@ def confirm_booking(booking_id, client_profile, now=None):
 
 def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
     now = as_utc(now or utcnow())
+    was_confirmed = (
+        booking.status
+        == BookingStatus.CONFIRMED
+    )
     if booking.status not in {BookingStatus.PENDING, BookingStatus.CONFIRMED}:
         raise BookingStateError("Esta reserva não pode ser cancelada.")
     if as_utc(booking.slot.starts_at) <= now:
@@ -412,9 +416,10 @@ def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
     slot.hold_expires_at = None
     db.session.commit()
 
-    notify_booking_cancelled(
-        booking
-    )
+    if was_confirmed:
+        notify_booking_cancelled(
+            booking
+        )
 
     return booking
 
