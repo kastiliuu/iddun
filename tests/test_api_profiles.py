@@ -395,3 +395,121 @@ def test_experience_contract_exposes_slug_and_numeric_entity_id(
     ] == ids[
         "experienceId"
     ]
+
+
+
+def test_global_search_returns_unified_real_results(
+    app,
+    client,
+):
+    _catalog(app)
+
+    response = client.get(
+        "/api/v1/search?q=Feed"
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload["query"] == "Feed"
+    assert set(
+        payload["sections"]
+    ) == {
+        "professionals",
+        "establishments",
+        "experiences",
+        "posts",
+    }
+
+    kinds = {
+        item["kind"]
+        for item
+        in payload["items"]
+    }
+
+    assert "professional" in kinds
+    assert "establishment" in kinds
+    assert "experience" in kinds
+    assert "post" in kinds
+
+
+def test_global_search_location_matches_neighborhood_without_accents(
+    app,
+    client,
+):
+    _catalog(app)
+
+    with app.app_context():
+        establishment = db.session.scalar(
+            db.select(
+                Establishment
+            ).where(
+                Establishment.slug
+                == "studio-feed"
+            )
+        )
+        establishment.neighborhood = (
+            "Água Verde"
+        )
+        db.session.commit()
+
+    response = client.get(
+        (
+            "/api/v1/search"
+            "?location=Agua%20Verde"
+        )
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload[
+        "location"
+    ] == "Agua Verde"
+
+    assert any(
+        item["routeId"]
+        == "studio-feed"
+        for item
+        in payload["sections"][
+            "establishments"
+        ]
+    )
+
+    assert any(
+        item["routeId"]
+        == "unhas-feed"
+        for item
+        in payload["sections"][
+            "experiences"
+        ]
+    )
+
+
+def test_global_search_category_filters_experiences(
+    app,
+    client,
+):
+    _catalog(app)
+
+    response = client.get(
+        (
+            "/api/v1/search"
+            "?category=unhas"
+        )
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+
+    assert payload[
+        "category"
+    ] == "unhas"
+    assert any(
+        item["routeId"]
+        == "unhas-feed"
+        for item
+        in payload["sections"][
+            "experiences"
+        ]
+    )
