@@ -28,6 +28,10 @@ import {
   getDiscovery,
   type DiscoveryResponse,
 } from "@/api/discovery";
+import {
+  globalSearch,
+  type GlobalSearchItem,
+} from "@/api/search";
 
 import {
   fonts,
@@ -67,6 +71,15 @@ export default function DiscoverScreen() {
 
   const [selectedCategory, setSelectedCategory] =
     useState("Todos");
+  const [
+    globalResults,
+    setGlobalResults,
+  ] =
+    useState<GlobalSearchItem[]>([]);
+  const [
+    globalSearchLoading,
+    setGlobalSearchLoading,
+  ] = useState(false);
 
   const [realExperiences, setRealExperiences] =
     useState<CatalogExperience[]>([]);
@@ -145,6 +158,68 @@ export default function DiscoverScreen() {
             establishments: [],
             posts: [],
           });
+        });
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [search, selectedCategory]);
+
+  useEffect(() => {
+    const normalizedSearch =
+      search.trim();
+
+    if (!normalizedSearch) {
+      setGlobalResults([]);
+      setGlobalSearchLoading(false);
+      return;
+    }
+
+    const controller =
+      new AbortController();
+    const timer = setTimeout(() => {
+      setGlobalSearchLoading(true);
+
+      globalSearch(
+        {
+          query: normalizedSearch,
+          category:
+            CATEGORY_CODES[
+              selectedCategory
+            ],
+          limit: 8,
+        },
+        controller.signal,
+      )
+        .then((response) => {
+          setGlobalResults(
+            response.items,
+          );
+        })
+        .catch(
+          (error: unknown) => {
+            if (
+              error instanceof Error &&
+              error.name ===
+                "AbortError"
+            ) {
+              return;
+            }
+
+            setGlobalResults([]);
+          },
+        )
+        .finally(() => {
+          if (
+            !controller.signal
+              .aborted
+          ) {
+            setGlobalSearchLoading(
+              false,
+            );
+          }
         });
     }, 250);
 
@@ -241,14 +316,61 @@ export default function DiscoverScreen() {
     [discovery],
   );
 
+  const visibleDiscoveryItems =
+    useMemo(
+      () => {
+        if (!search.trim()) {
+          return discoveryItems;
+        }
+
+        return globalResults.map(
+          (item, index) => ({
+            id:
+              `${item.kind}-${item.id}`,
+            sourceId:
+              item.routeId,
+            type:
+              item.kind ===
+                "experience"
+                ? (
+                    "service"
+                    as const
+                  )
+                : item.kind,
+            title:
+              item.title,
+            subtitle:
+              item.subtitle
+              ?? undefined,
+            image:
+              item.image,
+            rating:
+              item.rating,
+            location:
+              item.location
+              ?? undefined,
+            height:
+              index % 2 === 0
+                ? 280
+                : 240,
+          }),
+        );
+      },
+      [
+        discoveryItems,
+        globalResults,
+        search,
+      ],
+    );
+
   const leftColumn =
-    discoveryItems.filter(
+    visibleDiscoveryItems.filter(
       (_, index) =>
         index % 2 === 0,
     );
 
   const rightColumn =
-    discoveryItems.filter(
+    visibleDiscoveryItems.filter(
       (_, index) =>
         index % 2 !== 0,
     );
@@ -511,7 +633,20 @@ export default function DiscoverScreen() {
           />
         </View>
 
-        {discoveryItems.length >
+        {globalSearchLoading &&
+        search.trim() ? (
+          <View
+            style={
+              styles.searchLoading
+            }
+          >
+            <ActivityIndicator
+              color={
+                colors.plum
+              }
+            />
+          </View>
+        ) : visibleDiscoveryItems.length >
         0 ? (
           <View
             style={
@@ -991,6 +1126,12 @@ const useStyles =
         flex: 1,
 
         gap: spacing.sm,
+      },
+
+      searchLoading: {
+        minHeight: 120,
+        alignItems: "center",
+        justifyContent: "center",
       },
 
       nearbySection: {
