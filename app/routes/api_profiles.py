@@ -1,3 +1,4 @@
+import unicodedata
 from flask import Blueprint, request
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
@@ -17,6 +18,9 @@ from app.services.api_contract import (
 )
 from app.services.feed_service import (
     serialize_work_post,
+)
+from app.services.experience_service import (
+    list_database_experiences_page,
 )
 from app.services.media_storage import (
     resolve_media_url,
@@ -121,8 +125,26 @@ def _service_payload(
     }
 
 
+def _normalize_query_text(
+    value,
+):
+    normalized = unicodedata.normalize(
+        "NFKD",
+        str(value or "").strip(),
+    )
+
+    return "".join(
+        character
+        for character in normalized
+        if not unicodedata.combining(
+            character
+        )
+    ).casefold()
+
+
 def _discovery_post_query(
     search,
+    location="",
 ):
     query = select(
         WorkPost
@@ -134,10 +156,7 @@ def _discovery_post_query(
         ),
     )
 
-    if search:
-        needle = (
-            f"%{search.lower()}%"
-        )
+    if search or location:
         query = (
             query
             .outerjoin(
@@ -155,28 +174,391 @@ def _discovery_post_query(
                 WorkPost.experience_id
                 == Experience.id,
             )
-            .where(
-                or_(
-                    _normalized_sql(
-                        WorkPost.caption
-                    ).like(needle),
-                    _normalized_sql(
-                        ProfessionalProfile
-                        .display_name
-                    ).like(needle),
-                    _normalized_sql(
-                        Establishment.name
-                    ).like(needle),
-                    _normalized_sql(
-                        Experience.title
-                    ).like(needle),
-                )
+        )
+
+    if search:
+        needle = (
+            f"%{_normalize_query_text(search)}%"
+        )
+        query = query.where(
+            or_(
+                _normalized_sql(
+                    WorkPost.caption
+                ).like(needle),
+                _normalized_sql(
+                    ProfessionalProfile
+                    .display_name
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.name
+                ).like(needle),
+                _normalized_sql(
+                    Experience.title
+                ).like(needle),
+            )
+        )
+
+    if location:
+        needle = (
+            f"%{_normalize_query_text(location)}%"
+        )
+        query = query.where(
+            or_(
+                _normalized_sql(
+                    ProfessionalProfile.city
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.city
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.neighborhood
+                ).like(needle),
             )
         )
 
     return query.order_by(
         WorkPost.published_at.desc(),
         WorkPost.id.desc(),
+    )
+
+
+def _global_experience_payload(
+    item,
+):
+    return {
+        "id": str(
+            item.get(
+                "database_id"
+            )
+            or item["slug"]
+        ),
+        "routeId": item[
+            "slug"
+        ],
+        "kind": "experience",
+        "title": item[
+            "title"
+        ],
+        "subtitle": (
+            item.get(
+                "professional"
+            )
+            or item.get(
+                "category_label"
+            )
+        ),
+        "image": _media(
+            item.get(
+                "image"
+            )
+            or "img/exp-hair.jpg"
+        ),
+        "location": (
+            item.get(
+                "location"
+            )
+            or "Brasil"
+        ),
+        "rating": float(
+            item.get(
+                "rating"
+            )
+            or 0
+        ),
+        "reviewsCount": int(
+            item.get(
+                "reviews"
+            )
+            or 0
+        ),
+        "category": item.get(
+            "category"
+        ),
+        "price": float(
+            item.get(
+                "price"
+            )
+            or 0
+        ),
+        "availableSlotsCount": int(
+            item.get(
+                "available_slots_count"
+            )
+            or 0
+        ),
+    }
+
+
+def _global_profile_payload(
+    item,
+    *,
+    kind,
+):
+    payload = _profile_payload(
+        item,
+        kind=kind,
+    )
+
+    return {
+        "id": payload["id"],
+        "routeId": payload[
+            "routeId"
+        ],
+        "kind": kind,
+        "title": payload[
+            "name"
+        ],
+        "subtitle": payload[
+            "specialty"
+        ],
+        "image": (
+            payload[
+                "cover"
+            ]
+            or payload[
+                "avatar"
+            ]
+        ),
+        "location": payload[
+            "location"
+        ],
+        "rating": payload[
+            "rating"
+        ],
+        "reviewsCount": payload[
+            "reviewsCount"
+        ],
+        "category": (
+            payload[
+                "categories"
+            ][0]
+            if payload[
+                "categories"
+            ]
+            else None
+        ),
+    }
+
+
+def _global_post_payload(
+    item,
+):
+    payload = (
+        serialize_work_post(
+            item
+        )
+    )
+    author = (
+        payload.get(
+            "author"
+        )
+        or {}
+    )
+
+    return {
+        "id": str(
+            payload[
+                "id"
+            ]
+        ),
+        "routeId": str(
+            payload[
+                "id"
+            ]
+        ),
+        "kind": "post",
+        "title": (
+            author.get(
+                "name"
+            )
+            or "Trabalho IDDUN"
+        ),
+        "subtitle": (
+            payload.get(
+                "caption"
+            )
+            or ""
+        ),
+        "image": payload.get(
+            "image"
+        ),
+        "location": None,
+        "rating": (
+            author.get(
+                "rating"
+            )
+            or 0
+        ),
+        "reviewsCount": 0,
+        "category": None,
+    }
+
+
+@api_profiles_bp.get(
+    "/search"
+)
+def global_search():
+    query, error = _query_text(
+        "q"
+    )
+    if error is not None:
+        return error
+
+    category, error = _query_text(
+        "category",
+        maximum=80,
+    )
+    if error is not None:
+        return error
+
+    location, error = _query_text(
+        "location",
+        maximum=120,
+    )
+    if error is not None:
+        return error
+
+    limit, error = _query_int(
+        "limit",
+        8,
+        minimum=1,
+        maximum=20,
+    )
+    if error is not None:
+        return error
+
+    professionals, _ = (
+        _list_profiles(
+            kind="professional",
+            search=query,
+            category=category,
+            city=location,
+            offset=0,
+            limit=limit,
+        )
+    )
+
+    establishments, _ = (
+        _list_profiles(
+            kind="establishment",
+            search=query,
+            category=category,
+            city=location,
+            offset=0,
+            limit=limit,
+        )
+    )
+
+    experiences, _ = (
+        list_database_experiences_page(
+            search=query,
+            category=category,
+            location=location,
+            offset=0,
+            limit=limit,
+        )
+    )
+
+    posts = db.session.scalars(
+        _discovery_post_query(
+            query,
+            location,
+        ).limit(limit)
+    ).all()
+
+    professional_items = [
+        _global_profile_payload(
+            item,
+            kind="professional",
+        )
+        for item
+        in professionals
+    ]
+
+    establishment_items = [
+        _global_profile_payload(
+            item,
+            kind="establishment",
+        )
+        for item
+        in establishments
+    ]
+
+    experience_items = [
+        _global_experience_payload(
+            item
+        )
+        for item
+        in experiences
+    ]
+
+    post_items = [
+        _global_post_payload(
+            item
+        )
+        for item
+        in posts
+    ]
+
+    sections = {
+        "professionals":
+            professional_items,
+        "establishments":
+            establishment_items,
+        "experiences":
+            experience_items,
+        "posts":
+            post_items,
+    }
+
+    ordered = []
+
+    longest = max(
+        (
+            len(items)
+            for items
+            in sections.values()
+        ),
+        default=0,
+    )
+
+    for index in range(
+        longest
+    ):
+        for key in (
+            "experiences",
+            "professionals",
+            "establishments",
+            "posts",
+        ):
+            items = sections[
+                key
+            ]
+
+            if index < len(
+                items
+            ):
+                ordered.append(
+                    items[index]
+                )
+
+    return api_json(
+        {
+            "query": query,
+            "location":
+                location,
+            "category":
+                category,
+            "items":
+                ordered[
+                    : limit * 4
+                ],
+            "sections":
+                sections,
+        },
+        cache_control=(
+            "public, max-age=30"
+        ),
     )
 
 
@@ -537,7 +919,7 @@ def _list_profiles(
 
     if search:
         needle = (
-            f"%{search.lower()}%"
+            f"%{_normalize_query_text(search)}%"
         )
         query = query.where(
             or_(
@@ -553,7 +935,7 @@ def _list_profiles(
 
     if category:
         needle = (
-            f"%{category.lower()}%"
+            f"%{_normalize_query_text(category)}%"
         )
         query = query.where(
             or_(
@@ -568,13 +950,27 @@ def _list_profiles(
         )
 
     if city:
-        query = query.where(
-            _normalized_sql(
-                city_column
-            ).like(
-                f"%{city.lower()}%"
-            )
+        needle = (
+            f"%{_normalize_query_text(city)}%"
         )
+
+        if kind == "establishment":
+            query = query.where(
+                or_(
+                    _normalized_sql(
+                        model.city
+                    ).like(needle),
+                    _normalized_sql(
+                        model.neighborhood
+                    ).like(needle),
+                )
+            )
+        else:
+            query = query.where(
+                _normalized_sql(
+                    city_column
+                ).like(needle)
+            )
 
     filtered = query.order_by(
         *order_columns
