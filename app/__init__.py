@@ -21,6 +21,7 @@ from app.routes.api_account import api_account_bp
 from app.routes.api_availability import api_availability_bp
 from app.routes.api_auth import api_auth_bp
 from app.routes.api_bookings import api_bookings_bp
+from app.routes.api_establishment_team import api_establishment_team_bp
 from app.routes.api_onboarding import api_onboarding_bp
 from app.routes.api_notifications import api_notifications_bp
 from app.routes.api_media import api_media_bp
@@ -472,6 +473,7 @@ def create_app(test_config=None):
         name="api_auth_v1",
     )
     app.register_blueprint(api_bookings_bp)
+    app.register_blueprint(api_establishment_team_bp)
     app.register_blueprint(api_onboarding_bp)
     app.register_blueprint(api_notifications_bp)
     app.register_blueprint(api_media_bp)
