@@ -1,3 +1,4 @@
+import unicodedata
 from flask import Blueprint, request
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
@@ -124,8 +125,26 @@ def _service_payload(
     }
 
 
+def _normalize_query_text(
+    value,
+):
+    normalized = unicodedata.normalize(
+        "NFKD",
+        str(value or "").strip(),
+    )
+
+    return "".join(
+        character
+        for character in normalized
+        if not unicodedata.combining(
+            character
+        )
+    ).casefold()
+
+
 def _discovery_post_query(
     search,
+    location="",
 ):
     query = select(
         WorkPost
@@ -137,10 +156,7 @@ def _discovery_post_query(
         ),
     )
 
-    if search:
-        needle = (
-            f"%{search.lower()}%"
-        )
+    if search or location:
         query = (
             query
             .outerjoin(
@@ -158,22 +174,45 @@ def _discovery_post_query(
                 WorkPost.experience_id
                 == Experience.id,
             )
-            .where(
-                or_(
-                    _normalized_sql(
-                        WorkPost.caption
-                    ).like(needle),
-                    _normalized_sql(
-                        ProfessionalProfile
-                        .display_name
-                    ).like(needle),
-                    _normalized_sql(
-                        Establishment.name
-                    ).like(needle),
-                    _normalized_sql(
-                        Experience.title
-                    ).like(needle),
-                )
+        )
+
+    if search:
+        needle = (
+            f"%{_normalize_query_text(search)}%"
+        )
+        query = query.where(
+            or_(
+                _normalized_sql(
+                    WorkPost.caption
+                ).like(needle),
+                _normalized_sql(
+                    ProfessionalProfile
+                    .display_name
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.name
+                ).like(needle),
+                _normalized_sql(
+                    Experience.title
+                ).like(needle),
+            )
+        )
+
+    if location:
+        needle = (
+            f"%{_normalize_query_text(location)}%"
+        )
+        query = query.where(
+            or_(
+                _normalized_sql(
+                    ProfessionalProfile.city
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.city
+                ).like(needle),
+                _normalized_sql(
+                    Establishment.neighborhood
+                ).like(needle),
             )
         )
 
@@ -422,7 +461,8 @@ def global_search():
 
     posts = db.session.scalars(
         _discovery_post_query(
-            query
+            query,
+            location,
         ).limit(limit)
     ).all()
 
@@ -879,7 +919,7 @@ def _list_profiles(
 
     if search:
         needle = (
-            f"%{search.lower()}%"
+            f"%{_normalize_query_text(search)}%"
         )
         query = query.where(
             or_(
@@ -895,7 +935,7 @@ def _list_profiles(
 
     if category:
         needle = (
-            f"%{category.lower()}%"
+            f"%{_normalize_query_text(category)}%"
         )
         query = query.where(
             or_(
@@ -910,13 +950,27 @@ def _list_profiles(
         )
 
     if city:
-        query = query.where(
-            _normalized_sql(
-                city_column
-            ).like(
-                f"%{city.lower()}%"
-            )
+        needle = (
+            f"%{_normalize_query_text(city)}%"
         )
+
+        if kind == "establishment":
+            query = query.where(
+                or_(
+                    _normalized_sql(
+                        model.city
+                    ).like(needle),
+                    _normalized_sql(
+                        model.neighborhood
+                    ).like(needle),
+                )
+            )
+        else:
+            query = query.where(
+                _normalized_sql(
+                    city_column
+                ).like(needle)
+            )
 
     filtered = query.order_by(
         *order_columns
