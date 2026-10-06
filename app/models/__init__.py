@@ -1,3 +1,4 @@
+from app.models.notification import Notification, NotificationKind, NotificationPreference
 from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus
 from app.models.beauty_graph import Follow, FollowTarget, Save, SaveTarget
 from app.models.account_token import AccountToken, AccountTokenPurpose
@@ -39,6 +40,9 @@ from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatu
 
 
 __all__ = [
+    "Notification",
+    "NotificationKind",
+    "NotificationPreference",
     "AccountToken",
     "AccountTokenPurpose",
     "ApiSession",

@@ -8,6 +8,10 @@ from app.extensions import db
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
 from app.models.experience import Experience, ExperienceStatus
 from app.services.time_service import as_utc, local_naive_to_utc, to_local, utcnow
+from app.services.notification_service import (
+    notify_booking_cancelled,
+    notify_booking_confirmed,
+)
 
 
 HOLD_MINUTES = 8
@@ -380,11 +384,20 @@ def confirm_booking(booking_id, client_profile, now=None):
     slot.status = SlotStatus.BOOKED
     slot.hold_expires_at = None
     db.session.commit()
+
+    notify_booking_confirmed(
+        booking
+    )
+
     return booking
 
 
 def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
     now = as_utc(now or utcnow())
+    was_confirmed = (
+        booking.status
+        == BookingStatus.CONFIRMED
+    )
     if booking.status not in {BookingStatus.PENDING, BookingStatus.CONFIRMED}:
         raise BookingStateError("Esta reserva não pode ser cancelada.")
     if as_utc(booking.slot.starts_at) <= now:
@@ -402,6 +415,12 @@ def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
         slot.status = SlotStatus.EXPIRED
     slot.hold_expires_at = None
     db.session.commit()
+
+    if was_confirmed:
+        notify_booking_cancelled(
+            booking
+        )
+
     return booking
 
 

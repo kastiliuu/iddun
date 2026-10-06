@@ -27,6 +27,9 @@ from app.services.time_service import (
     to_local,
     utcnow,
 )
+from app.services.notification_service import (
+    notify_iddun_now_followers,
+)
 
 
 class AvailabilityError(ValueError):
@@ -235,7 +238,13 @@ def create_availability(
             str(exc)
         ) from exc
 
-    return slots[0]
+    slot = slots[0]
+
+    notify_iddun_now_followers(
+        slot
+    )
+
+    return slot
 
 
 def iddun_now_slots(

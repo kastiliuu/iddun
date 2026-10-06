@@ -113,6 +113,22 @@ class User(UserMixin, db.Model):
         order_by="Save.created_at.asc()",
     )
 
+    notifications = db.relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="Notification.created_at.desc()",
+    )
+
+    notification_preference = db.relationship(
+        "NotificationPreference",
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

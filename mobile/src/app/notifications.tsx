@@ -1,27 +1,29 @@
 import React, {
-  useMemo,
+  useCallback,
+  useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import {
+  useFocusEffect,
+  useRouter,
+} from "expo-router";
 
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 
 import {
-  getProfessionalById,
-} from "@/mocks/data";
-
-import {
-  Notification,
-  store,
-  useStoreVersion,
-} from "@/store/local";
+  getNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type NotificationItem,
+} from "@/api/notifications";
 
 import {
   fonts,
@@ -33,8 +35,13 @@ import {
 } from "@/theme";
 
 function formatNotificationTime(
-  timestamp: number,
+  createdAt: string,
 ) {
+  const timestamp =
+    new Date(
+      createdAt,
+    ).getTime();
+
   const diff =
     Date.now() - timestamp;
 
@@ -77,13 +84,13 @@ function formatNotificationTime(
 }
 
 function getNotificationIcon(
-  notification: Notification,
+  notification: NotificationItem,
 ) {
   switch (notification.kind) {
     case "iddun_now":
       return "clock";
 
-    case "follow_back":
+    case "follow":
       return "user-plus";
 
     case "system":
@@ -93,68 +100,191 @@ function getNotificationIcon(
 }
 
 export default function NotificationsScreen() {
-  useStoreVersion();
-
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
 
-  const notifications =
-    store.getNotifications();
+  const [
+    notifications,
+    setNotifications,
+  ] =
+    useState<NotificationItem[]>(
+      [],
+    );
+  const [
+    unreadCount,
+    setUnreadCount,
+  ] = useState(0);
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+  const [
+    error,
+    setError,
+  ] =
+    useState<string | null>(
+      null,
+    );
 
-  const unreadCount =
-    store.unreadCount();
+  const load =
+    useCallback(
+      async () => {
+        setLoading(true);
 
-  const sortedNotifications =
-    useMemo(() => {
-      return [...notifications].sort(
-        (a, b) =>
-          b.createdAt -
-          a.createdAt,
-      );
-    }, [notifications]);
+        try {
+          const response =
+            await getNotifications({
+              limit: 50,
+            });
 
-  const handleNotificationPress = (
-    notification: Notification,
-  ) => {
-    if (!notification.read) {
-      store.markRead(
-        notification.id,
-      );
-    }
+          setNotifications(
+            response.items,
+          );
+          setUnreadCount(
+            response.unreadCount,
+          );
+          setError(null);
+        } catch (
+          requestError
+        ) {
+          setNotifications(
+            [],
+          );
+          setUnreadCount(0);
+          setError(
+            requestError
+              instanceof Error
+              ? requestError.message
+              : "Não foi possível carregar suas notificações.",
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      [],
+    );
 
-    if (
-      notification.kind ===
-        "iddun_now" &&
-      notification.serviceId
-    ) {
-      router.push(
-        `/service/${notification.serviceId}`,
-      );
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
-      return;
-    }
+  const handleNotificationPress =
+    async (
+      notification:
+        NotificationItem,
+    ) => {
+      if (
+        !notification.read
+      ) {
+        try {
+          const response =
+            await markNotificationRead(
+              notification.id,
+            );
 
-    if (
-      notification.authorId
-    ) {
-      const profile =
-        getProfessionalById(
-          notification.authorId,
-        );
+          setNotifications(
+            (current) =>
+              current.map(
+                (item) =>
+                  item.id ===
+                  response
+                    .notification
+                    .id
+                    ? response.notification
+                    : item,
+              ),
+          );
+          setUnreadCount(
+            (current) =>
+              Math.max(
+                0,
+                current - 1,
+              ),
+          );
+        } catch {
+          // Navegação continua disponível mesmo
+          // se a atualização de leitura falhar.
+        }
+      }
 
-      if (!profile) {
+      const actionType =
+        notification.actionType;
+      const actionId =
+        notification.actionId;
+
+      if (
+        !actionType ||
+        !actionId
+      ) {
         return;
       }
 
-      router.push(
-        profile.kind ===
-          "establishment"
-          ? `/establishment/${profile.id}`
-          : `/professional/${profile.id}`,
-      );
-    }
-  };
+      if (
+        actionType ===
+        "experience"
+      ) {
+        router.push(
+          `/service/${actionId}`,
+        );
+        return;
+      }
+
+      if (
+        actionType ===
+        "professional"
+      ) {
+        router.push(
+          `/professional/${actionId}`,
+        );
+        return;
+      }
+
+      if (
+        actionType ===
+        "establishment"
+      ) {
+        router.push(
+          `/establishment/${actionId}`,
+        );
+        return;
+      }
+
+      if (
+        actionType ===
+        "booking"
+      ) {
+        router.push(
+          "/bookings",
+        );
+      }
+    };
+
+  const handleMarkAll =
+    async () => {
+      try {
+        await markAllNotificationsRead();
+
+        setNotifications(
+          (current) =>
+            current.map(
+              (item) => ({
+                ...item,
+                read: true,
+                readAt:
+                  item.readAt
+                  ?? new Date()
+                    .toISOString(),
+              }),
+            ),
+        );
+        setUnreadCount(0);
+      } catch {
+        // Mantém o estado atual e permite nova tentativa.
+      }
+    };
 
   return (
     <View
@@ -268,9 +398,9 @@ export default function NotificationsScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Marcar todas como lidas"
-              onPress={() =>
-                store.markAllRead()
-              }
+              onPress={() => {
+                void handleMarkAll();
+              }}
               style={({
                 pressed,
               }) => [
@@ -290,24 +420,40 @@ export default function NotificationsScreen() {
           ) : null}
         </View>
 
-        {sortedNotifications.length >
+        {loading ? (
+          <View
+            style={
+              styles.loadingState
+            }
+          >
+            <ActivityIndicator
+              color={
+                colors.plum
+              }
+            />
+          </View>
+        ) : error ? (
+          <EmptyState
+            title="Notificações indisponíveis"
+            description={
+              error
+            }
+            actionLabel="Tentar novamente"
+            onActionPress={() => {
+              void load();
+            }}
+          />
+        ) : notifications.length >
         0 ? (
           <View
             style={
               styles.list
             }
           >
-            {sortedNotifications.map(
+            {notifications.map(
               (
                 notification,
               ) => {
-                const profile =
-                  notification.authorId
-                    ? getProfessionalById(
-                        notification.authorId,
-                      )
-                    : undefined;
-
                 return (
                   <Pressable
                     key={
@@ -315,11 +461,11 @@ export default function NotificationsScreen() {
                     }
                     accessibilityRole="button"
                     accessibilityLabel={`${notification.title}. ${notification.body}`}
-                    onPress={() =>
-                      handleNotificationPress(
+                    onPress={() => {
+                      void handleNotificationPress(
                         notification,
-                      )
-                    }
+                      );
+                    }}
                     style={({
                       pressed,
                     }) => [
@@ -399,58 +545,6 @@ export default function NotificationsScreen() {
                           notification.body
                         }
                       </Text>
-
-                      {notification.timeLabel ? (
-                        <View
-                          style={
-                            styles.timeBadge
-                          }
-                        >
-                          <Icon
-                            name="clock"
-                            size={11}
-                            color={
-                              colors.plum
-                            }
-                          />
-
-                          <Text
-                            style={
-                              styles.timeBadgeText
-                            }
-                          >
-                            {
-                              notification.timeLabel
-                            }
-                          </Text>
-                        </View>
-                      ) : null}
-
-                      {profile ? (
-                        <View
-                          style={
-                            styles.profileHint
-                          }
-                        >
-                          <Text
-                            style={
-                              styles.profileHintText
-                            }
-                          >
-                            {
-                              profile.name
-                            }
-                          </Text>
-
-                          <Icon
-                            name="chevron-right"
-                            size={13}
-                            color={
-                              colors.muted
-                            }
-                          />
-                        </View>
-                      ) : null}
                     </View>
 
                     {!notification.read ? (
@@ -639,6 +733,12 @@ const useStyles =
 
         fontSize: 11,
         lineHeight: 15,
+      },
+
+      loadingState: {
+        minHeight: 180,
+        alignItems: "center",
+        justifyContent: "center",
       },
 
       list: {
