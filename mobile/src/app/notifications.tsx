@@ -545,32 +545,6 @@ export default function NotificationsScreen() {
                           notification.body
                         }
                       </Text>
-
-                      {notification.timeLabel ? (
-                        <View
-                          style={
-                            styles.timeBadge
-                          }
-                        >
-                          <Icon
-                            name="clock"
-                            size={11}
-                            color={
-                              colors.plum
-                            }
-                          />
-
-                          <Text
-                            style={
-                              styles.timeBadgeText
-                            }
-                          >
-                            {
-                              notification.timeLabel
-                            }
-                          </Text>
-                        </View>
-                      ) : null}
                     </View>
 
                     {!notification.read ? (
