@@ -7,11 +7,13 @@ import React, {
 import {
   ActivityIndicator,
   Pressable,
+  Share,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import { API_URL } from "@/api/client";
 import {
   useLocalSearchParams,
   useRouter,
@@ -398,7 +400,10 @@ export default function EstablishmentProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Compartilhar estabelecimento"
                 onPress={() => {
-                  // Share real entra depois.
+                  void Share.share({
+                    message:
+                      `Conheça ${establishment.name} no IDDUN: ${API_URL}/estabelecimentos/${establishment.routeId ?? params.id}`,
+                  });
                 }}
                 style={({
                   pressed,
