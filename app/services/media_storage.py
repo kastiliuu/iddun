@@ -667,8 +667,11 @@ def resolve_image_url(
     if normalized is not None:
         storage = get_media_storage()
 
-        if not storage.exists(
-            normalized
+        if (
+            storage.backend_name == "local"
+            and not storage.exists(
+                normalized
+            )
         ):
             return fallback_url
 
