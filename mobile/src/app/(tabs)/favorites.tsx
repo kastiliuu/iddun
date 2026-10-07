@@ -1,8 +1,9 @@
 import React, {
-  useMemo,
+  useEffect,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
@@ -11,18 +12,16 @@ import {
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 
+import {
+  getSavedItems,
+  type SavedItemsResponse,
+} from "@/api/graph";
+
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Icon } from "@/components/Icon";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { ServiceCard } from "@/components/ServiceCard";
-
-import {
-  getPostAuthor,
-  posts,
-  professionals,
-  services,
-} from "@/mocks/data";
 
 import {
   store,
@@ -61,6 +60,13 @@ const tabs: {
   },
 ];
 
+const emptySavedItems: SavedItemsResponse = {
+  profiles: [],
+  experiences: [],
+  posts: [],
+  portfolioItems: [],
+};
+
 export default function FavoritesScreen() {
   useStoreVersion();
 
@@ -71,57 +77,137 @@ export default function FavoritesScreen() {
   const [activeTab, setActiveTab] =
     useState<FavoritesTab>("posts");
 
-  const favoritePostIds =
-    store.favorites("posts");
-
-  const favoriteProfessionalIds =
-    store.favorites("professionals");
-
-  const favoriteServiceIds =
-    store.favorites("services");
-
-  const favoritePosts =
-    useMemo(
-      () =>
-        posts.filter((post) =>
-          favoritePostIds.includes(
-            post.id,
-          ),
-        ),
-      [favoritePostIds],
+  const [saved, setSaved] =
+    useState<SavedItemsResponse>(
+      emptySavedItems,
     );
 
-  const favoriteProfessionals =
-    useMemo(
-      () =>
-        professionals.filter(
-          (professional) =>
-            favoriteProfessionalIds.includes(
-              professional.id,
-            ),
-        ),
-      [favoriteProfessionalIds],
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState<string | null>(
+      null,
     );
 
-  const favoriteServices =
-    useMemo(
-      () =>
-        services.filter((service) =>
-          favoriteServiceIds.includes(
-            service.id,
-          ),
+  const user =
+    store.getUser();
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load =
+      async () => {
+        if (!user) {
+          if (mounted) {
+            setSaved(
+              emptySavedItems,
+            );
+            setError(
+              null,
+            );
+            setLoading(
+              false,
+            );
+          }
+
+          return;
+        }
+
+        try {
+          if (mounted) {
+            setLoading(
+              true,
+            );
+          }
+
+          const response =
+            await getSavedItems();
+
+          if (!mounted) {
+            return;
+          }
+
+          setSaved(
+            response,
+          );
+          setError(
+            null,
+          );
+        } catch (loadError) {
+          if (!mounted) {
+            return;
+          }
+
+          setSaved(
+            emptySavedItems,
+          );
+          setError(
+            loadError instanceof Error
+              ? loadError.message
+              : "Não foi possível carregar seus salvos.",
+          );
+        } finally {
+          if (mounted) {
+            setLoading(
+              false,
+            );
+          }
+        }
+      };
+
+    void load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id]);
+
+  const visiblePosts =
+    saved.posts.filter(
+      (post) =>
+        store.isGraphSaved(
+          "work_post",
+          Number(post.id),
         ),
-      [favoriteServiceIds],
     );
 
-  const renderPosts = () => {
+  const visiblePortfolio =
+    saved.portfolioItems.filter(
+      (item) =>
+        store.isGraphSaved(
+          "portfolio_item",
+          Number(item.id),
+        ),
+    );
+
+  const visibleProfiles =
+    saved.profiles.filter(
+      (profile) =>
+        store.isGraphSaved(
+          profile.kind,
+          Number(profile.id),
+        ),
+    );
+
+  const visibleExperiences =
+    saved.experiences.filter(
+      (experience) =>
+        store.isGraphSaved(
+          "experience",
+          experience.entityId,
+        ),
+    );
+
+  const renderPublications = () => {
     if (
-      favoritePosts.length === 0
+      visiblePosts.length === 0 &&
+      visiblePortfolio.length === 0
     ) {
       return (
         <EmptyState
           title="Nenhuma publicação salva"
-          description="Quando encontrar uma inspiração, toque no coração para guardar aqui."
+          description="Quando encontrar uma inspiração real no IDDUN, toque no coração para guardar aqui."
           actionLabel="Descobrir"
           onActionPress={() =>
             router.push(
@@ -138,90 +224,190 @@ export default function FavoritesScreen() {
           styles.postGrid
         }
       >
-        {favoritePosts.map(
-          (post) => {
-            const author =
-              getPostAuthor(post);
-
-            return (
-              <Pressable
-                key={post.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Abrir publicação de ${author?.name ?? "profissional"}`}
-                onPress={() =>
-                  router.push(
-                    `/post/${post.id}`,
-                  )
+        {visiblePosts.map(
+          (post) => (
+            <Pressable
+              key={
+                `post-${post.id}`
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                `Abrir publicação de ${post.author.name}`
+              }
+              onPress={() =>
+                router.push(
+                  `/post/${post.id}`,
+                )
+              }
+              style={({
+                pressed,
+              }) => [
+                styles.postCard,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Image
+                source={{
+                  uri: post.image,
+                }}
+                style={
+                  styles.postImage
                 }
-                style={({
-                  pressed,
-                }) => [
-                  styles.postCard,
-                  pressed &&
-                    styles.pressed,
-                ]}
+                contentFit="cover"
+                transition={180}
+                accessibilityLabel={
+                  `Publicação de ${post.author.name}`
+                }
+              />
+
+              <View
+                style={
+                  styles.postOverlay
+                }
+              />
+
+              <View
+                style={
+                  styles.postFavorite
+                }
               >
-                <Image
-                  source={{
-                    uri: post.image,
-                  }}
-                  style={
-                    styles.postImage
+                <FavoriteButton
+                  kind="posts"
+                  id={post.id}
+                  targetId={
+                    Number(
+                      post.id,
+                    )
                   }
-                  contentFit="cover"
-                  transition={180}
-                  accessibilityLabel={`Publicação de ${author?.name ?? "IDDUN"}`}
+                  targetType="work_post"
+                  size={19}
                 />
+              </View>
 
-                <View
+              <View
+                style={
+                  styles.postContent
+                }
+              >
+                <Text
                   style={
-                    styles.postOverlay
+                    styles.postAuthor
                   }
+                  numberOfLines={1}
+                >
+                  {
+                    post.author.name
+                  }
+                </Text>
+
+                <Text
+                  style={
+                    styles.postCaption
+                  }
+                  numberOfLines={2}
+                >
+                  {
+                    post.caption ||
+                    "Trabalho publicado no IDDUN"
+                  }
+                </Text>
+              </View>
+            </Pressable>
+          ),
+        )}
+
+        {visiblePortfolio.map(
+          (item) => (
+            <Pressable
+              key={
+                `portfolio-${item.id}`
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                `Abrir perfil de ${item.authorName}`
+              }
+              onPress={() =>
+                router.push(
+                  `/professional/${item.professionalRouteId}`,
+                )
+              }
+              style={({
+                pressed,
+              }) => [
+                styles.postCard,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Image
+                source={{
+                  uri: item.image,
+                }}
+                style={
+                  styles.postImage
+                }
+                contentFit="cover"
+                transition={180}
+                accessibilityLabel={
+                  `Trabalho de ${item.authorName}`
+                }
+              />
+
+              <View
+                style={
+                  styles.postOverlay
+                }
+              />
+
+              <View
+                style={
+                  styles.postFavorite
+                }
+              >
+                <FavoriteButton
+                  kind="posts"
+                  id={item.id}
+                  targetId={
+                    Number(
+                      item.id,
+                    )
+                  }
+                  targetType="portfolio_item"
+                  size={19}
                 />
+              </View>
 
-                <View
+              <View
+                style={
+                  styles.postContent
+                }
+              >
+                <Text
                   style={
-                    styles.postFavorite
+                    styles.postAuthor
                   }
+                  numberOfLines={1}
                 >
-                  <FavoriteButton
-                    kind="posts"
-                    id={post.id}
-                    size={19}
-                  />
-                </View>
+                  {
+                    item.authorName
+                  }
+                </Text>
 
-                <View
+                <Text
                   style={
-                    styles.postContent
+                    styles.postCaption
                   }
+                  numberOfLines={2}
                 >
-                  <Text
-                    style={
-                      styles.postAuthor
-                    }
-                    numberOfLines={
-                      1
-                    }
-                  >
-                    {author?.name ??
-                      "IDDUN"}
-                  </Text>
-
-                  <Text
-                    style={
-                      styles.postCaption
-                    }
-                    numberOfLines={
-                      2
-                    }
-                  >
-                    {post.caption}
-                  </Text>
-                </View>
-              </Pressable>
-            );
-          },
+                  {
+                    item.caption ||
+                    "Portfólio profissional"
+                  }
+                </Text>
+              </View>
+            </Pressable>
+          ),
         )}
       </View>
     );
@@ -230,13 +416,13 @@ export default function FavoritesScreen() {
   const renderProfessionals =
     () => {
       if (
-        favoriteProfessionals.length ===
+        visibleProfiles.length ===
         0
       ) {
         return (
           <EmptyState
-            title="Nenhum profissional salvo"
-            description="Favoritar um profissional é diferente de seguir. Salve aqui os perfis que você quer encontrar rapidamente."
+            title="Nenhum perfil salvo"
+            description="Salve profissionais e estabelecimentos para encontrá-los rapidamente."
             actionLabel="Explorar profissionais"
             onActionPress={() =>
               router.push(
@@ -253,39 +439,72 @@ export default function FavoritesScreen() {
             styles.list
           }
         >
-          {favoriteProfessionals.map(
-            (
-              professional,
-            ) => (
-              <ProfessionalCard
+          {visibleProfiles.map(
+            (profile) => (
+              <View
                 key={
-                  professional.id
+                  `${profile.kind}-${profile.id}`
                 }
-                id={
-                  professional.id
+                style={
+                  styles.profileSavedWrap
                 }
-                name={
-                  professional.name
-                }
-                avatar={
-                  professional.avatar
-                }
-                specialty={
-                  professional.specialty
-                }
-                location={
-                  professional.location
-                }
-                rating={
-                  professional.rating
-                }
-                reviewsCount={
-                  professional.reviewsCount
-                }
-                routeType={
-                  professional.kind
-                }
-              />
+              >
+                <ProfessionalCard
+                  id={
+                    profile.id
+                  }
+                  routeId={
+                    profile.routeId
+                  }
+                  name={
+                    profile.name
+                  }
+                  avatar={
+                    profile.avatar
+                  }
+                  specialty={
+                    profile.specialty ??
+                    undefined
+                  }
+                  location={
+                    profile.location ??
+                    undefined
+                  }
+                  rating={
+                    profile.rating ??
+                    undefined
+                  }
+                  reviewsCount={
+                    profile.reviewsCount
+                  }
+                  routeType={
+                    profile.kind
+                  }
+                  showFollow={false}
+                />
+
+                <View
+                  style={
+                    styles.profileFavorite
+                  }
+                >
+                  <FavoriteButton
+                    kind="professionals"
+                    id={
+                      profile.id
+                    }
+                    targetId={
+                      Number(
+                        profile.id,
+                      )
+                    }
+                    targetType={
+                      profile.kind
+                    }
+                    size={20}
+                  />
+                </View>
+              </View>
             ),
           )}
         </View>
@@ -294,14 +513,14 @@ export default function FavoritesScreen() {
 
   const renderServices = () => {
     if (
-      favoriteServices.length ===
+      visibleExperiences.length ===
       0
     ) {
       return (
         <EmptyState
-          title="Nenhum serviço salvo"
-          description="Salve os serviços que chamarem sua atenção para comparar e agendar depois."
-          actionLabel="Explorar serviços"
+          title="Nenhuma experiência salva"
+          description="Salve experiências reais para comparar e agendar depois."
+          actionLabel="Explorar experiências"
           onActionPress={() =>
             router.push(
               "/(tabs)/discover",
@@ -317,53 +536,119 @@ export default function FavoritesScreen() {
           styles.list
         }
       >
-        {favoriteServices.map(
-          (service) => {
-            const author =
-              professionals.find(
-                (item) =>
-                  item.id ===
-                  service.authorId,
-              );
-
-            return (
-              <ServiceCard
-                key={
-                  service.id
-                }
-                id={
-                  service.id
-                }
-                name={
-                  service.name
-                }
-                image={
-                  service.image
-                }
-                category={
-                  service.category
-                }
-                professionalName={
-                  author?.name
-                }
-                location={
-                  service.location
-                }
-                durationMinutes={
-                  service.durationMinutes
-                }
-                price={
-                  service.price
-                }
-                availableLabel={
-                  service.availabilityLabel
-                }
-              />
-            );
-          },
+        {visibleExperiences.map(
+          (experience) => (
+            <ServiceCard
+              key={
+                experience.entityId
+              }
+              id={
+                experience.id
+              }
+              targetId={
+                experience.entityId
+              }
+              name={
+                experience.name
+              }
+              image={
+                experience.image
+              }
+              category={
+                experience.category ??
+                undefined
+              }
+              professionalName={
+                experience.professionalName ??
+                undefined
+              }
+              location={
+                experience.location ??
+                undefined
+              }
+              durationMinutes={
+                experience.durationMinutes
+              }
+              price={
+                experience.price
+              }
+            />
+          ),
         )}
       </View>
     );
+  };
+
+  const renderContent = () => {
+    if (!user) {
+      return (
+        <EmptyState
+          title="Entre para ver seus salvos"
+          description="Os salvos reais ficam vinculados à sua conta para aparecerem em todos os seus dispositivos."
+          actionLabel="Entrar"
+          onActionPress={() =>
+            router.push(
+              "/login",
+            )
+          }
+        />
+      );
+    }
+
+    if (loading) {
+      return (
+        <View
+          style={
+            styles.loadingState
+          }
+        >
+          <ActivityIndicator
+            color={
+              colors.plum
+            }
+          />
+
+          <Text
+            style={
+              styles.loadingText
+            }
+          >
+            Carregando seus salvos...
+          </Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <EmptyState
+          title="Não foi possível carregar"
+          description={error}
+          actionLabel="Descobrir"
+          onActionPress={() =>
+            router.push(
+              "/(tabs)/discover",
+            )
+          }
+        />
+      );
+    }
+
+    if (
+      activeTab ===
+      "posts"
+    ) {
+      return renderPublications();
+    }
+
+    if (
+      activeTab ===
+      "professionals"
+    ) {
+      return renderProfessionals();
+    }
+
+    return renderServices();
   };
 
   return (
@@ -448,7 +733,7 @@ export default function FavoritesScreen() {
               styles.description
             }
           >
-            Inspirações, profissionais e serviços reunidos em um só lugar.
+            Publicações, perfis e experiências reais reunidos em um só lugar.
           </Text>
         </View>
 
@@ -482,10 +767,8 @@ export default function FavoritesScreen() {
                   }
                   style={({ pressed }) => [
                     styles.tab,
-
                     selected &&
                       styles.tabActive,
-
                     pressed &&
                       styles.pressed,
                   ]}
@@ -493,13 +776,10 @@ export default function FavoritesScreen() {
                   <Text
                     style={[
                       styles.tabText,
-
                       selected &&
                         styles.tabTextActive,
                     ]}
-                    numberOfLines={
-                      1
-                    }
+                    numberOfLines={1}
                   >
                     {
                       tab.label
@@ -516,13 +796,9 @@ export default function FavoritesScreen() {
             styles.tabContent
           }
         >
-          {activeTab ===
-          "posts"
-            ? renderPosts()
-            : activeTab ===
-                "professionals"
-              ? renderProfessionals()
-              : renderServices()}
+          {
+            renderContent()
+          }
         </View>
 
         <View
@@ -550,16 +826,12 @@ const useStyles =
 
       header: {
         minHeight: 52,
-
         paddingHorizontal:
           spacing.lg,
-
         flexDirection:
           "row",
-
         alignItems:
           "center",
-
         justifyContent:
           "space-between",
       },
@@ -572,24 +844,17 @@ const useStyles =
       headerButton: {
         width:
           touch.minimum,
-
         height:
           touch.minimum,
-
         borderRadius:
           radius.pill,
-
         alignItems:
           "center",
-
         justifyContent:
           "center",
-
         backgroundColor:
           colors.glassSoft,
-
         borderWidth: 1,
-
         borderColor:
           colors.glassBorder,
       },
@@ -597,7 +862,6 @@ const useStyles =
       intro: {
         marginTop:
           spacing.xl,
-
         paddingHorizontal:
           spacing.lg,
       },
@@ -605,46 +869,34 @@ const useStyles =
       eyebrow: {
         color:
           colors.plum,
-
         fontFamily:
           fonts.sansMedium,
-
         fontSize: 10,
         lineHeight: 14,
-
         letterSpacing: 1.5,
       },
 
       title: {
         maxWidth: 340,
-
         marginTop:
           spacing.sm,
-
         color:
           colors.onSurface,
-
         fontFamily:
           fonts.display,
-
         fontSize: 32,
         lineHeight: 38,
-
         letterSpacing: -0.4,
       },
 
       description: {
         maxWidth: 330,
-
         marginTop:
           spacing.md,
-
         color:
           colors.onSurfaceSecondary,
-
         fontFamily:
           fonts.sans,
-
         fontSize: 13,
         lineHeight: 19,
       },
@@ -652,43 +904,30 @@ const useStyles =
       tabs: {
         marginTop:
           spacing.xl,
-
         marginHorizontal:
           spacing.lg,
-
         padding: 4,
-
         minHeight: 48,
-
         borderRadius:
           radius.pill,
-
         flexDirection:
           "row",
-
         backgroundColor:
           colors.surfaceSecondary,
-
         borderWidth: 1,
-
         borderColor:
           colors.glassBorder,
       },
 
       tab: {
         flex: 1,
-
         minHeight: 40,
-
         paddingHorizontal:
           spacing.sm,
-
         borderRadius:
           radius.pill,
-
         alignItems:
           "center",
-
         justifyContent:
           "center",
       },
@@ -701,10 +940,8 @@ const useStyles =
       tabText: {
         color:
           colors.muted,
-
         fontFamily:
           fonts.sansMedium,
-
         fontSize: 11,
         lineHeight: 15,
       },
@@ -717,46 +954,53 @@ const useStyles =
       tabContent: {
         marginTop:
           spacing.xl,
-
         paddingHorizontal:
           spacing.lg,
       },
 
       list: {
-        gap: spacing.sm,
+        gap:
+          spacing.sm,
+      },
+
+      profileSavedWrap: {
+        position:
+          "relative",
+      },
+
+      profileFavorite: {
+        position:
+          "absolute",
+        right:
+          spacing.sm,
+        top:
+          spacing.sm,
+        zIndex: 2,
       },
 
       postGrid: {
         flexDirection:
           "row",
-
         flexWrap:
           "wrap",
-
-        gap: spacing.sm,
+        gap:
+          spacing.sm,
       },
 
       postCard: {
         width:
           "48.5%",
-
         aspectRatio:
           0.78,
-
         position:
           "relative",
-
         overflow:
           "hidden",
-
         borderRadius:
           radius.md,
-
         backgroundColor:
           colors.surfaceSecondary,
-
         borderWidth: 1,
-
         borderColor:
           colors.glassBorder,
       },
@@ -764,7 +1008,6 @@ const useStyles =
       postImage: {
         width:
           "100%",
-
         height:
           "100%",
       },
@@ -772,12 +1015,10 @@ const useStyles =
       postOverlay: {
         position:
           "absolute",
-
         left: 0,
         right: 0,
         top: 0,
         bottom: 0,
-
         backgroundColor:
           "rgba(11,11,15,0.22)",
       },
@@ -785,7 +1026,6 @@ const useStyles =
       postFavorite: {
         position:
           "absolute",
-
         top: 3,
         right: 3,
       },
@@ -793,13 +1033,10 @@ const useStyles =
       postContent: {
         position:
           "absolute",
-
         left:
           spacing.sm,
-
         right:
           spacing.sm,
-
         bottom:
           spacing.sm,
       },
@@ -807,25 +1044,38 @@ const useStyles =
       postAuthor: {
         color:
           colors.onSurface,
-
         fontFamily:
           fonts.sansSemiBold,
-
         fontSize: 11,
         lineHeight: 14,
       },
 
       postCaption: {
         marginTop: 2,
-
         color:
           colors.onSurfaceSecondary,
-
         fontFamily:
           fonts.sans,
-
         fontSize: 9,
         lineHeight: 13,
+      },
+
+      loadingState: {
+        minHeight: 260,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
+        gap:
+          spacing.md,
+      },
+
+      loadingText: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
       },
 
       bottomSpace: {
