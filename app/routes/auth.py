@@ -109,7 +109,7 @@ def register():
     if current_user.is_authenticated:
         return redirect(
             url_for(
-                "account.dashboard"
+                "feed.home"
             )
         )
 
@@ -211,7 +211,7 @@ def register():
         return redirect(
             next_url
             or url_for(
-                "account.dashboard"
+                "feed.home"
             )
         )
 
@@ -229,7 +229,7 @@ def login():
     if current_user.is_authenticated:
         return redirect(
             url_for(
-                "account.dashboard"
+                "feed.home"
             )
         )
 
@@ -297,7 +297,7 @@ def login():
         return redirect(
             next_url
             or url_for(
-                "account.dashboard"
+                "feed.home"
             )
         )
 
