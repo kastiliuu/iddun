@@ -4,10 +4,10 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -17,6 +17,7 @@ import {
 import * as Haptics from "expo-haptics";
 
 import { Button } from "@/components/Button";
+import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
 
@@ -315,12 +316,6 @@ export default function OpenSlotScreen() {
       null,
     );
 
-  const [urgent, setUrgent] =
-    useState(true);
-
-  const [note, setNote] =
-    useState("");
-
   const [loading, setLoading] =
     useState(false);
 
@@ -376,9 +371,7 @@ export default function OpenSlotScreen() {
             selectedTime,
 
           cutoffMinutes:
-            urgent
-              ? 180
-              : null,
+            null,
         });
 
         Haptics.notificationAsync(
@@ -391,9 +384,7 @@ export default function OpenSlotScreen() {
           title:
             "Horário publicado",
           body:
-            urgent
-              ? "A disponibilidade já pode aparecer no IDDUN Now."
-              : "O horário foi adicionado à sua agenda.",
+            "A disponibilidade foi publicada e pode aparecer no IDDUN Now.",
           icon:
             "check",
         });
@@ -503,6 +494,55 @@ export default function OpenSlotScreen() {
             fullWidth
           />
         </View>
+      </View>
+    );
+  }
+
+  if (optionsLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingState}>
+          <ActivityIndicator
+            color={colors.plum}
+          />
+          <Text style={styles.loadingText}>
+            Carregando seus serviços...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (optionsError) {
+    return (
+      <View style={styles.container}>
+        <EmptyState
+          title="Serviços indisponíveis"
+          description={optionsError}
+          actionLabel="Voltar"
+          onActionPress={() =>
+            router.replace(
+              "/(tabs)/create",
+            )
+          }
+        />
+      </View>
+    );
+  }
+
+  if (services.length === 0) {
+    return (
+      <View style={styles.container}>
+        <EmptyState
+          title="Nenhum serviço publicado"
+          description="Publique um serviço antes de abrir uma disponibilidade."
+          actionLabel="Voltar"
+          onActionPress={() =>
+            router.replace(
+              "/(tabs)/create",
+            )
+          }
+        />
       </View>
     );
   }
@@ -1085,32 +1125,15 @@ export default function OpenSlotScreen() {
               styles.sectionTitle
             }
           >
-            Quer acrescentar algo?
+            Revise os dados antes de publicar.
           </Text>
-
-          <TextInput
-            value={note}
-            onChangeText={
-              setNote
-            }
-            multiline
-            maxLength={180}
-            textAlignVertical="top"
-            placeholder="Ex.: horário disponível por cancelamento de última hora."
-            placeholderTextColor={
-              colors.muted
-            }
-            style={
-              styles.noteInput
-            }
-          />
 
           <Text
             style={
-              styles.counter
+              styles.description
             }
           >
-            {note.length}/180
+            Horários dentro das próximas 24 horas recebem destaque automático como oportunidade recente no IDDUN Now.
           </Text>
         </View>
 
@@ -1145,9 +1168,7 @@ export default function OpenSlotScreen() {
                       styles.previewNow
                     }
                   >
-                    {urgent
-                      ? "IDDUN NOW"
-                      : "DISPONIBILIDADE"}
+                    DISPONIBILIDADE
                   </Text>
 
                   <Text
@@ -1196,16 +1217,6 @@ export default function OpenSlotScreen() {
                 }
               </Text>
 
-              {note.trim() ? (
-                <Text
-                  style={
-                    styles.previewNote
-                  }
-                  numberOfLines={2}
-                >
-                  {note.trim()}
-                </Text>
-              ) : null}
             </View>
           </View>
         ) : null}
@@ -1252,11 +1263,7 @@ export default function OpenSlotScreen() {
           }
         >
           <Button
-            title={
-              urgent
-                ? "Publicar no IDDUN Now"
-                : "Adicionar disponibilidade"
-            }
+            title="Publicar disponibilidade"
             onPress={
               handleSubmit
             }
@@ -1964,6 +1971,21 @@ const useStyles =
         lineHeight: 18,
         textAlign:
           "center",
+      },
+
+      loadingState: {
+        flex: 1,
+        minHeight: 320,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.md,
+        paddingHorizontal: spacing.lg,
+      },
+
+      loadingText: {
+        color: colors.muted,
+        fontFamily: fonts.sans,
+        fontSize: 12,
       },
 
       bottomSpace: {
