@@ -489,6 +489,17 @@ export default function ProfileScreen() {
                 router.push("/notifications")
               }
             />
+
+            <View style={styles.menuDivider} />
+
+            <MenuItem
+              icon="briefcase"
+              title="Vagas"
+              subtitle="Oportunidades na rede IDDUN"
+              onPress={() =>
+                router.push("/jobs")
+              }
+            />
           </View>
         </View>
 
@@ -553,6 +564,17 @@ export default function ProfileScreen() {
                       router.push("/professional-onboarding")
                     }
                   />
+
+                  <View style={styles.menuDivider} />
+
+                  <MenuItem
+                    icon="send"
+                    title="Minhas candidaturas"
+                    subtitle="Acompanhe vagas em que você demonstrou interesse"
+                    onPress={() =>
+                      router.push("/job-applications")
+                    }
+                  />
                 </>
               ) : null}
 
@@ -575,9 +597,34 @@ export default function ProfileScreen() {
                     icon="users"
                     title="Equipe"
                     subtitle="Profissionais vinculados ao estabelecimento"
-                    onPress={() =>
-                      showComingSoon("Equipe")
-                    }
+                    disabled={!user.profileId}
+                    onPress={() => {
+                      if (!user.profileId) {
+                        return;
+                      }
+
+                      router.push(
+                        `/establishment-team/${user.profileId}`,
+                      );
+                    }}
+                  />
+
+                  <View style={styles.menuDivider} />
+
+                  <MenuItem
+                    icon="briefcase"
+                    title="Gerenciar vagas"
+                    subtitle="Publique oportunidades e acompanhe candidatos"
+                    disabled={!user.profileId}
+                    onPress={() => {
+                      if (!user.profileId) {
+                        return;
+                      }
+
+                      router.push(
+                        `/manage-jobs/${user.profileId}`,
+                      );
+                    }}
                   />
                 </>
               ) : null}
