@@ -75,6 +75,25 @@
       </a>
 
       <button
+        class="feed-header__nav-item"
+        type="button"
+        aria-label="Itens salvos{% if save_count %}, {{ save_count }} itens{% endif %}"
+        aria-expanded="false"
+        aria-controls="feed-saved-panel"
+        data-saved-trigger
+      >
+        <span class="feed-header__icon-wrap">
+          {{ icon('bookmark') }}
+          {% if save_count %}
+          <span class="feed-header__badge feed-header__badge--saved" aria-hidden="true">
+            {{ save_count if save_count < 100 else '99+' }}
+          </span>
+          {% endif %}
+        </span>
+        <span>Salvos</span>
+      </button>
+
+      <button
         class="feed-header__nav-item feed-notification-trigger"
         type="button"
         aria-label="Notificações{% if unread_notification_count %}, {{ unread_notification_count }} não lidas{% endif %}"
@@ -173,6 +192,92 @@
         {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
       </span>
     </a>
+  </div>
+
+  <div
+    id="feed-saved-panel"
+    class="feed-saved-panel"
+    hidden
+    data-saved-panel
+  >
+    <header>
+      <div>
+        <span>SALVOS</span>
+        <strong>Sua curadoria no IDDUN</strong>
+      </div>
+      <span class="feed-saved-panel__count">
+        {{ save_count }} item{% if save_count != 1 %}s{% endif %}
+      </span>
+    </header>
+
+    {% if saved_items.experiences or saved_items.profiles or saved_items.posts or saved_items.portfolioItems %}
+    <div class="feed-saved-list">
+      {% for item in saved_items.experiences[:4] %}
+      <a class="feed-saved-item" href="{{ url_for('public.experience_detail', slug=item.id) }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Experiência</small>
+          <strong>{{ item.name }}</strong>
+          <em>{{ item.professionalName }} · R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.profiles[:4] %}
+      <a
+        class="feed-saved-item"
+        href="{% if item.kind == 'professional' %}{{ url_for('public.professional_detail', slug=item.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=item.routeId) }}{% endif %}"
+      >
+        <span
+          class="feed-saved-item__image feed-saved-item__image--profile"
+          style="background-image:url('{{ item.avatar }}')"
+        ></span>
+        <span>
+          <small>{{ 'Profissional' if item.kind == 'professional' else 'Estabelecimento' }}</small>
+          <strong>{{ item.name }}</strong>
+          <em>{{ item.specialty }}{% if item.location %} · {{ item.location }}{% endif %}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.posts[:3] %}
+      <a class="feed-saved-item" href="{{ url_for('feed.home') }}#post-{{ item.id }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Publicação</small>
+          <strong>{{ item.author.name }}</strong>
+          <em>{{ item.caption or 'Trabalho salvo no IDDUN' }}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.portfolioItems[:3] %}
+      <a class="feed-saved-item" href="{{ url_for('public.professional_detail', slug=item.professionalRouteId) }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Portfólio</small>
+          <strong>{{ item.authorName }}</strong>
+          <em>{{ item.caption or 'Trabalho profissional' }}</em>
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="feed-notification-empty">
+      {{ icon('bookmark') }}
+      <strong>Sua coleção começa com uma descoberta.</strong>
+      <span>Salve trabalhos, experiências, profissionais e estabelecimentos para reencontrar depois.</span>
+    </div>
+    {% endif %}
   </div>
 
   <div
@@ -288,6 +393,11 @@
           <span>Minhas reservas</span>
           {{ icon('chevron-right') }}
         </a>
+        <button type="button" data-saved-trigger>
+          {{ icon('bookmark') }}
+          <span>Meus salvos</span>
+          {{ icon('chevron-right') }}
+        </button>
         <a href="{{ url_for('public.professionals') }}">
           {{ icon('users') }}
           <span>Profissionais</span>
@@ -429,7 +539,7 @@
           · {{ next_booking.establishment.name }}
         {% endif %}
       </p>
-      <strong>{{ next_booking.slot.starts_at.strftime('%d/%m · %H:%M') }}</strong>
+      <strong>{{ next_booking_label }}</strong>
       <a href="{{ url_for('bookings.mine') }}">
         Ver reserva {{ icon('chevron-right') }}
       </a>
