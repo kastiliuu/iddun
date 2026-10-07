@@ -520,3 +520,123 @@ def test_cannot_follow_or_save_non_public_targets(
 
     assert followed.status_code == 404
     assert saved.status_code == 404
+
+
+
+def test_saved_items_returns_hydrated_real_entities(
+    app,
+    client,
+):
+    _, headers = _account(
+        app,
+        email="saved-items@example.com",
+    )
+    catalog = _catalog(app)
+
+    for target_type, target_id in [
+        (
+            "professional",
+            catalog["professional"],
+        ),
+        (
+            "establishment",
+            catalog["establishment"],
+        ),
+        (
+            "experience",
+            catalog["experience"],
+        ),
+        (
+            "portfolio_item",
+            catalog["portfolioItem"],
+        ),
+    ]:
+        response = client.put(
+            (
+                f"{BASE}/saves/"
+                f"{target_type}/"
+                f"{target_id}"
+            ),
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+
+    response = client.get(
+        f"{BASE}/saved-items",
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+
+    payload = response.get_json()
+
+    assert {
+        item["name"]
+        for item in payload["profiles"]
+    } == {
+        "Marina Graph",
+        "Studio Graph",
+    }
+
+    assert payload[
+        "experiences"
+    ][0]["name"] == (
+        "Corte Beauty Graph"
+    )
+
+    assert payload[
+        "experiences"
+    ][0]["entityId"] == (
+        catalog["experience"]
+    )
+
+    assert payload[
+        "portfolioItems"
+    ][0]["authorName"] == (
+        "Marina Graph"
+    )
+
+    assert payload["posts"] == []
+
+
+def test_saved_items_isolated_by_account(
+    app,
+    client,
+):
+    _, first_headers = _account(
+        app,
+        email=(
+            "saved-items-first@example.com"
+        ),
+    )
+    _, second_headers = _account(
+        app,
+        email=(
+            "saved-items-second@example.com"
+        ),
+    )
+    catalog = _catalog(app)
+
+    saved = client.put(
+        (
+            f"{BASE}/saves/"
+            "experience/"
+            f"{catalog['experience']}"
+        ),
+        headers=first_headers,
+    )
+
+    assert saved.status_code == 200
+
+    second_payload = client.get(
+        f"{BASE}/saved-items",
+        headers=second_headers,
+    ).get_json()
+
+    assert second_payload == {
+        "profiles": [],
+        "experiences": [],
+        "posts": [],
+        "portfolioItems": [],
+    }
