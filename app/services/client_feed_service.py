@@ -435,6 +435,13 @@ def client_feed_context(
         user
     )
 
+    # A Home deve refletir imediatamente alterações
+    # persistidas em /minha-conta, mesmo quando a relação
+    # já foi carregada anteriormente na sessão SQLAlchemy.
+    db.session.refresh(
+        profile
+    )
+
     page_context = client_feed_page(
         user,
         mode=mode,
