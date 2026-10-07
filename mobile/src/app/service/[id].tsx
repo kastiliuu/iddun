@@ -6,11 +6,13 @@ import React, {
 import {
   ActivityIndicator,
   Pressable,
+  Share,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import { API_URL } from "@/api/client";
 import {
   useLocalSearchParams,
   useRouter,
@@ -412,7 +414,10 @@ export default function ServiceDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Compartilhar serviço"
                 onPress={() => {
-                  // Compartilhamento real entra depois.
+                  void Share.share({
+                    message:
+                      `Veja ${service.name} no IDDUN: ${API_URL}/experiencias/${service.id}`,
+                  });
                 }}
                 style={({
                   pressed,
