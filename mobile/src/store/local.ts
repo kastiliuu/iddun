@@ -96,7 +96,6 @@ function emailScopeKeyFor(user: NonNullable<CurrentUser>) {
 
 const KEYS = {
   onboarded: "iddun_onboarded",
-  loggedIn: "iddun_logged_in",
 };
 
 function logStoreError(
@@ -797,52 +796,3 @@ export async function getOnboarded() {
   }
 }
 
-/*
- * AUTENTICAÇÃO MOCK
- */
-
-export async function markLoggedIn() {
-  try {
-    await AsyncStorage.setItem(
-      KEYS.loggedIn,
-      "1",
-    );
-  } catch (error) {
-    logStoreError(
-      "Falha ao salvar sessão.",
-      error,
-    );
-  }
-}
-
-export async function markLoggedOut() {
-  try {
-    await AsyncStorage.removeItem(
-      KEYS.loggedIn,
-    );
-  } catch (error) {
-    logStoreError(
-      "Falha ao remover sessão.",
-      error,
-    );
-  }
-
-  store.setUser(null);
-}
-
-export async function isLoggedIn() {
-  try {
-    return (
-      (await AsyncStorage.getItem(
-        KEYS.loggedIn,
-      )) === "1"
-    );
-  } catch (error) {
-    logStoreError(
-      "Falha ao consultar sessão.",
-      error,
-    );
-
-    return false;
-  }
-}
