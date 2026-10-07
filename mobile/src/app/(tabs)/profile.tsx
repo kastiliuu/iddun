@@ -107,7 +107,7 @@ function MenuItem({
 
       {!danger ? (
         <Icon
-          name="chevron-right"
+          name={disabled ? "clock" : "chevron-right"}
           size={18}
           color={colors.muted}
         />
@@ -149,15 +149,6 @@ export default function ProfileScreen() {
         return "Cliente";
     }
   }, [user]);
-
-  const showComingSoon = (title: string) => {
-    toast.show({
-      title,
-      body:
-        "Essa área será conectada ao backend e às configurações reais do IDDUN.",
-      icon: "settings",
-    });
-  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -344,9 +335,9 @@ export default function ProfileScreen() {
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Configurações"
+            accessibilityLabel="Dispositivos e sessões"
             onPress={() =>
-              showComingSoon("Configurações")
+              router.push("/sessions")
             }
             style={({ pressed }) => [
               styles.headerButton,
@@ -354,7 +345,7 @@ export default function ProfileScreen() {
             ]}
           >
             <Icon
-              name="settings"
+              name="smartphone"
               size={19}
               color={colors.onSurface}
             />
@@ -462,10 +453,8 @@ export default function ProfileScreen() {
             <MenuItem
               icon="user"
               title="Editar perfil"
-              subtitle="Nome, foto e informações pessoais"
-              onPress={() =>
-                showComingSoon("Editar perfil")
-              }
+              subtitle="Edição completa em preparação"
+              disabled
             />
 
             <View style={styles.menuDivider} />
@@ -583,10 +572,8 @@ export default function ProfileScreen() {
               <MenuItem
                 icon="star"
                 title="Avaliações"
-                subtitle="Veja a reputação do seu perfil"
-                onPress={() =>
-                  showComingSoon("Avaliações")
-                }
+                subtitle="Painel de reputação em preparação"
+                disabled
               />
 
               {user.role === "establishment" ? (
@@ -641,10 +628,8 @@ export default function ProfileScreen() {
             <MenuItem
               icon="help-circle"
               title="Ajuda"
-              subtitle="Central de ajuda e suporte"
-              onPress={() =>
-                showComingSoon("Ajuda")
-              }
+              subtitle="Central de ajuda em preparação"
+              disabled
             />
 
             <View style={styles.menuDivider} />
