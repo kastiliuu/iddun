@@ -16,6 +16,9 @@ from app.models.user import (
     User,
     UserRole,
 )
+from app.services.api_auth import (
+    issue_session,
+)
 
 
 def _user(
@@ -107,9 +110,20 @@ def _login(
         session["_fresh"] = True
 
 
+def _bearer(
+    token,
+):
+    return {
+        "Authorization":
+            f"Bearer {token}"
+    }
+
+
 def _create_job(
     client,
     establishment_slug,
+    *,
+    token=None,
 ):
     return client.post(
         (
@@ -128,6 +142,11 @@ def _create_job(
             "compensationText":
                 "A combinar",
         },
+        headers=(
+            _bearer(token)
+            if token
+            else None
+        ),
     )
 
 
@@ -180,19 +199,19 @@ def test_owner_can_create_publish_and_list_public_job(
         )
         db.session.commit()
 
-        owner_id = owner.id
+        owner_token = (
+            issue_session(
+                owner
+            ).access_token
+        )
         slug = (
             establishment.slug
         )
 
-    _login(
-        client,
-        owner_id,
-    )
-
     created = _create_job(
         client,
         slug,
+        token=owner_token,
     )
 
     assert created.status_code == 201
@@ -216,7 +235,10 @@ def test_owner_can_create_publish_and_list_public_job(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/publish"
-        )
+        ),
+        headers=_bearer(
+            owner_token
+        ),
     )
 
     assert published.status_code == 200
@@ -258,19 +280,19 @@ def test_user_without_establishment_access_cannot_create_job(
         )
         db.session.commit()
 
-        user_id = user.id
+        user_token = (
+            issue_session(
+                user
+            ).access_token
+        )
         slug = (
             establishment.slug
         )
 
-    _login(
-        client,
-        user_id,
-    )
-
     response = _create_job(
         client,
         slug,
+        token=user_token,
     )
 
     assert response.status_code == 400
@@ -304,22 +326,24 @@ def test_professional_can_apply_once_and_withdraw(
         )
         db.session.commit()
 
-        owner_id = owner.id
-        professional_id = (
-            professional.id
+        owner_token = (
+            issue_session(
+                owner
+            ).access_token
+        )
+        professional_token = (
+            issue_session(
+                professional
+            ).access_token
         )
         slug = (
             establishment.slug
         )
 
-    _login(
-        client,
-        owner_id,
-    )
-
     created = _create_job(
         client,
         slug,
+        token=owner_token,
     )
     job_id = int(
         created.get_json()[
@@ -331,15 +355,13 @@ def test_professional_can_apply_once_and_withdraw(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/publish"
-        )
+        ),
+        headers=_bearer(
+            owner_token
+        ),
     )
     assert published.status_code == 200, (
         published.get_json()
-    )
-
-    _login(
-        client,
-        professional_id,
     )
 
     applied = client.post(
@@ -351,6 +373,9 @@ def test_professional_can_apply_once_and_withdraw(
             "message":
                 "Tenho experiência na área.",
         },
+        headers=_bearer(
+            professional_token
+        ),
     )
 
     assert applied.status_code == 201, (
@@ -368,12 +393,18 @@ def test_professional_can_apply_once_and_withdraw(
             f"{job_id}/apply"
         ),
         json={},
+        headers=_bearer(
+            professional_token
+        ),
     )
 
     assert duplicate.status_code == 409
 
     mine = client.get(
-        "/api/v1/jobs/applications/mine"
+        "/api/v1/jobs/applications/mine",
+        headers=_bearer(
+            professional_token
+        ),
     )
     assert mine.status_code == 200
     assert len(
@@ -386,7 +417,10 @@ def test_professional_can_apply_once_and_withdraw(
         (
             f"/api/v1/jobs/"
             f"{job_id}/apply"
-        )
+        ),
+        headers=_bearer(
+            professional_token
+        ),
     )
 
     assert withdrawn.status_code == 200
@@ -420,22 +454,24 @@ def test_owner_can_view_submitted_applications_and_close_job(
         )
         db.session.commit()
 
-        owner_id = owner.id
-        professional_id = (
-            professional.id
+        owner_token = (
+            issue_session(
+                owner
+            ).access_token
+        )
+        professional_token = (
+            issue_session(
+                professional
+            ).access_token
         )
         slug = (
             establishment.slug
         )
 
-    _login(
-        client,
-        owner_id,
-    )
-
     created = _create_job(
         client,
         slug,
+        token=owner_token,
     )
     job_id = int(
         created.get_json()[
@@ -446,34 +482,34 @@ def test_owner_can_view_submitted_applications_and_close_job(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/publish"
-        )
+        ),
+        headers=_bearer(
+            owner_token
+        ),
     )
     assert published.status_code == 200, (
         published.get_json()
     )
 
-    _login(
-        client,
-        professional_id,
-    )
     applied = client.post(
         f"/api/v1/jobs/{job_id}/apply",
         json={},
+        headers=_bearer(
+            professional_token
+        ),
     )
     assert applied.status_code == 201, (
         applied.get_json()
-    )
-
-    _login(
-        client,
-        owner_id,
     )
 
     candidates = client.get(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/applications"
-        )
+        ),
+        headers=_bearer(
+            owner_token
+        ),
     )
 
     assert candidates.status_code == 200
@@ -491,7 +527,10 @@ def test_owner_can_view_submitted_applications_and_close_job(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/close"
-        )
+        ),
+        headers=_bearer(
+            owner_token
+        ),
     )
 
     assert closed.status_code == 200
