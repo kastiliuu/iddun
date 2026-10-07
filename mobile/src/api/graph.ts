@@ -38,6 +38,47 @@ export type GraphReconcileResponse = {
   rejected: GraphState;
 };
 
+export type SavedProfile = {
+  id: string;
+  routeId: string;
+  kind:
+    | "professional"
+    | "establishment";
+  name: string;
+  avatar?: string | null;
+  specialty?: string | null;
+  location?: string | null;
+  rating?: number | null;
+  reviewsCount?: number;
+};
+
+export type SavedExperience = {
+  id: string;
+  entityId: number;
+  name: string;
+  image?: string | null;
+  category?: string | null;
+  professionalName?: string | null;
+  location?: string | null;
+  durationMinutes?: number;
+  price?: number;
+};
+
+export type SavedPortfolioItem = {
+  id: string;
+  professionalRouteId: string;
+  authorName: string;
+  image: string;
+  caption: string;
+};
+
+export type SavedItemsResponse = {
+  profiles: SavedProfile[];
+  experiences: SavedExperience[];
+  posts: import("@/api/feed").WorkPost[];
+  portfolioItems: SavedPortfolioItem[];
+};
+
 
 async function withAuthenticatedRequest<T>(
   operation: (
@@ -191,6 +232,18 @@ export function reconcileBeautyGraph(
       api.post<GraphReconcileResponse>(
         "/api/v1/graph/reconcile",
         state,
+        { token },
+      ),
+  );
+}
+
+
+
+export function getSavedItems() {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.get<SavedItemsResponse>(
+        "/api/v1/graph/saved-items",
         { token },
       ),
   );
