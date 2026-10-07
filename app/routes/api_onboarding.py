@@ -5,7 +5,7 @@ from flask import Blueprint, request
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import api_error, api_json
-from app.services.media_storage import resolve_media_url
+from app.services.media_storage import resolve_image_url
 from app.services.mobile_onboarding_service import (
     MobileOnboardingError,
     PROFESSIONAL_CATEGORIES,
@@ -196,7 +196,7 @@ def _professional_payload(profile):
         "city": profile.city or "",
         "state": profile.state or "",
         "avatarUrl": (
-            resolve_media_url(
+            resolve_image_url(
                 profile.avatar_url,
                 external=True,
             )
@@ -204,7 +204,7 @@ def _professional_payload(profile):
             else None
         ),
         "coverUrl": (
-            resolve_media_url(
+            resolve_image_url(
                 profile.cover_url,
                 external=True,
             )
@@ -221,7 +221,7 @@ def _professional_payload(profile):
         "portfolio": [
             {
                 "id": item.id,
-                "imageUrl": resolve_media_url(
+                "imageUrl": resolve_image_url(
                     item.image_url,
                     external=True,
                 ),

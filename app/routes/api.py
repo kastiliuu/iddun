@@ -23,7 +23,7 @@ from app.services.experience_service import (
     get_experience_by_slug,
     list_database_experiences_page,
 )
-from app.services.media_storage import resolve_media_url
+from app.services.media_storage import resolve_image_url
 
 
 api_v1_bp = Blueprint(
@@ -141,7 +141,7 @@ def _query_sort():
 
 
 def _public_image_url(value):
-    return resolve_media_url(
+    return resolve_image_url(
         value,
         external=True,
     )

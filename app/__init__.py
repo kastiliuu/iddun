@@ -36,7 +36,10 @@ from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
 from app.services.api_contract import api_error
-from app.services.media_storage import resolve_media_url
+from app.services.media_storage import (
+    resolve_image_url,
+    resolve_media_url,
+)
 
 
 def create_app(test_config=None):
@@ -116,6 +119,24 @@ def create_app(test_config=None):
         MEDIA_STORAGE_BACKEND=(
             os.getenv("MEDIA_STORAGE_BACKEND")
             or "local"
+        ),
+        MEDIA_S3_BUCKET=os.getenv(
+            "MEDIA_S3_BUCKET"
+        ),
+        MEDIA_S3_REGION=os.getenv(
+            "MEDIA_S3_REGION"
+        ),
+        MEDIA_S3_ENDPOINT_URL=os.getenv(
+            "MEDIA_S3_ENDPOINT_URL"
+        ),
+        MEDIA_S3_ACCESS_KEY_ID=os.getenv(
+            "MEDIA_S3_ACCESS_KEY_ID"
+        ),
+        MEDIA_S3_SECRET_ACCESS_KEY=os.getenv(
+            "MEDIA_S3_SECRET_ACCESS_KEY"
+        ),
+        MEDIA_S3_PUBLIC_BASE_URL=os.getenv(
+            "MEDIA_S3_PUBLIC_BASE_URL"
         ),
         RATELIMIT_STORAGE_URI=(
             os.getenv("RATELIMIT_STORAGE_URI")
@@ -327,13 +348,15 @@ def create_app(test_config=None):
 
     @app.template_filter("media_url")
     def media_url(value):
-        if not value:
-            return url_for(
-                "static",
-                filename="img/category-hair.jpg",
-            )
+        return resolve_image_url(
+            value
+        )
 
-        return resolve_media_url(value)
+    @app.template_filter("media_file_url")
+    def media_file_url(value):
+        return resolve_media_url(
+            value
+        )
 
     @app.get("/csrf-token")
     def refresh_csrf_token():

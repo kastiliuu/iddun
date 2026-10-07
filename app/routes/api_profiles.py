@@ -23,7 +23,7 @@ from app.services.experience_service import (
     list_database_experiences_page,
 )
 from app.services.media_storage import (
-    resolve_media_url,
+    resolve_image_url,
 )
 from app.services.public_eligibility import (
     public_establishments_query,
@@ -47,7 +47,7 @@ def _media(value):
     if not value:
         return None
 
-    return resolve_media_url(
+    return resolve_image_url(
         value,
         external=True,
     )

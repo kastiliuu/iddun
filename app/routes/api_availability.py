@@ -18,7 +18,7 @@ from app.services.availability_service import (
     slot_time_label,
 )
 from app.services.media_storage import (
-    resolve_media_url,
+    resolve_image_url,
 )
 from app.services.time_service import (
     as_utc,
@@ -148,7 +148,7 @@ def _media(value):
     if not value:
         value = "img/exp-hair.jpg"
 
-    return resolve_media_url(
+    return resolve_image_url(
         value,
         external=True,
     )
