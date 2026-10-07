@@ -1,3 +1,4 @@
+from app.models.job import JobApplication, JobApplicationStatus, JobPost, JobPostStatus
 from app.models.notification import Notification, NotificationKind, NotificationPreference
 from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus
 from app.models.beauty_graph import Follow, FollowTarget, Save, SaveTarget
@@ -40,6 +41,10 @@ from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatu
 
 
 __all__ = [
+    "JobPost",
+    "JobPostStatus",
+    "JobApplication",
+    "JobApplicationStatus",
     "Notification",
     "NotificationKind",
     "NotificationPreference",
