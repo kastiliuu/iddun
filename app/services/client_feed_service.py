@@ -400,13 +400,9 @@ def client_feed_page(
 
     return {
         "feed_items":
-            page_context[
-                "feed_items"
-            ],
+            page["items"],
         "next_cursor":
-            page_context[
-                "next_cursor"
-            ],
+            page["nextCursor"],
         "followed_keys": {
             (
                 item["targetType"],
@@ -427,6 +423,7 @@ def client_feed_page(
         },
         "graph": graph,
     }
+
 
 def client_feed_context(
     user,
@@ -481,9 +478,13 @@ def client_feed_context(
                 profile,
             ),
         "feed_items":
-            page["items"],
+            page_context[
+                "feed_items"
+            ],
         "next_cursor":
-            page["nextCursor"],
+            page_context[
+                "next_cursor"
+            ],
         "mode": mode,
         "follow_count": len(
             graph["follows"]
