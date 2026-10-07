@@ -27,6 +27,16 @@
     '[data-notification-panel]',
   );
 
+  const savedTriggers = [
+    ...document.querySelectorAll(
+      '[data-saved-trigger]',
+    ),
+  ];
+
+  const savedPanel = document.querySelector(
+    '[data-saved-panel]',
+  );
+
   const toast = document.querySelector(
     '[data-feed-toast]',
   );
@@ -74,6 +84,23 @@
     );
   };
 
+  const closeSaved = () => {
+    if (!savedPanel) {
+      return;
+    }
+
+    savedPanel.hidden = true;
+
+    savedTriggers.forEach(
+      (trigger) => {
+        trigger.setAttribute(
+          'aria-expanded',
+          'false',
+        );
+      },
+    );
+  };
+
   const closeNotifications = () => {
     if (
       !notificationPanel
@@ -97,6 +124,7 @@
         accountMenu?.hidden ?? true;
 
       closeNotifications();
+      closeSaved();
 
       if (!accountMenu) return;
 
@@ -117,6 +145,7 @@
         ?? true;
 
       closeAccountMenu();
+      closeSaved();
 
       if (!notificationPanel) {
         return;
@@ -128,6 +157,38 @@
       notificationTrigger.setAttribute(
         'aria-expanded',
         String(willOpen),
+      );
+    },
+  );
+
+  savedTriggers.forEach(
+    (trigger) => {
+      trigger.addEventListener(
+        'click',
+        () => {
+          const willOpen =
+            savedPanel?.hidden
+            ?? true;
+
+          closeAccountMenu();
+          closeNotifications();
+
+          if (!savedPanel) {
+            return;
+          }
+
+          savedPanel.hidden =
+            !willOpen;
+
+          savedTriggers.forEach(
+            (item) => {
+              item.setAttribute(
+                'aria-expanded',
+                String(willOpen),
+              );
+            },
+          );
+        },
       );
     },
   );
@@ -162,6 +223,20 @@
       ) {
         closeNotifications();
       }
+
+      if (
+        savedPanel
+        && !savedPanel.contains(
+          target,
+        )
+        && !savedTriggers.some(
+          (trigger) => (
+            trigger.contains(target)
+          ),
+        )
+      ) {
+        closeSaved();
+      }
     },
   );
 
@@ -174,6 +249,7 @@
 
       closeAccountMenu();
       closeNotifications();
+      closeSaved();
 
       if (searchResults) {
         searchResults.hidden = true;
