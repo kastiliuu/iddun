@@ -1,4 +1,5 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -20,23 +21,15 @@ import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
 
 import {
-  getServiceById,
-  getServicesByAuthorId,
-} from "@/mocks/data";
+  createAvailability,
+  getAvailabilityOptions,
+  type AvailabilityOption,
+} from "@/api/availability";
 
 import {
   store,
   useStoreVersion,
 } from "@/store/local";
-
-import {
-  api,
-} from "@/api/client";
-
-import {
-  getAccessToken,
-  refreshSession,
-} from "@/api/auth";
 
 import {
   fonts,
@@ -190,15 +183,6 @@ const defaultTimes = [
   "18:00",
 ];
 
-async function getAuthenticatedToken() {
-  let token =
-    await getAccessToken();
-
-  if (!token) {
-    token =
-      await refreshSession();
-  }
-
   return token;
 }
 
@@ -218,39 +202,95 @@ export default function OpenSlotScreen() {
   const user =
     store.getUser();
 
-  const profileId =
-    user?.profileId;
-
   const canManage =
     user?.role ===
       "professional" ||
     user?.role ===
       "establishment";
 
-  const services =
-    useMemo(() => {
-      if (!profileId) {
-        return [];
-      }
+  const [
+    services,
+    setServices,
+  ] = useState<
+    AvailabilityOption[]
+  >([]);
 
-      return getServicesByAuthorId(
-        profileId,
-      );
-    }, [profileId]);
+  const [
+    optionsLoading,
+    setOptionsLoading,
+  ] = useState(true);
 
-  const initialService =
-    params.serviceId
-      ? getServiceById(
-          params.serviceId,
-        )
-      : undefined;
+  const [
+    optionsError,
+    setOptionsError,
+  ] = useState<
+    string | null
+  >(null);
 
   const [serviceId, setServiceId] =
     useState(
-      initialService?.id ??
-        services[0]?.id ??
+      params.serviceId ??
         "",
     );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOptions =
+      async () => {
+        if (!canManage) {
+          setOptionsLoading(false);
+          return;
+        }
+
+        try {
+          const response =
+            await getAvailabilityOptions();
+
+          if (!mounted) {
+            return;
+          }
+
+          setServices(
+            response.items,
+          );
+
+          setServiceId(
+            (current) =>
+              current ||
+              response.items[0]?.id ||
+              "",
+          );
+
+          setOptionsError(
+            null,
+          );
+        } catch (error) {
+          if (!mounted) {
+            return;
+          }
+
+          setServices([]);
+          setOptionsError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar seus serviços.",
+          );
+        } finally {
+          if (mounted) {
+            setOptionsLoading(
+              false,
+            );
+          }
+        }
+      };
+
+    void loadOptions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canManage]);
 
   const dates =
     useMemo(
@@ -289,8 +329,7 @@ export default function OpenSlotScreen() {
       (service) =>
         service.id ===
         serviceId,
-    ) ??
-    initialService;
+    );
 
   const selectedDateInfo =
     dates.find(
@@ -327,51 +366,20 @@ export default function OpenSlotScreen() {
       try {
         setLoading(true);
 
-        const token =
-          await getAuthenticatedToken();
+        await createAvailability({
+          serviceId,
 
-        /*
-         * Endpoint previsto:
-         *
-         * POST /api/availability
-         *
-         * {
-         *   serviceId,
-         *   date,
-         *   time,
-         *   urgent,
-         *   note
-         * }
-         *
-         * O backend deverá validar:
-         *
-         * - proprietário do serviço
-         * - conflito de agenda
-         * - duração do serviço
-         * - horário de funcionamento
-         * - vínculo profissional/estabelecimento
-         */
-        await api.post(
-          "/api/availability",
-          {
-            serviceId,
+          date:
+            selectedDate,
 
-            date:
-              selectedDate,
+          time:
+            selectedTime,
 
-            time:
-              selectedTime,
-
-            urgent,
-
-            note:
-              note.trim() ||
-              null,
-          },
-          {
-            token,
-          },
-        );
+          cutoffMinutes:
+            urgent
+              ? 180
+              : null,
+        });
 
         Haptics.notificationAsync(
           Haptics
@@ -391,7 +399,7 @@ export default function OpenSlotScreen() {
         });
 
         router.replace(
-          "/manage-services",
+          "/iddun-now",
         );
       } catch (error) {
         toast.show({
