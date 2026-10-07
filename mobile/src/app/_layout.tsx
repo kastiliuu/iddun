@@ -192,6 +192,34 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="jobs"
+              />
+
+              <Stack.Screen
+                name="job/[id]"
+              />
+
+              <Stack.Screen
+                name="job-applications"
+              />
+
+              <Stack.Screen
+                name="manage-jobs/[id]"
+              />
+
+              <Stack.Screen
+                name="job-candidates/[establishmentId]/[jobId]"
+              />
+
+              <Stack.Screen
+                name="team-invitations"
+              />
+
+              <Stack.Screen
+                name="establishment-team/[id]"
+              />
+
+              <Stack.Screen
                 name="iddun-now"
               />
 
