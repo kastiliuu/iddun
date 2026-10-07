@@ -18,7 +18,7 @@ from app.services.media_service import (
     delete_uploaded_file,
 )
 from app.services.media_storage import (
-    resolve_media_url,
+    resolve_image_url,
 )
 
 
@@ -172,7 +172,7 @@ def _image_payload(
 ):
     return {
         "storedPath": stored_path,
-        "url": resolve_media_url(
+        "url": resolve_image_url(
             stored_path,
             external=True,
         ),
@@ -184,7 +184,7 @@ def _image_payload(
 def _portfolio_payload(item):
     return {
         "id": item.id,
-        "imageUrl": resolve_media_url(
+        "imageUrl": resolve_image_url(
             item.image_url,
             external=True,
         ),
