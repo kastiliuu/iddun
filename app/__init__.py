@@ -36,7 +36,10 @@ from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
 from app.services.api_contract import api_error
-from app.services.media_storage import resolve_image_url
+from app.services.media_storage import (
+    resolve_image_url,
+    resolve_media_url,
+)
 
 
 def create_app(test_config=None):
@@ -346,6 +349,12 @@ def create_app(test_config=None):
     @app.template_filter("media_url")
     def media_url(value):
         return resolve_image_url(
+            value
+        )
+
+    @app.template_filter("media_file_url")
+    def media_file_url(value):
+        return resolve_media_url(
             value
         )
 
