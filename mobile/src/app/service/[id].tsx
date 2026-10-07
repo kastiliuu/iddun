@@ -22,10 +22,8 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { Icon } from "@/components/Icon";
 import { Rating } from "@/components/Rating";
 
-import {
-  getProfessionalById,
-  getServiceById,
-  type Service,
+import type {
+  Service,
 } from "@/mocks/data";
 
 import {
@@ -83,11 +81,6 @@ export default function ServiceDetailScreen() {
       id: string;
     }>();
 
-  const mockService =
-    getServiceById(
-      params.id,
-    );
-
   const [
     remoteExperience,
     setRemoteExperience,
@@ -108,16 +101,10 @@ export default function ServiceDetailScreen() {
     remoteLoading,
     setRemoteLoading,
   ] =
-    useState(
-      !mockService,
-    );
+    useState(true);
 
   useEffect(
     () => {
-      if (mockService) {
-        return;
-      }
-
       let mounted =
         true;
 
@@ -181,7 +168,6 @@ export default function ServiceDetailScreen() {
       };
     },
     [
-      mockService,
       params.id,
     ],
   );
@@ -189,10 +175,6 @@ export default function ServiceDetailScreen() {
   const service =
     useMemo<Service | undefined>(
       () => {
-        if (mockService) {
-          return mockService;
-        }
-
         if (!remoteExperience) {
           return undefined;
         }
@@ -242,19 +224,14 @@ export default function ServiceDetailScreen() {
         };
       },
       [
-        mockService,
         remoteExperience,
         remoteAuthor,
       ],
     );
 
   const author =
-    mockService
-      ? getProfessionalById(
-          mockService.authorId,
-        )
-      : remoteAuthor
-          ?.professional;
+    remoteAuthor
+      ?.professional;
 
   if (
     remoteLoading &&
