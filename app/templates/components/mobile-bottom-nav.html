@@ -10,9 +10,9 @@
        INÍCIO
        ====================================================== -->
   <a
-    href="{{ url_for('public.home') }}"
-    class="mobile-bottom-nav__item{% if current_page == 'home' %} is-active{% endif %}"
-    {% if current_page == 'home' %}
+    href="{{ url_for('feed.home') if current_user.is_authenticated else url_for('public.home') }}"
+    class="mobile-bottom-nav__item{% if current_page in ['home', 'feed'] %} is-active{% endif %}"
+    {% if current_page in ['home', 'feed'] %}
       aria-current="page"
     {% endif %}
     aria-label="Início"
