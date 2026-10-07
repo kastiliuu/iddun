@@ -99,7 +99,7 @@
         {% if professional.certifications %}
           <div class="public-profile-certifications">
             {% for item in professional.certifications %}
-            <article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small>{% if item.credential_id %}<em>Credencial {{ item.credential_id }}</em>{% endif %}</div>{% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% elif item.document_url %}<a href="{{ item.document_url|media_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}</article>
+            <article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small>{% if item.credential_id %}<em>Credencial {{ item.credential_id }}</em>{% endif %}</div>{% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% elif item.document_url %}<a href="{{ item.document_url|media_file_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}</article>
             {% endfor %}
           </div>
         {% else %}<div class="public-profile-placeholder">Este profissional ainda não publicou certificações.</div>{% endif %}
