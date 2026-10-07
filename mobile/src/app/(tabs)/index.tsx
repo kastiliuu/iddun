@@ -1,6 +1,5 @@
 import React, {
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -24,6 +23,20 @@ import {
   type WorkPost,
 } from "@/api/feed";
 
+import {
+  getNotifications,
+} from "@/api/notifications";
+
+import {
+  getDiscovery,
+  type DiscoveryResponse,
+} from "@/api/discovery";
+
+import {
+  getIDDUNNow,
+  type IDDUNNowItem,
+} from "@/api/availability";
+
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EditorialBlock } from "@/components/EditorialBlock";
 import { EmptyState } from "@/components/EmptyState";
@@ -33,14 +46,6 @@ import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { StoryAvatar } from "@/components/StoryAvatar";
-
-import {
-  getIDDUNNowData,
-  getStoryProfile,
-  iddunNowItems,
-  professionals,
-  stories,
-} from "@/mocks/data";
 
 import {
   store,
@@ -108,28 +113,130 @@ export default function HomeScreen() {
   ] =
     useState(false);
 
-  const notificationsCount =
-    store.unreadCount();
+  const [
+    notificationsCount,
+    setNotificationsCount,
+  ] = useState(0);
 
-  const storyData = useMemo(() => {
-    return stories
-      .map((story) => {
-        const profile =
-          getStoryProfile(story);
+  useEffect(() => {
+    let mounted = true;
 
-        if (!profile) {
-          return null;
+    const loadNotificationCount =
+      async () => {
+        const user =
+          store.getUser();
+
+        if (!user) {
+          if (mounted) {
+            setNotificationsCount(
+              0,
+            );
+          }
+          return;
         }
 
-        return {
-          story,
-          profile,
-        };
-      })
-      .filter(Boolean) as {
-      story: (typeof stories)[number];
-      profile: (typeof professionals)[number];
-    }[];
+        try {
+          const response =
+            await getNotifications({
+              limit: 1,
+            });
+
+          if (mounted) {
+            setNotificationsCount(
+              response.unreadCount,
+            );
+          }
+        } catch {
+          if (mounted) {
+            setNotificationsCount(
+              0,
+            );
+          }
+        }
+      };
+
+    void loadNotificationCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const [
+    discovery,
+    setDiscovery,
+  ] = useState<DiscoveryResponse>({
+    professionals: [],
+    establishments: [],
+    posts: [],
+  });
+
+  const [
+    nowItems,
+    setNowItems,
+  ] = useState<IDDUNNowItem[]>([]);
+
+  const [
+    discoveryLoading,
+    setDiscoveryLoading,
+  ] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadDiscovery =
+      async () => {
+        try {
+          const [
+            discoveryResponse,
+            nowResponse,
+          ] = await Promise.all([
+            getDiscovery({
+              limit: 6,
+            }),
+            getIDDUNNow(
+              "all",
+            ),
+          ]);
+
+          if (!mounted) {
+            return;
+          }
+
+          setDiscovery(
+            discoveryResponse,
+          );
+          setNowItems(
+            nowResponse.items.slice(
+              0,
+              8,
+            ),
+          );
+        } catch {
+          if (!mounted) {
+            return;
+          }
+
+          setDiscovery({
+            professionals: [],
+            establishments: [],
+            posts: [],
+          });
+          setNowItems([]);
+        } finally {
+          if (mounted) {
+            setDiscoveryLoading(
+              false,
+            );
+          }
+        }
+      };
+
+    void loadDiscovery();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(
@@ -569,46 +676,50 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        <View
-          style={
-            styles.storiesSection
-          }
-        >
-          <FlatList
-            horizontal
-            data={storyData}
-            keyExtractor={({
-              story,
-            }) => story.id}
-            showsHorizontalScrollIndicator={
-              false
+        {discovery.professionals.length >
+        0 ? (
+          <View
+            style={
+              styles.storiesSection
             }
-            contentContainerStyle={
-              styles.storiesContent
-            }
-            renderItem={({
-              item,
-            }) => (
-              <StoryAvatar
-                id={
-                  item.profile.id
-                }
-                name={
-                  item.profile.name
-                }
-                uri={
-                  item.profile.avatar
-                }
-                seen={
-                  item.story.seen
-                }
-                routeType={
-                  item.profile.kind
-                }
-              />
-            )}
-          />
-        </View>
+          >
+            <FlatList
+              horizontal
+              data={
+                discovery.professionals
+              }
+              keyExtractor={(
+                profile,
+              ) => profile.id}
+              showsHorizontalScrollIndicator={
+                false
+              }
+              contentContainerStyle={
+                styles.storiesContent
+              }
+              renderItem={({
+                item,
+              }) => (
+                <StoryAvatar
+                  id={
+                    item.routeId ??
+                    item.id
+                  }
+                  name={
+                    item.name
+                  }
+                  uri={
+                    item.avatar
+                  }
+                  seen={false}
+                  routeType={
+                    item.kind
+                  }
+                />
+              )}
+            />
+          </View>
+        ) : null}
 
         {feedMode ===
           "for-you" && (
@@ -630,84 +741,74 @@ export default function HomeScreen() {
                 }
               />
 
-              <FlatList
-                horizontal
-                data={
-                  iddunNowItems
-                }
-                keyExtractor={(
-                  item,
-                ) => item.id}
-                showsHorizontalScrollIndicator={
-                  false
-                }
-                contentContainerStyle={
-                  styles.horizontalCards
-                }
-                renderItem={({
-                  item,
-                }) => {
-                  const data =
-                    getIDDUNNowData(
-                      item,
-                    );
-
-                  if (!data) {
-                    return null;
+              {nowItems.length >
+              0 ? (
+                <FlatList
+                  horizontal
+                  data={
+                    nowItems
                   }
-
-                  return (
+                  keyExtractor={(
+                    item,
+                  ) => item.id}
+                  showsHorizontalScrollIndicator={
+                    false
+                  }
+                  contentContainerStyle={
+                    styles.horizontalCards
+                  }
+                  renderItem={({
+                    item,
+                  }) => (
                     <IDDUNNowCard
                       serviceId={
-                        data.service
-                          .id
+                        item.serviceId
                       }
                       professionalId={
-                        data
-                          .professional
-                          .id
+                        item.professionalId
+                      }
+                      professionalRouteId={
+                        item.professionalRouteId
                       }
                       professionalName={
-                        data
-                          .professional
-                          .name
+                        item.professionalName
                       }
                       professionalAvatar={
-                        data
-                          .professional
-                          .avatar
+                        item.professionalAvatar
                       }
                       serviceName={
-                        data.service
-                          .name
+                        item.serviceName
                       }
                       image={
-                        data.service
-                          .image
+                        item.image
                       }
                       price={
-                        data.service
-                          .price
+                        item.price
                       }
                       timeLabel={
                         item.timeLabel
                       }
                       location={
-                        data.service
-                          .location
-                      }
-                      routeType={
-                        data
-                          .professional
-                          .kind
+                        item.location
                       }
                       urgent={
                         item.urgent
                       }
                     />
-                  );
-                }}
-              />
+                  )}
+                />
+              ) : (
+                <EmptyState
+                  title="Nenhum horário aberto agora"
+                  description="Assim que profissionais publicarem novas disponibilidades, elas aparecem aqui."
+                  actionLabel="Ver experiências"
+                  onActionPress={() =>
+                    router.push(
+                      "/(tabs)/discover",
+                    )
+                  }
+                />
+              )}
             </View>
 
             <View
@@ -716,7 +817,7 @@ export default function HomeScreen() {
               }
             >
               <EditorialBlock
-                eyebrow="EDIÇÃO CURITIBA"
+                eyebrow="CURADORIA IDDUN"
                 title="Beleza que vira experiência."
                 subtitle="Uma curadoria de profissionais, espaços e técnicas para descobrir sem pressa."
                 image="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=1200&q=90"
@@ -750,43 +851,69 @@ export default function HomeScreen() {
                   styles.professionalsList
                 }
               >
-                {professionals
-                  .slice(0, 3)
-                  .map(
-                    (
-                      professional,
-                    ) => (
-                      <ProfessionalCard
-                        key={
-                          professional.id
-                        }
-                        id={
-                          professional.id
-                        }
-                        name={
-                          professional.name
-                        }
-                        avatar={
-                          professional.avatar
-                        }
-                        specialty={
-                          professional.specialty
-                        }
-                        location={
-                          professional.location
-                        }
-                        rating={
-                          professional.rating
-                        }
-                        reviewsCount={
-                          professional.reviewsCount
-                        }
-                        routeType={
-                          professional.kind
-                        }
-                      />
-                    ),
-                  )}
+                {discoveryLoading ? (
+                  <View
+                    style={
+                      styles.feedLoading
+                    }
+                  >
+                    <ActivityIndicator
+                      color={
+                        colors.plum
+                      }
+                    />
+                  </View>
+                ) : discovery.professionals
+                    .length > 0 ? (
+                  discovery.professionals
+                    .slice(0, 3)
+                    .map(
+                      (
+                        professional,
+                      ) => (
+                        <ProfessionalCard
+                          key={
+                            professional.id
+                          }
+                          id={
+                            professional.id
+                          }
+                          routeId={
+                            professional.routeId
+                          }
+                          name={
+                            professional.name
+                          }
+                          avatar={
+                            professional.avatar
+                          }
+                          specialty={
+                            professional.specialty
+                          }
+                          location={
+                            professional.location
+                          }
+                          rating={
+                            professional.rating
+                          }
+                          reviewsCount={
+                            professional.reviewsCount
+                          }
+                          routeType={
+                            professional.kind
+                          }
+                        />
+                      ),
+                    )
+                ) : (
+                  <Text
+                    style={
+                      styles.emptyInlineText
+                    }
+                  >
+                    Nenhum profissional público disponível no momento.
+                  </Text>
+                )}
               </View>
             </View>
           </>
@@ -1202,6 +1329,15 @@ const useStyles =
         fontSize: 12,
         color:
           colors.onSurface,
+      },
+
+      emptyInlineText: {
+        color:
+          colors.muted,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+        lineHeight: 18,
       },
 
       bottomSpace: {

@@ -17,7 +17,6 @@ import {
 } from "@/api/auth";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { markLoggedIn } from "@/store/local";
 import {
   syncBeautyGraph,
 } from "@/store/graphSync";
@@ -172,7 +171,6 @@ export default function LoginScreen() {
         });
       }
 
-      await markLoggedIn();
 
       try {
         await syncBeautyGraph();

@@ -19,10 +19,19 @@ from app.models.work_post import (
     WorkPostAuthorType,
     WorkPostStatus,
 )
+from app.services.feed_service import (
+    serialize_work_post,
+)
+from app.services.media_storage import (
+    resolve_image_url,
+)
 from app.services.public_eligibility import (
     establishment_is_public,
     professional_is_public,
     public_experiences_query,
+)
+from app.services.reputation_service import (
+    reputation_summary,
 )
 
 
@@ -601,4 +610,237 @@ def reconcile_graph(
         "state": graph_state(user),
         "imported": imported,
         "rejected": rejected,
+    }
+
+
+
+def _profile_saved_payload(
+    item,
+    *,
+    kind,
+):
+    reputation = reputation_summary(
+        item.reviews_received
+    )
+
+    if kind == SaveTarget.PROFESSIONAL:
+        name = item.display_name
+        route_id = item.slug
+        avatar = (
+            item.avatar_url
+            or "img/category-hair.jpg"
+        )
+        specialty = (
+            item.primary_specialty
+            or "Profissional de beleza"
+        )
+        location_parts = [
+            item.city,
+            item.state,
+        ]
+    else:
+        name = item.name
+        route_id = item.slug
+        avatar = (
+            item.logo_url
+            or "img/category-hair.jpg"
+        )
+        specialty = (
+            item.category
+            or "Espaço de beleza"
+        )
+        location_parts = [
+            item.neighborhood,
+            item.city,
+            item.state,
+        ]
+
+    return {
+        "id": str(item.id),
+        "routeId": route_id,
+        "kind": kind,
+        "name": name,
+        "avatar": resolve_image_url(
+            avatar,
+            external=True,
+        ),
+        "specialty": specialty,
+        "location": (
+            " · ".join(
+                part
+                for part in location_parts
+                if part
+            )
+            or "Brasil"
+        ),
+        "rating": (
+            reputation["average"]
+        ),
+        "reviewsCount": (
+            reputation["count"]
+        ),
+    }
+
+
+def _experience_saved_payload(
+    item,
+):
+    establishment = (
+        item.establishment
+    )
+    professional = (
+        item.professional
+    )
+
+    location_parts = (
+        [
+            establishment.neighborhood,
+            establishment.city,
+            establishment.state,
+        ]
+        if establishment is not None
+        else [
+            professional.city,
+            professional.state,
+        ]
+    )
+
+    return {
+        "id": item.slug,
+        "entityId": item.id,
+        "name": item.title,
+        "image": resolve_image_url(
+            item.image_url
+            or "img/exp-hair.jpg",
+            external=True,
+        ),
+        "category": item.category,
+        "professionalName": (
+            professional.display_name
+        ),
+        "location": (
+            " · ".join(
+                part
+                for part in location_parts
+                if part
+            )
+            or "Brasil"
+        ),
+        "durationMinutes": (
+            item.duration_minutes
+        ),
+        "price": float(
+            item.price
+        ),
+    }
+
+
+def _portfolio_saved_payload(
+    item,
+):
+    professional = item.professional
+
+    return {
+        "id": str(item.id),
+        "professionalRouteId": (
+            professional.slug
+        ),
+        "authorName": (
+            professional.display_name
+        ),
+        "image": resolve_image_url(
+            item.image_url,
+            external=True,
+        ),
+        "caption": (
+            item.caption or ""
+        ),
+    }
+
+
+def saved_items(user):
+    _require_user(user)
+
+    saves = db.session.scalars(
+        select(Save)
+        .where(
+            Save.user_id == user.id
+        )
+        .order_by(
+            Save.created_at.desc(),
+            Save.id.desc(),
+        )
+    ).all()
+
+    profiles = []
+    experiences = []
+    posts = []
+    portfolio_items = []
+
+    for save in saves:
+        try:
+            target = resolve_save_target(
+                save.target_type,
+                save_reference(
+                    save
+                )["targetId"],
+            )
+        except BeautyGraphError:
+            continue
+
+        if (
+            save.target_type
+            == SaveTarget.PROFESSIONAL
+        ):
+            profiles.append(
+                _profile_saved_payload(
+                    target,
+                    kind=SaveTarget.PROFESSIONAL,
+                )
+            )
+        elif (
+            save.target_type
+            == SaveTarget.ESTABLISHMENT
+        ):
+            profiles.append(
+                _profile_saved_payload(
+                    target,
+                    kind=SaveTarget.ESTABLISHMENT,
+                )
+            )
+        elif (
+            save.target_type
+            == SaveTarget.EXPERIENCE
+        ):
+            experiences.append(
+                _experience_saved_payload(
+                    target
+                )
+            )
+        elif (
+            save.target_type
+            == SaveTarget.WORK_POST
+        ):
+            posts.append(
+                serialize_work_post(
+                    target
+                )
+            )
+        elif (
+            save.target_type
+            == SaveTarget.PORTFOLIO_ITEM
+        ):
+            portfolio_items.append(
+                _portfolio_saved_payload(
+                    target
+                )
+            )
+
+    return {
+        "profiles": profiles,
+        "experiences": experiences,
+        "posts": posts,
+        "portfolioItems": (
+            portfolio_items
+        ),
     }

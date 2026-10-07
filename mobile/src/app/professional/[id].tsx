@@ -7,11 +7,13 @@ import React, {
 import {
   ActivityIndicator,
   Pressable,
+  Share,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import { API_URL } from "@/api/client";
 import {
   useLocalSearchParams,
   useRouter,
@@ -32,13 +34,6 @@ import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
-
-import {
-  getPostService,
-  getPostsByAuthorId,
-  getProfessionalById,
-  getServicesByAuthorId,
-} from "@/mocks/data";
 
 import {
   fonts,
@@ -82,11 +77,6 @@ export default function ProfessionalProfileScreen() {
       id: string;
     }>();
 
-  const mockProfile =
-    getProfessionalById(
-      params.id,
-    );
-
   const [
     remoteData,
     setRemoteData,
@@ -99,16 +89,10 @@ export default function ProfessionalProfileScreen() {
     remoteLoading,
     setRemoteLoading,
   ] =
-    useState(
-      !mockProfile,
-    );
+    useState(true);
 
   useEffect(
     () => {
-      if (mockProfile) {
-        return;
-      }
-
       let mounted =
         true;
 
@@ -148,13 +132,11 @@ export default function ProfessionalProfileScreen() {
       };
     },
     [
-      mockProfile,
       params.id,
     ],
   );
 
   const profile =
-    mockProfile ??
     remoteData?.professional;
 
   const [activeTab, setActiveTab] =
@@ -167,14 +149,8 @@ export default function ProfessionalProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () => {
-      if (mockProfile) {
-        return getPostsByAuthorId(
-          mockProfile.id,
-        );
-      }
-
-      return (
+    () =>
+      (
         remoteData?.posts ??
         []
       ).map(
@@ -199,27 +175,17 @@ export default function ProfessionalProfileScreen() {
             post.publishedAt ??
             "",
         }),
-      );
-    },
+      ),
     [
-      mockProfile,
       remoteData,
     ],
   );
 
   const services = useMemo(
     () =>
-      mockProfile
-        ? getServicesByAuthorId(
-            mockProfile.id,
-          )
-        : (
-            remoteData
-              ?.services ??
-            []
-          ),
+      remoteData?.services ??
+      [],
     [
-      mockProfile,
       remoteData,
     ],
   );
@@ -420,7 +386,10 @@ export default function ProfessionalProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Compartilhar perfil"
                 onPress={() => {
-                  // Share real entra depois.
+                  void Share.share({
+                    message:
+                      `Conheça ${profile.name} no IDDUN: ${API_URL}/profissionais/${profile.routeId ?? params.id}`,
+                  });
                 }}
                 style={({
                   pressed,
@@ -749,15 +718,11 @@ export default function ProfessionalProfileScreen() {
                 {posts.map(
                   (post) => {
                     const service =
-                      mockProfile
-                        ? getPostService(
-                            post,
-                          )
-                        : services.find(
-                            (item) =>
-                              item.id ===
-                              post.serviceId,
-                          );
+                      services.find(
+                        (item) =>
+                          item.id ===
+                          post.serviceId,
+                      );
 
                     return (
                       <PostCard

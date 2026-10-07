@@ -1,42 +1,22 @@
 import React, {
   forwardRef,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
 } from "react";
 import {
-  Keyboard,
-  Pressable,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
   BottomSheetBackdrop,
-  BottomSheetFlatList,
   BottomSheetModal,
-  BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import * as Haptics from "expo-haptics";
-
-import { Avatar } from "@/components/Avatar";
-import { Icon } from "@/components/Icon";
 
 import {
   fonts,
   makeStyles,
   radius,
   spacing,
-  touch,
   useTheme,
 } from "@/theme";
-
-import {
-  Comment,
-  store,
-  useStoreVersion,
-} from "@/store/local";
 
 type CommentsSheetProps = {
   postId: string;
@@ -55,50 +35,6 @@ type CommentsSheetProps = {
 export type CommentsSheetRef =
   BottomSheetModal;
 
-function formatCommentTime(
-  timestamp: number,
-) {
-  const diff =
-    Date.now() - timestamp;
-
-  const minutes = Math.max(
-    1,
-    Math.floor(
-      diff / 60_000,
-    ),
-  );
-
-  if (minutes < 60) {
-    return `${minutes} min`;
-  }
-
-  const hours = Math.floor(
-    minutes / 60,
-  );
-
-  if (hours < 24) {
-    return `${hours}h`;
-  }
-
-  const days = Math.floor(
-    hours / 24,
-  );
-
-  if (days < 7) {
-    return `${days}d`;
-  }
-
-  return new Intl.DateTimeFormat(
-    "pt-BR",
-    {
-      day: "2-digit",
-      month: "short",
-    },
-  ).format(
-    new Date(timestamp),
-  );
-}
-
 export const CommentsSheet =
   forwardRef<
     CommentsSheetRef,
@@ -106,45 +42,25 @@ export const CommentsSheet =
   >(function CommentsSheet(
     {
       postId,
-      postAuthor,
-      onRequireLogin,
     },
     ref,
   ) {
-    useStoreVersion();
+    const styles =
+      useStyles();
 
-    const styles = useStyles();
     const { colors } =
       useTheme();
 
-    const [text, setText] =
-      useState("");
-
-    const inputRef =
-      useRef<TextInput | null>(
-        null,
-      );
-
-    const comments =
-      store.getComments(
-        postId,
-      );
-
-    const user =
-      store.getUser();
-
-    const snapPoints =
-      useMemo(
-        () => ["55%", "88%"],
-        [],
-      );
-
-    const renderBackdrop =
-      useCallback(
-        (
-          props: React.ComponentProps<
-            typeof BottomSheetBackdrop
-          >,
+    return (
+      <BottomSheetModal
+        ref={ref}
+        index={0}
+        snapPoints={[
+          "42%",
+        ]}
+        enablePanDownToClose
+        backdropComponent={(
+          props,
         ) => (
           <BottomSheetBackdrop
             {...props}
@@ -152,200 +68,7 @@ export const CommentsSheet =
             disappearsOnIndex={-1}
             opacity={0.6}
           />
-        ),
-        [],
-      );
-
-    const handleSend = () => {
-      const clean =
-        text.trim();
-
-      if (!clean) {
-        return;
-      }
-
-      /**
-       * Leitura pode ser pública,
-       * mas comentar exige login.
-       */
-      if (!user) {
-        Keyboard.dismiss();
-
-        onRequireLogin?.();
-
-        return;
-      }
-
-      const isAuthorReply =
-        Boolean(
-          postAuthor &&
-            user.profileId &&
-            user.profileId ===
-              postAuthor.id &&
-            (
-              user.role ===
-                "professional" ||
-              user.role ===
-                "establishment"
-            ),
-        );
-
-      store.addComment(
-        postId,
-        clean,
-        {
-          isAuthorReply,
-        },
-      );
-
-      setText("");
-
-      Haptics.impactAsync(
-        Haptics
-          .ImpactFeedbackStyle
-          .Light,
-      ).catch(() => {});
-    };
-
-    const renderComment =
-      useCallback(
-        ({
-          item,
-        }: {
-          item: Comment;
-        }) => {
-          const isAuthor =
-            item.isAuthorReply ===
-            true;
-
-          return (
-            <View
-              style={
-                styles.comment
-              }
-            >
-              <Avatar
-                name={item.author}
-                size={36}
-              />
-
-              <View
-                style={
-                  styles.commentContent
-                }
-              >
-                <View
-                  style={
-                    styles.commentHeader
-                  }
-                >
-                  <Text
-                    style={
-                      styles.commentAuthor
-                    }
-                    numberOfLines={
-                      1
-                    }
-                  >
-                    {item.author}
-                  </Text>
-
-                  {isAuthor ? (
-                    <View
-                      style={
-                        styles.authorBadge
-                      }
-                    >
-                      <Text
-                        style={
-                          styles.authorBadgeText
-                        }
-                      >
-                        Autor
-                      </Text>
-                    </View>
-                  ) : null}
-
-                  <Text
-                    style={
-                      styles.commentTime
-                    }
-                  >
-                    {formatCommentTime(
-                      item.createdAt,
-                    )}
-                  </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.commentText
-                  }
-                >
-                  {item.text}
-                </Text>
-              </View>
-            </View>
-          );
-        },
-        [styles],
-      );
-
-    const listEmptyComponent =
-      useMemo(
-        () => (
-          <View
-            style={
-              styles.empty
-            }
-          >
-            <Text
-              accessible={
-                false
-              }
-              style={
-                styles.emptySpark
-              }
-            >
-              ✦
-            </Text>
-
-            <Text
-              style={
-                styles.emptyTitle
-              }
-            >
-              Seja o primeiro
-            </Text>
-
-            <Text
-              style={
-                styles.emptyText
-              }
-            >
-              Ainda não há
-              comentários nesta
-              publicação.
-            </Text>
-          </View>
-        ),
-        [styles],
-      );
-
-    return (
-      <BottomSheetModal
-        ref={ref}
-        index={0}
-        snapPoints={
-          snapPoints
-        }
-        enablePanDownToClose
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
-        backdropComponent={
-          renderBackdrop
-        }
+        )}
         backgroundStyle={
           styles.sheetBackground
         }
@@ -354,168 +77,69 @@ export const CommentsSheet =
         }
       >
         <View
+          accessibilityLabel={
+            `Comentários da publicação ${postId}`
+          }
           style={
-            styles.header
+            styles.content
           }
         >
-          <View>
-            <Text
-              style={
-                styles.title
-              }
-            >
-              Comentários
-            </Text>
+          <Text
+            accessible={false}
+            style={
+              styles.spark
+            }
+          >
+            ✦
+          </Text>
 
-            <Text
-              style={
-                styles.subtitle
-              }
-            >
-              {comments.length ===
-              0
-                ? "Nenhum comentário ainda"
-                : comments.length ===
-                    1
-                  ? "1 comentário"
-                  : `${comments.length} comentários`}
-            </Text>
-          </View>
-        </View>
+          <Text
+            style={
+              styles.title
+            }
+          >
+            Comentários em preparação
+          </Text>
 
-        <BottomSheetFlatList
-          data={comments}
-          keyExtractor={(
-            item,
-          ) => item.id}
-          renderItem={
-            renderComment
-          }
-          ListEmptyComponent={
-            listEmptyComponent
-          }
-          contentContainerStyle={
-            comments.length ===
-            0
-              ? styles
-                  .emptyListContent
-              : styles
-                  .listContent
-          }
-          showsVerticalScrollIndicator={
-            false
-          }
-        />
-
-        <View
-          style={
-            styles.composer
-          }
-        >
-          {user ? (
-            <Avatar
-              name={
-                user.name
-              }
-              uri={
-                user.avatar
-              }
-              size={36}
-            />
-          ) : (
-            <View
-              style={
-                styles.guestAvatar
-              }
-            >
-              <Icon
-                name="user"
-                size={17}
-                color={
-                  colors.muted
-                }
-              />
-            </View>
-          )}
+          <Text
+            style={
+              styles.description
+            }
+          >
+            A conversa entre clientes, profissionais e estabelecimentos será liberada quando estiver sincronizada com a API do IDDUN.
+          </Text>
 
           <View
             style={
-              styles.inputWrap
+              styles.status
             }
           >
-            <BottomSheetTextInput
-              ref={
-                inputRef as any
-              }
-              value={text}
-              onChangeText={
-                setText
-              }
-              placeholder={
-                user
-                  ? "Escreva um comentário..."
-                  : "Entre para comentar"
-              }
-              placeholderTextColor={
-                colors.muted
-              }
-              editable={
-                Boolean(user)
-              }
-              multiline
-              maxLength={
-                500
-              }
-              returnKeyType="default"
+            <View
               style={
-                styles.input
+                styles.statusDot
               }
-              accessibilityLabel="Campo de comentário"
             />
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                user
-                  ? "Enviar comentário"
-                  : "Entrar para comentar"
+            <Text
+              style={
+                styles.statusText
               }
-              disabled={
-                Boolean(user) &&
-                !text.trim()
-              }
-              onPress={() => {
-                if (!user) {
-                  onRequireLogin?.();
-
-                  return;
-                }
-
-                handleSend();
-              }}
-              style={({
-                pressed,
-              }) => [
-                styles.sendButton,
-
-                user &&
-                  !text.trim() &&
-                  styles.sendDisabled,
-
-                pressed &&
-                  styles.pressed,
-              ]}
             >
-              <Icon
-                name="arrow-up"
-                size={17}
-                color={
-                  colors
-                    .onBrandPrimary
-                }
-              />
-            </Pressable>
+              Nenhum comentário local ou fictício será publicado nesta versão.
+            </Text>
           </View>
+
+          <Text
+            style={[
+              styles.caption,
+              {
+                color:
+                  colors.muted,
+              },
+            ]}
+          >
+            Você ainda pode seguir, salvar e acessar os serviços reais disponíveis no perfil.
+          </Text>
         </View>
       </BottomSheetModal>
     );
@@ -535,341 +159,105 @@ const useStyles =
           colors.surfaceTertiary,
       },
 
-      header: {
+      content: {
+        flex: 1,
+        alignItems:
+          "center",
+        justifyContent:
+          "center",
         paddingHorizontal:
-          spacing.lg,
-
-        paddingTop:
-          spacing.sm,
-
+          spacing.xl,
         paddingBottom:
-          spacing.md,
+          spacing.xxl,
+      },
 
-        borderBottomWidth: 1,
-        borderBottomColor:
-          colors.divider,
+      spark: {
+        color:
+          colors.plum,
+        fontFamily:
+          fonts.display,
+        fontSize: 30,
+        lineHeight: 34,
       },
 
       title: {
+        marginTop:
+          spacing.md,
         color:
           colors.onSurface,
-
         fontFamily:
           fonts.display,
-
         fontSize: 22,
         lineHeight: 28,
-      },
-
-      subtitle: {
-        marginTop: 2,
-
-        color:
-          colors.muted,
-
-        fontFamily:
-          fonts.sans,
-
-        fontSize: 11,
-        lineHeight: 15,
-      },
-
-      listContent: {
-        paddingHorizontal:
-          spacing.lg,
-
-        paddingTop:
-          spacing.md,
-
-        paddingBottom:
-          spacing.xl,
-      },
-
-      emptyListContent: {
-        flexGrow: 1,
-      },
-
-      comment: {
-        flexDirection:
-          "row",
-
-        alignItems:
-          "flex-start",
-
-        paddingVertical:
-          spacing.md,
-
-        borderBottomWidth: 1,
-        borderBottomColor:
-          colors.divider,
-      },
-
-      commentContent: {
-        flex: 1,
-        minWidth: 0,
-
-        marginLeft:
-          spacing.md,
-      },
-
-      commentHeader: {
-        flexDirection:
-          "row",
-
-        alignItems:
-          "center",
-
-        gap: spacing.sm,
-      },
-
-      commentAuthor: {
-        flexShrink: 1,
-
-        color:
-          colors.onSurface,
-
-        fontFamily:
-          fonts.sansSemiBold,
-
-        fontSize: 12,
-        lineHeight: 16,
-      },
-
-      authorBadge: {
-        paddingHorizontal: 7,
-        paddingVertical: 2,
-
-        borderRadius:
-          radius.pill,
-
-        backgroundColor:
-          colors.plumSoft,
-
-        borderWidth: 1,
-        borderColor:
-          colors.glassBorder,
-      },
-
-      authorBadgeText: {
-        color:
-          colors.plum,
-
-        fontFamily:
-          fonts.sansMedium,
-
-        fontSize: 9,
-        lineHeight: 12,
-
-        letterSpacing: 0.4,
-      },
-
-      commentTime: {
-        marginLeft: "auto",
-
-        color:
-          colors.muted,
-
-        fontFamily:
-          fonts.sans,
-
-        fontSize: 10,
-        lineHeight: 13,
-      },
-
-      commentText: {
-        marginTop:
-          spacing.xs,
-
-        color:
-          colors.onSurfaceSecondary,
-
-        fontFamily:
-          fonts.sans,
-
-        fontSize: 13,
-        lineHeight: 19,
-      },
-
-      empty: {
-        flex: 1,
-
-        minHeight: 260,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
-        paddingHorizontal:
-          spacing.xl,
-      },
-
-      emptySpark: {
-        color:
-          colors.plum,
-
-        fontFamily:
-          fonts.display,
-
-        fontSize: 28,
-        lineHeight: 32,
-      },
-
-      emptyTitle: {
-        marginTop:
-          spacing.md,
-
-        color:
-          colors.onSurface,
-
-        fontFamily:
-          fonts.display,
-
-        fontSize: 20,
-        lineHeight: 26,
-      },
-
-      emptyText: {
-        maxWidth: 260,
-
-        marginTop:
-          spacing.sm,
-
-        color:
-          colors.muted,
-
-        fontFamily:
-          fonts.sans,
-
-        fontSize: 12,
-        lineHeight: 18,
-
         textAlign:
           "center",
       },
 
-      composer: {
-        paddingHorizontal:
-          spacing.lg,
+      description: {
+        maxWidth: 310,
+        marginTop:
+          spacing.sm,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sans,
+        fontSize: 12,
+        lineHeight: 18,
+        textAlign:
+          "center",
+      },
 
-        paddingTop:
+      status: {
+        maxWidth: 320,
+        marginTop:
+          spacing.lg,
+        padding:
           spacing.md,
-
-        paddingBottom:
-          spacing.lg,
-
-        borderTopWidth: 1,
-        borderTopColor:
-          colors.divider,
-
-        flexDirection:
-          "row",
-
-        alignItems:
-          "flex-end",
-
-        gap: spacing.sm,
-
-        backgroundColor:
-          colors.surfaceSecondary,
-      },
-
-      guestAvatar: {
-        width: 36,
-        height: 36,
-
         borderRadius:
-          radius.pill,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
-        backgroundColor:
-          colors.surfaceTertiary,
-
-        borderWidth: 1,
-        borderColor:
-          colors.border,
-      },
-
-      inputWrap: {
-        flex: 1,
-
-        minHeight: 44,
-
+          radius.md,
         flexDirection:
           "row",
-
         alignItems:
-          "flex-end",
-
+          "flex-start",
+        gap:
+          spacing.sm,
         backgroundColor:
-          colors.surfaceTertiary,
-
+          colors.plumSoft,
         borderWidth: 1,
         borderColor:
           colors.glassBorder,
-
-        borderRadius:
-          radius.lg,
-
-        paddingLeft:
-          spacing.md,
-
-        paddingRight: 4,
-
-        paddingVertical: 4,
       },
 
-      input: {
-        flex: 1,
-
-        maxHeight: 110,
-
-        paddingVertical: 8,
-        paddingRight:
-          spacing.sm,
-
-        color:
-          colors.onSurface,
-
-        fontFamily:
-          fonts.sans,
-
-        fontSize: 13,
-        lineHeight: 18,
-      },
-
-      sendButton: {
-        width:
-          touch.minimum,
-
-        height:
-          touch.minimum,
-
+      statusDot: {
+        width: 7,
+        height: 7,
+        marginTop: 5,
         borderRadius:
           radius.pill,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
         backgroundColor:
           colors.plum,
       },
 
-      sendDisabled: {
-        opacity: 0.35,
+      statusText: {
+        flex: 1,
+        color:
+          colors.onSurfaceSecondary,
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 10,
+        lineHeight: 15,
       },
 
-      pressed: {
-        opacity: 0.78,
+      caption: {
+        maxWidth: 300,
+        marginTop:
+          spacing.md,
+        fontFamily:
+          fonts.sans,
+        fontSize: 10,
+        lineHeight: 15,
+        textAlign:
+          "center",
       },
     }),
   );

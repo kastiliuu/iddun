@@ -225,29 +225,27 @@ export function FavoriteButton({
       const willSave =
         !active;
 
+      const user =
+        store.getUser();
+
+      if (!user) {
+        toast.show({
+          title:
+            "Entre para salvar",
+          body:
+            "Salvos reais ficam vinculados à sua conta IDDUN.",
+          icon:
+            "bookmark",
+        });
+
+        return;
+      }
+
       store.setGraphSaved(
         graphTargetType,
         targetId,
         willSave,
       );
-
-      const user =
-        store.getUser();
-
-      if (!user) {
-        if (willSave) {
-          toast.show({
-            title:
-              "Salvo neste aparelho",
-            body:
-              "Entre depois para levar essa escolha para sua conta.",
-            icon:
-              "bookmark",
-          });
-        }
-
-        return;
-      }
 
       setBusy(true);
 

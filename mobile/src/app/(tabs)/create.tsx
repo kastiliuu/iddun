@@ -508,9 +508,12 @@ export default function CreateScreen() {
                 <ActionCard
                   icon="clock"
                   title="Abrir um horário"
-                  description="Integração com disponibilidade real em finalização."
-                  disabled
-                  badge="EM INTEGRAÇÃO"
+                  description="Publique uma disponibilidade real no IDDUN Now."
+                  onPress={() =>
+                    router.push(
+                      "/open-slot",
+                    )
+                  }
                 />
 
                 <ActionCard

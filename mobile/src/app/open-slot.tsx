@@ -1,12 +1,13 @@
 import React, {
+  useEffect,
   useMemo,
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import {
@@ -16,27 +17,20 @@ import {
 import * as Haptics from "expo-haptics";
 
 import { Button } from "@/components/Button";
+import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
 
 import {
-  getServiceById,
-  getServicesByAuthorId,
-} from "@/mocks/data";
+  createAvailability,
+  getAvailabilityOptions,
+  type AvailabilityOption,
+} from "@/api/availability";
 
 import {
   store,
   useStoreVersion,
 } from "@/store/local";
-
-import {
-  api,
-} from "@/api/client";
-
-import {
-  getAccessToken,
-  refreshSession,
-} from "@/api/auth";
 
 import {
   fonts,
@@ -190,18 +184,6 @@ const defaultTimes = [
   "18:00",
 ];
 
-async function getAuthenticatedToken() {
-  let token =
-    await getAccessToken();
-
-  if (!token) {
-    token =
-      await refreshSession();
-  }
-
-  return token;
-}
-
 export default function OpenSlotScreen() {
   useStoreVersion();
 
@@ -218,39 +200,95 @@ export default function OpenSlotScreen() {
   const user =
     store.getUser();
 
-  const profileId =
-    user?.profileId;
-
   const canManage =
     user?.role ===
       "professional" ||
     user?.role ===
       "establishment";
 
-  const services =
-    useMemo(() => {
-      if (!profileId) {
-        return [];
-      }
+  const [
+    services,
+    setServices,
+  ] = useState<
+    AvailabilityOption[]
+  >([]);
 
-      return getServicesByAuthorId(
-        profileId,
-      );
-    }, [profileId]);
+  const [
+    optionsLoading,
+    setOptionsLoading,
+  ] = useState(true);
 
-  const initialService =
-    params.serviceId
-      ? getServiceById(
-          params.serviceId,
-        )
-      : undefined;
+  const [
+    optionsError,
+    setOptionsError,
+  ] = useState<
+    string | null
+  >(null);
 
   const [serviceId, setServiceId] =
     useState(
-      initialService?.id ??
-        services[0]?.id ??
+      params.serviceId ??
         "",
     );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadOptions =
+      async () => {
+        if (!canManage) {
+          setOptionsLoading(false);
+          return;
+        }
+
+        try {
+          const response =
+            await getAvailabilityOptions();
+
+          if (!mounted) {
+            return;
+          }
+
+          setServices(
+            response.items,
+          );
+
+          setServiceId(
+            (current) =>
+              current ||
+              response.items[0]?.id ||
+              "",
+          );
+
+          setOptionsError(
+            null,
+          );
+        } catch (error) {
+          if (!mounted) {
+            return;
+          }
+
+          setServices([]);
+          setOptionsError(
+            error instanceof Error
+              ? error.message
+              : "Não foi possível carregar seus serviços.",
+          );
+        } finally {
+          if (mounted) {
+            setOptionsLoading(
+              false,
+            );
+          }
+        }
+      };
+
+    void loadOptions();
+
+    return () => {
+      mounted = false;
+    };
+  }, [canManage]);
 
   const dates =
     useMemo(
@@ -275,12 +313,6 @@ export default function OpenSlotScreen() {
       null,
     );
 
-  const [urgent, setUrgent] =
-    useState(true);
-
-  const [note, setNote] =
-    useState("");
-
   const [loading, setLoading] =
     useState(false);
 
@@ -289,8 +321,7 @@ export default function OpenSlotScreen() {
       (service) =>
         service.id ===
         serviceId,
-    ) ??
-    initialService;
+    );
 
   const selectedDateInfo =
     dates.find(
@@ -327,51 +358,18 @@ export default function OpenSlotScreen() {
       try {
         setLoading(true);
 
-        const token =
-          await getAuthenticatedToken();
+        await createAvailability({
+          serviceId,
 
-        /*
-         * Endpoint previsto:
-         *
-         * POST /api/availability
-         *
-         * {
-         *   serviceId,
-         *   date,
-         *   time,
-         *   urgent,
-         *   note
-         * }
-         *
-         * O backend deverá validar:
-         *
-         * - proprietário do serviço
-         * - conflito de agenda
-         * - duração do serviço
-         * - horário de funcionamento
-         * - vínculo profissional/estabelecimento
-         */
-        await api.post(
-          "/api/availability",
-          {
-            serviceId,
+          date:
+            selectedDate,
 
-            date:
-              selectedDate,
+          time:
+            selectedTime,
 
-            time:
-              selectedTime,
-
-            urgent,
-
-            note:
-              note.trim() ||
-              null,
-          },
-          {
-            token,
-          },
-        );
+          cutoffMinutes:
+            null,
+        });
 
         Haptics.notificationAsync(
           Haptics
@@ -383,15 +381,13 @@ export default function OpenSlotScreen() {
           title:
             "Horário publicado",
           body:
-            urgent
-              ? "A disponibilidade já pode aparecer no IDDUN Now."
-              : "O horário foi adicionado à sua agenda.",
+            "A disponibilidade foi publicada e pode aparecer no IDDUN Now.",
           icon:
             "check",
         });
 
         router.replace(
-          "/manage-services",
+          "/iddun-now",
         );
       } catch (error) {
         toast.show({
@@ -495,6 +491,55 @@ export default function OpenSlotScreen() {
             fullWidth
           />
         </View>
+      </View>
+    );
+  }
+
+  if (optionsLoading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingState}>
+          <ActivityIndicator
+            color={colors.plum}
+          />
+          <Text style={styles.loadingText}>
+            Carregando seus serviços...
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (optionsError) {
+    return (
+      <View style={styles.container}>
+        <EmptyState
+          title="Serviços indisponíveis"
+          description={optionsError}
+          actionLabel="Voltar"
+          onActionPress={() =>
+            router.replace(
+              "/(tabs)/create",
+            )
+          }
+        />
+      </View>
+    );
+  }
+
+  if (services.length === 0) {
+    return (
+      <View style={styles.container}>
+        <EmptyState
+          title="Nenhum serviço publicado"
+          description="Publique um serviço antes de abrir uma disponibilidade."
+          actionLabel="Voltar"
+          onActionPress={() =>
+            router.replace(
+              "/(tabs)/create",
+            )
+          }
+        />
       </View>
     );
   }
@@ -970,7 +1015,7 @@ export default function OpenSlotScreen() {
               styles.sectionLabel
             }
           >
-            4. VISIBILIDADE
+            4. CONFIRMAÇÃO
           </Text>
 
           <Text
@@ -978,131 +1023,15 @@ export default function OpenSlotScreen() {
               styles.sectionTitle
             }
           >
-            Mostrar no IDDUN Now?
-          </Text>
-
-          <Pressable
-            accessibilityRole="switch"
-            accessibilityState={{
-              checked:
-                urgent,
-            }}
-            onPress={() =>
-              setUrgent(
-                (current) =>
-                  !current,
-              )
-            }
-            style={({ pressed }) => [
-              styles.nowCard,
-
-              urgent &&
-                styles.nowCardActive,
-
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <View
-              style={
-                styles.nowIcon
-              }
-            >
-              <Icon
-                name="zap"
-                size={20}
-                color={
-                  colors.plum
-                }
-              />
-            </View>
-
-            <View
-              style={
-                styles.nowContent
-              }
-            >
-              <Text
-                style={
-                  styles.nowTitle
-                }
-              >
-                IDDUN Now
-              </Text>
-
-              <Text
-                style={
-                  styles.nowDescription
-                }
-              >
-                Destaque este horário como uma disponibilidade recente para descoberta imediata.
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.switchTrack,
-
-                urgent &&
-                  styles.switchTrackActive,
-              ]}
-            >
-              <View
-                style={[
-                  styles.switchThumb,
-
-                  urgent &&
-                    styles.switchThumbActive,
-                ]}
-              />
-            </View>
-          </Pressable>
-        </View>
-
-        <View
-          style={
-            styles.section
-          }
-        >
-          <Text
-            style={
-              styles.sectionLabel
-            }
-          >
-            5. OBSERVAÇÃO
+            Revise os dados antes de publicar.
           </Text>
 
           <Text
             style={
-              styles.sectionTitle
+              styles.description
             }
           >
-            Quer acrescentar algo?
-          </Text>
-
-          <TextInput
-            value={note}
-            onChangeText={
-              setNote
-            }
-            multiline
-            maxLength={180}
-            textAlignVertical="top"
-            placeholder="Ex.: horário disponível por cancelamento de última hora."
-            placeholderTextColor={
-              colors.muted
-            }
-            style={
-              styles.noteInput
-            }
-          />
-
-          <Text
-            style={
-              styles.counter
-            }
-          >
-            {note.length}/180
+            Horários dentro das próximas 24 horas recebem destaque automático como oportunidade recente no IDDUN Now.
           </Text>
         </View>
 
@@ -1137,9 +1066,7 @@ export default function OpenSlotScreen() {
                       styles.previewNow
                     }
                   >
-                    {urgent
-                      ? "IDDUN NOW"
-                      : "DISPONIBILIDADE"}
+                    DISPONIBILIDADE
                   </Text>
 
                   <Text
@@ -1188,16 +1115,6 @@ export default function OpenSlotScreen() {
                 }
               </Text>
 
-              {note.trim() ? (
-                <Text
-                  style={
-                    styles.previewNote
-                  }
-                  numberOfLines={2}
-                >
-                  {note.trim()}
-                </Text>
-              ) : null}
             </View>
           </View>
         ) : null}
@@ -1244,11 +1161,7 @@ export default function OpenSlotScreen() {
           }
         >
           <Button
-            title={
-              urgent
-                ? "Publicar no IDDUN Now"
-                : "Adicionar disponibilidade"
-            }
+            title="Publicar disponibilidade"
             onPress={
               handleSubmit
             }
@@ -1956,6 +1869,21 @@ const useStyles =
         lineHeight: 18,
         textAlign:
           "center",
+      },
+
+      loadingState: {
+        flex: 1,
+        minHeight: 320,
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.md,
+        paddingHorizontal: spacing.lg,
+      },
+
+      loadingText: {
+        color: colors.muted,
+        fontFamily: fonts.sans,
+        fontSize: 12,
       },
 
       bottomSpace: {

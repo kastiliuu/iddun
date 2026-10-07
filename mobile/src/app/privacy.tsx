@@ -27,7 +27,6 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import {
-  markLoggedOut,
   store,
   useStoreVersion,
 } from "@/store/local";
@@ -139,7 +138,6 @@ export default function PrivacyScreen() {
         await deleteAccount(
           password,
         );
-        await markLoggedOut();
 
         Alert.alert(
           "Conta removida",
