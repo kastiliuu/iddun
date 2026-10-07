@@ -36,7 +36,7 @@ from app.routes.calendar import calendar_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
 from app.services.api_contract import api_error
-from app.services.media_storage import resolve_media_url
+from app.services.media_storage import resolve_image_url
 
 
 def create_app(test_config=None):
@@ -327,13 +327,9 @@ def create_app(test_config=None):
 
     @app.template_filter("media_url")
     def media_url(value):
-        if not value:
-            return url_for(
-                "static",
-                filename="img/category-hair.jpg",
-            )
-
-        return resolve_media_url(value)
+        return resolve_image_url(
+            value
+        )
 
     @app.get("/csrf-token")
     def refresh_csrf_token():
