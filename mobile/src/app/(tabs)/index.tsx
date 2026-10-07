@@ -796,15 +796,6 @@ export default function HomeScreen() {
                       }
                     />
                   )}
-                : (
-                  <Text
-                    style={
-                      styles.emptyInlineText
-                    }
-                  >
-                    Nenhum profissional público disponível no momento.
-                  </Text>
-                )}
                 />
               ) : (
                 <EmptyState
