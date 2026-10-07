@@ -15,7 +15,7 @@ from app.models.work_post import (
     WorkPostAuthorType,
     WorkPostStatus,
 )
-from app.services.media_storage import resolve_media_url
+from app.services.media_storage import resolve_image_url
 from app.services.public_eligibility import (
     public_experiences_query,
 )
@@ -143,7 +143,7 @@ def _media_url(value):
     if not value:
         return None
 
-    return resolve_media_url(
+    return resolve_image_url(
         value,
         external=True,
     )
