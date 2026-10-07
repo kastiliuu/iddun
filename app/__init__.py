@@ -117,6 +117,24 @@ def create_app(test_config=None):
             os.getenv("MEDIA_STORAGE_BACKEND")
             or "local"
         ),
+        MEDIA_S3_BUCKET=os.getenv(
+            "MEDIA_S3_BUCKET"
+        ),
+        MEDIA_S3_REGION=os.getenv(
+            "MEDIA_S3_REGION"
+        ),
+        MEDIA_S3_ENDPOINT_URL=os.getenv(
+            "MEDIA_S3_ENDPOINT_URL"
+        ),
+        MEDIA_S3_ACCESS_KEY_ID=os.getenv(
+            "MEDIA_S3_ACCESS_KEY_ID"
+        ),
+        MEDIA_S3_SECRET_ACCESS_KEY=os.getenv(
+            "MEDIA_S3_SECRET_ACCESS_KEY"
+        ),
+        MEDIA_S3_PUBLIC_BASE_URL=os.getenv(
+            "MEDIA_S3_PUBLIC_BASE_URL"
+        ),
         RATELIMIT_STORAGE_URI=(
             os.getenv("RATELIMIT_STORAGE_URI")
             or "memory://"
