@@ -400,9 +400,9 @@ def client_feed_page(
 
     return {
         "feed_items":
-            page_context["feed_items"],
+            page["items"],
         "next_cursor":
-            page_context["next_cursor"],
+            page["nextCursor"],
         "followed_keys": {
             (
                 item["targetType"],
