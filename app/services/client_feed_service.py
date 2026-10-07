@@ -357,6 +357,51 @@ def _iddun_now_payload(slot):
     }
 
 
+def client_feed_page(
+    user,
+    *,
+    mode="for-you",
+    cursor=None,
+    limit=24,
+):
+    graph = graph_state(
+        user
+    )
+
+    page = feed_page(
+        mode=mode,
+        user=user,
+        cursor=cursor,
+        limit=limit,
+    )
+
+    return {
+        "feed_items":
+            page_context["feed_items"],
+        "next_cursor":
+            page_context["next_cursor"],
+        "followed_keys": {
+            (
+                item["targetType"],
+                item["targetId"],
+            )
+            for item in graph[
+                "follows"
+            ]
+        },
+        "saved_keys": {
+            (
+                item["targetType"],
+                item["targetId"],
+            )
+            for item in graph[
+                "saves"
+            ]
+        },
+        "graph": graph,
+    }
+
+
 def client_feed_context(
     user,
     *,
@@ -367,15 +412,13 @@ def client_feed_context(
         user
     )
 
-    graph = graph_state(
-        user
-    )
-
-    page = feed_page(
+    page_context = client_feed_page(
+        user,
         mode=mode,
-        user=user,
         limit=limit,
     )
+
+    graph = page_context["graph"]
 
     notifications, _, unread_count = (
         list_notifications(
@@ -404,26 +447,6 @@ def client_feed_context(
         )
     ]
 
-    followed_keys = {
-        (
-            item["targetType"],
-            item["targetId"],
-        )
-        for item in graph[
-            "follows"
-        ]
-    }
-
-    saved_keys = {
-        (
-            item["targetType"],
-            item["targetId"],
-        )
-        for item in graph[
-            "saves"
-        ]
-    }
-
     return {
         "profile": profile,
         "profile_completion":
@@ -443,9 +466,13 @@ def client_feed_context(
             graph["saves"]
         ),
         "followed_keys":
-            followed_keys,
+            page_context[
+                "followed_keys"
+            ],
         "saved_keys":
-            saved_keys,
+            page_context[
+                "saved_keys"
+            ],
         "notifications":
             notifications,
         "unread_notification_count":
