@@ -428,7 +428,6 @@ def client_feed_page(
         "graph": graph,
     }
 
-
 def client_feed_context(
     user,
     *,
