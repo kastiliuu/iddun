@@ -327,11 +327,14 @@ def test_professional_can_apply_once_and_withdraw(
         ]["id"]
     )
 
-    client.put(
+    published = client.put(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/publish"
         )
+    )
+    assert published.status_code == 200, (
+        published.get_json()
     )
 
     _login(
@@ -350,7 +353,9 @@ def test_professional_can_apply_once_and_withdraw(
         },
     )
 
-    assert applied.status_code == 201
+    assert applied.status_code == 201, (
+        applied.get_json()
+    )
     assert applied.get_json()[
         "application"
     ]["status"] == (
@@ -437,20 +442,26 @@ def test_owner_can_view_submitted_applications_and_close_job(
             "job"
         ]["id"]
     )
-    client.put(
+    published = client.put(
         (
             f"/api/v1/establishments/"
             f"{slug}/jobs/{job_id}/publish"
         )
+    )
+    assert published.status_code == 200, (
+        published.get_json()
     )
 
     _login(
         client,
         professional_id,
     )
-    client.post(
+    applied = client.post(
         f"/api/v1/jobs/{job_id}/apply",
         json={},
+    )
+    assert applied.status_code == 201, (
+        applied.get_json()
     )
 
     _login(
