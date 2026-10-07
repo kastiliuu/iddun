@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.extensions import db
 from app.models.booking import (
@@ -13,7 +13,10 @@ from app.services.availability_service import (
     slot_is_urgent,
     slot_time_label,
 )
-from app.services.beauty_graph_service import graph_state
+from app.services.beauty_graph_service import (
+    graph_state,
+    saved_items,
+)
 from app.services.feed_service import feed_page
 from app.services.media_storage import resolve_image_url
 from app.services.notification_service import list_notifications
@@ -207,11 +210,26 @@ def _recommendations(
 
     professional_query = (
         public_professionals_query()
+        .where(
+            or_(
+                ProfessionalProfile.user_id.is_(
+                    None
+                ),
+                ProfessionalProfile.user_id
+                != user.id,
+            )
+        )
         .order_by(
             ProfessionalProfile.is_verified.desc(),
             ProfessionalProfile.created_at.desc(),
         )
     )
+
+    managed_establishment_ids = {
+        access.establishment_id
+        for access
+        in user.establishment_accesses
+    }
 
     establishment_query = (
         public_establishments_query()
@@ -230,11 +248,16 @@ def _recommendations(
             )
         )
 
-    if followed_establishments:
+    excluded_establishments = (
+        followed_establishments
+        | managed_establishment_ids
+    )
+
+    if excluded_establishments:
         establishment_query = (
             establishment_query.where(
                 Establishment.id.not_in(
-                    followed_establishments
+                    excluded_establishments
                 )
             )
         )
@@ -479,6 +502,16 @@ def client_feed_context(
             unread_count,
         "next_booking":
             next_booking,
+        "next_booking_label": (
+            slot_time_label(
+                next_booking.slot
+            )
+            if next_booking
+            is not None
+            else None
+        ),
+        "saved_items":
+            saved_items(user),
         "iddun_now":
             now_items,
         "recommended_professionals":
