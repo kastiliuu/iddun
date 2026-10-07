@@ -21,6 +21,7 @@ import {
 
 type ServiceCardProps = {
   id: string;
+  targetId?: number;
   name: string;
   image?: string | null;
 
@@ -62,6 +63,7 @@ function formatDuration(minutes: number) {
 
 export function ServiceCard({
   id,
+  targetId,
   name,
   image,
   category,
@@ -209,6 +211,7 @@ export function ServiceCard({
         <FavoriteButton
           kind="services"
           id={id}
+          targetId={targetId}
           size={20}
         />
       </View>
