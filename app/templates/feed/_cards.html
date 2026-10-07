@@ -1,3 +1,4 @@
+{% from 'components/icon.html' import icon %}
 {% for post in feed_items %}
 {% set author_id = post.authorId|int %}
 {% set post_id = post.id|int %}
