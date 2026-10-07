@@ -76,7 +76,7 @@ def test_register_creates_user_and_client_profile(app, client):
     response = register(client)
 
     assert response.status_code == 302
-    assert "/minha-conta" in response.headers["Location"]
+    assert "/feed" in response.headers["Location"]
 
     with app.app_context():
         user = db.session.scalar(
@@ -121,7 +121,7 @@ def test_login_and_logout(app, client):
     )
 
     assert response.status_code == 302
-    assert "/minha-conta" in response.headers["Location"]
+    assert "/feed" in response.headers["Location"]
 
     response = client.post(
         "/logout",
@@ -192,7 +192,7 @@ def test_login_rejects_external_next_redirect(app, client):
     )
 
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/minha-conta")
+    assert response.headers["Location"].endswith("/feed")
 
 
 def test_logout_requires_csrf_when_protection_is_enabled(
