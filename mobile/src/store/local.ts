@@ -5,8 +5,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
  * Estado local para interações ainda não sincronizadas com a API.
  *
  * IMPORTANTE:
- * Favoritos, follows, comentários, notificações e sessão serão
- * posteriormente substituídos/sincronizados com a API.
+ * Favoritos e comentários ainda possuem estado local em alguns fluxos.
+ * Follows server-backed e notificações usam a API real.
  */
 
 export type FavoriteKind =
@@ -62,26 +62,6 @@ export type Comment = {
   isAuthorReply?: boolean;
 };
 
-export type NotificationKind =
-  | "iddun_now"
-  | "follow_back"
-  | "system";
-
-export type Notification = {
-  id: string;
-  kind: NotificationKind;
-
-  title: string;
-  body: string;
-
-  timeLabel?: string;
-  serviceId?: string;
-  authorId?: string;
-
-  read: boolean;
-  createdAt: number;
-};
-
 type PersistedScope = {
   posts?: string[];
   professionals?: string[];
@@ -90,7 +70,6 @@ type PersistedScope = {
   graphFollows?: string[];
   graphSaves?: string[];
   comments?: Record<string, Comment[]>;
-  notifications?: Notification[];
 };
 
 type PersistedStore = PersistedScope & {
@@ -164,21 +143,9 @@ class LocalStore {
   private comments: Record<string, Comment[]> =
     {};
 
-  private notifications: Notification[] = [];
-
   private listeners = new Set<() => void>();
 
   private loaded = false;
-
-  /**
-   * Um timer por perfil seguido.
-   *
-   * Isso evita acumular timers sem controle e permite
-   * cancelar o alerta simulado caso o usuário deixe de seguir
-   * antes dele acontecer.
-   */
-  private followAlertTimers =
-    new Map<string, ReturnType<typeof setTimeout>>();
 
   async load() {
     if (this.loaded) return;
@@ -202,7 +169,6 @@ class LocalStore {
             services: parsed.services ?? [],
             follows: parsed.follows ?? [],
             comments: parsed.comments ?? {},
-            notifications: parsed.notifications ?? [],
           };
         }
 
@@ -267,7 +233,6 @@ class LocalStore {
         ...this.graphSaves,
       ],
       comments: this.comments,
-      notifications: this.notifications,
     };
   }
 
@@ -289,8 +254,6 @@ class LocalStore {
         scope?.graphSaves ?? [],
       );
     this.comments = scope?.comments ?? {};
-    this.notifications =
-      scope?.notifications ?? [];
   }
 
   private seedEmptyScope() {
@@ -298,16 +261,6 @@ class LocalStore {
       this.seedComments();
     }
 
-    if (this.notifications.length === 0) {
-      this.seedNotifications();
-    }
-  }
-
-  private cancelAllFollowAlerts() {
-    this.followAlertTimers.forEach((timer) =>
-      clearTimeout(timer),
-    );
-    this.followAlertTimers.clear();
   }
 
   private persistAndEmit() {
@@ -351,22 +304,11 @@ class LocalStore {
 
   toggleFollow(
     id: string,
-    options?: {
-      authorName?: string;
-      onAlert?: (
-        notification: Notification,
-      ) => void;
-    },
   ) {
     if (this.follows.has(id)) {
       this.follows.delete(id);
-      this.cancelFollowAlert(id);
     } else {
       this.follows.add(id);
-      this.scheduleMockFollowAlert(
-        id,
-        options,
-      );
     }
 
     this.persistAndEmit();
@@ -583,126 +525,6 @@ class LocalStore {
     this.persistAndEmit();
   }
 
-  private scheduleMockFollowAlert(
-    authorId: string,
-    options?: {
-      authorName?: string;
-      onAlert?: (
-        notification: Notification,
-      ) => void;
-    },
-  ) {
-    this.cancelFollowAlert(authorId);
-
-    /**
-     * Apenas para demonstrar IDDUN Now antes da API real.
-     */
-    const delay =
-      4000 + Math.random() * 5000;
-
-    const timer = setTimeout(() => {
-      this.followAlertTimers.delete(
-        authorId,
-      );
-
-      /**
-       * Se a pessoa deixou de seguir nesse meio tempo,
-       * não geramos o alerta.
-       */
-      if (!this.follows.has(authorId)) {
-        return;
-      }
-
-      const notification: Notification = {
-        id: createId("notification"),
-        kind: "iddun_now",
-
-        title: options?.authorName
-          ? `Horário disponível · ${options.authorName}`
-          : "Novo horário disponível",
-
-        body:
-          "Um novo horário acabou de abrir com alguém que você segue.",
-
-        timeLabel:
-          this.randomSoonSlot(),
-
-        authorId,
-        read: false,
-        createdAt: Date.now(),
-      };
-
-      this.notifications = [
-        notification,
-        ...this.notifications,
-      ];
-
-      this.persistAndEmit();
-
-      options?.onAlert?.(
-        notification,
-      );
-    }, delay);
-
-    this.followAlertTimers.set(
-      authorId,
-      timer,
-    );
-  }
-
-  private cancelFollowAlert(
-    authorId: string,
-  ) {
-    const timer =
-      this.followAlertTimers.get(
-        authorId,
-      );
-
-    if (!timer) return;
-
-    clearTimeout(timer);
-
-    this.followAlertTimers.delete(
-      authorId,
-    );
-  }
-
-  private randomSoonSlot() {
-    const hours = [
-      14,
-      15,
-      16,
-      17,
-      18,
-      19,
-    ];
-
-    const minutes = [
-      "00",
-      "15",
-      "30",
-      "45",
-    ];
-
-    const hour =
-      hours[
-        Math.floor(
-          Math.random() *
-            hours.length,
-        )
-      ];
-
-    const minute =
-      minutes[
-        Math.floor(
-          Math.random() *
-            minutes.length,
-        )
-      ];
-
-    return `Hoje ${hour}:${minute}`;
-  }
-
   /*
    * USUÁRIO E DADOS LOCAIS DA CONTA ATIVA
    */
@@ -719,7 +541,6 @@ class LocalStore {
         this.activeScopeKey;
 
       this.saveActiveScope();
-      this.cancelAllFollowAlerts();
 
       if (
         user &&
@@ -890,48 +711,6 @@ class LocalStore {
   }
 
   /*
-   * NOTIFICAÇÕES
-   */
-
-  getNotifications() {
-    return [...this.notifications];
-  }
-
-  unreadCount() {
-    return this.notifications.filter(
-      (notification) =>
-        !notification.read,
-    ).length;
-  }
-
-  markRead(id: string) {
-    this.notifications =
-      this.notifications.map(
-        (notification) =>
-          notification.id === id
-            ? {
-                ...notification,
-                read: true,
-              }
-            : notification,
-      );
-
-    this.persistAndEmit();
-  }
-
-  markAllRead() {
-    this.notifications =
-      this.notifications.map(
-        (notification) => ({
-          ...notification,
-          read: true,
-        }),
-      );
-
-    this.persistAndEmit();
-  }
-
-  /*
    * SUBSCRIPTIONS
    */
 
@@ -956,26 +735,6 @@ class LocalStore {
   /*
    * MOCK SEEDS
    */
-
-  private seedNotifications() {
-    const now = Date.now();
-
-    this.notifications = [
-      {
-        id: "notification_welcome",
-        kind: "system",
-        title: "Bem-vindo ao IDDUN ✦",
-
-        body:
-          "Descubra profissionais, salve favoritos e encontre sua próxima experiência.",
-
-        read: false,
-
-        createdAt:
-          now - 60 * 60 * 1000,
-      },
-    ];
-  }
 
   private seedComments() {
     const now = Date.now();
