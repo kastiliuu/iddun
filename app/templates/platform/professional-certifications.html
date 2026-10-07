@@ -24,7 +24,7 @@
           <div><strong>{{ item.title }}</strong><span>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</span>{% if item.credential_id %}<small>Credencial {{ item.credential_id }}</small>{% endif %}</div>
           <div class="platform-certification-actions">
             {% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% endif %}
-            {% if item.document_url %}<a href="{{ item.document_url|media_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}
+            {% if item.document_url %}<a href="{{ item.document_url|media_file_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}
             <form method="post" action="{{ url_for('professional.remove_certification', certification_id=item.id) }}" onsubmit="return confirm('Remover esta certificação?');"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Remover</button></form>
           </div>
         </article>
