@@ -14,6 +14,7 @@ from app.services.beauty_graph_service import (
     follow_target,
     graph_state,
     reconcile_graph,
+    saved_items,
     save_target,
     unfollow_target,
     unsave_target,
@@ -411,6 +412,24 @@ def reconcile():
 
     return api_json(
         result,
+        cache_control=(
+            "private, no-store"
+        ),
+    )
+
+
+
+@api_graph_bp.get(
+    "/saved-items"
+)
+def get_saved_items():
+    user, error = _require_user()
+
+    if error is not None:
+        return error
+
+    return api_json(
+        saved_items(user),
         cache_control=(
             "private, no-store"
         ),
