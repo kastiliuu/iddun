@@ -8,6 +8,9 @@ from app.models.job import (
     JobPostStatus,
     utcnow,
 )
+from app.models.professional import (
+    ProfessionalProfile,
+)
 from app.services.establishment_team_service import (
     EstablishmentTeamError,
     require_establishment_manager,
@@ -27,6 +30,23 @@ def _require_active_user(user):
         raise JobError(
             "Entre em uma conta ativa para continuar."
         )
+
+
+def _professional_for_user(
+    user,
+):
+    _require_active_user(
+        user
+    )
+
+    return db.session.scalar(
+        select(
+            ProfessionalProfile
+        ).where(
+            ProfessionalProfile.user_id
+            == user.id
+        )
+    )
 
 
 def _clean_text(
@@ -555,7 +575,9 @@ def apply_to_job(
     )
 
     professional = (
-        user.professional_profile
+        _professional_for_user(
+            user
+        )
     )
 
     if (
@@ -633,7 +655,9 @@ def withdraw_application(
     )
 
     professional = (
-        user.professional_profile
+        _professional_for_user(
+            user
+        )
     )
 
     if professional is None:
@@ -678,7 +702,9 @@ def my_applications(
     )
 
     professional = (
-        user.professional_profile
+        _professional_for_user(
+            user
+        )
     )
 
     if professional is None:
