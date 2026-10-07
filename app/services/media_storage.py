@@ -121,6 +121,16 @@ class LocalMediaStorage:
 
         return stored_path
 
+    def exists(self, stored_path):
+        try:
+            target_path = self._target_path(
+                stored_path
+            )
+        except ValueError:
+            return False
+
+        return target_path.is_file()
+
     def list_stored_paths(self):
         if not self.upload_root.exists():
             return []
@@ -256,4 +266,48 @@ def resolve_media_url(
         "static",
         filename=value,
         _external=external,
+    )
+
+
+
+def resolve_image_url(
+    value,
+    *,
+    external=False,
+    fallback_static="img/category-hair.jpg",
+):
+    fallback_url = url_for(
+        "static",
+        filename=fallback_static,
+        _external=external,
+    )
+
+    if not value:
+        return fallback_url
+
+    if value.startswith(
+        ("http://", "https://", "data:")
+    ):
+        return value
+
+    normalized = normalize_media_key(
+        value
+    )
+
+    if normalized is not None:
+        storage = get_media_storage()
+
+        if not storage.exists(
+            normalized
+        ):
+            return fallback_url
+
+        return storage.public_url(
+            normalized,
+            external=external,
+        )
+
+    return resolve_media_url(
+        value,
+        external=external,
     )
