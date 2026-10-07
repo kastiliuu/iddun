@@ -527,6 +527,53 @@
     },
   );
 
+  document.addEventListener(
+    'click',
+    (event) => {
+      const target = event.target;
+
+      if (
+        !(target instanceof Element)
+      ) {
+        return;
+      }
+
+      const notificationLink =
+        target.closest(
+          '[data-notification-link]',
+        );
+
+      if (!notificationLink) {
+        return;
+      }
+
+      const id =
+        notificationLink
+          .dataset
+          .notificationId;
+
+      if (!id) {
+        return;
+      }
+
+      void fetch(
+        (
+          '/api/v1/notifications/'
+          + encodeURIComponent(id)
+          + '/read'
+        ),
+        {
+          method: 'PUT',
+          keepalive: true,
+          headers: {
+            Accept:
+              'application/json',
+          },
+        },
+      );
+    },
+  );
+
   const setPressedState = (
     button,
     pressed,
