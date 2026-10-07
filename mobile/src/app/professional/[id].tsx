@@ -7,11 +7,13 @@ import React, {
 import {
   ActivityIndicator,
   Pressable,
+  Share,
   ScrollView,
   Text,
   View,
 } from "react-native";
 import { Image } from "expo-image";
+import { API_URL } from "@/api/client";
 import {
   useLocalSearchParams,
   useRouter,
@@ -384,7 +386,10 @@ export default function ProfessionalProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Compartilhar perfil"
                 onPress={() => {
-                  // Share real entra depois.
+                  void Share.share({
+                    message:
+                      `Conheça ${profile.name} no IDDUN: ${API_URL}/profissionais/${profile.routeId ?? params.id}`,
+                  });
                 }}
                 style={({
                   pressed,
