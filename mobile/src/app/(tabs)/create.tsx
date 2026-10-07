@@ -520,11 +520,21 @@ export default function CreateScreen() {
                     icon="users"
                     title="Gerenciar equipe"
                     description="Organize profissionais vinculados ao estabelecimento."
-                    onPress={() =>
-                      showComingSoon(
-                        "Equipe",
-                      )
-                    }
+                    onPress={() => {
+                      if (!user?.profileId) {
+                        toast.show({
+                          title: "Estabelecimento não identificado",
+                          body:
+                            "Atualize seu perfil antes de gerenciar a equipe.",
+                          icon: "alert-circle" as IconName,
+                        });
+                        return;
+                      }
+
+                      router.push(
+                        `/establishment-team/${user.profileId}`,
+                      );
+                    }}
                   />
                 ) : null}
               </View>
