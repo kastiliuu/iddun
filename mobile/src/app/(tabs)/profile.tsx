@@ -15,7 +15,6 @@ import { Button } from "@/components/Button";
 import { Icon, IconName } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
 import {
-  markLoggedOut,
   store,
   useStoreVersion,
 } from "@/store/local";
@@ -157,7 +156,6 @@ export default function ProfileScreen() {
 
     try {
       await logout();
-      await markLoggedOut();
 
       toast.show({
         title: "Sessão encerrada",
