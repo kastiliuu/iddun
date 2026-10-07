@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 
 import {
+  getBeautyGraph,
   getSavedItems,
   type SavedItemsResponse,
 } from "@/api/graph";
@@ -121,12 +122,21 @@ export default function FavoritesScreen() {
             );
           }
 
-          const response =
-            await getSavedItems();
+          const [
+            response,
+            graph,
+          ] = await Promise.all([
+            getSavedItems(),
+            getBeautyGraph(),
+          ]);
 
           if (!mounted) {
             return;
           }
+
+          store.replaceGraphState(
+            graph,
+          );
 
           setSaved(
             response,
