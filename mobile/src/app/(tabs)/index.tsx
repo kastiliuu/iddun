@@ -873,45 +873,56 @@ export default function HomeScreen() {
                     />
                   </View>
                 ) : discovery.professionals
-                  .slice(0, 3)
-                  .map(
-                    (
-                      professional,
-                    ) => (
-                      <ProfessionalCard
-                        key={
-                          professional.id
-                        }
-                        id={
-                          professional.id
-                        }
-                        routeId={
-                          professional.routeId
-                        }
-                        name={
-                          professional.name
-                        }
-                        avatar={
-                          professional.avatar
-                        }
-                        specialty={
-                          professional.specialty
-                        }
-                        location={
-                          professional.location
-                        }
-                        rating={
-                          professional.rating
-                        }
-                        reviewsCount={
-                          professional.reviewsCount
-                        }
-                        routeType={
-                          professional.kind
-                        }
-                      />
-                    ),
-                  )}
+                    .length > 0 ? (
+                  discovery.professionals
+                    .slice(0, 3)
+                    .map(
+                      (
+                        professional,
+                      ) => (
+                        <ProfessionalCard
+                          key={
+                            professional.id
+                          }
+                          id={
+                            professional.id
+                          }
+                          routeId={
+                            professional.routeId
+                          }
+                          name={
+                            professional.name
+                          }
+                          avatar={
+                            professional.avatar
+                          }
+                          specialty={
+                            professional.specialty
+                          }
+                          location={
+                            professional.location
+                          }
+                          rating={
+                            professional.rating
+                          }
+                          reviewsCount={
+                            professional.reviewsCount
+                          }
+                          routeType={
+                            professional.kind
+                          }
+                        />
+                      ),
+                    )
+                ) : (
+                  <Text
+                    style={
+                      styles.emptyInlineText
+                    }
+                  >
+                    Nenhum profissional público disponível no momento.
+                  </Text>
+                )}
               </View>
             </View>
           </>
