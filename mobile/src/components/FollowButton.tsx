@@ -10,10 +10,6 @@ import {
 import * as Haptics from "expo-haptics";
 
 import {
-  useRouter,
-} from "expo-router";
-
-import {
   followGraphTarget,
   type FollowTargetType,
   unfollowGraphTarget,
@@ -81,9 +77,6 @@ export function FollowButton({
   const { colors } =
     useTheme();
 
-  const router =
-    useRouter();
-
   const toast =
     useToast();
 
@@ -129,43 +122,6 @@ export function FollowButton({
       if (!serverBacked) {
         store.toggleFollow(
           id,
-          {
-            authorName:
-              authorName
-                ?.split(
-                  " ",
-                )[0],
-
-            onAlert: (
-              notification,
-            ) => {
-              toast.show({
-                title:
-                  notification
-                    .title,
-                body:
-                  notification
-                    .timeLabel
-                    ? (
-                      notification
-                        .timeLabel
-                      + " · "
-                      + notification
-                        .body
-                    )
-                    : notification
-                        .body,
-                icon:
-                  "clock",
-                onPress:
-                  () => {
-                    router.push(
-                      "/notifications",
-                    );
-                  },
-              });
-            },
-          },
         );
 
         if (willFollow) {
