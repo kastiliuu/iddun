@@ -34,7 +34,9 @@ type ActionCardProps = {
   icon: IconName;
   title: string;
   description: string;
-  onPress: () => void;
+  onPress?: () => void;
+  disabled?: boolean;
+  badge?: string;
 };
 
 function ActionCard({
@@ -42,11 +44,17 @@ function ActionCard({
   title,
   description,
   onPress,
+  disabled = false,
+  badge,
 }: ActionCardProps) {
   const styles = useStyles();
   const { colors } = useTheme();
 
   const handlePress = () => {
+    if (disabled || !onPress) {
+      return;
+    }
+
     Haptics.impactAsync(
       Haptics.ImpactFeedbackStyle.Light,
     ).catch(() => {});
@@ -58,10 +66,15 @@ function ActionCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${title}. ${description}`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.actionCard,
-        pressed && styles.actionCardPressed,
+        disabled && styles.actionCardDisabled,
+        pressed &&
+          !disabled &&
+          styles.actionCardPressed,
       ]}
     >
       <View style={styles.actionIcon}>
@@ -73,12 +86,22 @@ function ActionCard({
       </View>
 
       <View style={styles.actionContent}>
-        <Text
-          style={styles.actionTitle}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
+        <View style={styles.actionTitleRow}>
+          <Text
+            style={styles.actionTitle}
+            numberOfLines={1}
+          >
+            {title}
+          </Text>
+
+          {badge ? (
+            <View style={styles.actionBadge}>
+              <Text style={styles.actionBadgeText}>
+                {badge}
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
         <Text
           style={styles.actionDescription}
@@ -89,7 +112,7 @@ function ActionCard({
       </View>
 
       <Icon
-        name="chevron-right"
+        name={disabled ? "clock" : "chevron-right"}
         size={18}
         color={colors.muted}
       />
@@ -131,17 +154,6 @@ export default function CreateScreen() {
     isEstablishment,
     isProfessional,
   ]);
-
-  const showComingSoon = (
-    title: string,
-  ) => {
-    toast.show({
-      title,
-      body:
-        "Essa área já está prevista e será conectada ao backend do IDDUN.",
-      icon: "sparkles" as IconName,
-    });
-  };
 
   const handleBecomeProfessional =
     () => {
@@ -496,23 +508,17 @@ export default function CreateScreen() {
                 <ActionCard
                   icon="clock"
                   title="Abrir um horário"
-                  description="Divulgue uma disponibilidade no IDDUN Now."
-                  onPress={() =>
-                    showComingSoon(
-                      "Novo horário",
-                    )
-                  }
+                  description="Integração com disponibilidade real em finalização."
+                  disabled
+                  badge="EM INTEGRAÇÃO"
                 />
 
                 <ActionCard
                   icon="scissors"
                   title="Gerenciar serviços"
-                  description="Cadastre e organize os serviços oferecidos."
-                  onPress={() =>
-                    showComingSoon(
-                      "Serviços",
-                    )
-                  }
+                  description="Integração com catálogo real em finalização."
+                  disabled
+                  badge="EM INTEGRAÇÃO"
                 />
 
                 {isEstablishment ? (
@@ -1019,6 +1025,10 @@ const useStyles = makeStyles(
       ],
     },
 
+    actionCardDisabled: {
+      opacity: 0.58,
+    },
+
     actionIcon: {
       width: 46,
       height: 46,
@@ -1046,7 +1056,15 @@ const useStyles = makeStyles(
       minWidth: 0,
     },
 
+    actionTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+
     actionTitle: {
+      flexShrink: 1,
+
       color:
         colors.onSurface,
 
@@ -1055,6 +1073,23 @@ const useStyles = makeStyles(
 
       fontSize: 14,
       lineHeight: 18,
+    },
+
+    actionBadge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+      borderRadius: radius.pill,
+      backgroundColor: colors.plumSoft,
+      borderWidth: 1,
+      borderColor: colors.glassBorder,
+    },
+
+    actionBadgeText: {
+      color: colors.plum,
+      fontFamily: fonts.sansSemiBold,
+      fontSize: 8,
+      lineHeight: 10,
+      letterSpacing: 0.6,
     },
 
     actionDescription: {
