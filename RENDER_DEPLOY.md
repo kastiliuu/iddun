@@ -87,6 +87,33 @@ Esse caminho é temporário. Não existe garantia de persistência para mídia n
 
 Quando a produção pública for definida, comparar object storage e/ou filesystem persistente pelo custo-benefício real naquele momento.
 
+### Backend S3-compatible disponível
+
+O código já aceita um backend persistente compatível com a API S3 sem vincular o IDDUN a um fornecedor específico.
+
+Para ativar:
+
+```text
+MEDIA_STORAGE_BACKEND=s3
+MEDIA_S3_BUCKET=seu-bucket
+MEDIA_S3_REGION=regiao-ou-auto
+MEDIA_S3_ENDPOINT_URL=https://endpoint-do-provider
+MEDIA_S3_ACCESS_KEY_ID=...
+MEDIA_S3_SECRET_ACCESS_KEY=...
+MEDIA_S3_PUBLIC_BASE_URL=https://dominio-publico-ou-cdn
+```
+
+Regras:
+
+- `MEDIA_S3_BUCKET` e `MEDIA_S3_PUBLIC_BASE_URL` são obrigatórios quando o backend é `s3`;
+- `MEDIA_S3_ENDPOINT_URL` é opcional para provedores que usam o endpoint padrão da AWS e necessário para muitos provedores S3-compatible;
+- credenciais nunca devem ser salvas no GitHub;
+- o banco continua armazenando chaves no formato `uploads/...`, portanto trocar o backend não altera o contrato de domínio;
+- o adapter não define ACL pública. A exposição deve ser feita por bucket/CDN conforme a política do provedor;
+- a aplicação não faz `HEAD` remoto para cada imagem durante serialização, evitando latência e custo N+1.
+
+Antes de ativar em produção, validar upload, leitura pública, exclusão, CORS/CDN, política de retenção e backup com o provedor escolhido.
+
 ## Rate limiting
 
 No preview atual:
