@@ -24,6 +24,10 @@ import {
   type WorkPost,
 } from "@/api/feed";
 
+import {
+  getNotifications,
+} from "@/api/notifications";
+
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EditorialBlock } from "@/components/EditorialBlock";
 import { EmptyState } from "@/components/EmptyState";
@@ -108,8 +112,54 @@ export default function HomeScreen() {
   ] =
     useState(false);
 
-  const notificationsCount =
-    store.unreadCount();
+  const [
+    notificationsCount,
+    setNotificationsCount,
+  ] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadNotificationCount =
+      async () => {
+        const user =
+          store.getUser();
+
+        if (!user) {
+          if (mounted) {
+            setNotificationsCount(
+              0,
+            );
+          }
+          return;
+        }
+
+        try {
+          const response =
+            await getNotifications({
+              limit: 1,
+            });
+
+          if (mounted) {
+            setNotificationsCount(
+              response.unreadCount,
+            );
+          }
+        } catch {
+          if (mounted) {
+            setNotificationsCount(
+              0,
+            );
+          }
+        }
+      };
+
+    void loadNotificationCount();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const storyData = useMemo(() => {
     return stories
