@@ -35,14 +35,6 @@ import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
 
 import {
-  getPostService,
-  getPostsByAuthorId,
-  getProfessionalById,
-  getServicesByAuthorId,
-  professionals,
-} from "@/mocks/data";
-
-import {
   fonts,
   makeStyles,
   radius,
@@ -89,11 +81,6 @@ export default function EstablishmentProfileScreen() {
       id: string;
     }>();
 
-  const mockEstablishment =
-    getProfessionalById(
-      params.id,
-    );
-
   const [
     remoteData,
     setRemoteData,
@@ -106,18 +93,10 @@ export default function EstablishmentProfileScreen() {
     remoteLoading,
     setRemoteLoading,
   ] =
-    useState(
-      !mockEstablishment,
-    );
+    useState(true);
 
   useEffect(
     () => {
-      if (
-        mockEstablishment
-      ) {
-        return;
-      }
-
       let mounted =
         true;
 
@@ -157,13 +136,11 @@ export default function EstablishmentProfileScreen() {
       };
     },
     [
-      mockEstablishment,
       params.id,
     ],
   );
 
   const establishment =
-    mockEstablishment ??
     remoteData?.establishment;
 
   const [activeTab, setActiveTab] =
@@ -176,16 +153,8 @@ export default function EstablishmentProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () => {
-      if (
-        mockEstablishment
-      ) {
-        return getPostsByAuthorId(
-          mockEstablishment.id,
-        );
-      }
-
-      return (
+    () =>
+      (
         remoteData?.posts ??
         []
       ).map(
@@ -210,48 +179,26 @@ export default function EstablishmentProfileScreen() {
             post.publishedAt ??
             "",
         }),
-      );
-    },
+      ),
     [
-      mockEstablishment,
       remoteData,
     ],
   );
 
   const services = useMemo(
     () =>
-      mockEstablishment
-        ? getServicesByAuthorId(
-            mockEstablishment.id,
-          )
-        : (
-            remoteData
-              ?.services ??
-            []
-          ),
+      remoteData?.services ??
+      [],
     [
-      mockEstablishment,
       remoteData,
     ],
   );
 
   const team = useMemo(
     () =>
-      mockEstablishment
-        ? professionals
-            .filter(
-              (profile) =>
-                profile.kind ===
-                "professional",
-            )
-            .slice(0, 3)
-        : (
-            remoteData
-              ?.team ??
-            []
-          ),
+      remoteData?.team ??
+      [],
     [
-      mockEstablishment,
       remoteData,
     ],
   );
@@ -826,15 +773,11 @@ export default function EstablishmentProfileScreen() {
                 {posts.map(
                   (post) => {
                     const service =
-                      mockEstablishment
-                        ? getPostService(
-                            post,
-                          )
-                        : services.find(
-                            (item) =>
-                              item.id ===
-                              post.serviceId,
-                          );
+                      services.find(
+                        (item) =>
+                          item.id ===
+                          post.serviceId,
+                      );
 
                     return (
                       <PostCard
