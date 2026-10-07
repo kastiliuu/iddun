@@ -184,9 +184,6 @@ const defaultTimes = [
   "18:00",
 ];
 
-  return token;
-}
-
 export default function OpenSlotScreen() {
   useStoreVersion();
 
