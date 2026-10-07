@@ -257,10 +257,7 @@ class LocalStore {
   }
 
   private seedEmptyScope() {
-    if (Object.keys(this.comments).length === 0) {
-      this.seedComments();
-    }
-
+    // Nenhum conteúdo fictício é criado na Release Candidate.
   }
 
   private persistAndEmit() {
@@ -732,109 +729,6 @@ class LocalStore {
     );
   }
 
-  /*
-   * MOCK SEEDS
-   */
-
-  private seedComments() {
-    const now = Date.now();
-
-    const createSeedComment = ({
-      id,
-      postId,
-      author,
-      text,
-      minutesAgo,
-      isAuthorReply = false,
-    }: {
-      id: string;
-      postId: string;
-      author: string;
-      text: string;
-      minutesAgo: number;
-      isAuthorReply?: boolean;
-    }): Comment => ({
-      id,
-      postId,
-      author,
-
-      role: isAuthorReply
-        ? "professional"
-        : "client",
-
-      text,
-
-      createdAt:
-        now -
-        minutesAgo * 60_000,
-
-      isAuthorReply,
-    });
-
-    this.comments = {
-      p1: [
-        createSeedComment({
-          id: "comment_p1_1",
-          postId: "p1",
-          author: "Ana Paula",
-          text:
-            "Ficou perfeito! ✦",
-          minutesAgo: 45,
-        }),
-
-        createSeedComment({
-          id: "comment_p1_2",
-          postId: "p1",
-          author: "Renata Mocelin",
-          text:
-            "Obrigada! Foi uma delícia criar esse resultado.",
-          minutesAgo: 36,
-          isAuthorReply: true,
-        }),
-
-        createSeedComment({
-          id: "comment_p1_3",
-          postId: "p1",
-          author: "Julia M.",
-          text:
-            "Que acabamento lindo.",
-          minutesAgo: 18,
-        }),
-      ],
-
-      p3: [
-        createSeedComment({
-          id: "comment_p3_1",
-          postId: "p3",
-          author: "Marina S.",
-          text:
-            "Já salvei como inspiração.",
-          minutesAgo: 92,
-        }),
-
-        createSeedComment({
-          id: "comment_p3_2",
-          postId: "p3",
-          author: "João Martins",
-          text:
-            "Valeu! Esse estilo ficou muito bom mesmo.",
-          minutesAgo: 63,
-          isAuthorReply: true,
-        }),
-      ],
-
-      p5: [
-        createSeedComment({
-          id: "comment_p5_1",
-          postId: "p5",
-          author: "Camila R.",
-          text:
-            "A combinação ficou incrível.",
-          minutesAgo: 28,
-        }),
-      ],
-    };
-  }
 }
 
 export const store =
