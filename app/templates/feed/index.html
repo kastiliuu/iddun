@@ -311,6 +311,8 @@
         <a
           href="{{ notification_url }}"
           class="feed-notification-item{% if not notification.is_read %} is-unread{% endif %}"
+          data-notification-link
+          data-notification-id="{{ notification.id }}"
         >
           <span class="feed-notification-item__icon">
             {% if notification.kind == 'booking' %}
