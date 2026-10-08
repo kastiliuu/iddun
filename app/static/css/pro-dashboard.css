@@ -1132,3 +1132,70 @@
     transition: none;
   }
 }
+
+
+.pro-invitation-card {
+  padding: 16px;
+  border: 1px solid rgba(107,46,255,.12);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 7px 24px rgba(11,11,15,.035);
+}
+
+.pro-invitation-card h2 {
+  margin: 7px 0 0;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.pro-invitation-item {
+  margin-top: 12px;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid rgba(11,11,15,.06);
+}
+
+.pro-invitation-item > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.pro-invitation-item strong {
+  font-size: .67rem;
+}
+
+.pro-invitation-item span,
+.pro-invitation-item small {
+  color: #7B7C85;
+  font-size: .54rem;
+  line-height: 1.4;
+}
+
+.pro-invitation-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.pro-invitation-actions form {
+  margin: 0;
+}
+
+.pro-invitation-button {
+  width: 100%;
+  min-height: 32px;
+  border: 1px solid rgba(11,11,15,.1);
+  border-radius: 9px;
+  background: #fff;
+  color: #62636D;
+  font: 700 .52rem/1 var(--font-body);
+  cursor: pointer;
+}
+
+.pro-invitation-button--primary {
+  border-color: var(--color-plum);
+  background: var(--color-plum);
+  color: #fff;
+}
