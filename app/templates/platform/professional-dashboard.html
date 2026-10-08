@@ -261,20 +261,78 @@
               {% if item.slot.establishment %}
               <small>{{ item.slot.establishment.name }}</small>
               {% endif %}
+
+              <div class="pro-operation-actions">
+                {% if item.can_complete %}
+                <form method="post" action="{{ url_for('professional.dashboard_complete_booking', booking_id=item.booking.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="pro-operation-button pro-operation-button--success" type="submit">
+                    {{ icon('check') }}
+                    Concluir
+                  </button>
+                </form>
+                {% endif %}
+
+                {% if item.can_no_show %}
+                <form method="post" action="{{ url_for('professional.dashboard_no_show_booking', booking_id=item.booking.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="pro-operation-button" type="submit">
+                    Não compareceu
+                  </button>
+                </form>
+                {% endif %}
+
+                {% if item.can_cancel %}
+                <form method="post" action="{{ url_for('professional.dashboard_cancel_booking', booking_id=item.booking.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="pro-operation-button pro-operation-button--danger" type="submit">
+                    Cancelar
+                  </button>
+                </form>
+                {% endif %}
+              </div>
             {% elif item.slot.status == slot_status.AVAILABLE %}
-              <span class="pro-status pro-status--available">Livre</span>
+              <div class="pro-timeline-item__status-row">
+                <span class="pro-status pro-status--available">Livre</span>
+                {% if item.is_iddun_now %}
+                <span class="pro-status pro-status--now">IDDUN Now</span>
+                {% endif %}
+              </div>
               <h3>{{ item.slot.experience.title }}</h3>
-              <p>Este horário está disponível para reserva.</p>
-              <a
-                class="pro-inline-action"
-                href="{{ url_for('public.experience_detail', slug=item.slot.experience.slug) }}"
-              >
-                Ver experiência {{ icon('chevron-right') }}
-              </a>
+              <p>
+                {% if item.is_iddun_now %}
+                  Este horário já aparece automaticamente no IDDUN Now.
+                {% else %}
+                  Este horário está disponível para reserva.
+                {% endif %}
+              </p>
+              <div class="pro-operation-actions">
+                <a
+                  class="pro-inline-action"
+                  href="{{ url_for('public.experience_detail', slug=item.slot.experience.slug) }}"
+                >
+                  Ver experiência {{ icon('chevron-right') }}
+                </a>
+
+                <form method="post" action="{{ url_for('professional.dashboard_block_slot', slot_id=item.slot.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="pro-operation-button" type="submit">
+                    Bloquear horário
+                  </button>
+                </form>
+              </div>
             {% elif item.slot.status == slot_status.BLOCKED_MANUAL %}
               <span class="pro-status pro-status--blocked_manual">Bloqueado</span>
               <h3>Horário indisponível</h3>
               <p>Este espaço foi bloqueado manualmente.</p>
+              <div class="pro-operation-actions">
+                <form method="post" action="{{ url_for('professional.dashboard_reopen_slot', slot_id=item.slot.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="pro-operation-button pro-operation-button--success" type="submit">
+                    Liberar horário
+                  </button>
+                </form>
+              </div>
             {% elif item.slot.status == slot_status.BLOCKED_EXTERNAL %}
               <span class="pro-status pro-status--blocked_external">Agenda conectada</span>
               <h3>Conflito externo</h3>
@@ -359,7 +417,7 @@
         {% endfor %}
       </div>
       <p class="pro-rail-note">
-        Na Sprint Pro-02 estes horários poderão ser bloqueados, liberados e publicados no IDDUN Now direto daqui.
+        Horários disponíveis dentro da janela urgente entram automaticamente no IDDUN Now. Você pode bloquear ou liberar horários pela agenda de hoje.
       </p>
       {% else %}
       <div class="pro-rail-empty pro-rail-empty--compact">
