@@ -132,6 +132,45 @@
       </nav>
     </section>
 
+    {% if profile.pending_memberships %}
+    <section class="pro-invitation-card">
+      <span class="pro-kicker">VÍNCULO PROFISSIONAL</span>
+      <h2>Convite pendente</h2>
+
+      {% for membership in profile.pending_memberships %}
+      <article class="pro-invitation-item">
+        <div>
+          <strong>{{ membership.establishment.name }}</strong>
+          <span>{{ membership.role_name or profile.primary_specialty }}</span>
+          <small>Confirme se você realmente trabalha neste local.</small>
+        </div>
+
+        <div class="pro-invitation-actions">
+          <form
+            method="post"
+            action="{{ url_for('professional.reject_membership', membership_id=membership.id) }}"
+          >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="pro-invitation-button" type="submit">
+              Recusar
+            </button>
+          </form>
+
+          <form
+            method="post"
+            action="{{ url_for('professional.accept_membership', membership_id=membership.id) }}"
+          >
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="pro-invitation-button pro-invitation-button--primary" type="submit">
+              Aceitar vínculo
+            </button>
+          </form>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
     {% if profile.profile_completion < 100 %}
     <section class="pro-completion-card">
       <span class="pro-kicker">PRESENÇA PROFISSIONAL</span>
@@ -338,7 +377,7 @@
     <section class="pro-rail-card">
       <div class="pro-rail-card__head">
         <div>
-          <span class="pro-kicker">OPORTUNIDADES DE HOJE</span>
+          <span class="pro-kicker">Oportunidades de hoje</span>
           <h2>Horários livres.</h2>
         </div>
         <span class="pro-live-dot" aria-label="Dados reais"></span>
