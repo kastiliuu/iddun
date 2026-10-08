@@ -1,3 +1,5 @@
+"""Regression coverage for the IDDUN Pro daily dashboard V1."""
+
 from datetime import datetime, timezone
 from decimal import Decimal
 
