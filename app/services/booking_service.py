@@ -424,6 +424,77 @@ def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
     return booking
 
 
+def reopen_manual_slot(slot, now=None):
+    now = as_utc(now or utcnow())
+
+    if slot.status != SlotStatus.BLOCKED_MANUAL:
+        raise BookingStateError(
+            "Somente horários bloqueados manualmente podem ser liberados."
+        )
+
+    slot.status = SlotStatus.AVAILABLE
+    slot.hold_expires_at = None
+
+    refresh_slot(
+        slot,
+        now=now,
+    )
+
+    db.session.commit()
+
+    return slot
+
+
+def complete_booking(
+    booking,
+    *,
+    now=None,
+):
+    now = as_utc(now or utcnow())
+
+    if booking.status != BookingStatus.CONFIRMED:
+        raise BookingStateError(
+            "Somente reservas confirmadas podem ser concluídas."
+        )
+
+    if as_utc(booking.slot.ends_at) > now:
+        raise BookingStateError(
+            "O atendimento ainda não terminou."
+        )
+
+    booking.status = BookingStatus.COMPLETED
+    booking.completed_at = now
+
+    db.session.commit()
+
+    return booking
+
+
+def mark_booking_no_show(
+    booking,
+    *,
+    now=None,
+):
+    now = as_utc(now or utcnow())
+
+    if booking.status != BookingStatus.CONFIRMED:
+        raise BookingStateError(
+            "Somente reservas confirmadas podem ser marcadas como no-show."
+        )
+
+    if as_utc(booking.slot.starts_at) > now:
+        raise BookingStateError(
+            "O horário do atendimento ainda não começou."
+        )
+
+    booking.status = BookingStatus.NO_SHOW
+    booking.no_show_at = now
+
+    db.session.commit()
+
+    return booking
+
+
 def mark_external_conflict(slot, provider="google", external_event_id=None, reason=None, now=None, commit=True):
     now = as_utc(now or utcnow())
     if slot.status not in {SlotStatus.AVAILABLE, SlotStatus.HELD}:
