@@ -1,139 +1,403 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 
-{% block title %}IDDUN Pro | {{ profile.display_name }}{% endblock %}
-{% block body_class %}platform-page platform-dashboard-page{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block title %}IDDUN Pro | Painel{% endblock %}
+{% block body_class %}platform-page pro-dashboard-page{% endblock %}
 
-{% block content %}
-<section class="platform-dashboard-hero">
-  <div class="container platform-dashboard-hero__inner">
-    <div class="platform-dashboard-identity">
-      <div class="platform-dashboard-avatar {% if profile.avatar_url %}has-image{% endif %}" {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>{{ profile.display_name[:1]|upper }}</div>
-      <div>
-        <span class="platform-kicker">IDDUN PRO · {{ profile.plan_tier|upper }}</span>
-        <h1>Olá, {{ profile.display_name.split()[0] }}.</h1>
-        <p>Seu trabalho, sua reputação e seus vínculos profissionais em um só lugar.</p>
-      </div>
-    </div>
-    <div class="platform-dashboard-hero__actions">
-      <a class="btn btn-outline" href="{{ url_for('public.professional_detail', slug=profile.slug) }}" target="_blank">Ver como cliente {{ icon('chevron-right') }}</a>
-      <a class="btn btn-primary" href="{{ url_for('professional.edit_profile') }}">Editar perfil</a>
-    </div>
-  </div>
-</section>
-
-<section class="platform-dashboard-content">
-  <div class="container platform-dashboard-grid">
-    <main class="platform-dashboard-main">
-      <section class="platform-completion-card" data-reveal>
-        <div>
-          <span class="platform-kicker">PRESENÇA NO IDDUN</span>
-          <h2>Seu perfil está {{ profile.profile_completion }}% completo.</h2>
-          <p>{% if profile.ready_to_publish %}Seu perfil já possui o mínimo de qualidade para aparecer publicamente.{% else %}Complete os itens pendentes para voltar a publicar seu perfil.{% endif %}</p>
-        </div>
-        <strong>{{ profile.profile_completion }}%</strong>
-        <div class="platform-progress__bar"><span style="width:{{ profile.profile_completion }}%"></span></div>
-      </section>
-
-      <section class="platform-metric-grid" data-reveal-stagger>
-        <article><span>{{ icon('star') }}</span><strong>{{ reputation.average_label }}</strong><small>{% if reputation.count %}{{ reputation.count }} avaliações verificadas{% else %}sem avaliações ainda{% endif %}</small></article>
-        <article><span>{{ icon('check') }}</span><strong>{% if reputation.recommendation_percent is not none %}{{ reputation.recommendation_percent }}%{% else %}—{% endif %}</strong><small>clientes que recomendam</small></article>
-        <article><span>{{ icon('award') }}</span><strong>{{ profile.certifications|length }}</strong><small>certificações cadastradas</small></article>
-        <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
-      </section>
-
-      <section class="platform-panel" data-reveal>
-        <header class="platform-panel__head">
-          <div><span class="platform-kicker">PORTFÓLIO</span><h2>Seu trabalho em destaque</h2></div>
-          <a href="{{ url_for('professional.edit_profile') }}">Gerenciar</a>
-        </header>
-        {% if profile.portfolio_items %}
-        <div class="platform-portfolio-strip">
-          {% for item in profile.portfolio_items[:6] %}
-            <img src="{{ item.image_url|media_url }}" alt="Trabalho de {{ profile.display_name }}" loading="lazy">
-          {% endfor %}
-        </div>
-        {% else %}
-          <div class="platform-empty">Adicione trabalhos para transformar o perfil em uma vitrine.</div>
-        {% endif %}
-      </section>
-
-
-      <section class="platform-panel" data-reveal>
-        <header class="platform-panel__head">
-          <div><span class="platform-kicker">REPUTAÇÃO</span><h2>Avaliações verificadas</h2><p>Só clientes com atendimento concluído podem avaliar seu trabalho.</p></div>
-        </header>
-        {% if profile.reviews_received %}
-          <div class="platform-review-list">
-          {% for review in profile.reviews_received[:3] %}
-            {% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda você{% else %}sem recomendação{% endif %}</small></article>{% endif %}
-          {% endfor %}
-          </div>
-        {% else %}<div class="platform-empty">Quando um atendimento for concluído e avaliado, sua reputação começa a aparecer aqui.</div>{% endif %}
-      </section>
-
-      <section class="platform-panel" data-reveal>
-        <header class="platform-panel__head"><div><span class="platform-kicker">CERTIFICAÇÕES</span><h2>Formação & credibilidade</h2></div><a href="{{ url_for('professional.certifications') }}">Gerenciar</a></header>
-        {% if profile.certifications %}<div class="platform-certification-preview">{% for item in profile.certifications[:4] %}<article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small></div></article>{% endfor %}</div>{% else %}<div class="platform-empty">Adicione cursos e certificações para fortalecer seu perfil profissional.</div>{% endif %}
-      </section>
-      <section class="platform-panel" data-reveal>
-        <header class="platform-panel__head">
-          <div><span class="platform-kicker">ONDE VOCÊ ATENDE</span><h2>Estabelecimentos vinculados</h2></div>
-        </header>
-        {% if profile.pending_memberships %}
-        <div class="platform-invitation-list" aria-label="Convites pendentes">
-          {% for membership in profile.pending_memberships %}
-          <article class="platform-invitation-card">
-            <div><span class="platform-status-badge">Convite pendente</span><strong>{{ membership.establishment.name }}</strong><small>{{ membership.role_name or profile.primary_specialty }} · confirme se você realmente trabalha neste local</small></div>
-            <div class="platform-invitation-actions">
-              <form method="post" action="{{ url_for('professional.reject_membership', membership_id=membership.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-outline" type="submit">Recusar</button></form>
-              <form method="post" action="{{ url_for('professional.accept_membership', membership_id=membership.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn btn-primary" type="submit">Aceitar vínculo</button></form>
-            </div>
-          </article>
-          {% endfor %}
-        </div>
-        {% endif %}
-        {% if profile.active_memberships %}
-        <div class="platform-workplace-list">
-          {% for membership in profile.active_memberships %}
-          <a href="{{ url_for('public.establishment_detail', slug=membership.establishment.slug) }}" class="platform-workplace-item">
-            <span class="platform-workplace-logo {% if membership.establishment.logo_url %}has-image{% endif %}" {% if membership.establishment.logo_url %}style="background-image:url('{{ membership.establishment.logo_url|media_url }}')"{% endif %}>{{ membership.establishment.name[:1] }}</span>
-            <span><strong>{{ membership.establishment.name }}</strong><small>{{ membership.role_name or profile.primary_specialty }}{% if membership.is_primary %} · Local principal{% endif %}</small></span>
-            {{ icon('chevron-right') }}
-          </a>
-          {% endfor %}
-        </div>
-        {% else %}
-          {% if not profile.pending_memberships %}<div class="platform-empty">Quando uma empresa convidar você para a equipe, o pedido aparecerá aqui para sua aprovação.</div>{% endif %}
-        {% endif %}
-      </section>
-    </main>
-
-    <aside class="platform-dashboard-side">
-      <section class="platform-panel platform-panel--dark">
-        <span class="platform-kicker">ATALHOS</span>
-        <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }} Editar meu perfil {{ icon('chevron-right') }}</a>
-        <a href="{{ url_for('professional.certifications') }}">{{ icon('award') }} Certificações {{ icon('chevron-right') }}</a>
-        <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }} Perfil público {{ icon('chevron-right') }}</a>
-        <a href="{{ url_for('bookings.mine') }}">{{ icon('clock') }} Reservas {{ icon('chevron-right') }}</a>
-      </section>
-
-      <section class="platform-panel">
-        <span class="platform-kicker">PLANO</span>
-        <h3>IDDUN Pro Free</h3>
-        <p>Nesta fase inicial, o acesso profissional está liberado gratuitamente. A estrutura já nasce pronta para Free e Pro no futuro.</p>
-      </section>
-    </aside>
-  </div>
-</section>
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-dashboard.css') }}">
 {% endblock %}
 
+{% block site_header %}
+<header class="pro-header">
+  <div class="pro-header__inner">
+    <a
+      class="pro-header__brand"
+      href="{{ url_for('professional.dashboard') }}"
+      aria-label="IDDUN Pro"
+    >
+      <img
+        src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}"
+        alt="IDDUN"
+        width="112"
+        height="38"
+      >
+      <span>PRO</span>
+    </a>
+
+    <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
+      <a class="is-active" href="{{ url_for('professional.dashboard') }}">
+        {{ icon('home') }}
+        <span>Início</span>
+      </a>
+      <a href="#agenda-hoje">
+        {{ icon('calendar') }}
+        <span>Agenda</span>
+      </a>
+      <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+        {{ icon('user') }}
+        <span>Perfil público</span>
+      </a>
+      <a href="{{ url_for('professional.edit_profile') }}">
+        {{ icon('edit') }}
+        <span>Editar</span>
+      </a>
+      <a href="{{ url_for('feed.home') }}">
+        {{ icon('compass') }}
+        <span>Cliente</span>
+      </a>
+    </nav>
+
+    <a
+      class="pro-header__account"
+      href="{{ url_for('professional.edit_profile') }}"
+      aria-label="Editar meu perfil profissional"
+    >
+      <span
+        class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+      >
+        {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+      </span>
+      <span>Eu</span>
+    </a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="pro-shell">
+  <aside class="pro-sidebar" aria-label="Resumo profissional">
+    <section class="pro-profile-card">
+      <div class="pro-profile-card__cover">
+        <span>✦</span>
+      </div>
+
+      <a
+        class="pro-profile-card__identity"
+        href="{{ url_for('public.professional_detail', slug=profile.slug) }}"
+      >
+        <span
+          class="pro-profile-card__avatar{% if profile.avatar_url %} has-image{% endif %}"
+          {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+        >
+          {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+        </span>
+        <strong>{{ profile.display_name }}</strong>
+        <span>{{ profile.primary_specialty or 'Profissional de beleza' }}</span>
+        <small>
+          {% if profile.city and profile.state %}
+            {{ profile.city }}, {{ profile.state }}
+          {% elif profile.city %}
+            {{ profile.city }}
+          {% else %}
+            Localização não informada
+          {% endif %}
+        </small>
+      </a>
+
+      <div class="pro-profile-card__stats">
+        <div>
+          <strong>{{ reputation.average_label }}</strong>
+          <span>Avaliação</span>
+        </div>
+        <div>
+          <strong>{{ reputation.count }}</strong>
+          <span>Avaliações</span>
+        </div>
+      </div>
+
+      <nav class="pro-profile-card__links">
+        <a href="#agenda-hoje">
+          {{ icon('calendar') }}
+          <span>Agenda de hoje</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('professional.edit_profile') }}">
+          {{ icon('edit') }}
+          <span>Editar perfil</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('professional.certifications') }}">
+          {{ icon('award') }}
+          <span>Certificações</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+          {{ icon('user') }}
+          <span>Perfil público</span>
+          {{ icon('chevron-right') }}
+        </a>
+      </nav>
+    </section>
+
+    {% if profile.profile_completion < 100 %}
+    <section class="pro-completion-card">
+      <span class="pro-kicker">PRESENÇA PROFISSIONAL</span>
+      <div>
+        <strong>{{ profile.profile_completion }}%</strong>
+        <span>completo</span>
+      </div>
+      <p>Complete seu perfil para fortalecer sua presença pública no IDDUN.</p>
+      <div class="pro-progress">
+        <span style="width:{{ profile.profile_completion }}%"></span>
+      </div>
+      <a href="{{ url_for('professional.edit_profile') }}">
+        Continuar perfil {{ icon('chevron-right') }}
+      </a>
+    </section>
+    {% endif %}
+
+    <section class="pro-plan-card">
+      <span class="pro-kicker">SEU PLANO</span>
+      <h2>IDDUN Pro {{ profile.plan_tier|upper }}</h2>
+      <p>Seu contexto profissional fica separado da experiência de cliente.</p>
+      <a href="{{ url_for('feed.home') }}">
+        Alternar para cliente {{ icon('chevron-right') }}
+      </a>
+    </section>
+  </aside>
+
+  <main class="pro-main">
+    <section class="pro-hero">
+      <div>
+        <span class="pro-kicker">SEU DIA NO IDDUN</span>
+        <h1>Tudo o que importa para hoje.</h1>
+        <p>
+          Acompanhe atendimentos, horários livres e receita prevista sem sair do seu fluxo de trabalho.
+        </p>
+      </div>
+      <div class="pro-hero__date">
+        <small>HOJE</small>
+        <strong>{{ local_date.strftime('%d/%m/%Y') }}</strong>
+        <span>{{ local_now.strftime('%H:%M') }}</span>
+      </div>
+    </section>
+
+    <section class="pro-kpi-grid" aria-label="Resumo do dia">
+      <article>
+        <span>{{ icon('calendar') }}</span>
+        <div>
+          <strong>{{ today_booking_count }}</strong>
+          <small>atendimentos hoje</small>
+        </div>
+      </article>
+
+      <article>
+        <span>{{ icon('check') }}</span>
+        <div>
+          <strong>R$ {{ '%.2f'|format(forecast_revenue)|replace('.', ',') }}</strong>
+          <small>receita prevista</small>
+        </div>
+      </article>
+
+      <article>
+        <span>{{ icon('clock') }}</span>
+        <div>
+          <strong>{{ free_time_label }}</strong>
+          <small>tempo livre publicado</small>
+        </div>
+      </article>
+
+      <article>
+        <span>{{ icon('sparkles') }}</span>
+        <div>
+          <strong>{{ free_slots|length }}</strong>
+          <small>oportunidades abertas</small>
+        </div>
+      </article>
+    </section>
+
+    <section
+      id="agenda-hoje"
+      class="pro-panel pro-schedule-panel"
+    >
+      <header class="pro-panel__head">
+        <div>
+          <span class="pro-kicker">AGENDA DE HOJE</span>
+          <h2>Seu dia em ordem cronológica.</h2>
+        </div>
+        <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+          Ver perfil público
+        </a>
+      </header>
+
+      {% if timeline %}
+      <div class="pro-timeline">
+        {% for item in timeline %}
+        <article class="pro-timeline-item pro-timeline-item--{{ item.slot.status }}">
+          <time>
+            <strong>{{ item.starts_at.strftime('%H:%M') }}</strong>
+            <span>{{ item.ends_at.strftime('%H:%M') }}</span>
+          </time>
+
+          <div class="pro-timeline-item__marker"></div>
+
+          <div class="pro-timeline-item__content">
+            {% if item.booking %}
+              <div class="pro-timeline-item__top">
+                <div>
+                  <span class="pro-status pro-status--{{ item.booking.status }}">
+                    {{ item.booking.status_label }}
+                  </span>
+                  <h3>{{ item.client.user.name }}</h3>
+                  <p>{{ item.slot.experience.title }} · R$ {{ '%.2f'|format(item.booking.price_at_booking)|replace('.', ',') }}</p>
+                </div>
+
+                {% if item.whatsapp_url %}
+                <a
+                  class="pro-whatsapp-button"
+                  href="{{ item.whatsapp_url }}"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  {{ icon('message-circle') }}
+                  WhatsApp
+                </a>
+                {% endif %}
+              </div>
+
+              {% if item.slot.establishment %}
+              <small>{{ item.slot.establishment.name }}</small>
+              {% endif %}
+            {% elif item.slot.status == slot_status.AVAILABLE %}
+              <span class="pro-status pro-status--available">Livre</span>
+              <h3>{{ item.slot.experience.title }}</h3>
+              <p>Este horário está disponível para reserva.</p>
+              <a
+                class="pro-inline-action"
+                href="{{ url_for('public.experience_detail', slug=item.slot.experience.slug) }}"
+              >
+                Ver experiência {{ icon('chevron-right') }}
+              </a>
+            {% elif item.slot.status == slot_status.BLOCKED_MANUAL %}
+              <span class="pro-status pro-status--blocked_manual">Bloqueado</span>
+              <h3>Horário indisponível</h3>
+              <p>Este espaço foi bloqueado manualmente.</p>
+            {% elif item.slot.status == slot_status.BLOCKED_EXTERNAL %}
+              <span class="pro-status pro-status--blocked_external">Agenda conectada</span>
+              <h3>Conflito externo</h3>
+              <p>{{ item.slot.external_block_reason or 'Horário ocupado na agenda conectada.' }}</p>
+            {% else %}
+              <span class="pro-status pro-status--{{ item.slot.status }}">{{ item.slot.status_label }}</span>
+              <h3>{{ item.slot.experience.title }}</h3>
+              <p>Este horário não está disponível para novas reservas.</p>
+            {% endif %}
+          </div>
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="pro-empty-state">
+        {{ icon('calendar') }}
+        <h3>Nada programado para hoje.</h3>
+        <p>Quando você publicar horários ou receber reservas, seu dia aparece aqui.</p>
+      </div>
+      {% endif %}
+    </section>
+  </main>
+
+  <aside class="pro-rail" aria-label="Próximas ações">
+    <section class="pro-rail-card pro-next-card">
+      <span class="pro-kicker">PRÓXIMO ATENDIMENTO</span>
+
+      {% if next_appointment %}
+      <div class="pro-next-card__time">
+        <strong>{{ next_appointment.starts_at.strftime('%H:%M') }}</strong>
+        <span>até {{ next_appointment.ends_at.strftime('%H:%M') }}</span>
+      </div>
+
+      <h2>{{ next_appointment.client.user.name }}</h2>
+      <p>{{ next_appointment.slot.experience.title }}</p>
+
+      {% if next_appointment.slot.establishment %}
+      <small>{{ next_appointment.slot.establishment.name }}</small>
+      {% endif %}
+
+      {% if next_appointment.whatsapp_url %}
+      <a
+        class="pro-rail-primary"
+        href="{{ next_appointment.whatsapp_url }}"
+        target="_blank"
+        rel="noopener"
+      >
+        {{ icon('message-circle') }}
+        Chamar no WhatsApp
+      </a>
+      {% endif %}
+      {% else %}
+      <div class="pro-rail-empty">
+        {{ icon('clock') }}
+        <strong>Nenhum atendimento confirmado a seguir.</strong>
+        <span>Use seus horários livres para gerar novas oportunidades.</span>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="pro-rail-card">
+      <div class="pro-rail-card__head">
+        <div>
+          <span class="pro-kicker">OPORTUNIDADES DE HOJE</span>
+          <h2>Horários livres.</h2>
+        </div>
+        <span class="pro-live-dot" aria-label="Dados reais"></span>
+      </div>
+
+      {% if free_slots %}
+      <div class="pro-free-list">
+        {% for item in free_slots[:4] %}
+        <article>
+          <div>
+            <strong>{{ item.starts_at.strftime('%H:%M') }}–{{ item.ends_at.strftime('%H:%M') }}</strong>
+            <span>{{ item.slot.experience.title }}</span>
+          </div>
+          <a href="{{ url_for('public.experience_detail', slug=item.slot.experience.slug) }}">
+            Abrir
+          </a>
+        </article>
+        {% endfor %}
+      </div>
+      <p class="pro-rail-note">
+        Na Sprint Pro-02 estes horários poderão ser bloqueados, liberados e publicados no IDDUN Now direto daqui.
+      </p>
+      {% else %}
+      <div class="pro-rail-empty pro-rail-empty--compact">
+        <strong>Nenhum horário livre futuro hoje.</strong>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="pro-rail-card pro-rail-card--soft">
+      <span class="pro-kicker">PRÓXIMO PASSO</span>
+      <h2>Operação direto do painel.</h2>
+      <p>
+        A próxima sprint liga bloqueio, liberação, IDDUN Now e ações sobre reservas sem mudar esta estrutura.
+      </p>
+    </section>
+  </aside>
+</div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
 {% block mobile_bottom_nav %}
-<nav class="platform-mobile-nav" aria-label="IDDUN Pro">
-  <a class="is-active" href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Visão geral</span></a>
-  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }}<span>Perfil</span></a>
-  <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }}<span>Editar</span></a>
-  <a href="{{ url_for('account.dashboard') }}">{{ icon('compass') }}<span>Cliente</span></a>
+<nav class="pro-mobile-nav" aria-label="IDDUN Pro">
+  <a class="is-active" href="{{ url_for('professional.dashboard') }}">
+    {{ icon('home') }}
+    <span>Hoje</span>
+  </a>
+  <a href="#agenda-hoje">
+    {{ icon('calendar') }}
+    <span>Agenda</span>
+  </a>
+  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+    {{ icon('user') }}
+    <span>Perfil</span>
+  </a>
+  <a href="{{ url_for('feed.home') }}">
+    {{ icon('compass') }}
+    <span>Cliente</span>
+  </a>
 </nav>
 {% endblock %}
