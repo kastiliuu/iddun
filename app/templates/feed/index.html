@@ -1,0 +1,707 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Feed | IDDUN{% endblock %}
+{% block body_class %}client-feed-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+{% endblock %}
+
+{% block site_header %}
+<header class="feed-header" data-feed-header>
+  <div class="feed-header__inner">
+    <a
+      class="feed-header__brand"
+      href="{{ url_for('feed.home') }}"
+      aria-label="IDDUN Feed"
+    >
+      <img
+        src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}"
+        alt="IDDUN"
+        width="128"
+        height="43"
+      >
+    </a>
+
+    <div class="feed-search" data-feed-search>
+      {{ icon('search', 'feed-search__icon') }}
+      <label class="sr-only" for="feed-global-search">
+        Buscar profissionais, procedimentos ou lugares
+      </label>
+      <input
+        id="feed-global-search"
+        type="search"
+        placeholder="Buscar profissionais, procedimentos ou lugares"
+        autocomplete="off"
+        aria-autocomplete="list"
+        aria-controls="feed-search-results"
+        aria-expanded="false"
+        data-feed-search-input
+      >
+      <div
+        id="feed-search-results"
+        class="feed-search-results"
+        role="listbox"
+        hidden
+        data-feed-search-results
+      ></div>
+    </div>
+
+    <nav class="feed-header__nav" aria-label="Navegação do feed">
+      <a
+        class="feed-header__nav-item is-active"
+        href="{{ url_for('feed.home') }}"
+        aria-current="page"
+      >
+        {{ icon('home') }}
+        <span>Início</span>
+      </a>
+
+      <a
+        class="feed-header__nav-item"
+        href="{{ url_for('public.experiences') }}"
+      >
+        {{ icon('compass') }}
+        <span>Descobrir</span>
+      </a>
+
+      <a
+        class="feed-header__nav-item"
+        href="{{ url_for('bookings.mine') }}"
+      >
+        {{ icon('calendar') }}
+        <span>Reservas</span>
+      </a>
+
+      <button
+        class="feed-header__nav-item"
+        type="button"
+        aria-label="Itens salvos{% if save_count %}, {{ save_count }} itens{% endif %}"
+        aria-expanded="false"
+        aria-controls="feed-saved-panel"
+        data-saved-trigger
+      >
+        <span class="feed-header__icon-wrap">
+          {{ icon('bookmark') }}
+          {% if save_count %}
+          <span class="feed-header__badge feed-header__badge--saved" aria-hidden="true">
+            {{ save_count if save_count < 100 else '99+' }}
+          </span>
+          {% endif %}
+        </span>
+        <span>Salvos</span>
+      </button>
+
+      <button
+        class="feed-header__nav-item feed-notification-trigger"
+        type="button"
+        aria-label="Notificações{% if unread_notification_count %}, {{ unread_notification_count }} não lidas{% endif %}"
+        aria-expanded="false"
+        aria-controls="feed-notification-panel"
+        data-notification-trigger
+      >
+        <span class="feed-header__icon-wrap">
+          {{ icon('bell') }}
+          {% if unread_notification_count %}
+          <span class="feed-header__badge" aria-hidden="true">
+            {{ unread_notification_count if unread_notification_count < 100 else '99+' }}
+          </span>
+          {% endif %}
+        </span>
+        <span>Notificações</span>
+      </button>
+
+      <div class="feed-account-menu-wrap">
+        <button
+          class="feed-header__account"
+          type="button"
+          aria-expanded="false"
+          aria-controls="feed-account-menu"
+          data-account-menu-trigger
+        >
+          <span
+            class="feed-avatar feed-avatar--header{% if profile.avatar_url %} has-image{% endif %}"
+            {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+            aria-hidden="true"
+          >
+            {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+          </span>
+          <span class="feed-header__account-label">Eu</span>
+          {{ icon('chevron-down') }}
+        </button>
+
+        <div
+          id="feed-account-menu"
+          class="feed-account-menu"
+          hidden
+          data-account-menu
+        >
+          <div class="feed-account-menu__identity">
+            <span
+              class="feed-avatar{% if profile.avatar_url %} has-image{% endif %}"
+              {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+            >
+              {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+            </span>
+            <span>
+              <strong>{{ current_user.name }}</strong>
+              <small>Cliente IDDUN</small>
+            </span>
+          </div>
+
+          <a href="{{ url_for('account.dashboard') }}">
+            {{ icon('user') }} Minha conta
+          </a>
+          <a href="{{ url_for('account.dashboard') }}#dados-pessoais">
+            {{ icon('edit') }} Editar perfil
+          </a>
+          <a href="{{ url_for('account.privacy') }}">
+            {{ icon('shield-check') }} Privacidade e segurança
+          </a>
+
+          {% if current_user.professional_profile %}
+          <a href="{{ url_for('professional.dashboard') }}">
+            {{ icon('briefcase') }} Alternar para IDDUN Pro
+          </a>
+          {% else %}
+          <a href="{{ url_for('professional.start') }}">
+            {{ icon('briefcase') }} Tornar-me profissional
+          </a>
+          {% endif %}
+
+          <form action="{{ url_for('auth.logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit">
+              {{ icon('arrow-left') }} Sair
+            </button>
+          </form>
+        </div>
+      </div>
+    </nav>
+
+    <a
+      class="feed-header__mobile-account"
+      href="{{ url_for('account.dashboard') }}"
+      aria-label="Minha conta"
+    >
+      <span
+        class="feed-avatar feed-avatar--header{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+      >
+        {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+      </span>
+    </a>
+  </div>
+
+  <div
+    id="feed-saved-panel"
+    class="feed-saved-panel"
+    hidden
+    data-saved-panel
+  >
+    <header>
+      <div>
+        <span>SALVOS</span>
+        <strong>Sua curadoria no IDDUN</strong>
+      </div>
+      <span class="feed-saved-panel__count">
+        {{ save_count }} item{% if save_count != 1 %}s{% endif %}
+      </span>
+    </header>
+
+    {% if saved_items.experiences or saved_items.profiles or saved_items.posts or saved_items.portfolioItems %}
+    <div class="feed-saved-list">
+      {% for item in saved_items.experiences[:4] %}
+      <a class="feed-saved-item" href="{{ url_for('public.experience_detail', slug=item.id) }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Experiência</small>
+          <strong>{{ item.name }}</strong>
+          <em>{{ item.professionalName }} · R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.profiles[:4] %}
+      <a
+        class="feed-saved-item"
+        href="{% if item.kind == 'professional' %}{{ url_for('public.professional_detail', slug=item.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=item.routeId) }}{% endif %}"
+      >
+        <span
+          class="feed-saved-item__image feed-saved-item__image--profile"
+          style="background-image:url('{{ item.avatar }}')"
+        ></span>
+        <span>
+          <small>{{ 'Profissional' if item.kind == 'professional' else 'Estabelecimento' }}</small>
+          <strong>{{ item.name }}</strong>
+          <em>{{ item.specialty }}{% if item.location %} · {{ item.location }}{% endif %}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.posts[:3] %}
+      <a class="feed-saved-item" href="{{ url_for('feed.home') }}#post-{{ item.id }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Publicação</small>
+          <strong>{{ item.author.name }}</strong>
+          <em>{{ item.caption or 'Trabalho salvo no IDDUN' }}</em>
+        </span>
+      </a>
+      {% endfor %}
+
+      {% for item in saved_items.portfolioItems[:3] %}
+      <a class="feed-saved-item" href="{{ url_for('public.professional_detail', slug=item.professionalRouteId) }}">
+        <span
+          class="feed-saved-item__image"
+          style="background-image:url('{{ item.image }}')"
+        ></span>
+        <span>
+          <small>Portfólio</small>
+          <strong>{{ item.authorName }}</strong>
+          <em>{{ item.caption or 'Trabalho profissional' }}</em>
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="feed-notification-empty">
+      {{ icon('bookmark') }}
+      <strong>Sua coleção começa com uma descoberta.</strong>
+      <span>Salve trabalhos, experiências, profissionais e estabelecimentos para reencontrar depois.</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div
+    id="feed-notification-panel"
+    class="feed-notification-panel"
+    hidden
+    data-notification-panel
+  >
+    <header>
+      <div>
+        <span>NOTIFICAÇÕES</span>
+        <strong>O que mudou no seu IDDUN</strong>
+      </div>
+      {% if unread_notification_count %}
+      <span class="feed-notification-panel__count">
+        {{ unread_notification_count }} nova{% if unread_notification_count != 1 %}s{% endif %}
+      </span>
+      {% endif %}
+    </header>
+
+    {% if notifications %}
+    <div class="feed-notification-list">
+      {% for notification in notifications %}
+        {% if notification.action_type == 'experience' and notification.action_id %}
+          {% set notification_url = url_for('public.experience_detail', slug=notification.action_id) %}
+        {% elif notification.action_type == 'booking' %}
+          {% set notification_url = url_for('bookings.mine') %}
+        {% else %}
+          {% set notification_url = url_for('feed.home') %}
+        {% endif %}
+        <a
+          href="{{ notification_url }}"
+          class="feed-notification-item{% if not notification.is_read %} is-unread{% endif %}"
+          data-notification-link
+          data-notification-id="{{ notification.id }}"
+        >
+          <span class="feed-notification-item__icon">
+            {% if notification.kind == 'booking' %}
+              {{ icon('calendar') }}
+            {% elif notification.kind == 'iddun_now' %}
+              {{ icon('clock') }}
+            {% elif notification.kind == 'follow' %}
+              {{ icon('users') }}
+            {% else %}
+              {{ icon('sparkles') }}
+            {% endif %}
+          </span>
+          <span>
+            <strong>{{ notification.title }}</strong>
+            <small>{{ notification.body }}</small>
+          </span>
+        </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="feed-notification-empty">
+      {{ icon('bell') }}
+      <strong>Nada novo por enquanto.</strong>
+      <span>Reservas, horários e novidades relevantes aparecem aqui.</span>
+    </div>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="feed-shell">
+  <aside class="feed-sidebar" aria-label="Resumo da conta">
+    <section class="feed-profile-card">
+      <a
+        class="feed-profile-card__cover"
+        href="{{ url_for('account.dashboard') }}"
+        aria-label="Abrir minha conta"
+      >
+        <span class="feed-profile-card__spark">✦</span>
+      </a>
+
+      <a
+        class="feed-profile-card__identity"
+        href="{{ url_for('account.dashboard') }}"
+      >
+        <span
+          class="feed-avatar feed-avatar--profile{% if profile.avatar_url %} has-image{% endif %}"
+          {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+        >
+          {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+        </span>
+        <strong>{{ current_user.name }}</strong>
+        <span>
+          {% if profile.city and profile.state %}
+            {{ profile.city }}, {{ profile.state }}
+          {% elif profile.city %}
+            {{ profile.city }}
+          {% else %}
+            Localização não informada
+          {% endif %}
+        </span>
+        <small>Cliente IDDUN</small>
+      </a>
+
+      <div class="feed-profile-stats">
+        <div>
+          <strong>{{ follow_count }}</strong>
+          <span>Seguindo</span>
+        </div>
+        <div>
+          <strong>{{ save_count }}</strong>
+          <span>Salvos</span>
+        </div>
+      </div>
+
+      <nav class="feed-profile-links" aria-label="Atalhos pessoais">
+        <a href="{{ url_for('bookings.mine') }}">
+          {{ icon('calendar') }}
+          <span>Minhas reservas</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <button type="button" data-saved-trigger>
+          {{ icon('bookmark') }}
+          <span>Meus salvos</span>
+          {{ icon('chevron-right') }}
+        </button>
+        <a href="{{ url_for('public.professionals') }}">
+          {{ icon('users') }}
+          <span>Profissionais</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('public.establishments') }}">
+          {{ icon('store') }}
+          <span>Estabelecimentos</span>
+          {{ icon('chevron-right') }}
+        </a>
+      </nav>
+    </section>
+
+    {% if profile_completion.percentage < 100 %}
+    <section class="feed-completion-card">
+      <div class="feed-completion-card__top">
+        <span>{{ icon('user') }}</span>
+        <strong>{{ profile_completion.percentage }}%</strong>
+      </div>
+      <h2>Seu perfil está quase lá.</h2>
+      <p>
+        {% if profile_completion.next %}
+          Adicione {{ profile_completion.next }} para melhorar sua experiência no IDDUN.
+        {% endif %}
+      </p>
+      <div
+        class="feed-completion-progress"
+        role="progressbar"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="{{ profile_completion.percentage }}"
+      >
+        <span style="width:{{ profile_completion.percentage }}%"></span>
+      </div>
+      <a href="{{ url_for('account.dashboard') }}#dados-pessoais">
+        Continuar configuração
+        {{ icon('chevron-right') }}
+      </a>
+    </section>
+    {% endif %}
+
+    <section class="feed-context-card">
+      {% if current_user.professional_profile %}
+      <span class="feed-context-card__eyebrow">SEU CONTEXTO PROFISSIONAL</span>
+      <h2>{{ current_user.professional_profile.display_name }}</h2>
+      <p>Gerencie sua presença profissional sem misturar com a experiência de cliente.</p>
+      <a href="{{ url_for('professional.dashboard') }}">
+        Abrir IDDUN Pro {{ icon('chevron-right') }}
+      </a>
+      {% else %}
+      <span class="feed-context-card__eyebrow">TRABALHA COM BELEZA?</span>
+      <h2>Seu trabalho também pode viver aqui.</h2>
+      <p>Crie uma presença profissional quando fizer sentido para você.</p>
+      <a href="{{ url_for('professional.start') }}">
+        Tornar-me profissional {{ icon('chevron-right') }}
+      </a>
+      {% endif %}
+    </section>
+  </aside>
+
+  <section class="feed-main" aria-labelledby="feed-title">
+    <header class="feed-main__header">
+      <div>
+        <span class="feed-kicker">SUA REDE DE BELEZA</span>
+        <h1 id="feed-title">Descubra o que vale viver.</h1>
+        <p>Trabalhos, profissionais, lugares e experiências com contexto para você decidir melhor.</p>
+      </div>
+
+      <div class="feed-tabs" role="tablist" aria-label="Modo do feed">
+        <a
+          role="tab"
+          aria-selected="{{ 'true' if mode == 'for-you' else 'false' }}"
+          class="{% if mode == 'for-you' %}is-active{% endif %}"
+          href="{{ url_for('feed.home', mode='for-you') }}"
+        >
+          Para você
+        </a>
+        <a
+          role="tab"
+          aria-selected="{{ 'true' if mode == 'following' else 'false' }}"
+          class="{% if mode == 'following' %}is-active{% endif %}"
+          href="{{ url_for('feed.home', mode='following') }}"
+        >
+          Seguindo
+        </a>
+      </div>
+    </header>
+
+    {% if feed_items %}
+    <div
+      class="feed-masonry"
+      data-feed-grid
+      data-feed-mode="{{ mode }}"
+      data-next-cursor="{{ next_cursor or '' }}"
+    >
+      {% include 'feed/_cards.html' %}
+    </div>
+
+    {% if next_cursor %}
+    <div class="feed-load-more">
+      <button
+        type="button"
+        data-feed-load-more
+        data-next-cursor="{{ next_cursor }}"
+      >
+        Ver mais trabalhos
+        {{ icon('chevron-down') }}
+      </button>
+    </div>
+    {% endif %}
+    {% else %}
+      {% if mode == 'following' %}
+      <section class="feed-empty">
+        <span>{{ icon('users') }}</span>
+        <h2>Você ainda não tem novidades de quem segue.</h2>
+        <p>Siga profissionais e estabelecimentos para construir um feed só da sua rede.</p>
+        <a href="{{ url_for('public.professionals') }}">Descobrir profissionais</a>
+      </section>
+      {% else %}
+      <section class="feed-empty">
+        <span>{{ icon('sparkles') }}</span>
+        <h2>Seu feed ainda está começando.</h2>
+        <p>Quando profissionais e estabelecimentos publicarem trabalhos reais, eles aparecem aqui.</p>
+        <a href="{{ url_for('public.experiences') }}">Descobrir experiências</a>
+      </section>
+      {% endif %}
+    {% endif %}
+  </section>
+
+  <aside class="feed-rail" aria-label="Descobertas e próximos passos">
+    {% if next_booking %}
+    <section class="feed-rail-card feed-next-booking">
+      <span class="feed-rail-card__eyebrow">PRÓXIMA RESERVA</span>
+      <div class="feed-next-booking__icon">{{ icon('calendar') }}</div>
+      <h2>{{ next_booking.experience.title }}</h2>
+      <p>
+        {{ next_booking.professional.display_name }}
+        {% if next_booking.establishment %}
+          · {{ next_booking.establishment.name }}
+        {% endif %}
+      </p>
+      <strong>{{ next_booking_label }}</strong>
+      <a href="{{ url_for('bookings.mine') }}">
+        Ver reserva {{ icon('chevron-right') }}
+      </a>
+    </section>
+    {% endif %}
+
+    <section class="feed-rail-card">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">IDDUN NOW</span>
+          <h2>Horários para aproveitar.</h2>
+        </div>
+        <span class="feed-live-dot" aria-label="Atualizações reais"></span>
+      </div>
+
+      {% if iddun_now %}
+      <div class="feed-now-list">
+        {% for item in iddun_now %}
+        <a
+          class="feed-now-item"
+          href="{{ url_for('public.experience_detail', slug=item.experienceSlug) }}"
+        >
+          <span
+            class="feed-now-item__image"
+            style="background-image:url('{{ item.image }}')"
+          ></span>
+          <span>
+            <small class="{% if item.urgent %}is-urgent{% endif %}">
+              {{ item.timeLabel }}
+            </small>
+            <strong>{{ item.experienceTitle }}</strong>
+            <em>{{ item.professionalName }}</em>
+            <b>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</b>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="feed-rail-empty">
+        Nenhum horário urgente publicado agora.
+      </p>
+      {% endif %}
+    </section>
+
+    {% if recommended_professionals %}
+    <section class="feed-rail-card">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">SUA REDE</span>
+          <h2>Profissionais para conhecer.</h2>
+        </div>
+      </div>
+
+      <div class="feed-recommendation-list">
+        {% for item in recommended_professionals[:3] %}
+        <div class="feed-recommendation">
+          <a
+            class="feed-recommendation__identity"
+            href="{{ url_for('public.professional_detail', slug=item.slug) }}"
+          >
+            <span
+              class="feed-recommendation__avatar"
+              style="background-image:url('{{ item.avatar }}')"
+            ></span>
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small>{{ item.specialty }}</small>
+              <em>{{ item.location }}</em>
+            </span>
+          </a>
+          <button
+            type="button"
+            data-follow-button
+            data-target-type="professional"
+            data-target-id="{{ item.id }}"
+          >
+            Seguir
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+
+      <a class="feed-rail-card__footer-link" href="{{ url_for('public.professionals') }}">
+        Ver todos os profissionais {{ icon('chevron-right') }}
+      </a>
+    </section>
+    {% endif %}
+
+    {% if recommended_establishments %}
+    <section class="feed-rail-card">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">LUGARES</span>
+          <h2>Estabelecimentos em destaque.</h2>
+        </div>
+      </div>
+
+      <div class="feed-recommendation-list">
+        {% for item in recommended_establishments[:2] %}
+        <div class="feed-recommendation">
+          <a
+            class="feed-recommendation__identity"
+            href="{{ url_for('public.establishment_detail', slug=item.slug) }}"
+          >
+            <span
+              class="feed-recommendation__avatar feed-recommendation__avatar--business"
+              style="background-image:url('{{ item.avatar }}')"
+            ></span>
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small>{{ item.specialty }}</small>
+              <em>{{ item.location }}</em>
+            </span>
+          </a>
+          <button
+            type="button"
+            data-follow-button
+            data-target-type="establishment"
+            data-target-id="{{ item.id }}"
+          >
+            Seguir
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    {% endif %}
+
+    <p class="feed-rail__footnote">
+      O IDDUN não cria atividade fictícia. Tudo que aparece aqui vem de perfis, horários e publicações reais.
+    </p>
+  </aside>
+</div>
+
+<div class="feed-toast" role="status" aria-live="polite" hidden data-feed-toast></div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="feed-mobile-nav" aria-label="Navegação principal">
+  <a class="is-active" href="{{ url_for('feed.home') }}" aria-current="page">
+    {{ icon('home') }}
+    <span>Início</span>
+  </a>
+  <a href="{{ url_for('public.experiences') }}">
+    {{ icon('compass') }}
+    <span>Descobrir</span>
+  </a>
+  <a href="{{ url_for('bookings.mine') }}">
+    {{ icon('calendar') }}
+    <span>Reservas</span>
+  </a>
+  <a href="{{ url_for('account.dashboard') }}">
+    {{ icon('user') }}
+    <span>Perfil</span>
+  </a>
+</nav>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
+{% endblock %}
