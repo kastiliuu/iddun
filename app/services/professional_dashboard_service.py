@@ -220,6 +220,28 @@ def professional_dashboard_context(
         None,
     )
 
+    free_hours = (
+        free_minutes // 60
+    )
+
+    free_remainder = (
+        free_minutes % 60
+    )
+
+    if free_hours and free_remainder:
+        free_time_label = (
+            f"{free_hours}h "
+            f"{free_remainder}min"
+        )
+    elif free_hours:
+        free_time_label = (
+            f"{free_hours}h"
+        )
+    else:
+        free_time_label = (
+            f"{free_remainder}min"
+        )
+
     return {
         "local_now": local_now,
         "local_date": local_date,
@@ -233,6 +255,8 @@ def professional_dashboard_context(
             free_slots,
         "free_minutes":
             free_minutes,
+        "free_time_label":
+            free_time_label,
         "next_appointment":
             next_appointment,
         "slot_status":
