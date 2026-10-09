@@ -169,13 +169,13 @@
               <details class="pro-client-history">
                 <summary>Histórico</summary>
                 <div class="pro-client-history__popover">
-                  {% for booking in row.bookings[:8] %}
+                  {% for item in row.history[:8] %}
                   <div>
-                    <strong>{{ booking.experience.title }}</strong>
-                    <span>{{ booking.status_label }}</span>
+                    <strong>{{ item.booking.experience.title }}</strong>
+                    <span>{{ item.booking.status_label }}</span>
                     <small>
-                      {{ booking.slot.starts_at|local_datetime(profile.timezone, '%d/%m/%Y %H:%M') }}
-                      · R$ {{ '%.2f'|format(booking.price_at_booking)|replace('.', ',') }}
+                      {{ item.local_start.strftime('%d/%m/%Y %H:%M') }}
+                      · R$ {{ '%.2f'|format(item.booking.price_at_booking)|replace('.', ',') }}
                     </small>
                   </div>
                   {% endfor %}
