@@ -24,7 +24,11 @@ from app.forms.platform import (
     TeamMemberForm,
     WorkModeChoiceForm,
 )
-from app.models.booking import BookingStatus
+from app.models.booking import (
+    Booking,
+    BookingStatus,
+    ExperienceSlot,
+)
 from app.models.certification import ProfessionalCertification
 from app.models.establishment import (
     Establishment,
@@ -42,6 +46,17 @@ from app.models.professional import (
 )
 from app.models.reputation import ContactClick
 from app.models.user import User
+from app.services.booking_service import (
+    BookingStateError,
+    block_slot_manual,
+    cancel_booking,
+    complete_booking,
+    mark_booking_no_show,
+    reopen_manual_slot,
+)
+from app.services.google_calendar_service import (
+    delete_booking_event,
+)
 from app.services.media_service import (
     UploadBatch,
     delete_uploaded_file,
@@ -369,6 +384,224 @@ def dashboard():
         current_page="professional-dashboard",
         **day_context,
     )
+
+
+def _professional_slot_or_404(
+    slot_id,
+):
+    profile = (
+        current_user.professional_profile
+    )
+
+    if profile is None:
+        abort(403)
+
+    slot = db.session.get(
+        ExperienceSlot,
+        slot_id,
+    )
+
+    if (
+        slot is None
+        or slot.professional_id
+        != profile.id
+    ):
+        abort(404)
+
+    return slot
+
+
+def _professional_booking_or_404(
+    booking_id,
+):
+    profile = (
+        current_user.professional_profile
+    )
+
+    if profile is None:
+        abort(403)
+
+    booking = db.session.get(
+        Booking,
+        booking_id,
+    )
+
+    if (
+        booking is None
+        or booking.professional_id
+        != profile.id
+    ):
+        abort(404)
+
+    return booking
+
+
+def _dashboard_redirect():
+    return redirect(
+        url_for(
+            "professional.dashboard"
+        )
+        + "#agenda-hoje"
+    )
+
+
+@professional_bp.post(
+    "/painel/horarios/<int:slot_id>/bloquear"
+)
+@login_required
+def dashboard_block_slot(slot_id):
+    slot = _professional_slot_or_404(
+        slot_id
+    )
+
+    if block_slot_manual(slot):
+        flash(
+            "Horário bloqueado.",
+            "success",
+        )
+    else:
+        flash(
+            "Este horário já possui uma reserva e não pode ser bloqueado.",
+            "error",
+        )
+
+    return _dashboard_redirect()
+
+
+@professional_bp.post(
+    "/painel/horarios/<int:slot_id>/liberar"
+)
+@login_required
+def dashboard_reopen_slot(slot_id):
+    slot = _professional_slot_or_404(
+        slot_id
+    )
+
+    try:
+        reopen_manual_slot(slot)
+    except BookingStateError as exc:
+        flash(
+            str(exc),
+            "error",
+        )
+    else:
+        if slot.status == "available":
+            flash(
+                "Horário liberado novamente.",
+                "success",
+            )
+        else:
+            flash(
+                "O horário não pode mais ser reservado porque o prazo mínimo já passou.",
+                "info",
+            )
+
+    return _dashboard_redirect()
+
+
+@professional_bp.post(
+    "/painel/reservas/<int:booking_id>/concluir"
+)
+@login_required
+def dashboard_complete_booking(
+    booking_id,
+):
+    booking = (
+        _professional_booking_or_404(
+            booking_id
+        )
+    )
+
+    try:
+        complete_booking(
+            booking
+        )
+    except BookingStateError as exc:
+        flash(
+            str(exc),
+            "error",
+        )
+    else:
+        flash(
+            "Atendimento marcado como concluído.",
+            "success",
+        )
+
+    return _dashboard_redirect()
+
+
+@professional_bp.post(
+    "/painel/reservas/<int:booking_id>/no-show"
+)
+@login_required
+def dashboard_no_show_booking(
+    booking_id,
+):
+    booking = (
+        _professional_booking_or_404(
+            booking_id
+        )
+    )
+
+    try:
+        mark_booking_no_show(
+            booking
+        )
+    except BookingStateError as exc:
+        flash(
+            str(exc),
+            "error",
+        )
+    else:
+        flash(
+            "Atendimento marcado como não compareceu.",
+            "info",
+        )
+
+    return _dashboard_redirect()
+
+
+@professional_bp.post(
+    "/painel/reservas/<int:booking_id>/cancelar"
+)
+@login_required
+def dashboard_cancel_booking(
+    booking_id,
+):
+    booking = (
+        _professional_booking_or_404(
+            booking_id
+        )
+    )
+
+    try:
+        try:
+            delete_booking_event(
+                booking
+            )
+        except Exception:
+            current_app.logger.exception(
+                "Falha ao remover evento externo ao cancelar reserva pelo painel Pro."
+            )
+
+        cancel_booking(
+            booking,
+            reason=(
+                "Cancelada pelo profissional"
+            ),
+        )
+    except BookingStateError as exc:
+        flash(
+            str(exc),
+            "error",
+        )
+    else:
+        flash(
+            "Reserva cancelada. O horário voltou a seguir as regras de disponibilidade.",
+            "success",
+        )
+
+    return _dashboard_redirect()
 
 
 @professional_bp.route(
