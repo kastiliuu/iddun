@@ -10,6 +10,9 @@ from app.models.booking import (
     ExperienceSlot,
     SlotStatus,
 )
+from app.services.availability_service import (
+    slot_is_urgent,
+)
 from app.services.time_service import (
     local_naive_to_utc,
     to_local,
@@ -136,25 +139,59 @@ def professional_dashboard_context(
             else None
         )
 
+        local_start = to_local(
+            slot.starts_at,
+            profile.timezone,
+        )
+        local_end = to_local(
+            slot.ends_at,
+            profile.timezone,
+        )
+
         timeline.append(
             {
                 "slot": slot,
                 "booking": booking,
                 "client": client,
-                "starts_at": to_local(
-                    slot.starts_at,
-                    profile.timezone,
-                ),
-                "ends_at": to_local(
-                    slot.ends_at,
-                    profile.timezone,
-                ),
+                "starts_at": local_start,
+                "ends_at": local_end,
                 "whatsapp_url": (
                     _whatsapp_url(
                         client.phone
                     )
                     if client
                     else None
+                ),
+                "is_iddun_now": (
+                    slot.status
+                    == SlotStatus.AVAILABLE
+                    and slot_is_urgent(
+                        slot
+                    )
+                ),
+                "can_cancel": (
+                    booking is not None
+                    and booking.status
+                    in {
+                        BookingStatus.PENDING,
+                        BookingStatus.CONFIRMED,
+                    }
+                    and local_start
+                    > local_now
+                ),
+                "can_no_show": (
+                    booking is not None
+                    and booking.status
+                    == BookingStatus.CONFIRMED
+                    and local_start
+                    <= local_now
+                ),
+                "can_complete": (
+                    booking is not None
+                    and booking.status
+                    == BookingStatus.CONFIRMED
+                    and local_end
+                    <= local_now
                 ),
             }
         )
