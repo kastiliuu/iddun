@@ -43,6 +43,10 @@
         {{ icon('bar-chart-2') }}
         <span>Insights</span>
       </a>
+      <a href="{{ url_for('professional.schedule') }}">
+        {{ icon('clock') }}
+        <span>Jornada</span>
+      </a>
       <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
         {{ icon('user') }}
         <span>Perfil público</span>
@@ -126,6 +130,11 @@
         <a href="{{ url_for('professional.insights') }}">
           {{ icon('bar-chart-2') }}
           <span>Insights</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('professional.schedule') }}">
+          {{ icon('clock') }}
+          <span>Jornada de trabalho</span>
           {{ icon('chevron-right') }}
         </a>
         <a href="{{ url_for('professional.edit_profile') }}">
@@ -473,6 +482,14 @@
           <small>No-show</small>
           <strong>{{ '%.1f'|format(insights.current.no_show_rate)|replace('.', ',') }}%</strong>
         </article>
+        <article>
+          <small>Ocupação do mês</small>
+          {% if capacity.schedule_configured %}
+          <strong>{{ '%.1f'|format(capacity.month_capacity.occupancy_percent)|replace('.', ',') }}%</strong>
+          {% else %}
+          <strong>—</strong>
+          {% endif %}
+        </article>
       </div>
 
       {% if insights.top_service %}
@@ -593,6 +610,10 @@
   <a href="{{ url_for('professional.insights') }}">
     {{ icon('bar-chart-2') }}
     <span>Insights</span>
+  </a>
+  <a href="{{ url_for('professional.schedule') }}">
+    {{ icon('clock') }}
+    <span>Jornada</span>
   </a>
 </nav>
 {% endblock %}
