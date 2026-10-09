@@ -39,6 +39,10 @@
         {{ icon('users') }}
         <span>Clientes</span>
       </a>
+      <a href="{{ url_for('professional.insights') }}">
+        {{ icon('bar-chart-2') }}
+        <span>Insights</span>
+      </a>
       <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
         {{ icon('user') }}
         <span>Perfil público</span>
@@ -117,6 +121,11 @@
         <a href="{{ url_for('professional.clients') }}">
           {{ icon('users') }}
           <span>Clientes</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('professional.insights') }}">
+          {{ icon('bar-chart-2') }}
+          <span>Insights</span>
           {{ icon('chevron-right') }}
         </a>
         <a href="{{ url_for('professional.edit_profile') }}">
@@ -437,6 +446,48 @@
       </p>
       {% endif %}
     </section>
+
+    <section class="pro-panel pro-insights-overview">
+      <header class="pro-panel__head">
+        <div>
+          <span class="pro-kicker">SAÚDE DO NEGÓCIO</span>
+          <h2>Seu mês em números reais.</h2>
+        </div>
+        <a href="{{ url_for('professional.insights') }}">Ver insights</a>
+      </header>
+
+      <div class="pro-insights-overview__grid">
+        <article>
+          <small>Receita realizada</small>
+          <strong>R$ {{ '%.2f'|format(insights.current.realized_revenue)|replace('.', ',') }}</strong>
+        </article>
+        <article>
+          <small>Receita prevista</small>
+          <strong>R$ {{ '%.2f'|format(insights.current.forecast_revenue)|replace('.', ',') }}</strong>
+        </article>
+        <article>
+          <small>Ticket médio</small>
+          <strong>R$ {{ '%.2f'|format(insights.current.average_ticket)|replace('.', ',') }}</strong>
+        </article>
+        <article>
+          <small>No-show</small>
+          <strong>{{ '%.1f'|format(insights.current.no_show_rate)|replace('.', ',') }}%</strong>
+        </article>
+      </div>
+
+      {% if insights.top_service %}
+      <div class="pro-insights-overview__highlight">
+        <div>
+          <span class="pro-kicker">SERVIÇO DESTAQUE</span>
+          <strong>{{ insights.top_service.experience.title }}</strong>
+          <small>{{ insights.top_service.completed_count }} concluído{% if insights.top_service.completed_count != 1 %}s{% endif %} no mês</small>
+        </div>
+        <a href="{{ url_for('professional.insights') }}">
+          Ver desempenho {{ icon('chevron-right') }}
+        </a>
+      </div>
+      {% endif %}
+    </section>
   </main>
 
   <aside class="pro-rail" aria-label="Próximas ações">
@@ -539,9 +590,9 @@
     {{ icon('users') }}
     <span>Clientes</span>
   </a>
-  <a href="{{ url_for('feed.home') }}">
-    {{ icon('compass') }}
-    <span>Cliente</span>
+  <a href="{{ url_for('professional.insights') }}">
+    {{ icon('bar-chart-2') }}
+    <span>Insights</span>
   </a>
 </nav>
 {% endblock %}
