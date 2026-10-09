@@ -152,6 +152,11 @@ class Experience(db.Model):
         nullable=True,
     )
 
+    recommended_return_days = db.Column(
+        db.Integer,
+        nullable=True,
+    )
+
     status = db.Column(
         db.String(24),
         nullable=False,
