@@ -71,6 +71,14 @@ from app.services.professional_crm_service import (
 from app.services.professional_insights_service import (
     professional_insights_context,
 )
+from app.services.professional_capacity_service import (
+    professional_capacity_context,
+)
+from app.services.professional_schedule_service import (
+    ScheduleValidationError,
+    save_weekly_schedule,
+    schedule_rows,
+)
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle
 
@@ -389,6 +397,11 @@ def dashboard():
             profile
         )
     )
+    capacity_context = (
+        professional_capacity_context(
+            profile
+        )
+    )
 
     return render_template(
         "platform/professional-dashboard.html",
@@ -401,6 +414,7 @@ def dashboard():
         **day_context,
         crm=crm_context,
         insights=insights_context,
+        capacity=capacity_context,
     )
 
 
@@ -622,6 +636,67 @@ def dashboard_cancel_booking(
     return _dashboard_redirect()
 
 
+@professional_bp.route(
+    "/jornada",
+    methods=["GET", "POST"],
+)
+@login_required
+def schedule():
+    profile = (
+        current_user.professional_profile
+    )
+
+    if profile is None:
+        return redirect(
+            url_for(
+                "professional.start"
+            )
+        )
+
+    if request.method == "POST":
+        try:
+            active_days = (
+                save_weekly_schedule(
+                    profile,
+                    request.form,
+                )
+            )
+        except ScheduleValidationError as exc:
+            db.session.rollback()
+            flash(
+                str(exc),
+                "error",
+            )
+        else:
+            flash(
+                (
+                    "Jornada atualizada. "
+                    f"{active_days} dia(s) "
+                    "de trabalho configurado(s)."
+                ),
+                "success",
+            )
+            return redirect(
+                url_for(
+                    "professional.schedule"
+                )
+            )
+
+    return render_template(
+        "platform/professional-schedule.html",
+        profile=profile,
+        schedule=schedule_rows(
+            profile
+        ),
+        capacity=(
+            professional_capacity_context(
+                profile
+            )
+        ),
+        current_page="professional-schedule",
+    )
+
+
 @professional_bp.get(
     "/insights"
 )
@@ -643,11 +718,17 @@ def insights():
             profile
         )
     )
+    capacity = (
+        professional_capacity_context(
+            profile
+        )
+    )
 
     return render_template(
         "platform/professional-insights.html",
         profile=profile,
         current_page="professional-insights",
+        capacity=capacity,
         **context,
     )
 
