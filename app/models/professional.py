@@ -143,6 +143,14 @@ class ProfessionalProfile(db.Model):
         order_by="WorkPost.published_at.desc(), WorkPost.id.desc()",
     )
 
+    working_hours = db.relationship(
+        "ProfessionalWorkingHour",
+        back_populates="professional",
+        cascade="all, delete-orphan",
+        order_by="ProfessionalWorkingHour.weekday.asc()",
+        lazy="selectin",
+    )
+
     @property
     def specialties(self):
         values = []
