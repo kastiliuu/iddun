@@ -36,6 +36,10 @@ from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
 )
+from app.models.professional_schedule import (
+    ProfessionalWorkingHour,
+    WEEKDAY_LABELS,
+)
 from app.models.user import User, UserRole
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
 
@@ -70,6 +74,8 @@ __all__ = [
     "ProfessionalPortfolioItem",
     "ProfilePlan",
     "ProfileTheme",
+    "ProfessionalWorkingHour",
+    "WEEKDAY_LABELS",
     "Establishment",
     "EstablishmentUserAccess",
     "EstablishmentGalleryItem",
