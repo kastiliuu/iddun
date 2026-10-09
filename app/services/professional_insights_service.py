@@ -470,27 +470,33 @@ def professional_insights_context(
         ).all()
     )
 
-    current_bookings = [
-        booking
-        for booking in bookings
-        if (
-            booking.slot.starts_at
-            >= current_start
-            and booking.slot.starts_at
-            < current_end
-        )
-    ]
+    current_bookings = []
+    previous_bookings = []
 
-    previous_bookings = [
-        booking
-        for booking in bookings
-        if (
-            booking.slot.starts_at
-            >= previous_start
-            and booking.slot.starts_at
-            < previous_end
+    for booking in bookings:
+        local_start = to_local(
+            booking.slot.starts_at,
+            profile.timezone,
         )
-    ]
+
+        if (
+            local_start.year
+            == local_now.year
+            and local_start.month
+            == local_now.month
+        ):
+            current_bookings.append(
+                booking
+            )
+        elif (
+            local_start.year
+            == previous_year
+            and local_start.month
+            == previous_month
+        ):
+            previous_bookings.append(
+                booking
+            )
 
     current = _summarize_period(
         profile,
