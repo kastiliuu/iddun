@@ -297,12 +297,25 @@ def professional_clients_context(
             )
         )
 
+        history = [
+            {
+                "booking": booking,
+                "local_start": to_local(
+                    booking.slot.starts_at,
+                    profile.timezone,
+                ),
+            }
+            for booking in client_bookings
+        ]
+
         rows.append(
             {
                 "client": client,
                 "user": user,
                 "bookings":
                     client_bookings,
+                "history":
+                    history,
                 "completed_count":
                     completed_count,
                 "relationship":
