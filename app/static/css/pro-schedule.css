@@ -260,3 +260,16 @@
     flex-direction: column;
   }
 }
+
+
+@media (max-width: 900px) {
+  .pro-day-hours input,
+  .pro-schedule-save {
+    min-height: 44px;
+  }
+
+  .pro-day-toggle,
+  .pro-break-toggle {
+    min-height: 44px;
+  }
+}
