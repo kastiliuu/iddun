@@ -28,6 +28,9 @@
       <a class="is-active" href="{{ url_for('professional.clients') }}">
         {{ icon('users') }}<span>Clientes</span>
       </a>
+      <a href="{{ url_for('professional.insights') }}">
+        {{ icon('bar-chart-2') }}<span>Insights</span>
+      </a>
       <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
         {{ icon('user') }}<span>Perfil público</span>
       </a>
@@ -270,6 +273,6 @@
   <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Hoje</span></a>
   <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
   <a class="is-active" href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
-  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }}<span>Perfil</span></a>
+  <a href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
 </nav>
 {% endblock %}

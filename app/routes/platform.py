@@ -68,6 +68,9 @@ from app.services.professional_dashboard_service import (
 from app.services.professional_crm_service import (
     professional_clients_context,
 )
+from app.services.professional_insights_service import (
+    professional_insights_context,
+)
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle
 
@@ -381,6 +384,11 @@ def dashboard():
             profile
         )
     )
+    insights_context = (
+        professional_insights_context(
+            profile
+        )
+    )
 
     return render_template(
         "platform/professional-dashboard.html",
@@ -392,6 +400,7 @@ def dashboard():
         current_page="professional-dashboard",
         **day_context,
         crm=crm_context,
+        insights=insights_context,
     )
 
 
@@ -611,6 +620,36 @@ def dashboard_cancel_booking(
         )
 
     return _dashboard_redirect()
+
+
+@professional_bp.get(
+    "/insights"
+)
+@login_required
+def insights():
+    profile = (
+        current_user.professional_profile
+    )
+
+    if profile is None:
+        return redirect(
+            url_for(
+                "professional.start"
+            )
+        )
+
+    context = (
+        professional_insights_context(
+            profile
+        )
+    )
+
+    return render_template(
+        "platform/professional-insights.html",
+        profile=profile,
+        current_page="professional-insights",
+        **context,
+    )
 
 
 @professional_bp.get(
