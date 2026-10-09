@@ -19,6 +19,8 @@
   {% block styles_after %}{% endblock %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
+
   {% block site_header %}
     {% include 'components/header.html' %}
   {% endblock %}
@@ -36,7 +38,7 @@
     {% endif %}
   {% endwith %}
 
-  <main>
+  <main id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 
