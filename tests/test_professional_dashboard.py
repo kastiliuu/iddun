@@ -112,7 +112,7 @@ def _catalog(app):
                 2026,
                 10,
                 8,
-                13,
+                14,
                 0,
             ),
             professional.timezone,
@@ -300,6 +300,14 @@ def test_pro_can_block_and_reopen_own_available_slot(
         (
             "app.services."
             "professional_dashboard_service."
+            "utcnow"
+        ),
+        lambda: FIXED_NOW,
+    )
+    monkeypatch.setattr(
+        (
+            "app.services."
+            "booking_service."
             "utcnow"
         ),
         lambda: FIXED_NOW,
