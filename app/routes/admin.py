@@ -524,6 +524,7 @@ def experience_create():
             price=form.price.data,
             duration_minutes=form.duration_minutes.data,
             booking_cutoff_minutes=form.booking_cutoff_minutes.data,
+            recommended_return_days=form.recommended_return_days.data,
             status=form.status.data,
             is_featured=form.is_featured.data,
             is_first_experience=False,
@@ -574,6 +575,7 @@ def experience_edit(item_id):
         item.price = form.price.data
         item.duration_minutes = form.duration_minutes.data
         item.booking_cutoff_minutes = form.booking_cutoff_minutes.data
+        item.recommended_return_days = form.recommended_return_days.data
         item.status = form.status.data
         item.is_featured = form.is_featured.data
         item.is_first_experience = False

@@ -1,0 +1,275 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}IDDUN Pro | Clientes{% endblock %}
+{% block body_class %}platform-page pro-dashboard-page pro-clients-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-clients.css') }}">
+{% endblock %}
+
+{% block site_header %}
+<header class="pro-header">
+  <div class="pro-header__inner">
+    <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
+      <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="112" height="38">
+      <span>PRO</span>
+    </a>
+
+    <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
+      <a href="{{ url_for('professional.dashboard') }}">
+        {{ icon('home') }}<span>Início</span>
+      </a>
+      <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">
+        {{ icon('calendar') }}<span>Agenda</span>
+      </a>
+      <a class="is-active" href="{{ url_for('professional.clients') }}">
+        {{ icon('users') }}<span>Clientes</span>
+      </a>
+      <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+        {{ icon('user') }}<span>Perfil público</span>
+      </a>
+      <a href="{{ url_for('feed.home') }}">
+        {{ icon('compass') }}<span>Cliente</span>
+      </a>
+    </nav>
+
+    <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}" aria-label="Editar meu perfil profissional">
+      <span
+        class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+      >{% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}</span>
+      <span>Eu</span>
+    </a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="pro-clients-shell">
+  <header class="pro-clients-hero">
+    <div>
+      <span class="pro-kicker">RELACIONAMENTO</span>
+      <h1>Clientes que já fazem parte do seu trabalho.</h1>
+      <p>
+        Histórico, retorno, recorrência e próximas oportunidades usando apenas reservas reais do IDDUN.
+      </p>
+    </div>
+
+    <form class="pro-client-search" method="get" role="search">
+      {{ icon('search') }}
+      <input
+        type="search"
+        name="q"
+        value="{{ search_query }}"
+        placeholder="Buscar por cliente, e-mail ou serviço"
+        aria-label="Buscar clientes"
+      >
+      {% if search_query %}
+      <a href="{{ url_for('professional.clients') }}" aria-label="Limpar busca">×</a>
+      {% endif %}
+    </form>
+  </header>
+
+  <section class="pro-crm-kpis" aria-label="Resumo de clientes">
+    <article>
+      <span>{{ icon('users') }}</span>
+      <div><strong>{{ client_count }}</strong><small>clientes no histórico</small></div>
+    </article>
+    <article>
+      <span>{{ icon('sparkles') }}</span>
+      <div><strong>{{ new_client_count }}</strong><small>clientes novas</small></div>
+    </article>
+    <article>
+      <span>{{ icon('refresh-cw') }}</span>
+      <div><strong>{{ recurring_client_count }}</strong><small>clientes recorrentes</small></div>
+    </article>
+    <article>
+      <span>{{ icon('message-circle') }}</span>
+      <div><strong>{{ reactivation_count }}</strong><small>oportunidades de retorno</small></div>
+    </article>
+  </section>
+
+  <div class="pro-clients-grid">
+    <main class="pro-clients-main">
+      <section class="pro-panel pro-clients-list-panel">
+        <header class="pro-panel__head">
+          <div>
+            <span class="pro-kicker">BASE DE CLIENTES</span>
+            <h2>{% if search_query %}Resultados para “{{ search_query }}”{% else %}Relacionamentos reais.{% endif %}</h2>
+          </div>
+          <span class="pro-client-count">{{ clients|length }} exibidos</span>
+        </header>
+
+        {% if clients %}
+        <div class="pro-client-list">
+          {% for row in clients %}
+          <article class="pro-client-row">
+            <div class="pro-client-row__avatar{% if row.client.avatar_url %} has-image{% endif %}"
+                 {% if row.client.avatar_url %}style="background-image:url('{{ row.client.avatar_url|media_url }}')"{% endif %}>
+              {% if not row.client.avatar_url %}{{ row.user.name[:1]|upper }}{% endif %}
+            </div>
+
+            <div class="pro-client-row__identity">
+              <div class="pro-client-row__title">
+                <strong>{{ row.user.name }}</strong>
+                {% if row.relationship == 'recorrente' %}
+                  <span class="pro-client-badge pro-client-badge--recurring">Recorrente</span>
+                {% elif row.relationship == 'nova' %}
+                  <span class="pro-client-badge">Nova</span>
+                {% else %}
+                  <span class="pro-client-badge pro-client-badge--neutral">Primeiro agendamento</span>
+                {% endif %}
+              </div>
+              <span>{{ row.user.email }}</span>
+              {% if row.client.phone %}<small>{{ row.client.phone }}</small>{% endif %}
+            </div>
+
+            <div class="pro-client-row__metric">
+              <small>Última visita</small>
+              {% if row.last_visit %}
+                <strong>{{ row.last_visit.strftime('%d/%m/%Y') }}</strong>
+                <span>{{ row.last_experience.title }}</span>
+              {% else %}
+                <strong>—</strong>
+                <span>sem atendimento concluído</span>
+              {% endif %}
+            </div>
+
+            <div class="pro-client-row__metric">
+              <small>Histórico</small>
+              <strong>{{ row.completed_count }}</strong>
+              <span>atendimento{% if row.completed_count != 1 %}s{% endif %} concluído{% if row.completed_count != 1 %}s{% endif %}</span>
+            </div>
+
+            <div class="pro-client-row__signals">
+              {% if row.needs_reactivation %}
+              <span class="pro-client-signal pro-client-signal--attention">
+                Retorno atrasado {{ row.overdue_days }}d
+              </span>
+              {% endif %}
+              {% if row.birthday_in_week %}
+              <span class="pro-client-signal">Aniversário {{ row.birthday_date.strftime('%d/%m') }}</span>
+              {% endif %}
+              {% if row.next_booking_start %}
+              <span class="pro-client-signal pro-client-signal--success">
+                Próximo {{ row.next_booking_start.strftime('%d/%m %H:%M') }}
+              </span>
+              {% endif %}
+            </div>
+
+            <div class="pro-client-row__actions">
+              {% if row.whatsapp_url %}
+              <a href="{{ row.whatsapp_url }}" target="_blank" rel="noopener" class="pro-client-whatsapp">
+                {{ icon('message-circle') }} WhatsApp
+              </a>
+              {% endif %}
+              <details class="pro-client-history">
+                <summary>Histórico</summary>
+                <div class="pro-client-history__popover">
+                  {% for item in row.history[:8] %}
+                  <div>
+                    <strong>{{ item.booking.experience.title }}</strong>
+                    <span>{{ item.booking.status_label }}</span>
+                    <small>
+                      {{ item.local_start.strftime('%d/%m/%Y %H:%M') }}
+                      · R$ {{ '%.2f'|format(item.booking.price_at_booking)|replace('.', ',') }}
+                    </small>
+                  </div>
+                  {% endfor %}
+                </div>
+              </details>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="pro-empty-state">
+          {{ icon('users') }}
+          <h3>{% if search_query %}Nenhum cliente encontrado.{% else %}Sua base começa com atendimentos reais.{% endif %}</h3>
+          <p>
+            {% if search_query %}
+              Tente outro nome, e-mail ou serviço.
+            {% else %}
+              Clientes aparecem aqui quando passam a ter reservas vinculadas ao seu perfil profissional.
+            {% endif %}
+          </p>
+        </div>
+        {% endif %}
+      </section>
+    </main>
+
+    <aside class="pro-clients-side">
+      <section class="pro-rail-card">
+        <span class="pro-kicker">PARA REATIVAR</span>
+        <h2>Quem pode estar pronta para voltar.</h2>
+        {% if reactivation_clients %}
+        <div class="pro-crm-action-list">
+          {% for row in reactivation_clients %}
+          <article>
+            <div>
+              <strong>{{ row.user.name }}</strong>
+              <span>{{ row.last_experience.title }}</span>
+              <small>{{ row.overdue_days }} dias além do retorno recomendado</small>
+            </div>
+            {% if row.whatsapp_url %}
+            <a href="{{ row.whatsapp_url }}" target="_blank" rel="noopener" aria-label="Chamar {{ row.user.name }} no WhatsApp">
+              {{ icon('message-circle') }}
+            </a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>Nenhuma oportunidade de retorno identificada com as regras configuradas.</p>
+        {% endif %}
+      </section>
+
+      <section class="pro-rail-card">
+        <span class="pro-kicker">ANIVERSÁRIOS</span>
+        <h2>Próximos 7 dias.</h2>
+        {% if birthday_clients %}
+        <div class="pro-crm-action-list">
+          {% for row in birthday_clients %}
+          <article>
+            <div>
+              <strong>{{ row.user.name }}</strong>
+              <span>{{ row.birthday_date.strftime('%d/%m') }}</span>
+            </div>
+            {% if row.whatsapp_url %}
+            <a href="{{ row.whatsapp_url }}" target="_blank" rel="noopener">
+              {{ icon('message-circle') }}
+            </a>
+            {% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p>Nenhum aniversário nos próximos 7 dias entre clientes com histórico.</p>
+        {% endif %}
+      </section>
+
+      <section class="pro-rail-card pro-rail-card--soft">
+        <span class="pro-kicker">REGRA DE RETORNO</span>
+        <h2>O serviço define o momento certo.</h2>
+        <p>
+          Cada experiência pode ter seu próprio prazo de retorno recomendado. Sem prazo configurado, o IDDUN não inventa uma cobrança de manutenção.
+        </p>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="pro-mobile-nav" aria-label="IDDUN Pro">
+  <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Hoje</span></a>
+  <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
+  <a class="is-active" href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
+  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }}<span>Perfil</span></a>
+</nav>
+{% endblock %}

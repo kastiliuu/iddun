@@ -129,6 +129,10 @@ class ExperienceForm(FlaskForm):
         "Antecedência mínima desta experiência (minutos)",
         validators=[Optional(), NumberRange(min=5, max=10080)],
     )
+    recommended_return_days = IntegerField(
+        "Retorno recomendado (dias)",
+        validators=[Optional(), NumberRange(min=1, max=3650)],
+    )
     status = SelectField("Status", choices=ExperienceStatus.CHOICES, validators=[DataRequired()])
     is_featured = BooleanField("Destaque na Home")
     submit = SubmitField("Salvar experiência")

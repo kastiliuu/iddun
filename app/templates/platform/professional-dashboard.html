@@ -35,13 +35,13 @@
         {{ icon('calendar') }}
         <span>Agenda</span>
       </a>
+      <a href="{{ url_for('professional.clients') }}">
+        {{ icon('users') }}
+        <span>Clientes</span>
+      </a>
       <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
         {{ icon('user') }}
         <span>Perfil público</span>
-      </a>
-      <a href="{{ url_for('professional.edit_profile') }}">
-        {{ icon('edit') }}
-        <span>Editar</span>
       </a>
       <a href="{{ url_for('feed.home') }}">
         {{ icon('compass') }}
@@ -112,6 +112,11 @@
         <a href="#agenda-hoje">
           {{ icon('calendar') }}
           <span>Agenda de hoje</span>
+          {{ icon('chevron-right') }}
+        </a>
+        <a href="{{ url_for('professional.clients') }}">
+          {{ icon('users') }}
+          <span>Clientes</span>
           {{ icon('chevron-right') }}
         </a>
         <a href="{{ url_for('professional.edit_profile') }}">
@@ -393,6 +398,45 @@
       </div>
       {% endif %}
     </section>
+
+    <section class="pro-panel pro-crm-overview">
+      <header class="pro-panel__head">
+        <div>
+          <span class="pro-kicker">RELACIONAMENTO</span>
+          <h2>Clientes que merecem atenção.</h2>
+        </div>
+        <a href="{{ url_for('professional.clients') }}">Ver todos</a>
+      </header>
+
+      <div class="pro-crm-overview__stats">
+        <div><strong>{{ crm.client_count }}</strong><span>clientes</span></div>
+        <div><strong>{{ crm.recurring_client_count }}</strong><span>recorrentes</span></div>
+        <div><strong>{{ crm.reactivation_count }}</strong><span>para reativar</span></div>
+        <div><strong>{{ crm.birthday_week_count }}</strong><span>aniversários</span></div>
+      </div>
+
+      {% if crm.reactivation_clients %}
+      <div class="pro-crm-overview__list">
+        {% for row in crm.reactivation_clients[:3] %}
+        <article>
+          <div>
+            <strong>{{ row.user.name }}</strong>
+            <span>{{ row.last_experience.title }} · {{ row.overdue_days }}d além do retorno</span>
+          </div>
+          {% if row.whatsapp_url %}
+          <a href="{{ row.whatsapp_url }}" target="_blank" rel="noopener">
+            {{ icon('message-circle') }} WhatsApp
+          </a>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="pro-crm-overview__empty">
+        Nenhum cliente ultrapassou um prazo de retorno configurado.
+      </p>
+      {% endif %}
+    </section>
   </main>
 
   <aside class="pro-rail" aria-label="Próximas ações">
@@ -466,11 +510,14 @@
     </section>
 
     <section class="pro-rail-card pro-rail-card--soft">
-      <span class="pro-kicker">PRÓXIMO PASSO</span>
-      <h2>Operação direto do painel.</h2>
+      <span class="pro-kicker">RELACIONAMENTO</span>
+      <h2>{{ crm.reactivation_count }} oportunidade{% if crm.reactivation_count != 1 %}s{% endif %} de retorno.</h2>
       <p>
-        A próxima sprint liga bloqueio, liberação, IDDUN Now e ações sobre reservas sem mudar esta estrutura.
+        O IDDUN usa atendimentos concluídos e o prazo configurado de cada serviço para sinalizar clientes que podem estar no momento certo de voltar.
       </p>
+      <a class="pro-rail-link" href="{{ url_for('professional.clients') }}">
+        Abrir clientes {{ icon('chevron-right') }}
+      </a>
     </section>
   </aside>
 </div>
@@ -488,9 +535,9 @@
     {{ icon('calendar') }}
     <span>Agenda</span>
   </a>
-  <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
-    {{ icon('user') }}
-    <span>Perfil</span>
+  <a href="{{ url_for('professional.clients') }}">
+    {{ icon('users') }}
+    <span>Clientes</span>
   </a>
   <a href="{{ url_for('feed.home') }}">
     {{ icon('compass') }}
