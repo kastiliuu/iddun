@@ -47,6 +47,9 @@ from app.services.media_service import (
     delete_uploaded_file,
     delete_uploaded_files,
 )
+from app.services.professional_dashboard_service import (
+    professional_dashboard_context,
+)
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle
 
@@ -350,6 +353,12 @@ def dashboard():
         if item.channel == "whatsapp"
     )
 
+    day_context = (
+        professional_dashboard_context(
+            profile
+        )
+    )
+
     return render_template(
         "platform/professional-dashboard.html",
         profile=profile,
@@ -358,6 +367,7 @@ def dashboard():
         reputation=reputation,
         whatsapp_clicks=whatsapp_clicks,
         current_page="professional-dashboard",
+        **day_context,
     )
 
 
