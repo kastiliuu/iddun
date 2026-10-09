@@ -1,0 +1,277 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}IDDUN Pro | Insights{% endblock %}
+{% block body_class %}platform-page pro-dashboard-page pro-insights-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-insights.css') }}">
+{% endblock %}
+
+{% block site_header %}
+<header class="pro-header">
+  <div class="pro-header__inner">
+    <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
+      <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="112" height="38">
+      <span>PRO</span>
+    </a>
+
+    <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
+      <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Início</span></a>
+      <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
+      <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
+      <a class="is-active" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
+      <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Cliente</span></a>
+    </nav>
+
+    <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}" aria-label="Editar meu perfil profissional">
+      <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
+        {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+      </span>
+      <span>Eu</span>
+    </a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="pro-insights-shell">
+  <header class="pro-insights-hero">
+    <div>
+      <span class="pro-kicker">DESEMPENHO · {{ period_label }}</span>
+      <h1>Entenda o que seu trabalho está gerando.</h1>
+      <p>
+        Receita, ticket, demanda e perdas calculados a partir das reservas reais do seu perfil.
+      </p>
+    </div>
+    <a class="pro-insights-back" href="{{ url_for('professional.dashboard') }}">
+      {{ icon('arrow-left') }} Voltar ao painel
+    </a>
+  </header>
+
+  <section class="pro-insights-kpis" aria-label="Indicadores financeiros do mês">
+    <article>
+      <span>{{ icon('check') }}</span>
+      <div>
+        <small>Receita realizada</small>
+        <strong>R$ {{ '%.2f'|format(current.realized_revenue)|replace('.', ',') }}</strong>
+        {% if current.realized_variation_percent is none %}
+          <em>sem base comparável em {{ previous_period_label }}</em>
+        {% else %}
+          <em>{{ '%+.1f'|format(current.realized_variation_percent)|replace('.', ',') }}% vs {{ previous_period_label }}</em>
+        {% endif %}
+      </div>
+    </article>
+
+    <article>
+      <span>{{ icon('calendar') }}</span>
+      <div>
+        <small>Receita prevista</small>
+        <strong>R$ {{ '%.2f'|format(current.forecast_revenue)|replace('.', ',') }}</strong>
+        <em>reservas confirmadas futuras do mês</em>
+      </div>
+    </article>
+
+    <article>
+      <span>{{ icon('sparkles') }}</span>
+      <div>
+        <small>Ticket médio realizado</small>
+        <strong>R$ {{ '%.2f'|format(current.average_ticket)|replace('.', ',') }}</strong>
+        {% if current.ticket_variation_percent is none %}
+          <em>sem base comparável em {{ previous_period_label }}</em>
+        {% else %}
+          <em>{{ '%+.1f'|format(current.ticket_variation_percent)|replace('.', ',') }}% vs {{ previous_period_label }}</em>
+        {% endif %}
+      </div>
+    </article>
+
+    <article>
+      <span>{{ icon('users') }}</span>
+      <div>
+        <small>Atendimentos concluídos</small>
+        <strong>{{ current.completed_count }}</strong>
+        {% if current.completed_variation_percent is none %}
+          <em>sem base comparável em {{ previous_period_label }}</em>
+        {% else %}
+          <em>{{ '%+.1f'|format(current.completed_variation_percent)|replace('.', ',') }}% vs {{ previous_period_label }}</em>
+        {% endif %}
+      </div>
+    </article>
+  </section>
+
+  <div class="pro-insights-grid">
+    <main class="pro-insights-main">
+      <section class="pro-panel">
+        <header class="pro-panel__head">
+          <div>
+            <span class="pro-kicker">SERVIÇOS</span>
+            <h2>O que mais está gerando atendimento.</h2>
+          </div>
+        </header>
+
+        {% if current.services %}
+        <div class="pro-service-performance">
+          {% for row in current.services[:8] %}
+          <article>
+            <div class="pro-service-performance__rank">{{ loop.index }}</div>
+            <div class="pro-service-performance__identity">
+              <strong>{{ row.experience.title }}</strong>
+              <span>{{ row.booked_count }} reserva{% if row.booked_count != 1 %}s{% endif %} confirmada/concluída{% if row.booked_count != 1 %}s{% endif %}</span>
+            </div>
+            <div>
+              <small>Concluídos</small>
+              <strong>{{ row.completed_count }}</strong>
+            </div>
+            <div>
+              <small>Receita realizada</small>
+              <strong>R$ {{ '%.2f'|format(row.realized_revenue)|replace('.', ',') }}</strong>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="pro-empty-state">
+          {{ icon('bar-chart-2') }}
+          <h3>Ainda não há dados suficientes neste mês.</h3>
+          <p>Quando reservas começarem a ser concluídas, a performance por serviço aparece aqui.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="pro-panel pro-demand-panel">
+        <header class="pro-panel__head">
+          <div>
+            <span class="pro-kicker">DEMANDA</span>
+            <h2>Quando seus atendimentos se concentram.</h2>
+          </div>
+        </header>
+
+        <div class="pro-demand-grid">
+          <div>
+            <h3>Dias da semana</h3>
+            <div class="pro-bars">
+              {% for row in current.weekdays %}
+              <div class="pro-bar-row">
+                <span>{{ row.label }}</span>
+                <div><i style="width:{{ row.relative_percent }}%"></i></div>
+                <strong>{{ row.count }}</strong>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div>
+            <h3>Horários com mais reservas</h3>
+            {% if current.hours %}
+            <div class="pro-hour-list">
+              {% for row in current.hours[:6] %}
+              <div>
+                <strong>{{ row.label }}</strong>
+                <span>{{ row.count }} reserva{% if row.count != 1 %}s{% endif %}</span>
+              </div>
+              {% endfor %}
+            </div>
+            {% else %}
+            <p class="pro-insights-muted">Sem reservas suficientes para identificar horários de pico.</p>
+            {% endif %}
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="pro-insights-side">
+      <section class="pro-rail-card">
+        <span class="pro-kicker">QUALIDADE DA AGENDA</span>
+        <h2>Perdas do período.</h2>
+
+        <div class="pro-rate-list">
+          <div>
+            <span>Cancelamento</span>
+            <strong>{{ '%.1f'|format(current.cancellation_rate)|replace('.', ',') }}%</strong>
+            <small>{{ current.cancelled_count }} de {{ current.outcome_count }} desfechos</small>
+          </div>
+          <div>
+            <span>No-show</span>
+            <strong>{{ '%.1f'|format(current.no_show_rate)|replace('.', ',') }}%</strong>
+            <small>{{ current.no_show_count }} de {{ current.outcome_count }} desfechos</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="pro-rail-card">
+        <span class="pro-kicker">LEITURA RÁPIDA</span>
+        {% if top_service %}
+        <div class="pro-quick-insight">
+          <small>Serviço mais concluído</small>
+          <strong>{{ top_service.experience.title }}</strong>
+          <span>{{ top_service.completed_count }} atendimento{% if top_service.completed_count != 1 %}s{% endif %}</span>
+        </div>
+        {% endif %}
+
+        {% if peak_day %}
+        <div class="pro-quick-insight">
+          <small>Dia com mais demanda</small>
+          <strong>{{ peak_day.label }}</strong>
+          <span>{{ peak_day.count }} reserva{% if peak_day.count != 1 %}s{% endif %}</span>
+        </div>
+        {% endif %}
+
+        {% if peak_hour %}
+        <div class="pro-quick-insight">
+          <small>Horário mais frequente</small>
+          <strong>{{ peak_hour.label }}</strong>
+          <span>{{ peak_hour.count }} reserva{% if peak_hour.count != 1 %}s{% endif %}</span>
+        </div>
+        {% endif %}
+
+        {% if not top_service and not peak_day and not peak_hour %}
+        <p>A leitura rápida aparece quando houver reservas suficientes no mês.</p>
+        {% endif %}
+      </section>
+
+      <section class="pro-rail-card pro-rail-card--soft">
+        <span class="pro-kicker">COMO O IDDUN CALCULA</span>
+        <div class="pro-definitions">
+          <details>
+            <summary>Receita realizada</summary>
+            <p>{{ definitions.realized_revenue }}</p>
+          </details>
+          <details>
+            <summary>Receita prevista</summary>
+            <p>{{ definitions.forecast_revenue }}</p>
+          </details>
+          <details>
+            <summary>Ticket médio</summary>
+            <p>{{ definitions.average_ticket }}</p>
+          </details>
+          <details>
+            <summary>Cancelamento</summary>
+            <p>{{ definitions.cancellation_rate }}</p>
+          </details>
+          <details>
+            <summary>No-show</summary>
+            <p>{{ definitions.no_show_rate }}</p>
+          </details>
+        </div>
+        <p class="pro-insights-disclaimer">
+          Ocupação não aparece nesta sprint porque ainda não existe uma grade semanal formal para definir a capacidade total de trabalho.
+        </p>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="pro-mobile-nav" aria-label="IDDUN Pro">
+  <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Hoje</span></a>
+  <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
+  <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
+  <a class="is-active" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
+</nav>
+{% endblock %}
