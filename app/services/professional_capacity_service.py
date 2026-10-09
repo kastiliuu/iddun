@@ -1,8 +1,8 @@
 from calendar import monthrange
-from datetime import date, datetime, timedelta
-from math import floor
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models.booking import (
@@ -217,6 +217,9 @@ def _period_bookings(
     return list(
         db.session.scalars(
             select(Booking)
+            .options(
+                selectinload(Booking.slot),
+            )
             .where(
                 Booking.professional_id
                 == profile.id,
