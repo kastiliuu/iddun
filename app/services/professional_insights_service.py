@@ -5,7 +5,11 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import (
+    Booking,
+    BookingStatus,
+    ExperienceSlot,
+)
 from app.services.time_service import (
     local_naive_to_utc,
     to_local,
@@ -451,11 +455,11 @@ def professional_insights_context(
                 Booking.professional_id
                 == profile.id,
                 Booking.slot.has(
-                    Booking.slot.property.mapper.class_.starts_at
+                    ExperienceSlot.starts_at
                     >= query_start
                 ),
                 Booking.slot.has(
-                    Booking.slot.property.mapper.class_.starts_at
+                    ExperienceSlot.starts_at
                     < query_end
                 ),
             )
