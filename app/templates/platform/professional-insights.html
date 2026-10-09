@@ -23,7 +23,8 @@
       <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
       <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
       <a class="is-active" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
-      <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Cliente</span></a>
+  <a href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
+      <a href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
     </nav>
 
     <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}" aria-label="Editar meu perfil profissional">
@@ -100,6 +101,40 @@
         {% endif %}
       </div>
     </article>
+  </section>
+
+  <section class="pro-capacity-kpis" aria-label="Capacidade e ocupação">
+    {% if capacity.schedule_configured %}
+    <article>
+      <small>Ocupação do mês</small>
+      <strong>{{ '%.1f'|format(capacity.month_capacity.occupancy_percent)|replace('.', ',') }}%</strong>
+      <span>{{ capacity.month_capacity.occupied_label }} de {{ capacity.month_capacity.capacity_label }}</span>
+    </article>
+    <article>
+      <small>Ocupação da semana</small>
+      <strong>{{ '%.1f'|format(capacity.week_capacity.occupancy_percent)|replace('.', ',') }}%</strong>
+      <span>{{ capacity.week_capacity.occupied_label }} de {{ capacity.week_capacity.capacity_label }}</span>
+    </article>
+    <article>
+      <small>Capacidade livre no mês</small>
+      <strong>{{ capacity.month_capacity.available_label }}</strong>
+      <span>após reservas comprometidas</span>
+    </article>
+    <article>
+      <small>Jornada configurada</small>
+      <strong>{{ capacity.month_capacity.capacity_label }}</strong>
+      <a href="{{ url_for('professional.schedule') }}">Editar jornada</a>
+    </article>
+    {% else %}
+    <article class="pro-capacity-empty">
+      <div>
+        <small>OCUPAÇÃO</small>
+        <strong>Ainda não calculada.</strong>
+        <span>Defina sua semana padrão para o IDDUN conhecer sua capacidade real.</span>
+      </div>
+      <a href="{{ url_for('professional.schedule') }}">Configurar jornada</a>
+    </article>
+    {% endif %}
   </section>
 
   <div class="pro-insights-grid">
@@ -257,8 +292,11 @@
           </details>
         </div>
         <p class="pro-insights-disclaimer">
-          Ocupação não aparece nesta sprint porque ainda não existe uma grade semanal formal para definir a capacidade total de trabalho.
+          Ocupação considera somente minutos dentro da jornada configurada. Cancelamentos não ocupam capacidade; reservas confirmadas, concluídas e no-show ocupam.
         </p>
+        <a class="pro-insights-schedule-link" href="{{ url_for('professional.schedule') }}">
+          Revisar jornada {{ icon('chevron-right') }}
+        </a>
       </section>
     </aside>
   </div>

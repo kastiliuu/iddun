@@ -376,3 +376,82 @@
     grid-column: 2;
   }
 }
+
+
+.pro-capacity-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.pro-capacity-kpis article {
+  min-height: 92px;
+  padding: 14px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  border: 1px solid rgba(11,11,15,.075);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.pro-capacity-kpis small,
+.pro-capacity-kpis span {
+  color: #85868F;
+  font-size: .5rem;
+}
+
+.pro-capacity-kpis strong {
+  font-size: .84rem;
+}
+
+.pro-capacity-kpis a,
+.pro-insights-schedule-link {
+  color: #5C28D9;
+  text-decoration: none;
+  font-size: .5rem;
+  font-weight: 700;
+}
+
+.pro-capacity-kpis .pro-capacity-empty {
+  grid-column: 1 / -1;
+  min-height: 86px;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+}
+
+.pro-capacity-empty > div {
+  display: grid;
+  gap: 3px;
+}
+
+.pro-insights-schedule-link {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pro-insights-schedule-link .icon {
+  width: 12px;
+  height: 12px;
+}
+
+@media (max-width: 900px) {
+  .pro-capacity-kpis {
+    grid-template-columns: repeat(2, minmax(0,1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .pro-capacity-kpis {
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+  }
+
+  .pro-capacity-kpis .pro-capacity-empty {
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+}

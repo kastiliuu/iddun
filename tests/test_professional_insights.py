@@ -340,7 +340,8 @@ def test_professional_insights_page_renders_real_metrics(
     assert "R$ 150,00" in html
     assert "25,0%" in html
     assert "Manutenção em gel" in html
-    assert "Ocupação não aparece nesta sprint" in html
+    assert "COMO O IDDUN CALCULA" in html
+    assert "Ocupação não aparece nesta sprint" not in html
 
 
 def test_pro_dashboard_surfaces_real_monthly_summary(

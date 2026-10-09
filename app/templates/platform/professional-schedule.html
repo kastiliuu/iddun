@@ -1,0 +1,196 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}IDDUN Pro | Jornada{% endblock %}
+{% block body_class %}platform-page pro-dashboard-page pro-schedule-config-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-schedule.css') }}">
+{% endblock %}
+
+{% block site_header %}
+<header class="pro-header">
+  <div class="pro-header__inner">
+    <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
+      <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="112" height="38">
+      <span>PRO</span>
+    </a>
+
+    <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
+      <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Início</span></a>
+      <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
+      <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
+      <a href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
+      <a class="is-active" href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
+    </nav>
+
+    <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}">
+      <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
+        {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+      </span>
+      <span>Eu</span>
+    </a>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+<div class="pro-schedule-shell">
+  <header class="pro-schedule-hero">
+    <div>
+      <span class="pro-kicker">CAPACIDADE REAL</span>
+      <h1>Defina quando você realmente trabalha.</h1>
+      <p>
+        Esta grade vira a fonte de verdade para capacidade e ocupação. Dias desativados são folgas recorrentes e a pausa é descontada automaticamente.
+      </p>
+    </div>
+
+    {% if capacity.schedule_configured %}
+    <div class="pro-schedule-occupancy-card">
+      <small>OCUPAÇÃO DO MÊS</small>
+      <strong>{{ '%.1f'|format(capacity.month_capacity.occupancy_percent)|replace('.', ',') }}%</strong>
+      <span>{{ capacity.month_capacity.occupied_label }} de {{ capacity.month_capacity.capacity_label }}</span>
+    </div>
+    {% else %}
+    <div class="pro-schedule-occupancy-card pro-schedule-occupancy-card--empty">
+      <small>OCUPAÇÃO</small>
+      <strong>—</strong>
+      <span>Configure sua jornada primeiro.</span>
+    </div>
+    {% endif %}
+  </header>
+
+  <div class="pro-schedule-grid">
+    <main class="pro-panel pro-schedule-form-card">
+      <header class="pro-panel__head">
+        <div>
+          <span class="pro-kicker">SEMANA PADRÃO</span>
+          <h2>Horários recorrentes.</h2>
+        </div>
+      </header>
+
+      <form method="post" class="pro-week-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% for day in schedule %}
+        <section class="pro-week-day">
+          <label class="pro-day-toggle">
+            <input
+              type="checkbox"
+              name="day_{{ day.weekday }}_enabled"
+              value="1"
+              {% if day.enabled %}checked{% endif %}
+            >
+            <span></span>
+            <strong>{{ day.label }}</strong>
+          </label>
+
+          <div class="pro-day-hours">
+            <label>
+              <span>Início</span>
+              <input type="time" name="day_{{ day.weekday }}_start" value="{{ day.start }}">
+            </label>
+            <label>
+              <span>Fim</span>
+              <input type="time" name="day_{{ day.weekday }}_end" value="{{ day.end }}">
+            </label>
+          </div>
+
+          <label class="pro-break-toggle">
+            <input
+              type="checkbox"
+              name="day_{{ day.weekday }}_break_enabled"
+              value="1"
+              {% if day.break_enabled %}checked{% endif %}
+            >
+            <span>Descontar pausa recorrente</span>
+          </label>
+
+          <div class="pro-day-hours pro-day-hours--break">
+            <label>
+              <span>Início da pausa</span>
+              <input type="time" name="day_{{ day.weekday }}_break_start" value="{{ day.break_start }}">
+            </label>
+            <label>
+              <span>Fim da pausa</span>
+              <input type="time" name="day_{{ day.weekday }}_break_end" value="{{ day.break_end }}">
+            </label>
+          </div>
+        </section>
+        {% endfor %}
+
+        <div class="pro-schedule-actions">
+          <button type="submit" class="pro-schedule-save">
+            {{ icon('check') }}
+            Salvar jornada
+          </button>
+          <span>
+            A ocupação será recalculada com esta capacidade.
+          </span>
+        </div>
+      </form>
+    </main>
+
+    <aside class="pro-schedule-side">
+      <section class="pro-rail-card">
+        <span class="pro-kicker">ESTA SEMANA</span>
+        {% if capacity.schedule_configured %}
+        <div class="pro-capacity-stats">
+          <div>
+            <small>Capacidade</small>
+            <strong>{{ capacity.week_capacity.capacity_label }}</strong>
+          </div>
+          <div>
+            <small>Ocupado</small>
+            <strong>{{ capacity.week_capacity.occupied_label }}</strong>
+          </div>
+          <div>
+            <small>Livre</small>
+            <strong>{{ capacity.week_capacity.available_label }}</strong>
+          </div>
+          <div>
+            <small>Ocupação</small>
+            <strong>{{ '%.1f'|format(capacity.week_capacity.occupancy_percent)|replace('.', ',') }}%</strong>
+          </div>
+        </div>
+        {% else %}
+        <p>Sem jornada configurada, o IDDUN não calcula capacidade.</p>
+        {% endif %}
+      </section>
+
+      <section class="pro-rail-card pro-rail-card--soft">
+        <span class="pro-kicker">REGRA DE CÁLCULO</span>
+        <h2>Sem porcentagem inventada.</h2>
+        <p>
+          Capacidade = jornada configurada menos pausas recorrentes. Ocupado = tempo real de reservas confirmadas, concluídas ou no-show que cai dentro da jornada.
+        </p>
+        <p>
+          Reservas canceladas não ocupam capacidade. Horas fora da jornada não aumentam sua ocupação.
+        </p>
+      </section>
+
+      <section class="pro-rail-card">
+        <span class="pro-kicker">PRÓXIMO PASSO</span>
+        <h2>Exceções pontuais.</h2>
+        <p>
+          Folgas específicas, férias e indisponibilidades por data ficam preparadas para uma evolução posterior sem contaminar a regra semanal.
+        </p>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}
+
+{% block site_footer %}{% endblock %}
+
+{% block mobile_bottom_nav %}
+<nav class="pro-mobile-nav" aria-label="IDDUN Pro">
+  <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Hoje</span></a>
+  <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
+  <a href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
+  <a class="is-active" href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
+</nav>
+{% endblock %}
