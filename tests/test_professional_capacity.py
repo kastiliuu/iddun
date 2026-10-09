@@ -227,6 +227,9 @@ def test_capacity_is_not_calculated_without_weekly_schedule(app):
             email="no-schedule@example.com",
             role=UserRole.PROFESSIONAL,
         )
+        user.set_password(
+            "senha-forte-123"
+        )
         profile = ProfessionalProfile(
             user=user,
             display_name="Sem Jornada",
