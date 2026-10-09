@@ -22,8 +22,7 @@
       <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Início</span></a>
       <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
       <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
-      <a class="is-active" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
-  <a href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
+      <a class="is-active" aria-current="page" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
       <a href="{{ url_for('professional.schedule') }}">{{ icon('clock') }}<span>Jornada</span></a>
     </nav>
 
@@ -306,10 +305,21 @@
 {% block site_footer %}{% endblock %}
 
 {% block mobile_bottom_nav %}
-<nav class="pro-mobile-nav" aria-label="IDDUN Pro">
-  <a href="{{ url_for('professional.dashboard') }}">{{ icon('home') }}<span>Hoje</span></a>
-  <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">{{ icon('calendar') }}<span>Agenda</span></a>
-  <a href="{{ url_for('professional.clients') }}">{{ icon('users') }}<span>Clientes</span></a>
-  <a class="is-active" href="{{ url_for('professional.insights') }}">{{ icon('bar-chart-2') }}<span>Insights</span></a>
+<nav class="pro-mobile-nav" aria-label="Navegação principal do IDDUN Pro">
+  <a href="{{ url_for('professional.dashboard') }}">
+    {{ icon('home') }}<span>Hoje</span>
+  </a>
+  <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">
+    {{ icon('calendar') }}<span>Agenda</span>
+  </a>
+  <a href="{{ url_for('professional.clients') }}">
+    {{ icon('users') }}<span>Clientes</span>
+  </a>
+  <a class="is-active" aria-current="page" href="{{ url_for('professional.insights') }}">
+    {{ icon('bar-chart-2') }}<span>Insights</span>
+  </a>
+  <a href="{{ url_for('professional.schedule') }}">
+    {{ icon('clock') }}<span>Jornada</span>
+  </a>
 </nav>
 {% endblock %}

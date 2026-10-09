@@ -3,9 +3,11 @@ from datetime import date, datetime, timedelta
 from urllib.parse import quote
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models.booking import Booking, BookingStatus
+from app.models.profile import ClientProfile
 from app.services.time_service import to_local, utcnow
 
 
@@ -122,6 +124,12 @@ def professional_clients_context(
 
     bookings = db.session.scalars(
         select(Booking)
+        .options(
+            selectinload(Booking.slot),
+            selectinload(Booking.experience),
+            selectinload(Booking.client)
+            .selectinload(ClientProfile.user),
+        )
         .where(
             Booking.professional_id
             == profile.id,

@@ -67,6 +67,31 @@ main {
   display: block;
 }
 
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 9999;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--color-ink);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 700;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform .16s ease;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+
 .sr-only {
   position: absolute;
   width: 1px;

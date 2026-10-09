@@ -3,6 +3,7 @@ from datetime import datetime, time
 from decimal import Decimal
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models.booking import (
@@ -451,6 +452,10 @@ def professional_insights_context(
     bookings = list(
         db.session.scalars(
             select(Booking)
+            .options(
+                selectinload(Booking.slot),
+                selectinload(Booking.experience),
+            )
             .where(
                 Booking.professional_id
                 == profile.id,
