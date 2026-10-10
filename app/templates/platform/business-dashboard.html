@@ -26,10 +26,10 @@
 
 <nav class="business-section-nav" aria-label="Seções do painel Business">
   <div class="container business-section-nav__inner">
-    <a href="#business-overview">{{ icon('layout-dashboard') }}<span>Visão geral</span></a>
+    <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
     <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
     <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
-    <a href="#business-gallery">{{ icon('image') }}<span>Galeria</span></a>
+    <a href="#business-gallery">{{ icon('store') }}<span>Galeria</span></a>
     <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar empresa</span></a>
     <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Voltar ao Cliente</span></a>
   </div>
