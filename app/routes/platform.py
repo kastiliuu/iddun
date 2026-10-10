@@ -39,7 +39,7 @@ from app.models.establishment import (
     MembershipStatus,
     ProfessionalEstablishmentMembership,
 )
-from app.models.experience import ExperienceStatus
+from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
@@ -408,6 +408,7 @@ def dashboard():
         profile=profile,
         confirmed_bookings=confirmed_bookings,
         published_experiences=published_experiences,
+        catalog_preview=catalog_preview,
         reputation=reputation,
         whatsapp_clicks=whatsapp_clicks,
         current_page="professional-dashboard",
@@ -1538,6 +1539,16 @@ def dashboard(slug):
         for item in establishment.experiences
         if item.status == ExperienceStatus.PUBLISHED
     )
+    catalog_preview = db.session.scalars(
+        select(Experience)
+        .where(
+            Experience.establishment_id == establishment.id,
+            Experience.status == ExperienceStatus.PUBLISHED,
+        )
+        .order_by(Experience.created_at.desc(), Experience.id.desc())
+        .limit(6)
+    ).all()
+
     reputation = reputation_summary(
         establishment.reviews_received
     )
