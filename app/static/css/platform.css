@@ -2147,3 +2147,46 @@ article > div {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* IDDUN Business V1 — navigational links for sections already present.
+   Future operational modules will get routes only after RBAC/API readiness. */
+.business-section-nav {
+  position: relative;
+  z-index: 2;
+  background: #0B0B0F;
+  border-block: 1px solid rgba(218, 221, 225, .16);
+}
+.business-section-nav__inner {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: .25rem 1.25rem;
+}
+.business-section-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .9rem .1rem;
+  color: #DADDE1;
+  text-decoration: none;
+  font-size: .85rem;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+.business-section-nav a:hover,
+.business-section-nav a:focus-visible {
+  color: #F7F6F4;
+  border-bottom-color: #6B2EFF;
+}
+.business-section-nav a:focus-visible {
+  outline: 2px solid #6B2EFF;
+  outline-offset: 2px;
+}
+.business-section-nav .icon { width: 1rem; height: 1rem; }
+#business-overview, #business-team, #business-reputation, #business-gallery {
+  scroll-margin-top: 7rem;
+}
+@media (max-width: 720px) {
+  .business-section-nav__inner { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  .business-section-nav a { white-space: nowrap; min-height: 44px; }
+}
