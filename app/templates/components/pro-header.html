@@ -1,0 +1,42 @@
+{% from 'components/icon.html' import icon %}
+{# Shared navigation for all operational IDDUN Pro pages. #}
+<header class="pro-header">
+  <div class="pro-header__inner">
+    <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
+      <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="112" height="38">
+      <span>PRO</span>
+    </a>
+
+    <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
+      <a href="{{ url_for('professional.dashboard') }}" {% if pro_active == 'home' %}class="is-active" aria-current="page"{% endif %}>
+        {{ icon('home') }}<span>Início</span>
+      </a>
+      <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">
+        {{ icon('calendar') }}<span>Agenda</span>
+      </a>
+      <a href="{{ url_for('professional.clients') }}" {% if pro_active == 'clients' %}class="is-active" aria-current="page"{% endif %}>
+        {{ icon('users') }}<span>Clientes</span>
+      </a>
+      <a href="{{ url_for('professional.insights') }}" {% if pro_active == 'insights' %}class="is-active" aria-current="page"{% endif %}>
+        {{ icon('bar-chart-2') }}<span>Insights</span>
+      </a>
+      <a href="{{ url_for('professional.schedule') }}" {% if pro_active == 'schedule' %}class="is-active" aria-current="page"{% endif %}>
+        {{ icon('clock') }}<span>Jornada</span>
+      </a>
+      <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
+        {{ icon('user') }}<span>Perfil público</span>
+      </a>
+      <a href="{{ url_for('feed.home') }}">
+        {{ icon('compass') }}<span>Cliente</span>
+      </a>
+    </nav>
+
+    <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}" aria-label="Editar meu perfil profissional">
+      <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
+        {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+      </span>
+      <span>Eu</span>
+    </a>
+  </div>
+</header>
