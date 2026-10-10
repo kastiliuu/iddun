@@ -477,6 +477,20 @@ def test_business_invitation_requires_professional_acceptance(
 
         slug = establishment.slug
 
+    dashboard = client.get(f"/business/{slug}/painel")
+    assert dashboard.status_code == 200
+    dashboard_html = dashboard.get_data(as_text=True)
+    assert 'aria-label="Seções do painel Business"' in dashboard_html
+    for anchor in (
+        "business-overview",
+        "business-team",
+        "business-reputation",
+        "business-gallery",
+    ):
+        assert f'id="{anchor}"' in dashboard_html
+        assert f'href="#{anchor}"' in dashboard_html
+    assert "Voltar ao Cliente" in dashboard_html
+
     response = client.post(
         f"/business/{slug}/painel",
         data={
