@@ -27,6 +27,7 @@
 <nav class="business-section-nav" aria-label="Seções do painel Business">
   <div class="container business-section-nav__inner">
     <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
+    <a href="#business-operations">{{ icon('calendar') }}<span>Operação</span></a>
     <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
     <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
     <a href="#business-gallery">{{ icon('store') }}<span>Galeria</span></a>
@@ -38,10 +39,34 @@
 <section class="platform-dashboard-content" id="business-overview">
   <div class="container platform-dashboard-grid">
     <main class="platform-dashboard-main">
+      {% if establishment.profile_completion < 100 %}
       <section class="platform-completion-card" data-reveal>
         <div><span class="platform-kicker">PRESENÇA DA MARCA</span><h2>Página {{ establishment.profile_completion }}% completa.</h2><p>A empresa conecta a marca ao quadro de profissionais, sem misturar identidades.</p></div>
         <strong>{{ establishment.profile_completion }}%</strong>
         <div class="platform-progress__bar"><span style="width:{{ establishment.profile_completion }}%"></span></div>
+      </section>
+      {% endif %}
+
+      <section class="business-operations" id="business-operations" aria-labelledby="business-operations-title">
+        <div class="business-operations__intro">
+          <span class="platform-kicker">OPERAÇÃO DO ESTABELECIMENTO</span>
+          <h2 id="business-operations-title">Visão geral da operação</h2>
+          <p>Dados reais das reservas e dos serviços vinculados a este estabelecimento.</p>
+        </div>
+        <div class="business-operations__metrics">
+          <article class="business-operations__metric">
+            <span>{{ icon('calendar') }}</span>
+            <strong>{{ confirmed_bookings }}</strong>
+            <small>Reservas confirmadas</small>
+            <p>Total de reservas atualmente confirmadas neste estabelecimento.</p>
+          </article>
+          <article class="business-operations__metric">
+            <span>{{ icon('scissors') }}</span>
+            <strong>{{ published_experiences }}</strong>
+            <small>Serviços publicados</small>
+            <p>Experiências publicadas e vinculadas à empresa.</p>
+          </article>
+        </div>
       </section>
 
       <section class="platform-metric-grid" data-reveal-stagger>
