@@ -11,6 +11,7 @@ from app.models.establishment import (
     MembershipStatus,
     ProfessionalEstablishmentMembership,
 )
+from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
@@ -403,6 +404,42 @@ def test_same_account_can_be_client_professional_and_business_owner(
         assert user.professional_profile is not None
         assert len(user.establishment_accesses) == 1
 
+        establishment = user.establishment_accesses[0].establishment
+        slug = establishment.slug
+        db.session.add_all([
+            Experience(
+                professional=user.professional_profile,
+                establishment=establishment,
+                title="Corte empresarial publicado",
+                slug="corte-empresarial-publicado",
+                category="barbearia",
+                short_description="Serviço real vinculado à empresa.",
+                regular_price="80.00",
+                price="75.00",
+                duration_minutes=45,
+                status=ExperienceStatus.PUBLISHED,
+            ),
+            Experience(
+                professional=user.professional_profile,
+                establishment=establishment,
+                title="Oferta empresarial em rascunho",
+                slug="oferta-empresarial-rascunho",
+                category="barbearia",
+                short_description="Não deve aparecer no catálogo.",
+                regular_price="80.00",
+                price="70.00",
+                duration_minutes=45,
+                status=ExperienceStatus.DRAFT,
+            ),
+        ])
+        db.session.commit()
+
+    html = client.get(f"/business/{slug}/painel").get_data(as_text=True)
+    assert "Corte empresarial publicado" in html
+    assert "R$ 75,00" in html
+    assert "Oferta empresarial em rascunho" not in html
+    assert 'href="/experiencias/corte-empresarial-publicado"' in html
+
 
 def test_business_invitation_requires_professional_acceptance(
     app,
@@ -484,6 +521,7 @@ def test_business_invitation_requires_professional_acceptance(
     for anchor in (
         "business-overview",
         "business-operations",
+        "business-catalog",
         "business-team",
         "business-reputation",
         "business-gallery",
@@ -494,6 +532,7 @@ def test_business_invitation_requires_professional_acceptance(
     assert "Visão geral da operação" in dashboard_html
     assert "Reservas confirmadas" in dashboard_html
     assert "Serviços publicados" in dashboard_html
+    assert "Ainda não há serviços publicados vinculados" in dashboard_html
     assert "Receita realizada" not in dashboard_html
 
     response = client.post(
