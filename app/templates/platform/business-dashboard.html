@@ -24,7 +24,18 @@
   </div>
 </section>
 
-<section class="platform-dashboard-content">
+<nav class="business-section-nav" aria-label="Seções do painel Business">
+  <div class="container business-section-nav__inner">
+    <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
+    <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
+    <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
+    <a href="#business-gallery">{{ icon('store') }}<span>Galeria</span></a>
+    <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar empresa</span></a>
+    <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Voltar ao Cliente</span></a>
+  </div>
+</nav>
+
+<section class="platform-dashboard-content" id="business-overview">
   <div class="container platform-dashboard-grid">
     <main class="platform-dashboard-main">
       <section class="platform-completion-card" data-reveal>
@@ -40,7 +51,7 @@
         <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
       </section>
 
-      <section class="platform-panel" data-reveal>
+      <section class="platform-panel" id="business-team" data-reveal>
         <header class="platform-panel__head">
           <div><span class="platform-kicker">EQUIPE</span><h2>Quadro de profissionais</h2><p>Convide quem já possui perfil profissional. A pessoa precisa aceitar antes de aparecer publicamente.</p></div>
         </header>
@@ -84,11 +95,11 @@
       </section>
 
 
-      <section class="platform-panel" data-reveal>
+      <section class="platform-panel" id="business-reputation" data-reveal>
         <header class="platform-panel__head"><div><span class="platform-kicker">REPUTAÇÃO DA EMPRESA</span><h2>Avaliações verificadas</h2><p>A nota do estabelecimento é separada da reputação dos profissionais da equipe.</p></div></header>
         {% if establishment.reviews_received %}<div class="platform-review-list">{% for review in establishment.reviews_received[:3] %}{% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda o estabelecimento{% else %}sem recomendação{% endif %}</small></article>{% endif %}{% endfor %}</div>{% else %}<div class="platform-empty">As avaliações da empresa aparecerão depois de atendimentos concluídos.</div>{% endif %}
       </section>
-      <section class="platform-panel" data-reveal>
+      <section class="platform-panel" id="business-gallery" data-reveal>
         <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>O espaço em imagens</h2></div><a href="{{ url_for('business.edit', slug=establishment.slug) }}">Gerenciar</a></header>
         {% if establishment.gallery_items %}
         <div class="platform-portfolio-strip">
@@ -116,6 +127,6 @@
   <a class="is-active" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('home') }}<span>Visão geral</span></a>
   <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }}<span>Empresa</span></a>
   <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar</span></a>
-  <a href="{{ url_for('account.dashboard') }}">{{ icon('compass') }}<span>Cliente</span></a>
+  <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Cliente</span></a>
 </nav>
 {% endblock %}
