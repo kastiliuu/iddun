@@ -483,6 +483,7 @@ def test_business_invitation_requires_professional_acceptance(
     assert 'aria-label="Seções do painel Business"' in dashboard_html
     for anchor in (
         "business-overview",
+        "business-operations",
         "business-team",
         "business-reputation",
         "business-gallery",
@@ -490,6 +491,10 @@ def test_business_invitation_requires_professional_acceptance(
         assert f'id="{anchor}"' in dashboard_html
         assert f'href="#{anchor}"' in dashboard_html
     assert "Voltar ao Cliente" in dashboard_html
+    assert "Visão geral da operação" in dashboard_html
+    assert "Reservas confirmadas" in dashboard_html
+    assert "Serviços publicados" in dashboard_html
+    assert "Receita realizada" not in dashboard_html
 
     response = client.post(
         f"/business/{slug}/painel",
