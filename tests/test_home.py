@@ -28,12 +28,8 @@ def test_home_returns_200(client):
         in text
     )
 
-    assert "Tatuagem" in text
-
-    assert (
-        "category-tattoo.svg"
-        in text
-    )
+    assert "Conexões reais. Histórias que inspiram." in text
+    assert "category-tattoo.svg" not in text
 
 
 def test_home_search_categories_and_marketplace_sections(
@@ -60,25 +56,11 @@ def test_home_search_categories_and_marketplace_sections(
         in text
     )
 
-    # Official discovery taxonomy exposed by the Home.
-    assert "Cabelo" in text
-    assert "Unhas" in text
-    assert "Barbearia" in text
-    assert "Estética" in text
-    assert "Tatuagem" in text
-    assert "Sobrancelhas" in text
-
-    # Categories that were previously visual-only now point
-    # to real marketplace filter values.
-    assert (
-        "categoria=estetica"
-        in text
-    )
-
-    assert (
-        "categoria=sobrancelhas"
-        in text
-    )
+    # Marketplace categories now belong to Discover rather than the public landing.
+    assert 'class="home-v4-category-grid"' not in text
+    assert 'id="home-institutional-title"' in text
+    assert 'href="/profissionais"' in text
+    assert 'href="/estabelecimentos"' in text
 
     # Prototype fallback remains available until the
     # production establishment catalog is populated.

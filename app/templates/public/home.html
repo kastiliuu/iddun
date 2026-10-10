@@ -385,101 +385,20 @@ home-page visual-v2-page home-v4-page
 
 
 <!-- ==========================================================
-     CATEGORIES
+     IDDUN — INSTITUTIONAL STORY
+     The marketplace taxonomy lives in Discover, not the landing page.
      ========================================================== -->
-
-<section
-  class="home-v4-section home-v4-categories"
-  id="categorias"
-  aria-labelledby="categories-title"
->
-
-  <span
-    id="descobrir"
-    class="home-v4-anchor"
-    aria-hidden="true"
-  ></span>
-
-
-  <div class="container">
-
-    <header
-      class="home-v4-section-head"
-      data-reveal
-    >
-
-      <div>
-        <h2 id="categories-title">
-          Explore por categoria
-        </h2>
-      </div>
-
-
-      <a href="{{ url_for('public.experiences') }}">
-        Ver todas as categorias
-
-        {{ icon('chevron-right') }}
-      </a>
-
-    </header>
-
-
-    <div
-      class="home-v4-category-grid"
-      data-reveal-stagger
-    >
-
-      {% for category in categories %}
-
-        <a
-          class="home-v4-category-card"
-          href="{{ url_for(
-            'public.experiences',
-            categoria=category.value
-          ) }}"
-          aria-label="Explorar {{ category.name }}"
-        >
-
-          <img
-            src="{{ category.image|media_url }}"
-            alt="{{ category.name }}: {{ category.subtitle }}"
-            style="object-position: {{ category.position }};"
-            loading="lazy"
-          >
-
-
-          <span
-            class="home-v4-category-card__shade"
-            aria-hidden="true"
-          ></span>
-
-
-          <span class="home-v4-category-card__content">
-
-            <strong>
-              {{ category.name }}
-            </strong>
-
-            <small>
-              {{ category.subtitle }}
-            </small>
-
-          </span>
-
-
-          <span
-            class="home-v4-round-arrow"
-            aria-hidden="true"
-          >
-            {{ icon('chevron-right') }}
-          </span>
-
-        </a>
-
-      {% endfor %}
-
+<section class="home-v4-institutional" aria-labelledby="home-institutional-title">
+  <div class="container home-v4-institutional__inner">
+    <div class="home-v4-institutional__copy">
+      <span class="home-v4-kicker"><span class="home-v4-brand-star" aria-hidden="true">✦</span> MAIS QUE BELEZA</span>
+      <h2 id="home-institutional-title">Conexões reais. Histórias que inspiram.</h2>
+      <p>Conheça quem transforma talento em experiências: profissionais independentes e estabelecimentos que fazem parte do IDDUN.</p>
     </div>
-
+    <div class="home-v4-institutional__actions">
+      <a class="home-v4-institutional__link" href="{{ url_for('public.professionals') }}">Conhecer profissionais <span aria-hidden="true">→</span></a>
+      <a class="home-v4-institutional__link" href="{{ url_for('public.establishments') }}">Conhecer estabelecimentos <span aria-hidden="true">→</span></a>
+    </div>
   </div>
 </section>
 
