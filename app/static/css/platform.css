@@ -2190,3 +2190,16 @@ article > div {
   .business-section-nav__inner { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
   .business-section-nav a { white-space: nowrap; min-height: 44px; }
 }
+
+/* Business V1 — live operational counters, no revenue or mock data. */
+.business-operations { margin-bottom: 1.5rem; scroll-margin-top: 7rem; }
+.business-operations__intro { margin-bottom: 1.1rem; }
+.business-operations__intro h2 { font-family: var(--font-display, 'Playfair Display', serif); font-size: clamp(1.5rem, 2.4vw, 2.1rem); margin: .5rem 0; }
+.business-operations__intro p { line-height: 1.6; }
+.business-operations__metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.business-operations__metric { min-width: 0; border: 1px solid rgba(218,221,225,.16); border-radius: 1rem; background: #1A0F2E; color: #F7F6F4; padding: 1.3rem; display: flex; flex-direction: column; gap: .45rem; }
+.business-operations__metric .icon { width: 1.3rem; height: 1.3rem; color: #DADDE1; }
+.business-operations__metric strong { font-size: clamp(1.8rem, 3.5vw, 2.5rem); font-variant-numeric: tabular-nums; }
+.business-operations__metric small { font-size: .95rem; font-weight: 700; }
+.business-operations__metric p { font-size: .8rem; line-height: 1.5; color: #DADDE1; margin: 0; }
+@media(max-width: 600px) { .business-operations__metrics { grid-template-columns: 1fr; } }
