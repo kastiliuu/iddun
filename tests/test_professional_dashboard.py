@@ -243,6 +243,14 @@ def test_pro_dashboard_renders_real_day_context(
         "Tudo o que importa para hoje."
         in html
     )
+    # Shared Pro navigation retains operational routes and context switching.
+    assert 'aria-label="Navegação IDDUN Pro"' in html
+    assert 'href="/pro/clientes"' in html
+    assert 'href="/pro/insights"' in html
+    assert 'href="/pro/jornada"' in html
+    assert 'href="/feed"' in html
+    assert html.count('aria-current="page"') >= 1
+
     assert "Ana Cliente" in html
     assert "Manutenção em gel" in html
     assert "R$ 100,00" in html
