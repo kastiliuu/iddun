@@ -1,4 +1,4 @@
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, flash, redirect, render_template, request, url_for
 from flask_login import (
     current_user,
     login_required,
@@ -69,8 +69,15 @@ def _dashboard_context(form, profile):
 
 
 @account_bp.route("/minha-conta", methods=["GET", "POST"])
+@account_bp.route("/minha-conta/editar", methods=["GET", "POST"])
 @login_required
 def dashboard():
+    # Keep legacy POST /minha-conta compatible with older clients.
+    # The canonical editing surface has its own URL.
+    editing = (
+        request.path.rstrip("/") == "/minha-conta/editar"
+        or request.method == "POST"
+    )
     profile = ensure_client_profile(current_user)
 
     form = ClientProfileForm(obj=profile)
@@ -84,7 +91,7 @@ def dashboard():
             form.avatar_file.errors.append(str(exc))
             uploaded_avatar = None
         if form.avatar_file.errors:
-            return render_template("account/dashboard.html", **_dashboard_context(form, profile))
+            return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
         current_user.name = form.name.data.strip()
         profile.phone = (form.phone.data or "").strip() or None
         profile.birth_date = form.birth_date.data
