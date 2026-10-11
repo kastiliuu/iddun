@@ -560,6 +560,7 @@ def test_pro_services_page_redirects_client_without_profile(app, client):
         name="Cliente somente", email="cliente-servicos@example.com",
         role=UserRole.CLIENT,
     )
+    user.set_password("senha-forte-123")
     with app.app_context():
         db.session.add(user)
         db.session.commit()
