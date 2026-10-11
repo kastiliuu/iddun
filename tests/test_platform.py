@@ -493,6 +493,10 @@ def test_same_account_can_be_client_professional_and_business_owner(
     assert "Conta Multi" in booking_html
     assert "Confirmada" in booking_html
     assert "R$ 75,00" in booking_html
+    insights_response = client.get(f"/business/{slug}/indicadores")
+    assert insights_response.status_code == 200
+    assert "1 no total" in insights_response.get_data(as_text=True)
+    assert "R$ 0,00" in insights_response.get_data(as_text=True)
     assert client.get(f"/business/{slug}/reservas?status=unknown").status_code == 400
     assert client.get(f"/business/{slug}/reservas?date=invalid").status_code == 400
 
