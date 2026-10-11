@@ -61,6 +61,19 @@
                 <button class="btn btn-primary" type="submit">Disponibilizar horário</button>
               </form>
               <details>
+                <summary>Gerar horários da jornada semanal</summary>
+                <p>O IDDUN usa sua jornada cadastrada, o intervalo e a duração deste serviço. Todos os horários da data serão validados como um único lote.</p>
+                <form method="post" action="{{ url_for('professional.create_service_slots_from_schedule', service_id=item.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <div class="platform-field">
+                    <label class="platform-label" for="schedule-date-{{ item.id }}">Data da jornada</label>
+                    <input class="platform-input" type="date" id="schedule-date-{{ item.id }}" name="slot_date" required>
+                  </div>
+                  <a class="btn btn-outline" href="{{ url_for('professional.schedule') }}">Configurar jornada</a>
+                  <button class="btn btn-primary" type="submit">Gerar horários do dia</button>
+                </form>
+              </details>
+              <details>
                 <summary>Abrir vários horários de uma vez</summary>
                 <form method="post" action="{{ url_for('professional.create_service_slots_batch', service_id=item.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
