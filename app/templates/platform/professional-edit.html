@@ -423,6 +423,58 @@
       </div>
     </form>
 
+    <section class="platform-panel" id="experiencia-profissional" aria-labelledby="pro-work-experience-title">
+      <header class="platform-panel__head">
+        <div>
+          <span class="platform-kicker">CARREIRA</span>
+          <h2 id="pro-work-experience-title">Experiência profissional</h2>
+          <p>Compartilhe sua trajetória com clientes e estabelecimentos.</p>
+        </div>
+      </header>
+
+      {% if profile.professional_experiences %}
+      <ul>
+        {% for item in profile.professional_experiences %}
+        <li>
+          <strong>{{ item.role_title }} · {{ item.company_name }}</strong>
+          <span>{{ item.started_at.strftime('%m/%Y') }} — {{ 'Atualmente' if item.is_current else item.ended_at.strftime('%m/%Y') if item.ended_at else 'Não informado' }}</span>
+          {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('professional.add_work_experience') }}" class="platform-editor-form">
+        {{ experience_form.hidden_tag() }}
+        <div class="platform-form-grid">
+          <div class="platform-field">
+            {{ experience_form.company_name.label(class_='platform-label') }}
+            {{ experience_form.company_name(class_='platform-input', maxlength='160') }}
+          </div>
+          <div class="platform-field">
+            {{ experience_form.role_title.label(class_='platform-label') }}
+            {{ experience_form.role_title(class_='platform-input', maxlength='140') }}
+          </div>
+          <div class="platform-field">
+            {{ experience_form.started_at.label(class_='platform-label') }}
+            {{ experience_form.started_at(class_='platform-input') }}
+          </div>
+          <div class="platform-field">
+            {{ experience_form.ended_at.label(class_='platform-label') }}
+            {{ experience_form.ended_at(class_='platform-input') }}
+          </div>
+          <div class="platform-field platform-field--wide">
+            <label>{{ experience_form.is_current() }} {{ experience_form.is_current.label.text }}</label>
+          </div>
+          <div class="platform-field platform-field--wide">
+            {{ experience_form.description.label(class_='platform-label') }}
+            {{ experience_form.description(class_='platform-textarea', maxlength='2000') }}
+          </div>
+        </div>
+        {{ experience_form.submit(class_='btn btn-primary') }}
+      </form>
+    </section>
+
     {% for item in profile.portfolio_items %}
       <form
         id="remove-portfolio-{{ item.id }}"
