@@ -815,3 +815,89 @@ def test_pro_cannot_change_another_professional_service_status(app, client):
         assert response.status_code == 404
     with app.app_context():
         assert db.session.get(Experience, service_id).status == ExperienceStatus.DRAFT
+
+
+def test_pro_service_image_upload_on_create_and_edit(app, client):
+    from io import BytesIO
+    from PIL import Image
+    from sqlalchemy import select
+
+    def png_upload(name):
+        data = BytesIO()
+        Image.new("RGB", (16, 16), (180, 80, 120)).save(data, format="PNG")
+        data.seek(0)
+        return data, name
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    payload = {
+        "title": "Capa de gel",
+        "category": "unhas",
+        "short_description": "Serviço com imagem própria",
+        "regular_price": "150.00",
+        "price": "120.00",
+        "duration_minutes": "60",
+        "image_file": png_upload("capa.png"),
+    }
+    created = client.post(
+        "/pro/servicos/novo",
+        data=payload,
+        content_type="multipart/form-data",
+    )
+    assert created.status_code == 302
+    with app.app_context():
+        item = db.session.scalar(
+            select(Experience).where(Experience.title == "Capa de gel")
+        )
+        assert item is not None
+        assert item.image_url
+        service_id = item.id
+        first_image = item.image_url
+
+    updated = client.post(
+        f"/pro/servicos/{service_id}/editar",
+        data={
+            "title": "Capa de gel",
+            "category": "unhas",
+            "short_description": "Serviço com nova imagem",
+            "regular_price": "150.00",
+            "price": "120.00",
+            "duration_minutes": "60",
+            "image_file": png_upload("nova-capa.png"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert updated.status_code == 302
+    with app.app_context():
+        item = db.session.get(Experience, service_id)
+        assert item.image_url
+        assert item.image_url != first_image
+        assert item.status == ExperienceStatus.DRAFT
+    page = client.get("/pro/servicos")
+    assert b"Capa de gel" in page.data
+
+
+def test_pro_service_rejects_invalid_image_without_creating_draft(app, client):
+    from io import BytesIO
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    response = client.post(
+        "/pro/servicos/novo",
+        data={
+            "title": "Imagem inválida",
+            "category": "unhas",
+            "short_description": "Imagem inválida",
+            "regular_price": "100.00",
+            "price": "80.00",
+            "duration_minutes": "60",
+            "image_file": (BytesIO(b"not-an-image"), "cover.txt"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    with app.app_context():
+        assert db.session.scalar(
+            select(Experience).where(Experience.title == "Imagem inválida")
+        ) is None

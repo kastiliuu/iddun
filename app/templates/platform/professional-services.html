@@ -30,6 +30,9 @@
         {% for item in experiences %}
         <article class="platform-field platform-field--wide">
           <span class="platform-kicker">{{ item.category_label }} · {{ item.status_label }}</span>
+          {% if item.image_url %}
+            <img src="{{ item.image_url|media_url }}" alt="Capa de {{ item.title }}" loading="lazy" style="width:100%;max-width:380px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;">
+          {% endif %}
           <h3>{{ item.title }}</h3>
           <p>{{ item.short_description }}</p>
           <p>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} · {{ item.duration_minutes }} min</p>

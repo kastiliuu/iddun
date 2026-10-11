@@ -746,22 +746,42 @@ def create_service():
 
     form = ProfessionalServiceDraftForm()
     if form.validate_on_submit():
-        item = Experience(
-            professional_id=profile.id,
-            title=form.title.data.strip(),
-            slug=unique_slug(Experience, form.title.data),
-            category=form.category.data,
-            short_description=form.short_description.data.strip(),
-            description=(form.description.data or "").strip() or None,
-            regular_price=form.regular_price.data,
-            price=form.price.data,
-            duration_minutes=form.duration_minutes.data,
-            status=ExperienceStatus.DRAFT,
-        )
-        db.session.add(item)
-        db.session.commit()
-        flash("Rascunho do serviço criado. Você poderá publicá-lo após completar as informações necessárias.", "success")
-        return redirect(url_for("professional.services"))
+        try:
+            with UploadBatch() as uploads:
+                image_url = uploads.save_image(
+                    form.image_file.data, "experiences",
+                )
+                item = Experience(
+                    professional_id=profile.id,
+                    title=form.title.data.strip(),
+                    slug=unique_slug(Experience, form.title.data),
+                    category=form.category.data,
+                    short_description=form.short_description.data.strip(),
+                    description=(form.description.data or "").strip() or None,
+                    regular_price=form.regular_price.data,
+                    price=form.price.data,
+                    duration_minutes=form.duration_minutes.data,
+                    image_url=image_url,
+                    status=ExperienceStatus.DRAFT,
+                )
+                db.session.add(item)
+                db.session.commit()
+                uploads.commit()
+        except ValueError as exc:
+            db.session.rollback()
+            form.image_file.errors.append(str(exc))
+        except (OSError, SQLAlchemyError):
+            db.session.rollback()
+            current_app.logger.exception("Falha ao criar serviço profissional.")
+            form.image_file.errors.append(
+                "Não foi possível salvar o serviço. Tente novamente."
+            )
+        else:
+            flash(
+                "Rascunho do serviço criado. Você poderá publicá-lo após completar as informações necessárias.",
+                "success",
+            )
+            return redirect(url_for("professional.services"))
 
     return render_template(
         "platform/professional-service-form.html",
@@ -794,18 +814,38 @@ def edit_service(service_id):
 
     form = ProfessionalServiceDraftForm(obj=item)
     if form.validate_on_submit():
-        item.title = form.title.data.strip()
-        item.category = form.category.data
-        item.short_description = form.short_description.data.strip()
-        item.description = (form.description.data or "").strip() or None
-        item.regular_price = form.regular_price.data
-        item.price = form.price.data
-        item.duration_minutes = form.duration_minutes.data
-        # Preserve the existing slug so previously shared links are stable.
-        # Never change publication state through an edit form.
-        db.session.commit()
-        flash("Serviço atualizado.", "success")
-        return redirect(url_for("professional.services"))
+        old_image_url = item.image_url
+        try:
+            with UploadBatch() as uploads:
+                new_image_url = uploads.save_image(
+                    form.image_file.data, "experiences",
+                )
+                item.title = form.title.data.strip()
+                item.category = form.category.data
+                item.short_description = form.short_description.data.strip()
+                item.description = (form.description.data or "").strip() or None
+                item.regular_price = form.regular_price.data
+                item.price = form.price.data
+                item.duration_minutes = form.duration_minutes.data
+                if new_image_url:
+                    item.image_url = new_image_url
+                # Keep slug and publication state unchanged.
+                db.session.commit()
+                uploads.commit()
+        except ValueError as exc:
+            db.session.rollback()
+            form.image_file.errors.append(str(exc))
+        except (OSError, SQLAlchemyError):
+            db.session.rollback()
+            current_app.logger.exception("Falha ao editar serviço profissional.")
+            form.image_file.errors.append(
+                "Não foi possível atualizar o serviço. Tente novamente."
+            )
+        else:
+            if new_image_url and old_image_url:
+                delete_uploaded_file(old_image_url)
+            flash("Serviço atualizado.", "success")
+            return redirect(url_for("professional.services"))
 
     return render_template(
         "platform/professional-service-form.html",

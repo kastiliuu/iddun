@@ -108,6 +108,7 @@ class ProfessionalWorkExperienceForm(FlaskForm):
 
 
 class ProfessionalServiceDraftForm(FlaskForm):
+    image_file = FileField("Imagem de capa do serviço", validators=[Optional(), *IMAGE_VALIDATORS])
     title = StringField(
         "Nome do serviço", validators=[DataRequired(), Length(max=160)],
     )

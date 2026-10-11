@@ -16,8 +16,18 @@
       {% if service is defined %}<p>Atualize as informações do serviço. O status {{ service.status_label|lower }} e o endereço do serviço serão preservados.</p>{% else %}<p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>{% endif %}
     </header>
     <section class="platform-panel">
-      <form method="post" class="platform-editor-form">
+      <form method="post" enctype="multipart/form-data" class="platform-editor-form">
         {{ form.hidden_tag() }}
+        <div class="platform-field">
+          {{ form.image_file.label(class_='platform-label') }}
+          {% if service is defined and service.image_url %}
+            <img src="{{ service.image_url|media_url }}" alt="Capa atual do serviço" loading="lazy" style="width:100%;max-width:320px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;">
+            <p class="platform-help">Envie uma nova imagem para substituir a atual ou deixe vazio para manter.</p>
+          {% endif %}
+          {{ form.image_file(class_='platform-input', accept='.jpg,.jpeg,.png,.webp') }}
+          <small class="platform-help">JPG, PNG ou WEBP · até 5 MB.</small>
+          {{ field_errors(form.image_file) }}
+        </div>
         <div class="platform-form-grid">
           {% for field in [form.title, form.category, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
           <div class="platform-field{% if field.name in ['short_description', 'description'] %} platform-field--wide{% endif %}">
