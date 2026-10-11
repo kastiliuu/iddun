@@ -755,3 +755,80 @@ def test_global_oversized_api_request_returns_structured_json(
         },
     }
 
+
+
+def test_pro_can_add_work_experience_and_view_in_edit_form(app, client):
+    from datetime import date
+    from app.models.professional_experience import ProfessionalExperience
+
+    user_id = _create_user(app, email="pro-history@example.com")
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        db.session.add(ProfessionalProfile(
+            user=user,
+            display_name="Pro History",
+            slug="pro-history",
+        ))
+        db.session.commit()
+
+    _login_session(client, user_id)
+    response = client.post(
+        "/pro/experiencia-profissional/adicionar",
+        data={
+            "company_name": "Studio Batel",
+            "role_title": "Nail Designer",
+            "started_at": "2024-01-15",
+            "ended_at": "",
+            "is_current": "y",
+            "description": "Atendimento e esmaltação",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert "/pro/perfil/editar" in response.headers["Location"]
+
+    with app.app_context():
+        experience = db.session.scalar(
+            select(ProfessionalExperience).where(
+                ProfessionalExperience.company_name == "Studio Batel"
+            )
+        )
+        assert experience is not None
+        assert experience.professional.user_id == user_id
+        assert experience.started_at == date(2024, 1, 15)
+        assert experience.ended_at is None
+        assert experience.is_current is True
+
+    edit = client.get("/pro/perfil/editar")
+    assert edit.status_code == 200
+    assert b"Studio Batel" in edit.data
+
+
+def test_pro_work_experience_rejects_invalid_dates(app, client):
+    from app.models.professional_experience import ProfessionalExperience
+
+    user_id = _create_user(app, email="pro-bad-history@example.com")
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        db.session.add(ProfessionalProfile(
+            user=user, display_name="History Bad", slug="history-bad",
+        ))
+        db.session.commit()
+    _login_session(client, user_id)
+
+    response = client.post(
+        "/pro/experiencia-profissional/adicionar",
+        data={
+            "company_name": "Studio Teste",
+            "role_title": "Designer",
+            "started_at": "2025-07-01",
+            "ended_at": "2024-07-01",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.scalar(
+            select(ProfessionalExperience).where(
+                ProfessionalExperience.company_name == "Studio Teste"
+            )
+        ) is None
