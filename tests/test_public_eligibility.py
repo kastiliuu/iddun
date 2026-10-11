@@ -182,3 +182,50 @@ def test_public_policy_keeps_active_entities_visible(
             )
             is not None
         )
+
+
+def test_professional_directory_search_stays_in_directory(
+    client, monkeypatch,
+):
+    items = [
+        {
+            "name": "Ana Silva",
+            "role": "Nail designer",
+            "location": "Curitiba, PR",
+            "specialties": ["Unhas em gel"],
+            "slug": "ana-silva",
+            "image": "img/category-nails.jpg",
+            "rating": "0",
+            "reviews": "0",
+        },
+        {
+            "name": "Beatriz Costa",
+            "role": "Cabeleireira",
+            "location": "Londrina, PR",
+            "specialties": ["Corte"],
+            "slug": "beatriz-costa",
+            "image": "img/category-hair.jpg",
+            "rating": "0",
+            "reviews": "0",
+        },
+    ]
+    monkeypatch.setattr(
+        "app.routes.public.list_professionals",
+        lambda: items,
+    )
+
+    page = client.get("/profissionais?q=Unhas")
+    assert page.status_code == 200
+    assert b"Ana Silva" in page.data
+    assert b"Beatriz Costa" not in page.data
+    assert b'action="/profissionais"' in page.data
+
+    by_city = client.get("/profissionais?q=londrina")
+    assert by_city.status_code == 200
+    assert b"Beatriz Costa" in by_city.data
+    assert b"Ana Silva" not in by_city.data
+
+    empty = client.get("/profissionais?q=sem-correspondencia")
+    assert empty.status_code == 200
+    assert "Nenhum profissional encontrado".encode() in empty.data
+    assert b'href="/profissionais"' in empty.data
