@@ -453,6 +453,19 @@ def test_same_account_can_be_client_professional_and_business_owner(
     dashboard_html = client.get(f"/business/{slug}/painel").get_data(as_text=True)
     assert f'/business/{slug}/servicos' in dashboard_html
 
+    # A different logged-in account cannot read another company's drafts.
+    other_id = _create_user(
+        app, email="other-business-catalog@example.com", name="Sem acesso",
+    )
+    with client.session_transaction() as session:
+        session["_user_id"] = str(other_id)
+        session["_fresh"] = True
+    from flask import g
+    g.pop("_login_user", None)
+    denied = client.get(f"/business/{slug}/servicos")
+    assert denied.status_code == 403
+
+
 
 
 def test_business_invitation_requires_professional_acceptance(
