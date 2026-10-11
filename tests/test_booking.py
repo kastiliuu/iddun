@@ -931,3 +931,72 @@ def test_pending_booking_has_resume_link(app, client):
     assert response.status_code == 200
     assert b'Continuar confirma' in response.data
     assert location in response.get_data(as_text=True)
+
+
+def test_invalid_repeat_cancellation_does_not_delete_calendar_event(
+    app, client, monkeypatch,
+):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(
+        app, "safe-cancellation@example.com",
+    )
+    _login_session(client, user_id)
+
+    held = client.post(
+        (
+            "/experiencias/hair-experience-booking/"
+            f"slots/{slot_ids[0]}/reservar"
+        ),
+        follow_redirects=False,
+    )
+    assert held.status_code == 302
+    with app.app_context():
+        booking = db.session.scalar(
+            select(Booking).where(Booking.client_id == profile_id)
+        )
+        booking_id = booking.id
+
+    deleted = []
+    monkeypatch.setattr(
+        "app.routes.bookings.delete_booking_event",
+        lambda booking: deleted.append(booking.id),
+    )
+
+    first = client.post(f"/reserva/{booking_id}/cancelar")
+    assert first.status_code == 302
+    second = client.post(f"/reserva/{booking_id}/cancelar")
+    assert second.status_code == 302
+    assert deleted == []
+
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CANCELLED
+
+
+def test_confirmed_cancellation_deletes_calendar_after_database_update(
+    app, client, monkeypatch,
+):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(
+        app, "confirmed-safe-cancel@example.com",
+    )
+    _login_session(client, user_id)
+
+    with app.app_context():
+        client_profile = db.session.get(ClientProfile, profile_id)
+        held = hold_slot(slot_ids[0], client_profile)
+        confirmed = confirm_booking(held.id, client_profile)
+        booking_id = confirmed.id
+
+    observed = []
+
+    def observe_deleted(booking):
+        observed.append((booking.id, booking.status))
+
+    monkeypatch.setattr(
+        "app.routes.bookings.delete_booking_event",
+        observe_deleted,
+    )
+    response = client.post(f"/reserva/{booking_id}/cancelar")
+    assert response.status_code == 302
+    assert observed == [(booking_id, BookingStatus.CANCELLED)]
