@@ -937,10 +937,23 @@ def edit_profile():
                 url_for("professional.dashboard")
             )
 
+    editing_experience = None
+    editing_id = request.args.get("experiencia", type=int)
+    if editing_id is not None:
+        editing_experience = db.session.scalar(
+            select(ProfessionalExperience).where(
+                ProfessionalExperience.id == editing_id,
+                ProfessionalExperience.professional_id == profile.id,
+            )
+        )
+        if editing_experience is None:
+            abort(404)
+
     return render_template(
         "platform/professional-edit.html",
         form=form,
-        experience_form=ProfessionalWorkExperienceForm(),
+        experience_form=ProfessionalWorkExperienceForm(obj=editing_experience),
+        editing_experience=editing_experience,
         profile=profile,
         current_page="professional-dashboard",
     )
@@ -976,6 +989,78 @@ def add_work_experience():
     db.session.add(experience)
     db.session.commit()
     flash("Experiência profissional adicionada.", "success")
+    return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+
+
+@professional_bp.post("/experiencia-profissional/<int:experience_id>/editar")
+@login_required
+def update_work_experience(experience_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+    experience = db.session.scalar(
+        select(ProfessionalExperience).where(
+            ProfessionalExperience.id == experience_id,
+            ProfessionalExperience.professional_id == profile.id,
+        )
+    )
+    if experience is None:
+        abort(404)
+
+    form = ProfessionalWorkExperienceForm()
+    if not form.validate_on_submit():
+        flash("Confira os dados da experiência profissional.", "error")
+        return redirect(
+            url_for("professional.edit_profile", experiencia=experience.id)
+            + "#experiencia-profissional"
+        )
+
+    # Validate a candidate before updating the existing record.
+    candidate = ProfessionalExperience(
+        company_name=form.company_name.data.strip(),
+        role_title=form.role_title.data.strip(),
+        started_at=form.started_at.data,
+        ended_at=form.ended_at.data,
+        is_current=bool(form.is_current.data),
+        description=(form.description.data or "").strip() or None,
+    )
+    try:
+        candidate.normalize_dates()
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(
+            url_for("professional.edit_profile", experiencia=experience.id)
+            + "#experiencia-profissional"
+        )
+
+    experience.company_name = candidate.company_name
+    experience.role_title = candidate.role_title
+    experience.started_at = candidate.started_at
+    experience.ended_at = candidate.ended_at
+    experience.is_current = candidate.is_current
+    experience.description = candidate.description
+    db.session.commit()
+    flash("Experiência profissional atualizada.", "success")
+    return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+
+
+@professional_bp.post("/experiencia-profissional/<int:experience_id>/remover")
+@login_required
+def remove_work_experience(experience_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+    experience = db.session.scalar(
+        select(ProfessionalExperience).where(
+            ProfessionalExperience.id == experience_id,
+            ProfessionalExperience.professional_id == profile.id,
+        )
+    )
+    if experience is None:
+        abort(404)
+    db.session.delete(experience)
+    db.session.commit()
+    flash("Experiência profissional removida.", "info")
     return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
 
 
