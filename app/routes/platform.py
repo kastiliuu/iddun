@@ -50,6 +50,7 @@ from app.models.professional import (
 from app.models.reputation import ContactClick
 from app.models.user import User
 from app.services.admin_catalog_service import publish_experience
+from app.services.availability_service import AvailabilityError, create_availability
 from app.services.booking_service import (
     BookingStateError,
     block_slot_manual,
@@ -908,6 +909,35 @@ def pause_service(service_id):
     db.session.commit()
     flash("Serviço pausado. Reservas já confirmadas permanecem válidas.", "info")
     return redirect(url_for("professional.services"))
+
+
+@professional_bp.post("/servicos/<int:service_id>/horarios")
+@login_required
+def create_service_slot(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+
+    try:
+        create_availability(
+            user=current_user,
+            experience_reference=str(item.id),
+            slot_date=request.form.get("slot_date"),
+            slot_time=request.form.get("slot_time"),
+        )
+    except AvailabilityError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Horário disponibilizado para reserva.", "success")
+    return redirect(url_for("professional.services") + f"#servico-{item.id}")
 
 
 @professional_bp.get("/servicos")
