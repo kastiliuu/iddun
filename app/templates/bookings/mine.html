@@ -299,6 +299,17 @@ my-bookings-page visual-v2-page
                 BookingStatus.CONFIRMED
               ] %}
 
+                {% if item.status == BookingStatus.PENDING %}
+                <a
+                  class="booking-review-link"
+                  href="{{ url_for('bookings.confirm', booking_id=item.id) }}"
+                  aria-label="Continuar confirmação da reserva {{ item.experience.title }}"
+                >
+                  {{ icon('check-circle') }}
+                  Continuar confirmação
+                </a>
+                {% endif %}
+
                 <form
                   method="post"
                   action="{{ url_for(
