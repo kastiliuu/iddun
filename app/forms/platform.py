@@ -1,10 +1,11 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize, MultipleFileField
-from wtforms import BooleanField, DateField, IntegerField, RadioField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, URL
 from wtforms.widgets import HiddenInput
 
 from app.models.professional import ProfileTheme
+from app.models.experience import ExperienceCategory
 
 
 IMAGE_VALIDATORS = [
@@ -103,6 +104,50 @@ class ProfessionalWorkExperienceForm(FlaskForm):
         "Descrição", validators=[Optional(), Length(max=2000)],
     )
     submit = SubmitField("Adicionar experiência")
+
+
+
+class ProfessionalServiceDraftForm(FlaskForm):
+    title = StringField(
+        "Nome do serviço", validators=[DataRequired(), Length(max=160)],
+    )
+    category = SelectField(
+        "Categoria", choices=ExperienceCategory.CHOICES,
+        validators=[DataRequired()],
+    )
+    short_description = StringField(
+        "Descrição resumida", validators=[DataRequired(), Length(max=220)],
+    )
+    description = TextAreaField(
+        "Descrição completa", validators=[Optional(), Length(max=4000)],
+    )
+    regular_price = DecimalField(
+        "Preço regular (R$)", places=2,
+        validators=[DataRequired(), NumberRange(min=0)],
+    )
+    price = DecimalField(
+        "Preço IDDUN (R$)", places=2,
+        validators=[DataRequired(), NumberRange(min=0)],
+    )
+    duration_minutes = IntegerField(
+        "Duração em minutos",
+        validators=[DataRequired(), NumberRange(min=10, max=720)],
+        default=60,
+    )
+    submit = SubmitField("Salvar rascunho")
+
+    def validate(self, extra_validators=None):
+        valid = super().validate(extra_validators=extra_validators)
+        if (
+            self.regular_price.data is not None
+            and self.price.data is not None
+            and self.price.data > self.regular_price.data
+        ):
+            self.price.errors.append(
+                "O preço IDDUN não pode ser maior que o preço regular."
+            )
+            valid = False
+        return valid
 
 
 BUSINESS_CATEGORY_CHOICES = [
