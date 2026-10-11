@@ -984,3 +984,75 @@ def test_pro_cannot_open_another_professionals_service_slot(app, client, monkeyp
     )
     assert response.status_code == 404
     assert called == []
+
+
+def test_pro_opens_multiple_real_slots_and_rejects_overlapping_batch(app, client):
+    from sqlalchemy import select, func
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        item = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        service_id = item.id
+        starting_count = db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id
+            )
+        )
+
+    created = client.post(
+        f"/pro/servicos/{service_id}/horarios/lote",
+        data={"slot_date": "2027-02-15", "slot_times": "09:00, 10:00, 11:00"},
+    )
+    assert created.status_code == 302
+    with app.app_context():
+        current_count = db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id
+            )
+        )
+        assert current_count == starting_count + 3
+
+    # Both times overlap (60 minute service); no partial batch is created.
+    rejected = client.post(
+        f"/pro/servicos/{service_id}/horarios/lote",
+        data={"slot_date": "2027-02-16", "slot_times": "09:00, 09:30"},
+    )
+    assert rejected.status_code == 302
+    with app.app_context():
+        final_count = db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id
+            )
+        )
+        assert final_count == current_count
+
+
+def test_pro_batch_availability_denies_other_professional(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        other = ProfessionalProfile(
+            display_name="Outro Pro", slug="other-batch-owner",
+        )
+        db.session.add(other)
+        db.session.flush()
+        service = Experience(
+            professional=other,
+            title="Outro serviço", slug="other-service-batch",
+            category="unhas", short_description="Atendimento externo",
+            regular_price="100.00", price="90.00", duration_minutes=60,
+            status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add(service)
+        db.session.commit()
+        service_id = service.id
+    response = client.post(
+        f"/pro/servicos/{service_id}/horarios/lote",
+        data={"slot_date": "2027-02-15", "slot_times": "09:00, 10:00"},
+    )
+    assert response.status_code == 404
