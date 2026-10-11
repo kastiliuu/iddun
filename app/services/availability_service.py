@@ -286,6 +286,9 @@ def create_availability_batch(
             ", ".join(item.strftime("%H:%M") for item in times),
         )
     except ValueError as exc:
+        # create_slots_batch may have staged earlier entries before rejecting
+        # a later conflict. Ensure they cannot be flushed by a later request.
+        db.session.rollback()
         raise AvailabilityError(str(exc)) from exc
 
     for slot in created:
