@@ -92,13 +92,13 @@
             {{ icon('chevron-right', 'account-activity-card__arrow') }}
           </a>
 
-          <div class="account-activity-card account-activity-card--future" aria-disabled="true">
+          <a class="account-activity-card" href="{{ url_for('feed.home') }}#feed-saved-panel">
             <span class="account-activity-card__icon">{{ icon('bookmark') }}</span>
-            <span class="account-activity-card__value">✦</span>
+            <span class="account-activity-card__value">{{ save_count }}</span>
             <strong>Favoritos</strong>
-            <small>Seus salvos chegarão em breve</small>
-            <span class="account-coming-soon">EM BREVE</span>
-          </div>
+            <small>{{ 'Ver seus itens salvos' if save_count else 'Comece a salvar suas descobertas' }}</small>
+            {{ icon('chevron-right', 'account-activity-card__arrow') }}
+          </a>
 
           <a class="account-activity-card" href="{{ url_for('bookings.mine') }}">
             <span class="account-activity-card__icon">{{ icon('clock') }}</span>
