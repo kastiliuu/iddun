@@ -296,6 +296,85 @@ def create_availability_batch(
     return created
 
 
+def create_availability_from_working_hours(
+    *,
+    user,
+    experience_reference,
+    slot_date,
+):
+    """Generate one day's slots from the professional's saved weekly shift."""
+    experience = owned_experience(
+        user=user,
+        reference=experience_reference,
+    )
+    if experience.status != ExperienceStatus.PUBLISHED:
+        raise AvailabilityError("Publique o serviço antes de abrir horários.")
+
+    try:
+        selected_date = date.fromisoformat(str(slot_date or "").strip())
+    except ValueError as exc:
+        raise AvailabilityError("Data inválida. Use AAAA-MM-DD.") from exc
+
+    schedule = next(
+        (
+            rule for rule in experience.professional.working_hours
+            if rule.weekday == selected_date.weekday()
+        ),
+        None,
+    )
+    if schedule is None:
+        raise AvailabilityError(
+            "Não há jornada cadastrada para este dia da semana."
+        )
+
+    duration = timedelta(minutes=experience.duration_minutes)
+    if duration <= timedelta(0):
+        raise AvailabilityError("Duração do serviço inválida.")
+
+    start = datetime.combine(selected_date, schedule.start_time)
+    end = datetime.combine(selected_date, schedule.end_time)
+    break_start = (
+        datetime.combine(selected_date, schedule.break_start_time)
+        if schedule.break_start_time else None
+    )
+    break_end = (
+        datetime.combine(selected_date, schedule.break_end_time)
+        if schedule.break_end_time else None
+    )
+    if (break_start is None) != (break_end is None):
+        raise AvailabilityError("O intervalo da jornada está incompleto.")
+
+    proposed = []
+    cursor = start
+    while cursor + duration <= end:
+        finish = cursor + duration
+        if (
+            break_start is not None
+            and cursor < break_end
+            and finish > break_start
+        ):
+            cursor = max(cursor + duration, break_end)
+            continue
+        proposed.append(cursor.strftime("%H:%M"))
+        if len(proposed) > 20:
+            raise AvailabilityError(
+                "A jornada produz mais de 20 horários. Utilize a abertura em lote."
+            )
+        cursor = finish
+
+    if not proposed:
+        raise AvailabilityError(
+            "Não há horários completos para este serviço na jornada selecionada."
+        )
+
+    return create_availability_batch(
+        user=user,
+        experience_reference=str(experience.id),
+        slot_date=selected_date.isoformat(),
+        slot_times=", ".join(proposed),
+    )
+
+
 def iddun_now_slots(
     *,
     limit=20,
