@@ -51,7 +51,7 @@ from app.models.professional import (
 from app.models.reputation import ContactClick
 from app.models.user import User
 from app.services.admin_catalog_service import publish_experience
-from app.services.availability_service import AvailabilityError, create_availability
+from app.services.availability_service import AvailabilityError, create_availability, create_availability_batch
 from app.services.booking_service import (
     BookingStateError,
     block_slot_manual,
@@ -939,6 +939,35 @@ def create_service_slot(service_id):
         flash(str(exc), "error")
     else:
         flash("Horário disponibilizado para reserva.", "success")
+    return redirect(url_for("professional.services") + f"#servico-{item.id}")
+
+
+@professional_bp.post("/servicos/<int:service_id>/horarios/lote")
+@login_required
+def create_service_slots_batch(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+
+    try:
+        created = create_availability_batch(
+            user=current_user,
+            experience_reference=str(item.id),
+            slot_date=request.form.get("slot_date"),
+            slot_times=request.form.get("slot_times"),
+        )
+    except AvailabilityError as exc:
+        flash(str(exc), "error")
+    else:
+        flash(f"{len(created)} horários disponibilizados para reserva.", "success")
     return redirect(url_for("professional.services") + f"#servico-{item.id}")
 
 
