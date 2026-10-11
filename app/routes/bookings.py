@@ -4,7 +4,7 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.forms.reputation import BookingReviewForm
-from app.models.booking import Booking, BookingStatus
+from app.models.booking import Booking, BookingStatus, ExperienceSlot
 from app.models.reputation import ReviewTarget
 from app.models.experience import Experience, ExperienceStatus
 from app.services.booking_service import (
@@ -33,6 +33,17 @@ def start_booking(slug, slot_id):
         )
     )
     if experience is None:
+        abort(404)
+
+    # The slot ID is user-supplied. Never allow a reservation URL for one
+    # experience to hold a slot belonging to another experience.
+    slot_belongs_to_experience = db.session.scalar(
+        select(ExperienceSlot.id).where(
+            ExperienceSlot.id == slot_id,
+            ExperienceSlot.experience_id == experience.id,
+        )
+    )
+    if slot_belongs_to_experience is None:
         abort(404)
 
     if not current_user.is_authenticated:
