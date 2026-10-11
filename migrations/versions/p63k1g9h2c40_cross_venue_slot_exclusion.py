@@ -82,9 +82,8 @@ def downgrade():
         "experience_slots",
         type_="check",
     )
-    op.drop_constraint(
-        "ex_experience_slots_professional_active_window",
-        "experience_slots",
-        type_="exclusion",
+    op.execute(
+        "ALTER TABLE experience_slots "
+        "DROP CONSTRAINT ex_experience_slots_professional_active_window"
     )
     # Keep btree_gist: other DB objects may depend on it.
