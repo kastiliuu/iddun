@@ -108,6 +108,7 @@ class ProfessionalWorkExperienceForm(FlaskForm):
 
 
 class ProfessionalServiceDraftForm(FlaskForm):
+    establishment_id = SelectField("Local do atendimento", coerce=int, choices=[(0, "Sem estabelecimento vinculado")], validators=[Optional()])
     image_file = FileField("Imagem de capa do serviço", validators=[Optional(), *IMAGE_VALIDATORS])
     title = StringField(
         "Nome do serviço", validators=[DataRequired(), Length(max=160)],

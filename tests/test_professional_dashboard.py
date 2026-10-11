@@ -1239,3 +1239,104 @@ def test_pro_service_slot_management_rejects_wrong_service_and_owner(app, client
             f"/pro/servicos/{service_id}/horarios/{slot_id}/{action}"
         )
         assert response.status_code in (403, 404)
+
+
+def test_pro_links_service_to_accepted_business_only(app, client):
+    from sqlalchemy import select
+    from app.models.establishment import (
+        Establishment, MembershipStatus, ProfessionalEstablishmentMembership,
+    )
+
+    user_id = _catalog(app)
+    with app.app_context():
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        accepted = Establishment(name="Salão parceiro", slug="salao-parceiro-link")
+        pending = Establishment(name="Salão sem aceite", slug="salao-sem-aceite-link")
+        db.session.add_all([accepted, pending])
+        db.session.flush()
+        db.session.add_all([
+            ProfessionalEstablishmentMembership(
+                professional_id=professional.id, establishment_id=accepted.id,
+                status=MembershipStatus.ACTIVE,
+            ),
+            ProfessionalEstablishmentMembership(
+                professional_id=professional.id, establishment_id=pending.id,
+                status=MembershipStatus.PENDING,
+            ),
+        ])
+        db.session.commit()
+        accepted_id, pending_id = accepted.id, pending.id
+
+    _login(client, user_id)
+    page = client.get("/pro/servicos/novo")
+    assert page.status_code == 200
+    assert b"Sal" in page.data
+    assert b"salao-sem-aceite-link" not in page.data
+
+    invalid = client.post("/pro/servicos/novo", data={
+        "title": "Serviço local inválido", "category": "unhas",
+        "short_description": "Aguardando aceite",
+        "establishment_id": str(pending_id),
+        "regular_price": "100.00", "price": "80.00", "duration_minutes": "60",
+    })
+    assert invalid.status_code == 200
+    with app.app_context():
+        assert db.session.scalar(
+            select(Experience).where(Experience.title == "Serviço local inválido")
+        ) is None
+
+    created = client.post("/pro/servicos/novo", data={
+        "title": "Serviço parceiro", "category": "unhas",
+        "short_description": "No salão parceiro",
+        "establishment_id": str(accepted_id),
+        "regular_price": "100.00", "price": "80.00", "duration_minutes": "60",
+    })
+    assert created.status_code == 302
+    with app.app_context():
+        item = db.session.scalar(
+            select(Experience).where(Experience.title == "Serviço parceiro")
+        )
+        assert item.establishment_id == accepted_id
+        assert item.status == ExperienceStatus.DRAFT
+
+
+def test_pro_does_not_change_service_location_with_existing_slots(app, client):
+    from sqlalchemy import select
+    from app.models.establishment import (
+        Establishment, MembershipStatus, ProfessionalEstablishmentMembership,
+    )
+
+    user_id = _catalog(app)
+    with app.app_context():
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        establishment = Establishment(name="Local novo", slug="local-novo-slots")
+        db.session.add(establishment)
+        db.session.flush()
+        db.session.add(ProfessionalEstablishmentMembership(
+            professional_id=professional.id, establishment_id=establishment.id,
+            status=MembershipStatus.ACTIVE,
+        ))
+        published = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        published.status = ExperienceStatus.PAUSED
+        db.session.commit()
+        service_id, establishment_id = published.id, establishment.id
+
+    _login(client, user_id)
+    response = client.post(f"/pro/servicos/{service_id}/editar", data={
+        "title": "Mudança de local", "category": "unhas",
+        "short_description": "Mudança não permitida",
+        "establishment_id": str(establishment_id),
+        "regular_price": "120.00", "price": "100.00",
+        "duration_minutes": "60",
+    })
+    assert response.status_code == 200
+    with app.app_context():
+        original = db.session.get(Experience, service_id)
+        assert original.establishment_id is None
+        assert original.title == "Manutenção em gel"
