@@ -915,3 +915,19 @@ def test_booking_route_rejects_slot_from_different_experience(app, client):
     )
     assert correct_route.status_code == 302
     assert "/reserva/" in correct_route.headers["Location"]
+
+
+def test_pending_booking_has_resume_link(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, _ = _client_user(app, 'pending-resume@example.com')
+    _login_session(client, user_id)
+    response = client.post(
+        f'/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar',
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    location = response.headers['Location']
+    response = client.get('/minhas-reservas')
+    assert response.status_code == 200
+    assert b'Continuar confirma' in response.data
+    assert location in response.get_data(as_text=True)
