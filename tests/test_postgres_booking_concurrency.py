@@ -9,8 +9,6 @@ from datetime import datetime, timedelta, timezone
 
 import psycopg2
 import pytest
-from sqlalchemy import select
-
 from app import create_app
 from app.extensions import db
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
@@ -32,7 +30,7 @@ def _pg_connection_url():
     return TEST_URL.replace("postgresql+psycopg2://", "postgresql://", 1)
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def pg_graph():
     flask_app = create_app(
         {
