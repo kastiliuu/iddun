@@ -1158,9 +1158,10 @@ def test_pro_day_schedule_denies_service_owned_by_another_professional(app, clie
     assert response.status_code == 404
 
 
-def test_pro_can_manage_own_available_service_slot_from_catalog(app, client):
+def test_pro_can_manage_own_available_service_slot_from_catalog(app, client, monkeypatch):
     from sqlalchemy import select
 
+    monkeypatch.setattr("app.services.booking_service.utcnow", lambda: FIXED_NOW)
     user_id = _catalog(app)
     _login(client, user_id)
     with app.app_context():
