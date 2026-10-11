@@ -57,6 +57,7 @@ def _dashboard_context(form, profile):
         "completion": completion,
         "completion_missing": completion_missing,
         "business_accesses": _active_business_accesses(current_user),
+        "save_count": len(current_user.saves),
         "booking_count": len(bookings),
         "active_booking_count": sum(
             booking.status in active_booking_statuses for booking in bookings
