@@ -858,7 +858,8 @@
   const hasServerErrors = (
     form.querySelector(
       (
-        '.field-errors, '
+        '.auth-field-errors, '
+        + '.field-errors, '
         + '.form-error, '
         + '[aria-invalid="true"]'
       ),
