@@ -845,9 +845,9 @@ def edit_service(service_id):
     if changing_location and db.session.scalar(
         select(ExperienceSlot.id).where(ExperienceSlot.experience_id == item.id).limit(1)
     ) is not None:
-        form.establishment_id.errors.append(
+        form.establishment_id.errors = list(form.establishment_id.errors) + [
             "Não é possível alterar o local de um serviço que já possui horários."
-        )
+        ]
         return render_template(
             "platform/professional-service-form.html",
             form=form, service=item, current_page="professional-services",
