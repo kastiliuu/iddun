@@ -30,6 +30,7 @@ from app.models.booking import (
     Booking,
     BookingStatus,
     ExperienceSlot,
+    SlotStatus,
 )
 from app.models.certification import ProfessionalCertification
 from app.models.establishment import (
@@ -50,6 +51,7 @@ from app.models.professional import (
 from app.models.reputation import ContactClick
 from app.models.user import User
 from app.services.admin_catalog_service import publish_experience
+from app.services.availability_service import AvailabilityError, create_availability
 from app.services.booking_service import (
     BookingStateError,
     block_slot_manual,
@@ -85,6 +87,7 @@ from app.services.professional_schedule_service import (
 )
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle, unique_slug
+from app.services.time_service import to_local
 
 
 professional_bp = Blueprint(
@@ -910,6 +913,35 @@ def pause_service(service_id):
     return redirect(url_for("professional.services"))
 
 
+@professional_bp.post("/servicos/<int:service_id>/horarios")
+@login_required
+def create_service_slot(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+
+    try:
+        create_availability(
+            user=current_user,
+            experience_reference=str(item.id),
+            slot_date=request.form.get("slot_date"),
+            slot_time=request.form.get("slot_time"),
+        )
+    except AvailabilityError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Horário disponibilizado para reserva.", "success")
+    return redirect(url_for("professional.services") + f"#servico-{item.id}")
+
+
 @professional_bp.get("/servicos")
 @login_required
 def services():
@@ -922,10 +954,29 @@ def services():
         .where(Experience.professional_id == profile.id)
         .order_by(Experience.created_at.desc(), Experience.id.desc())
     ).all()
+    upcoming = db.session.scalars(
+        select(ExperienceSlot)
+        .where(
+            ExperienceSlot.professional_id == profile.id,
+            ExperienceSlot.starts_at >= utcnow(),
+        )
+        .order_by(ExperienceSlot.starts_at.asc())
+        .limit(100)
+    ).all()
+    slots_by_service = {item.id: [] for item in items}
+    for slot in upcoming:
+        rows = slots_by_service.get(slot.experience_id)
+        if rows is not None and len(rows) < 5:
+            rows.append({
+                "starts_at": to_local(slot.starts_at, profile.timezone),
+                "status": SlotStatus.LABELS.get(slot.status, slot.status),
+            })
+
     return render_template(
         "platform/professional-services.html",
         profile=profile,
         experiences=items,
+        slots_by_service=slots_by_service,
         ExperienceStatus=ExperienceStatus,
         current_page="professional-services",
     )

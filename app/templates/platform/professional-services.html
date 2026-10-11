@@ -28,7 +28,7 @@
       {% if experiences %}
       <div class="platform-form-grid">
         {% for item in experiences %}
-        <article class="platform-field platform-field--wide">
+        <article class="platform-field platform-field--wide" id="servico-{{ item.id }}">
           <span class="platform-kicker">{{ item.category_label }} · {{ item.status_label }}</span>
           {% if item.image_url %}
             <img src="{{ item.image_url|media_url }}" alt="Capa de {{ item.title }}" loading="lazy" style="width:100%;max-width:380px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;">
@@ -42,6 +42,37 @@
           {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
             <a class="btn btn-outline" href="{{ url_for('professional.edit_service', service_id=item.id) }}">Editar serviço</a>
           {% endif %}
+          {% if item.status == ExperienceStatus.PUBLISHED %}
+            <section aria-label="Disponibilidade de {{ item.title }}">
+              <h4>Abrir horário</h4>
+              <p>Selecione uma data e um horário futuros. O IDDUN verifica conflitos com sua agenda e outros serviços.</p>
+              <form method="post" action="{{ url_for('professional.create_service_slot', service_id=item.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="platform-form-grid">
+                  <div class="platform-field">
+                    <label class="platform-label" for="slot-date-{{ item.id }}">Data</label>
+                    <input class="platform-input" type="date" id="slot-date-{{ item.id }}" name="slot_date" required>
+                  </div>
+                  <div class="platform-field">
+                    <label class="platform-label" for="slot-time-{{ item.id }}">Horário ({{ profile.timezone }})</label>
+                    <input class="platform-input" type="time" id="slot-time-{{ item.id }}" name="slot_time" required>
+                  </div>
+                </div>
+                <button class="btn btn-primary" type="submit">Disponibilizar horário</button>
+              </form>
+            </section>
+          {% endif %}
+          {% if slots_by_service[item.id] %}
+            <h4>Próximos horários</h4>
+            <ul>
+              {% for slot in slots_by_service[item.id] %}
+                <li>{{ slot.starts_at.strftime('%d/%m/%Y %H:%M') }} — {{ slot.status }}</li>
+              {% endfor %}
+            </ul>
+          {% elif item.status == ExperienceStatus.PUBLISHED %}
+            <p>Nenhum horário futuro cadastrado. Abra um horário para receber reservas.</p>
+          {% endif %}
+
           {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
             <form method="post" action="{{ url_for('professional.publish_service', service_id=item.id) }}">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
