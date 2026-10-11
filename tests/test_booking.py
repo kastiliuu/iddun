@@ -861,3 +861,57 @@ def test_calendar_reconciliation_turns_four_slots_into_three_available(
             target.status
             == SlotStatus.AVAILABLE
         )
+
+def test_booking_route_rejects_slot_from_different_experience(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(
+        app, "booking-mismatched-slot@example.com",
+    )
+    _login_session(client, user_id)
+
+    with app.app_context():
+        original_slot = db.session.get(ExperienceSlot, slot_ids[0])
+        other_experience = Experience(
+            professional_id=original_slot.professional_id,
+            establishment_id=original_slot.establishment_id,
+            title="Outra experiência publicada",
+            slug="outra-experiencia-publicada",
+            category="cabelo",
+            short_description="Serviço diferente",
+            regular_price="150.00",
+            price="100.00",
+            duration_minutes=60,
+            status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add(other_experience)
+        db.session.commit()
+
+    wrong_route = client.post(
+        (
+            "/experiencias/outra-experiencia-publicada/"
+            f"slots/{slot_ids[0]}/reservar"
+        ),
+        follow_redirects=False,
+    )
+    assert wrong_route.status_code == 404
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        assert slot.status == SlotStatus.AVAILABLE
+        assert (
+            db.session.scalar(
+                select(Booking).where(Booking.client_id == profile_id)
+            )
+            is None
+        )
+
+    # The same slot remains bookable through its actual experience URL.
+    correct_route = client.post(
+        (
+            "/experiencias/hair-experience-booking/"
+            f"slots/{slot_ids[0]}/reservar"
+        ),
+        follow_redirects=False,
+    )
+    assert correct_route.status_code == 302
+    assert "/reserva/" in correct_route.headers["Location"]
