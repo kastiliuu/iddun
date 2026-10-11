@@ -562,3 +562,96 @@ def test_hold_rejects_slot_from_another_experience(
         ]["code"]
         == "slot_not_found"
     )
+
+
+def test_other_client_cannot_confirm_or_cancel_booking(
+    app,
+    client,
+):
+    """Neither mutation nor existence disclosure is allowed across clients."""
+    _, slot_ids = _catalog(app, slot_count=1)
+    _, owner_headers = _authenticated_client(
+        app, email="qa-booking-owner@example.com",
+    )
+    _, attacker_headers = _authenticated_client(
+        app, email="qa-booking-attacker@example.com",
+    )
+    held = client.post(
+        (
+            "/api/v1/experiences/experiencia-mobile/"
+            f"slots/{slot_ids[0]}/hold"
+        ),
+        headers=owner_headers,
+    )
+    assert held.status_code in (200, 201), held.get_json()
+    booking_id = int(held.get_json()["booking"]["id"])
+
+    for operation in ("confirm", "cancel"):
+        denied = client.post(
+            f"/api/v1/bookings/{booking_id}/{operation}",
+            headers=attacker_headers,
+        )
+        assert denied.status_code == 404
+        assert denied.get_json()["error"]["code"] == "booking_not_found"
+        assert "qa-booking-owner@example.com" not in denied.get_data(
+            as_text=True
+        )
+
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.PENDING
+        assert booking.slot.status == SlotStatus.HELD
+
+    # Owner can still access the booking after unauthorized mutations.
+    allowed = client.get(
+        f"/api/v1/bookings/{booking_id}",
+        headers=owner_headers,
+    )
+    assert allowed.status_code == 200
+    assert "private" in allowed.headers.get("Cache-Control", "").lower()
+    assert "no-store" in allowed.headers.get("Cache-Control", "").lower()
+
+
+def test_booking_list_is_scoped_to_authenticated_client(
+    app,
+    client,
+):
+    _, slot_ids = _catalog(app, slot_count=1)
+    _, owner_headers = _authenticated_client(
+        app, email="qa-list-owner@example.com",
+    )
+    _, outsider_headers = _authenticated_client(
+        app, email="qa-list-outsider@example.com",
+    )
+
+    held = client.post(
+        (
+            "/api/v1/experiences/experiencia-mobile/"
+            f"slots/{slot_ids[0]}/hold"
+        ),
+        headers=owner_headers,
+    )
+    assert held.status_code in (200, 201), held.get_json()
+    booking_id = held.get_json()["booking"]["id"]
+
+    other_list = client.get(
+        "/api/v1/bookings",
+        headers=outsider_headers,
+    )
+    assert other_list.status_code == 200
+    assert str(booking_id) not in [
+        str(item["id"])
+        for item in other_list.get_json()["items"]
+    ]
+    assert "private" in other_list.headers.get("Cache-Control", "").lower()
+    assert "no-store" in other_list.headers.get("Cache-Control", "").lower()
+
+    owner_list = client.get(
+        "/api/v1/bookings",
+        headers=owner_headers,
+    )
+    assert owner_list.status_code == 200
+    assert str(booking_id) in [
+        str(item["id"])
+        for item in owner_list.get_json()["items"]
+    ]
