@@ -29,8 +29,8 @@ def test_login_invalid_credentials_stay_unauthenticated(page: Page):
 
 def test_login_and_signup_navigation(page: Page):
     page.goto("/login")
-    page.get_by_role("link", name="Criar conta").last.click()
-    expect(page).to_have_url(re.compile(r"/cadastro|/registrar|/register"))
+    page.get_by_role("link", name="Criar minha conta").click()
+    expect(page).to_have_url(re.compile(r"/cadastro(?:\\?.*)?$"))
     expect(page.get_by_role("heading", name="Crie sua conta")).to_be_visible()
     page.get_by_role("link", name="Entrar", exact=True).last.click()
     expect(page).to_have_url(re.compile(r"/login(?:\?.*)?$"))
