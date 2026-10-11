@@ -21,6 +21,7 @@ from app.models.professional import (
 from app.services.booking_service import (
     booking_deadline,
     create_slots_batch,
+    parse_times,
 )
 from app.services.time_service import (
     as_utc,
@@ -245,6 +246,51 @@ def create_availability(
     )
 
     return slot
+
+
+
+def create_availability_batch(
+    *,
+    user,
+    experience_reference,
+    slot_date,
+    slot_times,
+):
+    """Open multiple times on one day as one validated transaction."""
+    experience = owned_experience(
+        user=user,
+        reference=experience_reference,
+    )
+    if experience.status != ExperienceStatus.PUBLISHED:
+        raise AvailabilityError("Publique o serviço antes de abrir horários.")
+
+    try:
+        parsed_date = date.fromisoformat(str(slot_date or "").strip())
+    except ValueError as exc:
+        raise AvailabilityError("Data inválida. Use AAAA-MM-DD.") from exc
+
+    try:
+        times = parse_times(str(slot_times or ""))
+    except ValueError as exc:
+        raise AvailabilityError(str(exc)) from exc
+
+    if len(times) > 20:
+        raise AvailabilityError("Informe no máximo 20 horários por vez.")
+
+    # create_slots_batch checks cutoff, overlaps and the database constraint
+    # before committing; never loop over individual create_availability calls.
+    try:
+        created = create_slots_batch(
+            experience,
+            parsed_date,
+            ", ".join(item.strftime("%H:%M") for item in times),
+        )
+    except ValueError as exc:
+        raise AvailabilityError(str(exc)) from exc
+
+    for slot in created:
+        notify_iddun_now_followers(slot)
+    return created
 
 
 def iddun_now_slots(
