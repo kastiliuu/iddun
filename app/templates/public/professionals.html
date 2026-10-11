@@ -16,9 +16,9 @@
       <h1>Encontre profissionais que combinam com você.</h1>
       <p>Conheça especialidades, regiões e trabalhos selecionados para sua próxima experiência.</p>
     </div>
-    <form class="professionals-search" data-reveal action="{{ url_for('public.experiences') }}" method="get">
+    <form class="professionals-search" data-reveal action="{{ url_for('public.professionals') }}" method="get">
       {{ icon('search', 'professionals-search__icon') }}
-      <input name="q" type="search" placeholder="Busque por serviço ou profissional" aria-label="Buscar por serviço ou profissional">
+      <input name="q" type="search" placeholder="Nome, especialidade ou cidade" aria-label="Buscar profissionais" value="{{ search }}" maxlength="120">
       <button type="submit">Buscar</button>
     </form>
   </div>
@@ -29,11 +29,15 @@
     <div class="professionals-head" data-reveal>
       <div>
         <span class="professionals-section-kicker">CURADORIA IDDUN</span>
-        <h2>Profissionais em destaque</h2>
+        <h2>{{ 'Resultados da busca' if search else 'Profissionais em destaque' }}</h2>
       </div>
-      <span>{{ professionals|length }} perfis nesta prévia</span>
+      <span>{{ professionals|length }} {{ 'resultado' if professionals|length == 1 else 'resultados' }}</span>
     </div>
 
+    {% if search and not professionals %}
+    <p role="status">Nenhum profissional encontrado para “{{ search }}”. Tente outro nome, especialidade ou cidade.</p>
+    <a href="{{ url_for('public.professionals') }}">Limpar busca</a>
+    {% endif %}
     <div class="professionals-directory" data-reveal-stagger>
       {% for professional in professionals %}
       <article class="professional-profile-card">

@@ -488,11 +488,28 @@ def experience_detail(slug):
 
 @public_bp.get("/profissionais")
 def professionals():
+    search = request.args.get("q", "").strip()[:120]
+    professionals_list = list_professionals()
+
+    if search:
+        needle = search.casefold()
+        professionals_list = [
+            item for item in professionals_list
+            if needle in " ".join(
+                str(part)
+                for part in (
+                    item.get("name") or "",
+                    item.get("role") or "",
+                    item.get("location") or "",
+                    *(item.get("specialties") or []),
+                )
+            ).casefold()
+        ]
+
     return render_template(
         "public/professionals.html",
-        professionals=(
-            list_professionals()
-        ),
+        professionals=professionals_list,
+        search=search,
         current_page="professionals",
     )
 
