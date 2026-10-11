@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import and_, or_, select
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
@@ -224,7 +225,18 @@ def create_slots_batch(experience, slot_date, raw_times, cutoff_minutes=None):
         created.append(slot)
         db.session.add(slot)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        # PostgreSQL exclusion violation: competing requests may have
+        # published an overlapping slot after our preflight SELECT.
+        if getattr(exc.orig, "pgcode", None) == "23P01":
+            raise ValueError(
+                "Outro horário deste profissional foi publicado nesse "
+                "intervalo. Atualize a agenda e tente novamente."
+            ) from exc
+        raise
     return created
 
 

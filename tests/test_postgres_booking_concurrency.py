@@ -13,6 +13,7 @@ from app import create_app
 from app.extensions import db
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
 from app.models.experience import Experience, ExperienceStatus
+from app.models.establishment import Establishment
 from app.models.professional import ProfessionalProfile
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
@@ -66,6 +67,14 @@ def pg_graph():
             duration_minutes=60,
             status=ExperienceStatus.PUBLISHED,
         )
+        business_a = Establishment(
+            name="QA Salão A", slug="qa-postgres-salon-a",
+            city="Curitiba", state="PR",
+        )
+        business_b = Establishment(
+            name="QA Salão B", slug="qa-postgres-salon-b",
+            city="Curitiba", state="PR",
+        )
         start = datetime.now(timezone.utc) + timedelta(days=30)
         slot = ExperienceSlot(
             experience=experience,
@@ -74,13 +83,15 @@ def pg_graph():
             ends_at=start + timedelta(hours=1),
             status=SlotStatus.AVAILABLE,
         )
-        db.session.add_all([user, client, professional, experience, slot])
+        db.session.add_all([user, client, professional, experience, slot, business_a, business_b])
         db.session.commit()
         ids = {
             "client_id": client.id,
             "professional_id": professional.id,
             "experience_id": experience.id,
             "slot_id": slot.id,
+            "business_a_id": business_a.id,
+            "business_b_id": business_b.id,
         }
     yield ids
     with flask_app.app_context():
@@ -182,3 +193,133 @@ def test_postgresql_partial_index_exists_and_filters_active_bookings(pg_graph):
         assert "slot_id" in definition
         assert "pending" in definition
         assert "confirmed" in definition
+
+
+def _insert_window(conn, ids, business_id, starts_at, ends_at):
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO experience_slots
+                (professional_id, experience_id, establishment_id,
+                 starts_at, ends_at, status, created_at, updated_at)
+            VALUES (%s, %s, %s, %s, %s, 'available', NOW(), NOW())
+            """,
+            (
+                ids["professional_id"],
+                ids["experience_id"],
+                business_id,
+                starts_at,
+                ends_at,
+            ),
+        )
+
+
+def test_postgres_concurrent_cross_venue_overlaps_are_rejected(pg_graph):
+    """Competing, differently identified slots cannot overlap across venues."""
+    ids = pg_graph
+    # Offset away from the fixture's pre-existing available slot.
+    start = datetime.now(timezone.utc) + timedelta(days=40)
+    inserted = threading.Event()
+    attempting = threading.Event()
+    outcomes = {}
+    unexpected = []
+
+    def first_writer():
+        conn = psycopg2.connect(_pg_connection_url())
+        try:
+            _insert_window(
+                conn, ids, ids["business_a_id"], start,
+                start + timedelta(hours=1),
+            )
+            inserted.set()
+            assert attempting.wait(timeout=10)
+            conn.commit()
+            outcomes["first"] = "committed"
+        except Exception as exc:
+            unexpected.append(exc)
+            conn.rollback()
+        finally:
+            conn.close()
+
+    def second_writer():
+        conn = psycopg2.connect(_pg_connection_url())
+        try:
+            assert inserted.wait(timeout=10)
+            attempting.set()
+            _insert_window(
+                conn, ids, ids["business_b_id"],
+                start + timedelta(minutes=30),
+                start + timedelta(minutes=90),
+            )
+            conn.commit()
+            outcomes["second"] = "committed"
+        except psycopg2.errors.ExclusionViolation:
+            outcomes["second"] = "exclusion_violation"
+            conn.rollback()
+        except Exception as exc:
+            unexpected.append(exc)
+            conn.rollback()
+        finally:
+            conn.close()
+
+    first = threading.Thread(target=first_writer)
+    second = threading.Thread(target=second_writer)
+    first.start()
+    second.start()
+    first.join(timeout=20)
+    second.join(timeout=20)
+
+    assert not first.is_alive() and not second.is_alive()
+    assert unexpected == []
+    assert outcomes == {
+        "first": "committed",
+        "second": "exclusion_violation",
+    }
+
+
+def test_postgres_adjacent_cross_venue_slots_are_permitted(pg_graph):
+    """A slot ending exactly as another starts is not an overlap."""
+    ids = pg_graph
+    start = datetime.now(timezone.utc) + timedelta(days=50)
+    conn = psycopg2.connect(_pg_connection_url())
+    try:
+        _insert_window(
+            conn, ids, ids["business_a_id"], start,
+            start + timedelta(hours=1),
+        )
+        _insert_window(
+            conn, ids, ids["business_b_id"],
+            start + timedelta(hours=1),
+            start + timedelta(hours=2),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_postgres_inactive_slots_do_not_block_same_window(pg_graph):
+    ids = pg_graph
+    start = datetime.now(timezone.utc) + timedelta(days=60)
+    conn = psycopg2.connect(_pg_connection_url())
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO experience_slots
+                    (professional_id, experience_id, establishment_id,
+                     starts_at, ends_at, status, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, 'expired', NOW(), NOW())
+                """,
+                (
+                    ids["professional_id"], ids["experience_id"],
+                    ids["business_a_id"], start,
+                    start + timedelta(hours=1),
+                ),
+            )
+        _insert_window(
+            conn, ids, ids["business_b_id"], start,
+            start + timedelta(hours=1),
+        )
+        conn.commit()
+    finally:
+        conn.close()
