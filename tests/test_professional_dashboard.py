@@ -1056,3 +1056,103 @@ def test_pro_batch_availability_denies_other_professional(app, client):
         data={"slot_date": "2027-02-15", "slot_times": "09:00, 10:00"},
     )
     assert response.status_code == 404
+
+
+def test_pro_generates_day_slots_from_weekly_shift_excluding_break(app, client):
+    from datetime import time
+    from sqlalchemy import select
+    from app.models.professional_schedule import ProfessionalWorkingHour
+
+    user_id = _catalog(app)
+    with app.app_context():
+        profile = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        service = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        service_id = service.id
+        db.session.add(
+            ProfessionalWorkingHour(
+                professional=profile,
+                weekday=0,
+                start_time=time(9, 0),
+                end_time=time(14, 0),
+                break_start_time=time(12, 0),
+                break_end_time=time(13, 0),
+            )
+        )
+        db.session.commit()
+
+    _login(client, user_id)
+    response = client.post(
+        f"/pro/servicos/{service_id}/horarios/jornada",
+        data={"slot_date": "2027-02-15"},
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        slots = db.session.scalars(
+            select(ExperienceSlot).where(
+                ExperienceSlot.experience_id == service_id,
+                ExperienceSlot.starts_at >= datetime(2027, 2, 15, tzinfo=timezone.utc),
+                ExperienceSlot.starts_at < datetime(2027, 2, 17, tzinfo=timezone.utc),
+            )
+        ).all()
+        from app.services.time_service import to_local
+        times = sorted(to_local(slot.starts_at, "America/Sao_Paulo").strftime("%H:%M") for slot in slots)
+        assert times == ["09:00", "10:00", "11:00", "13:00"]
+
+
+def test_pro_day_schedule_rejects_unconfigured_day_without_creating_slots(app, client):
+    from sqlalchemy import select, func
+
+    user_id = _catalog(app)
+    with app.app_context():
+        service = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        service_id = service.id
+        original_count = db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id
+            )
+        )
+    _login(client, user_id)
+    response = client.post(
+        f"/pro/servicos/{service_id}/horarios/jornada",
+        data={"slot_date": "2027-02-15"},
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        after = db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id
+            )
+        )
+        assert after == original_count
+
+
+def test_pro_day_schedule_denies_service_owned_by_another_professional(app, client):
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        other = ProfessionalProfile(
+            display_name="Outra profissional", slug="outra-agenda-dia",
+        )
+        db.session.add(other)
+        db.session.flush()
+        service = Experience(
+            professional=other,
+            title="Serviço externo", slug="servico-externo-jornada",
+            category="unhas", short_description="Serviço de outra conta",
+            regular_price="120.00", price="100.00",
+            duration_minutes=60, status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add(service)
+        db.session.commit()
+        service_id = service.id
+    response = client.post(
+        f"/pro/servicos/{service_id}/horarios/jornada",
+        data={"slot_date": "2027-02-15"},
+    )
+    assert response.status_code == 404
