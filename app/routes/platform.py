@@ -21,6 +21,7 @@ from app.forms.platform import (
     ProfessionalCertificationForm,
     ProfessionalEditForm,
     ProfessionalOnboardingForm,
+    ProfessionalWorkExperienceForm,
     TeamMemberForm,
     WorkModeChoiceForm,
 )
@@ -40,6 +41,7 @@ from app.models.establishment import (
     ProfessionalEstablishmentMembership,
 )
 from app.models.experience import Experience, ExperienceStatus
+from app.models.professional_experience import ProfessionalExperience
 from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
@@ -938,9 +940,43 @@ def edit_profile():
     return render_template(
         "platform/professional-edit.html",
         form=form,
+        experience_form=ProfessionalWorkExperienceForm(),
         profile=profile,
         current_page="professional-dashboard",
     )
+
+
+@professional_bp.post("/experiencia-profissional/adicionar")
+@login_required
+def add_work_experience():
+    profile = current_user.professional_profile
+    if profile is None:
+        return redirect(url_for("professional.onboarding"))
+
+    form = ProfessionalWorkExperienceForm()
+    if not form.validate_on_submit():
+        flash("Confira os dados da experiência profissional.", "error")
+        return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+
+    experience = ProfessionalExperience(
+        professional=profile,
+        company_name=form.company_name.data.strip(),
+        role_title=form.role_title.data.strip(),
+        started_at=form.started_at.data,
+        ended_at=form.ended_at.data,
+        is_current=bool(form.is_current.data),
+        description=(form.description.data or "").strip() or None,
+    )
+    try:
+        experience.normalize_dates()
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+
+    db.session.add(experience)
+    db.session.commit()
+    flash("Experiência profissional adicionada.", "success")
+    return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
 
 
 @professional_bp.post(
