@@ -569,3 +569,65 @@ def test_pro_services_page_redirects_client_without_profile(app, client):
     response = client.get("/pro/servicos")
     assert response.status_code == 302
     assert "/pro/comecar" in response.headers["Location"]
+
+
+def test_pro_creates_unpublished_service_draft(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    page = client.get("/pro/servicos/novo")
+    assert page.status_code == 200
+    assert b"Criar servi" in page.data
+
+    response = client.post(
+        "/pro/servicos/novo",
+        data={
+            "title": "Blindagem de unhas",
+            "category": "unhas",
+            "short_description": "Reforço para unhas naturais",
+            "description": "Atendimento individualizado.",
+            "regular_price": "120.00",
+            "price": "100.00",
+            "duration_minutes": "60",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/pro/servicos")
+
+    with app.app_context():
+        created = db.session.scalar(
+            select(Experience).where(Experience.title == "Blindagem de unhas")
+        )
+        assert created is not None
+        assert created.status == ExperienceStatus.DRAFT
+        assert created.professional.user_id == user_id
+        assert created.establishment_id is None
+
+    overview = client.get("/pro/servicos")
+    assert b"Blindagem de unhas" in overview.data
+    assert b"Rascunho" in overview.data
+
+
+def test_pro_cannot_create_draft_with_price_above_regular_price(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    response = client.post(
+        "/pro/servicos/novo",
+        data={
+            "title": "Preco invalido",
+            "category": "unhas",
+            "short_description": "Servico para rejeitar",
+            "regular_price": "50.00",
+            "price": "80.00",
+            "duration_minutes": "60",
+        },
+    )
+    assert response.status_code == 200
+    with app.app_context():
+        assert db.session.scalar(
+            select(Experience).where(Experience.title == "Preco invalido")
+        ) is None
