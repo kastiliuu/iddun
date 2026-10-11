@@ -16,3 +16,10 @@ python -m pytest e2e -q --browser chromium --base-url http://127.0.0.1:8765 --sc
 
 ## Limites e expansão
 Os primeiros casos são *smoke E2E* e não provam fluxos completos de reserva ou de onboarding. A próxima evolução deve criar dados de teste descartáveis, executar login válido e o fluxo completo Cliente → reserva → Pro, além de reproduzir no Chromium um gestor Business e as proteções de autorização. Não usar Render compartilhado ou produção como destino dos testes mutáveis.
+
+## Fase seguinte — autenticação real e isolamento
+- O CI executa `python -m e2e.seed_client` após as migrations e antes do servidor iniciar.
+- O seed recusa qualquer execução sem `IDDUN_E2E_SEED=1`, `APP_ENV=development` e URL exatamente `sqlite:////tmp/iddun-web-e2e.db`. Não usar em Render ou banco persistente.
+- Os testes acessam a interface real de login, conferem chegada ao Feed, navegação para Minhas Reservas e retorno à página autenticada.
+- Outro teste, em contexto de navegador limpo, confirma que `/feed` exige login.
+- **Não é ainda E2E de agendamento completo**: a próxima etapa precisa semear serviço/slot válido em base descartável, respeitando antecedência, disponibilidade e aprovação.
