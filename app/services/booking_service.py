@@ -207,6 +207,14 @@ def create_slots_batch(experience, slot_date, raw_times, cutoff_minutes=None):
             raise ValueError(
                 f"{time_value.strftime('%H:%M')}: já passou da antecedência mínima para publicação."
             )
+        # Check slots staged in this same batch as well as persisted slots.
+        # A SELECT does not see pending rows until the session is flushed.
+        for pending in created:
+            if pending.starts_at < ends_at and pending.ends_at > starts_at:
+                raise ValueError(
+                    f"{time_value.strftime('%H:%M')}: conflita com outro horário deste lote."
+                )
+
         conflict = _overlapping_slot(experience.professional_id, starts_at, ends_at)
         if conflict:
             conflict_local = to_local(conflict.starts_at, timezone_name).strftime("%d/%m %H:%M")
