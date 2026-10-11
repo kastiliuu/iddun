@@ -29,10 +29,13 @@
           {{ field_errors(form.image_file) }}
         </div>
         <div class="platform-form-grid">
-          {% for field in [form.title, form.category, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
+          {% for field in [form.title, form.category, form.establishment_id, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
           <div class="platform-field{% if field.name in ['short_description', 'description'] %} platform-field--wide{% endif %}">
             {{ field.label(class_='platform-label') }}
-            {{ field(class_='platform-input' if field.name not in ['description', 'category'] else 'platform-textarea' if field.name == 'description' else 'platform-select') }}
+            {{ field(class_='platform-input' if field.name not in ['description', 'category', 'establishment_id'] else 'platform-textarea' if field.name == 'description' else 'platform-select') }}
+            {% if field.name == 'establishment_id' %}
+              <small class="platform-help">Apenas estabelecimentos com vínculo ativo e aceito aparecem nesta lista.</small>
+            {% endif %}
             {{ field_errors(field) }}
           </div>
           {% endfor %}
