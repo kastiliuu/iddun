@@ -19,7 +19,7 @@ def test_public_home_links_to_discovery(page: Page):
 def test_login_invalid_credentials_stay_unauthenticated(page: Page):
     page.goto("/login")
     expect(page.get_by_role("heading", name="Bem-vindo de volta")).to_be_visible()
-    page.locator('input[name="email"]').fill("not-registered@iddun.invalid")
+    page.locator('input[name="email"]').fill("not-registered@example.com")
     page.locator('input[name="password"]').fill("not-the-password")
     page.locator('button[type="submit"][data-submit]').click()
 
