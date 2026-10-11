@@ -439,12 +439,20 @@
           <strong>{{ item.role_title }} · {{ item.company_name }}</strong>
           <span>{{ item.started_at.strftime('%m/%Y') }} — {{ 'Atualmente' if item.is_current else item.ended_at.strftime('%m/%Y') if item.ended_at else 'Não informado' }}</span>
           {% if item.description %}<p>{{ item.description }}</p>{% endif %}
+          <div class="platform-editor-actions">
+            <a class="btn btn-outline" href="{{ url_for('professional.edit_profile', experiencia=item.id) }}#experiencia-profissional">Editar experiência</a>
+            <form method="post" action="{{ url_for('professional.remove_work_experience', experience_id=item.id) }}" onsubmit="return confirm('Remover esta experiência profissional?');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline" type="submit">Remover</button>
+            </form>
+          </div>
         </li>
         {% endfor %}
       </ul>
       {% endif %}
 
-      <form method="post" action="{{ url_for('professional.add_work_experience') }}" class="platform-editor-form">
+      <form method="post" action="{{ url_for('professional.update_work_experience', experience_id=editing_experience.id) if editing_experience else url_for('professional.add_work_experience') }}" class="platform-editor-form">
+        <h3>{{ 'Editar experiência' if editing_experience else 'Adicionar experiência' }}</h3>
         {{ experience_form.hidden_tag() }}
         <div class="platform-form-grid">
           <div class="platform-field">
@@ -471,7 +479,10 @@
             {{ experience_form.description(class_='platform-textarea', maxlength='2000') }}
           </div>
         </div>
-        {{ experience_form.submit(class_='btn btn-primary') }}
+        <button class="btn btn-primary" type="submit">{{ 'Salvar alterações' if editing_experience else 'Adicionar experiência' }}</button>
+        {% if editing_experience %}
+          <a class="btn btn-outline" href="{{ url_for('professional.edit_profile') }}#experiencia-profissional">Cancelar edição</a>
+        {% endif %}
       </form>
     </section>
 
