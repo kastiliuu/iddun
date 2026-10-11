@@ -173,3 +173,14 @@ def test_dedicated_edit_route_persists_profile_and_returns_to_view(
         user = db.session.get(User, user_id)
         assert user.name == "Cliente Atualizado"
         assert user.client_profile.phone == "41988888888"
+
+
+def test_account_favorites_links_to_existing_saved_panel(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    response = client.get("/minha-conta")
+    assert response.status_code == 200
+    assert b'href="/feed#feed-saved-panel"' in response.data
+    assert b"Comece a salvar suas descobertas" in response.data
+    assert b"Seus salvos chegar" not in response.data
