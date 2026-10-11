@@ -68,8 +68,8 @@ def _dashboard_context(form, profile):
     }
 
 
+@account_bp.route("/minha-conta/editar", methods=["GET", "POST"], endpoint="edit")
 @account_bp.route("/minha-conta", methods=["GET", "POST"])
-@account_bp.route("/minha-conta/editar", methods=["GET", "POST"])
 @login_required
 def dashboard():
     # Keep legacy POST /minha-conta compatible with older clients.
