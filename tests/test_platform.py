@@ -453,6 +453,49 @@ def test_same_account_can_be_client_professional_and_business_owner(
     dashboard_html = client.get(f"/business/{slug}/painel").get_data(as_text=True)
     assert f'/business/{slug}/servicos' in dashboard_html
 
+    # Bookings are private to the establishment and read-only in Business.
+    from datetime import datetime, timezone
+    from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
+    with app.app_context():
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.slug == slug)
+        )
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        service = db.session.scalar(
+            select(Experience).where(Experience.slug == "corte-empresarial-publicado")
+        )
+        slot = ExperienceSlot(
+            professional=professional,
+            experience=service,
+            establishment=establishment,
+            starts_at=datetime(2027, 2, 15, 13, 0, tzinfo=timezone.utc),
+            ends_at=datetime(2027, 2, 15, 13, 45, tzinfo=timezone.utc),
+            status=SlotStatus.BOOKED,
+        )
+        booking = Booking(
+            client=db.session.get(User, user_id).client_profile,
+            professional=professional,
+            experience=service,
+            establishment=establishment,
+            slot=slot,
+            status=BookingStatus.CONFIRMED,
+            price_at_booking="75.00",
+        )
+        db.session.add_all([slot, booking])
+        db.session.commit()
+
+    booking_page = client.get(f"/business/{slug}/reservas?date=2027-02-15&status=confirmed")
+    assert booking_page.status_code == 200
+    booking_html = booking_page.get_data(as_text=True)
+    assert "Corte empresarial publicado" in booking_html
+    assert "Conta Multi" in booking_html
+    assert "Confirmada" in booking_html
+    assert "R$ 75,00" in booking_html
+    assert client.get(f"/business/{slug}/reservas?status=unknown").status_code == 400
+    assert client.get(f"/business/{slug}/reservas?date=invalid").status_code == 400
+
     # A different logged-in account cannot read another company's drafts.
     other_id = _create_user(
         app, email="other-business-catalog@example.com", name="Sem acesso",
@@ -464,6 +507,8 @@ def test_same_account_can_be_client_professional_and_business_owner(
     g.pop("_login_user", None)
     denied = client.get(f"/business/{slug}/servicos")
     assert denied.status_code == 403
+    denied_bookings = client.get(f"/business/{slug}/reservas")
+    assert denied_bookings.status_code == 403
 
 
 

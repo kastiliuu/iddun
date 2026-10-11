@@ -1,0 +1,62 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% block title %}Reservas | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-bookings-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block content %}
+<section class="platform-editor" aria-labelledby="business-bookings-title">
+  <div class="container platform-editor__layout">
+    <header class="platform-editor__head">
+      <a class="platform-back-link" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('arrow-left') }} Voltar ao painel</a>
+      <span class="platform-kicker">IDDUN BUSINESS · OPERAÇÃO</span>
+      <h1 id="business-bookings-title">Reservas do estabelecimento</h1>
+      <p>Consulte os atendimentos registrados para {{ establishment.name }}. Operações de conclusão e cancelamento continuam com as permissões já definidas para os profissionais.</p>
+    </header>
+    <section class="platform-panel">
+      <form method="get" class="platform-editor-form">
+        <div class="platform-form-grid">
+          <div class="platform-field">
+            <label class="platform-label" for="business-booking-date">Data do atendimento ({{ establishment.timezone }})</label>
+            <input class="platform-input" type="date" id="business-booking-date" name="date" value="{{ selected_date }}">
+          </div>
+          <div class="platform-field">
+            <label class="platform-label" for="business-booking-status">Situação</label>
+            <select class="platform-select" id="business-booking-status" name="status">
+              <option value="">Todas as situações</option>
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="platform-editor-actions">
+          <button class="btn btn-primary" type="submit">Filtrar reservas</button>
+          <a class="btn btn-outline" href="{{ url_for('business.bookings', slug=establishment.slug) }}">Limpar filtros</a>
+        </div>
+      </form>
+    </section>
+    <section class="platform-panel" aria-labelledby="business-bookings-list-title">
+      <header class="platform-panel__head"><div>
+        <span class="platform-kicker">AGENDA DA EMPRESA</span>
+        <h2 id="business-bookings-list-title">Reservas encontradas: {{ rows|length }}</h2>
+        <p>Exibindo até 100 reservas por consulta, ordenadas da mais recente à mais antiga pela data do atendimento.</p>
+      </div></header>
+      {% if rows %}
+        <div class="platform-form-grid">
+          {% for row in rows %}
+            <article class="platform-field platform-field--wide">
+              <span class="platform-kicker">{{ row.booking.status_label }}</span>
+              <h3>{{ row.booking.experience.title }}</h3>
+              <p>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} · {{ row.booking.professional.display_name }}</p>
+              <p>Cliente: {{ row.booking.client.user.name }}</p>
+              <p>Valor registrado na reserva: R$ {{ '%.2f'|format(row.booking.price_at_booking)|replace('.', ',') }}</p>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p>Não há reservas para os filtros selecionados.</p>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}
