@@ -49,6 +49,7 @@ from app.models.professional import (
 )
 from app.models.reputation import ContactClick
 from app.models.user import User
+from app.services.admin_catalog_service import publish_experience
 from app.services.booking_service import (
     BookingStateError,
     block_slot_manual,
@@ -812,6 +813,61 @@ def edit_service(service_id):
         service=item,
         current_page="professional-services",
     )
+
+
+@professional_bp.post("/servicos/<int:service_id>/publicar")
+@login_required
+def publish_service(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+    if item.status not in {ExperienceStatus.DRAFT, ExperienceStatus.PAUSED}:
+        flash("Este serviço não pode ser publicado neste estado.", "info")
+        return redirect(url_for("professional.services"))
+
+    try:
+        publish_experience(item)
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        flash("Serviço publicado no IDDUN.", "success")
+    return redirect(url_for("professional.services"))
+
+
+@professional_bp.post("/servicos/<int:service_id>/pausar")
+@login_required
+def pause_service(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+    if item.status != ExperienceStatus.PUBLISHED:
+        flash("Somente serviços publicados podem ser pausados.", "info")
+        return redirect(url_for("professional.services"))
+
+    item.status = ExperienceStatus.PAUSED
+    db.session.commit()
+    flash("Serviço pausado. Reservas já confirmadas permanecem válidas.", "info")
+    return redirect(url_for("professional.services"))
 
 
 @professional_bp.get("/servicos")
