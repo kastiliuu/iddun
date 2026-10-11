@@ -558,14 +558,32 @@ def for_professionals():
     "/estabelecimentos"
 )
 def establishments():
+    search = request.args.get("q", "").strip()[:120]
+    establishment_list = list_establishments()
+    has_establishments = bool(establishment_list)
+
+    if search:
+        needle = search.casefold()
+        establishment_list = [
+            item for item in establishment_list
+            if needle in " ".join(
+                str(value or "")
+                for value in (
+                    item.name,
+                    item.category,
+                    item.neighborhood,
+                    item.city,
+                    item.state,
+                )
+            ).casefold()
+        ]
+
     return render_template(
         "public/establishments.html",
-        establishments=(
-            list_establishments()
-        ),
-        current_page=(
-            "establishments"
-        ),
+        establishments=establishment_list,
+        search=search,
+        has_establishments=has_establishments,
+        current_page="establishments",
     )
 
 
