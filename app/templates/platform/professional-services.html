@@ -39,7 +39,17 @@
           {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
             <a class="btn btn-outline" href="{{ url_for('professional.edit_service', service_id=item.id) }}">Editar serviço</a>
           {% endif %}
+          {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
+            <form method="post" action="{{ url_for('professional.publish_service', service_id=item.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-primary" type="submit">{{ 'Republicar serviço' if item.status == ExperienceStatus.PAUSED else 'Publicar serviço' }}</button>
+            </form>
+          {% endif %}
           {% if item.status == ExperienceStatus.PUBLISHED %}
+            <form method="post" action="{{ url_for('professional.pause_service', service_id=item.id) }}" onsubmit="return confirm('Pausar este serviço? Novas reservas ficarão indisponíveis, mas reservas confirmadas serão mantidas.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline" type="submit">Pausar serviço</button>
+            </form>
             <a class="btn btn-outline" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Visualizar e consultar horários</a>
           {% else %}
             <p>Este serviço não está disponível para reservas públicas enquanto estiver {{ item.status_label|lower }}.</p>
