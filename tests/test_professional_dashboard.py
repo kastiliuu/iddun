@@ -715,3 +715,103 @@ def test_pro_cannot_edit_another_pro_service_or_published_one(app, client):
     g.pop("_login_user", None)
     forbidden = client.get(f"/pro/servicos/{published_id}/editar")
     assert forbidden.status_code == 404
+
+
+def test_pro_can_pause_published_service_without_cancelling_bookings(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        item = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        service_id = item.id
+        booking_id = db.session.scalar(
+            select(Booking).where(Booking.experience_id == service_id)
+        ).id
+
+    response = client.post(f"/pro/servicos/{service_id}/pausar")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/pro/servicos")
+    with app.app_context():
+        assert db.session.get(Experience, service_id).status == ExperienceStatus.PAUSED
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED
+
+    page = client.get("/pro/servicos")
+    assert b"Republicar servi" in page.data
+
+
+def test_pro_publication_reuses_existing_catalog_eligibility(app, client, monkeypatch):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        profile = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        item = Experience(
+            professional_id=profile.id,
+            title="Catalogo Pro",
+            slug="catalogo-pro-publicacao",
+            category="unhas",
+            short_description="Atendimento do catálogo",
+            regular_price="150.00",
+            price="120.00",
+            duration_minutes=60,
+            status=ExperienceStatus.DRAFT,
+        )
+        db.session.add(item)
+        db.session.commit()
+        service_id = item.id
+
+    attempts = []
+
+    def publish_existing(item):
+        attempts.append(item.id)
+        item.status = ExperienceStatus.PUBLISHED
+
+    monkeypatch.setattr(
+        "app.routes.platform.publish_experience", publish_existing
+    )
+    response = client.post(f"/pro/servicos/{service_id}/publicar")
+    assert response.status_code == 302
+    assert attempts == [service_id]
+    with app.app_context():
+        assert db.session.get(Experience, service_id).status == ExperienceStatus.PUBLISHED
+
+
+def test_pro_cannot_change_another_professional_service_status(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        other_user = User(
+            name="Outro Pro", email="other-pro-status@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        other_user.set_password("senha-forte-123")
+        other_profile = ProfessionalProfile(
+            user=other_user, display_name="Outro Pro",
+            slug="outro-pro-status",
+        )
+        db.session.add_all([other_user, other_profile])
+        db.session.flush()
+        other_service = Experience(
+            professional=other_profile,
+            title="Outro servico", slug="outro-servico-status",
+            category="unhas", short_description="Outro catálogo",
+            regular_price="80.00", price="60.00",
+            duration_minutes=60, status=ExperienceStatus.DRAFT,
+        )
+        db.session.add(other_service)
+        db.session.commit()
+        service_id = other_service.id
+
+    for action in ("publicar", "pausar"):
+        response = client.post(f"/pro/servicos/{service_id}/{action}")
+        assert response.status_code == 404
+    with app.app_context():
+        assert db.session.get(Experience, service_id).status == ExperienceStatus.DRAFT
