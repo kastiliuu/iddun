@@ -832,3 +832,75 @@ def test_pro_work_experience_rejects_invalid_dates(app, client):
                 ProfessionalExperience.company_name == "Studio Teste"
             )
         ) is None
+
+
+def test_pro_can_edit_and_remove_only_own_work_experience(app, client):
+    from datetime import date
+    from app.models.professional_experience import ProfessionalExperience
+
+    owner_id = _create_user(app, email="pro-history-owner@example.com")
+    other_id = _create_user(app, email="pro-history-other@example.com")
+    with app.app_context():
+        owner = ProfessionalProfile(
+            user_id=owner_id, display_name="Pro Owner", slug="pro-history-owner",
+        )
+        other = ProfessionalProfile(
+            user_id=other_id, display_name="Pro Other", slug="pro-history-other",
+        )
+        db.session.add_all([owner, other])
+        db.session.flush()
+        history = ProfessionalExperience(
+            professional_id=owner.id,
+            company_name="Studio Antigo",
+            role_title="Designer",
+            started_at=date(2023, 1, 1),
+            is_current=True,
+        )
+        db.session.add(history)
+        db.session.commit()
+        history_id = history.id
+
+    _login_session(client, other_id)
+    for suffix in ("editar", "remover"):
+        forbidden = client.post(
+            f"/pro/experiencia-profissional/{history_id}/{suffix}",
+            data={
+                "company_name": "Invasão",
+                "role_title": "Gestor",
+                "started_at": "2024-01-01",
+            },
+        )
+        assert forbidden.status_code == 404
+    assert client.get(
+        f"/pro/perfil/editar?experiencia={history_id}"
+    ).status_code == 404
+
+    _login_session(client, owner_id)
+    view = client.get(f"/pro/perfil/editar?experiencia={history_id}")
+    assert view.status_code == 200
+    assert b"Studio Antigo" in view.data
+    assert b"Salvar altera" in view.data
+
+    update = client.post(
+        f"/pro/experiencia-profissional/{history_id}/editar",
+        data={
+            "company_name": "Studio Novo",
+            "role_title": "Nail Designer",
+            "started_at": "2024-02-01",
+            "ended_at": "2025-02-01",
+            "description": "Atendimentos",
+        },
+    )
+    assert update.status_code == 302
+    with app.app_context():
+        updated = db.session.get(ProfessionalExperience, history_id)
+        assert updated.company_name == "Studio Novo"
+        assert updated.is_current is False
+        assert updated.ended_at == date(2025, 2, 1)
+
+    removed = client.post(
+        f"/pro/experiencia-profissional/{history_id}/remover"
+    )
+    assert removed.status_code == 302
+    with app.app_context():
+        assert db.session.get(ProfessionalExperience, history_id) is None
