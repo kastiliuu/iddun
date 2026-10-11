@@ -1043,6 +1043,7 @@ def test_v1_client_booking_is_visible_only_to_its_business(
         )
         db.session.commit()
         owner_id, outsider_id = owner.id, outsider.id
+        establishment_id = linked_business.id
 
     _login_session(client, client_user_id)
     held = client.post(
@@ -1055,7 +1056,7 @@ def test_v1_client_booking_is_visible_only_to_its_business(
             select(Booking).where(Booking.client_id == client_profile_id)
         )
         assert booking is not None
-        assert booking.establishment_id == linked_business.id
+        assert booking.establishment_id == establishment_id
         assert booking.status == BookingStatus.PENDING
         booking_id = booking.id
 
