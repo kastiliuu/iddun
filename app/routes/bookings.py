@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import select
 
@@ -159,15 +159,23 @@ def cancel(booking_id):
     if booking is None:
         abort(404)
 
+    was_confirmed = booking.status == BookingStatus.CONFIRMED
     try:
-        try:
-            delete_booking_event(booking)
-        except Exception:
-            pass
         cancel_booking(booking)
     except BookingStateError as exc:
         flash(str(exc), "error")
     else:
+        # Never delete an external event before the local cancellation
+        # has passed its business rules and committed successfully.
+        if was_confirmed:
+            try:
+                delete_booking_event(booking)
+            except Exception:
+                current_app.logger.warning(
+                    "Falha ao remover evento da reserva booking_id=%s",
+                    booking.id,
+                    exc_info=True,
+                )
         flash("Reserva cancelada.", "info")
     return redirect(url_for("bookings.mine"))
 
