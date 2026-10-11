@@ -544,3 +544,82 @@ def test_owner_can_view_submitted_applications_and_close_job(
         f"/api/v1/jobs/{job_id}"
     )
     assert hidden.status_code == 404
+
+
+def test_job_applications_are_private_to_authorized_establishment(
+    app,
+    client,
+):
+    """Candidate data must not leak across tenants or to applicants."""
+    with app.app_context():
+        owner_a = _user("qa-jobs-owner-a@example.com")
+        owner_b = _user("qa-jobs-owner-b@example.com")
+        candidate = _user(
+            "qa-jobs-candidate@example.com",
+            professional=True,
+        )
+        business_a = _establishment("qa-jobs-business-a")
+        business_b = _establishment("qa-jobs-business-b")
+        access_a = _grant_access(owner_a, business_a)
+        _grant_access(owner_b, business_b)
+        db.session.commit()
+        owner_a_token = issue_session(owner_a).access_token
+        owner_b_token = issue_session(owner_b).access_token
+        candidate_token = issue_session(candidate).access_token
+        slug_a, slug_b = business_a.slug, business_b.slug
+        access_a_id = access_a.id
+
+    created = _create_job(client, slug_a, token=owner_a_token)
+    assert created.status_code == 201, created.get_json()
+    job_id = int(created.get_json()["job"]["id"])
+    publish = client.put(
+        f"/api/v1/establishments/{slug_a}/jobs/{job_id}/publish",
+        headers=_bearer(owner_a_token),
+    )
+    assert publish.status_code == 200, publish.get_json()
+    applied = client.post(
+        f"/api/v1/jobs/{job_id}/apply",
+        json={"message": "Private QA candidate details"},
+        headers=_bearer(candidate_token),
+    )
+    assert applied.status_code == 201, applied.get_json()
+
+    endpoint_a = (
+        f"/api/v1/establishments/{slug_a}/jobs/"
+        f"{job_id}/applications"
+    )
+    endpoint_b = (
+        f"/api/v1/establishments/{slug_b}/jobs/"
+        f"{job_id}/applications"
+    )
+    allowed = client.get(endpoint_a, headers=_bearer(owner_a_token))
+    assert allowed.status_code == 200
+    assert len(allowed.get_json()["items"]) == 1
+    assert "private" in allowed.headers.get("Cache-Control", "").lower()
+    assert "no-store" in allowed.headers.get("Cache-Control", "").lower()
+
+    # All denied requests must exclude applicant data entirely.
+    for endpoint, token in (
+        (endpoint_a, owner_b_token),
+        (endpoint_b, owner_b_token),
+        (endpoint_a, candidate_token),
+    ):
+        denied = client.get(endpoint, headers=_bearer(token))
+        assert denied.status_code == 403
+        assert "Private QA candidate details" not in denied.get_data(
+            as_text=True
+        )
+        assert "qa-jobs-candidate" not in denied.get_data(
+            as_text=True
+        )
+
+    with app.app_context():
+        access = db.session.get(EstablishmentUserAccess, access_a_id)
+        access.status = EstablishmentAccessStatus.INACTIVE
+        db.session.commit()
+
+    revoked = client.get(endpoint_a, headers=_bearer(owner_a_token))
+    assert revoked.status_code == 403
+    assert "Private QA candidate details" not in revoked.get_data(
+        as_text=True
+    )
