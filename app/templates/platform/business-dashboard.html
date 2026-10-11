@@ -28,6 +28,7 @@
   <div class="container business-section-nav__inner">
     <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
     <a href="#business-operations">{{ icon('calendar') }}<span>Operação</span></a>
+    <a href="{{ url_for('business.bookings', slug=establishment.slug) }}">{{ icon('calendar-check') }}<span>Reservas</span></a>
     <a href="#business-catalog">{{ icon('scissors') }}<span>Serviços</span></a>
     <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
     <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
