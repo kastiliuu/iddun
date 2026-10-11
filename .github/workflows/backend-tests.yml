@@ -96,6 +96,11 @@ jobs:
           rm -f /tmp/iddun-web-e2e.db
           python -m flask --app run:app db upgrade
 
+      - name: Preparar cliente autenticado descartável
+        env:
+          IDDUN_E2E_SEED: "1"
+        run: python -m e2e.seed_client
+
       - name: Iniciar Flask isolado
         run: |
           python -m flask --app run:app run --host 127.0.0.1 --port 8765 --no-reload > /tmp/iddun-web-e2e-flask.log 2>&1 &
