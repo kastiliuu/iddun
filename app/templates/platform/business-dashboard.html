@@ -28,6 +28,7 @@
   <div class="container business-section-nav__inner">
     <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
     <a href="#business-operations">{{ icon('calendar') }}<span>Operação</span></a>
+    <a href="#business-catalog">{{ icon('scissors') }}<span>Serviços</span></a>
     <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
     <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
     <a href="#business-gallery">{{ icon('store') }}<span>Galeria</span></a>
@@ -74,6 +75,37 @@
         <article><span>{{ icon('star') }}</span><strong>{{ reputation.average_label }}</strong><small>{% if reputation.count %}{{ reputation.count }} avaliações verificadas{% else %}sem avaliações ainda{% endif %}</small></article>
         <article><span>{{ icon('check') }}</span><strong>{% if reputation.recommendation_percent is not none %}{{ reputation.recommendation_percent }}%{% else %}—{% endif %}</strong><small>clientes que recomendam</small></article>
         <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
+      </section>
+
+      <section class="platform-panel business-catalog" id="business-catalog" aria-labelledby="business-catalog-title">
+        <header class="platform-panel__head">
+          <div>
+            <span class="platform-kicker">CATÁLOGO EMPRESARIAL</span>
+            <h2 id="business-catalog-title">Serviços publicados</h2>
+            <p>Visualização dos serviços realmente publicados nesta empresa. Alterações comerciais compartilhadas terão aprovação específica.</p>
+          </div>
+        </header>
+        {% if catalog_preview %}
+          <ul class="business-catalog__list">
+            {% for service in catalog_preview %}
+              <li class="business-catalog__item">
+                <div class="business-catalog__details">
+                  <strong>{{ service.title }}</strong>
+                  <span>{{ service.professional.display_name }} · {{ service.duration_minutes }} min</span>
+                </div>
+                <div class="business-catalog__value">
+                  <strong>R$ {{ '%.2f'|format(service.price)|replace('.', ',') }}</strong>
+                  <a href="{{ url_for('public.experience_detail', slug=service.slug) }}">Ver serviço {{ icon('chevron-right') }}</a>
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+          {% if published_experiences > catalog_preview|length %}
+            <p class="business-catalog__footnote">Exibindo os seis serviços publicados mais recentes da empresa.</p>
+          {% endif %}
+        {% else %}
+          <div class="platform-empty">Ainda não há serviços publicados vinculados a este estabelecimento.</div>
+        {% endif %}
       </section>
 
       <section class="platform-panel" id="business-team" data-reveal>

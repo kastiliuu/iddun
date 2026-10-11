@@ -2203,3 +2203,17 @@ article > div {
 .business-operations__metric small { font-size: .95rem; font-weight: 700; }
 .business-operations__metric p { font-size: .8rem; line-height: 1.5; color: #DADDE1; margin: 0; }
 @media(max-width: 600px) { .business-operations__metrics { grid-template-columns: 1fr; } }
+
+/* Business V1: read-only company catalogue, scoped by establishment. */
+#business-catalog { scroll-margin-top: 7rem; }
+.business-catalog__list { list-style: none; padding: 0; margin: 0; display: grid; gap: .7rem; }
+.business-catalog__item { display: flex; justify-content: space-between; align-items: center; gap: 1.2rem; padding: 1rem; border: 1px solid rgba(218,221,225,.15); border-radius: .75rem; }
+.business-catalog__details, .business-catalog__value { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.business-catalog__details strong { overflow-wrap: anywhere; }
+.business-catalog__details span { color: #DADDE1; font-size: .85rem; }
+.business-catalog__value { text-align: right; flex-shrink: 0; }
+.business-catalog__value a { display: inline-flex; align-items: center; gap: .2rem; min-height: 44px; color: #DADDE1; text-underline-offset: .2rem; }
+.business-catalog__value .icon { width: 1rem; height: 1rem; }
+.business-catalog__value a:focus-visible { outline: 2px solid #6B2EFF; outline-offset: 3px; }
+.business-catalog__footnote { margin: 1rem 0 0; font-size: .8rem; color: #DADDE1; }
+@media (max-width: 620px) { .business-catalog__item { align-items: flex-start; flex-direction: column; } .business-catalog__value { width: 100%; text-align: left; } }
