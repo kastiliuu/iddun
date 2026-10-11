@@ -2,7 +2,7 @@
 {% from 'components/icon.html' import icon %}
 {% from 'auth/_macros.html' import field_errors %}
 
-{% block title %}Novo serviço | IDDUN Pro{% endblock %}
+{% block title %}{{ 'Editar serviço' if service is defined else 'Novo serviço' }} | IDDUN Pro{% endblock %}
 {% block body_class %}platform-page platform-editor-page{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
 
@@ -12,8 +12,8 @@
     <header class="platform-editor__head">
       <a class="platform-back-link" href="{{ url_for('professional.services') }}">{{ icon('arrow-left') }} Meus serviços</a>
       <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
-      <h1 id="new-service-title">Criar serviço</h1>
-      <p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>
+      <h1 id="new-service-title">{{ "Editar serviço" if service is defined else "Criar serviço" }}</h1>
+      {% if service is defined %}<p>Atualize as informações do serviço. O status {{ service.status_label|lower }} e o endereço do serviço serão preservados.</p>{% else %}<p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>{% endif %}
     </header>
     <section class="platform-panel">
       <form method="post" class="platform-editor-form">
@@ -28,7 +28,7 @@
           {% endfor %}
         </div>
         <div class="platform-editor-actions">
-          {{ form.submit(class_='btn btn-primary') }}
+          <button class="btn btn-primary" type="submit">{{ 'Salvar alterações' if service is defined else 'Salvar rascunho' }}</button>
           <a class="btn btn-outline" href="{{ url_for('professional.services') }}">Cancelar</a>
         </div>
       </form>
