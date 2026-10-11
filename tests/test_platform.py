@@ -513,6 +513,7 @@ def test_same_account_can_be_client_professional_and_business_owner(
     assert denied.status_code == 403
     denied_bookings = client.get(f"/business/{slug}/reservas")
     assert denied_bookings.status_code == 403
+    assert client.get(f"/business/{slug}/indicadores").status_code == 403
 
 
 
