@@ -51,6 +51,7 @@ from app.models.professional import (
 from app.models.reputation import ContactClick
 from app.models.user import User
 from app.services.admin_catalog_service import publish_experience
+from app.services.business_operation_insights import business_operation_insights
 from app.services.availability_service import AvailabilityError, create_availability, create_availability_batch, create_availability_from_working_hours
 from app.services.booking_service import (
     BookingStateError,
@@ -2163,6 +2164,21 @@ def bookings(slug):
         selected_date=raw_date,
         status_choices=BookingStatus.CHOICES,
         current_page="business-bookings",
+    )
+
+
+@business_bp.get("/<slug>/indicadores")
+@login_required
+def insights(slug):
+    establishment, access = _managed_establishment(slug)
+    metrics = business_operation_insights(establishment.id)
+    return render_template(
+        "platform/business-insights.html",
+        establishment=establishment,
+        access=access,
+        metrics=metrics,
+        BookingStatus=BookingStatus,
+        current_page="business-insights",
     )
 
 
