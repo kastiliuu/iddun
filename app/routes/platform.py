@@ -2078,6 +2078,35 @@ def dashboard(slug):
     )
 
 
+@business_bp.get("/<slug>/servicos")
+@login_required
+def services(slug):
+    establishment, access = _managed_establishment(slug)
+    items = db.session.scalars(
+        select(Experience)
+        .where(Experience.establishment_id == establishment.id)
+        .order_by(Experience.created_at.desc(), Experience.id.desc())
+    ).all()
+    counts = {
+        status: sum(1 for item in items if item.status == status)
+        for status in (
+            ExperienceStatus.DRAFT,
+            ExperienceStatus.PUBLISHED,
+            ExperienceStatus.PAUSED,
+            ExperienceStatus.ARCHIVED,
+        )
+    }
+    return render_template(
+        "platform/business-services.html",
+        establishment=establishment,
+        access=access,
+        experiences=items,
+        counts=counts,
+        ExperienceStatus=ExperienceStatus,
+        current_page="business-services",
+    )
+
+
 @business_bp.route(
     "/<slug>/editar",
     methods=["GET", "POST"],

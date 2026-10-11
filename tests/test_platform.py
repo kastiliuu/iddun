@@ -440,6 +440,33 @@ def test_same_account_can_be_client_professional_and_business_owner(
     assert "Oferta empresarial em rascunho" not in html
     assert 'href="/experiencias/corte-empresarial-publicado"' in html
 
+    # Business managers see their complete internal catalog, while the
+    # dashboard preview continues showing only published services.
+    response = client.get(f"/business/{slug}/servicos")
+    assert response.status_code == 200
+    full_catalog = response.get_data(as_text=True)
+    assert "Corte empresarial publicado" in full_catalog
+    assert "Oferta empresarial em rascunho" in full_catalog
+    assert "1 publicados" in full_catalog
+    assert "/pro/servicos/" not in full_catalog
+
+    dashboard_html = client.get(f"/business/{slug}/painel").get_data(as_text=True)
+    assert f'/business/{slug}/servicos' in dashboard_html
+
+    # A different logged-in account cannot read another company's drafts.
+    other_id = _create_user(
+        app, email="other-business-catalog@example.com", name="Sem acesso",
+    )
+    with client.session_transaction() as session:
+        session["_user_id"] = str(other_id)
+        session["_fresh"] = True
+    from flask import g
+    g.pop("_login_user", None)
+    denied = client.get(f"/business/{slug}/servicos")
+    assert denied.status_code == 403
+
+
+
 
 def test_business_invitation_requires_professional_acceptance(
     app,
