@@ -27,6 +27,7 @@
       >
         {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
       </div>
+      {% if editing %}
       <button
         class="account-avatar-edit"
         type="button"
@@ -36,6 +37,7 @@
       >
         {{ icon('edit') }}
       </button>
+      {% endif %}
     </div>
 
     <div class="account-profile-summary">
@@ -160,10 +162,15 @@
             <h2 id="account-data-title">Suas informações</h2>
             <p>Organizamos identidade e dados de conta sem mudar as regras atuais do perfil.</p>
           </div>
-          <span class="account-profile-card__secure">{{ icon('shield-check') }} Dados protegidos</span>
+          {% if editing %}
+          <a class="account-profile-card__secure" href="{{ url_for('account.dashboard') }}">{{ icon('arrow-left') }} Voltar ao perfil</a>
+          {% else %}
+          <a class="account-profile-card__secure" href="{{ url_for('account.edit') }}">{{ icon('edit') }} Editar perfil</a>
+          {% endif %}
         </div>
 
-        <form class="account-form" method="post" enctype="multipart/form-data" novalidate>
+        {% if editing %}
+        <form class="account-form" method="post" action="{{ url_for('account.edit') }}" enctype="multipart/form-data" novalidate>
           {{ form.hidden_tag() }}
 
           <fieldset class="account-form-section">
@@ -236,6 +243,17 @@
             {{ form.submit(class_='btn btn-primary account-save') }}
           </div>
         </form>
+        {% else %}
+        <dl class="account-details" aria-label="Informações pessoais">
+          <div><dt>Nome</dt><dd>{{ current_user.name }}</dd></div>
+          <div><dt>E-mail</dt><dd>{{ current_user.email }}</dd></div>
+          <div><dt>Telefone</dt><dd>{{ profile.phone or 'Não informado' }}</dd></div>
+          <div><dt>Data de nascimento</dt><dd>{{ profile.birth_date.strftime('%d/%m/%Y') if profile.birth_date else 'Não informada' }}</dd></div>
+          <div><dt>Cidade</dt><dd>{{ profile.city or 'Não informada' }}</dd></div>
+          <div><dt>UF</dt><dd>{{ profile.state or 'Não informada' }}</dd></div>
+        </dl>
+        <a class="btn btn-primary account-save" href="{{ url_for('account.edit') }}">Editar informações</a>
+        {% endif %}
       </section>
     </div>
 
@@ -264,7 +282,7 @@
         >
           <span data-account-progress data-progress="{{ completion }}"></span>
         </div>
-        <a class="account-side-card__cta" href="#dados-pessoais">Completar perfil {{ icon('chevron-right') }}</a>
+        <a class="account-side-card__cta" href="{{ url_for('account.edit') }}#dados-pessoais">{{ 'Completar perfil' if completion_missing else 'Editar perfil' }} {{ icon('chevron-right') }}</a>
       </section>
 
       <section class="account-side-card account-side-card--premium">

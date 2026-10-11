@@ -128,3 +128,48 @@ def test_avatar_upload_error_preserves_completion_and_business_contexts(app, cli
     assert b'data-progress="29"' in response.data
     assert b"Studio Teste" in response.data
     assert "Falha controlada no upload.".encode() in response.data
+
+
+def test_profile_view_is_read_only_and_edit_has_form(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    view = client.get("/minha-conta")
+    assert view.status_code == 200
+    assert b'aria-label="Informa' in view.data
+    assert b'href="/minha-conta/editar"' in view.data
+    assert b'class="account-form"' not in view.data
+    assert b'data-account-avatar-edit' not in view.data
+
+    edit = client.get("/minha-conta/editar")
+    assert edit.status_code == 200
+    assert b'class="account-form"' in edit.data
+    assert b'action="/minha-conta/editar"' in edit.data
+    assert b'data-account-avatar-edit' in edit.data
+    assert b'href="/minha-conta"' in edit.data
+
+
+def test_dedicated_edit_route_persists_profile_and_returns_to_view(
+    app, client,
+):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Cliente Atualizado",
+            "phone": "41988888888",
+            "birth_date": "",
+            "city": "Curitiba",
+            "state": "PR",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/minha-conta")
+
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.name == "Cliente Atualizado"
+        assert user.client_profile.phone == "41988888888"
