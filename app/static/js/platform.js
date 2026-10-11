@@ -508,16 +508,7 @@
     )
   );
 
-  // Server-side validation can fail on a later wizard step. Reopen
-  // that step so the error is visible instead of resetting to step 1.
-  const firstInvalidStep = steps.find((step) => (
-    step.querySelector(
-      '.auth-field-errors, .field-errors, [aria-invalid="true"]',
-    )
-  ));
-  let current = firstInvalidStep
-    ? Number(firstInvalidStep.dataset.wizardStep) || 1
-    : 1;
+  let current = 1;
 
   const focusFirst = (step) => {
     const first = step.querySelector(
@@ -867,7 +858,8 @@
   const hasServerErrors = (
     form.querySelector(
       (
-        '.field-errors, '
+        '.auth-field-errors, '
+        + '.field-errors, '
         + '.form-error, '
         + '[aria-invalid="true"]'
       ),
