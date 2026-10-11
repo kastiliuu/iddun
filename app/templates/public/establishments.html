@@ -13,6 +13,11 @@
       <h1>Conheça empresas e as pessoas que fazem parte delas.</h1>
       <p>Entre pela marca, explore a equipe e navegue até os perfis profissionais — ou faça o caminho inverso.</p>
     </div>
+    <form class="professionals-search" data-reveal action="{{ url_for('public.establishments') }}" method="get" role="search">
+      {{ icon('search', 'professionals-search__icon') }}
+      <input name="q" type="search" placeholder="Nome, categoria, bairro ou cidade" aria-label="Buscar estabelecimentos" value="{{ search }}" maxlength="120">
+      <button type="submit">Buscar</button>
+    </form>
     <div class="establishments-hero__network" data-reveal aria-hidden="true">
       <span>EMPRESA</span><b>→</b><span>EQUIPE</span><b>→</b><span>PROFISSIONAL</span>
     </div>
@@ -22,8 +27,8 @@
 <section class="professionals-content">
   <div class="container">
     <div class="professionals-head" data-reveal>
-      <div><span class="professionals-section-kicker">IDDUN BUSINESS</span><h2>Estabelecimentos</h2></div>
-      <span>{{ establishments|length }} páginas publicadas</span>
+      <div><span class="professionals-section-kicker">IDDUN BUSINESS</span><h2>{{ 'Resultados da busca' if search else 'Estabelecimentos' }}</h2></div>
+      <span>{{ establishments|length }} {{ 'resultado' if search and establishments|length == 1 else 'resultados' if search else 'páginas publicadas' }}</span>
     </div>
 
     {% if establishments %}
@@ -42,6 +47,13 @@
         </div>
       </a>
       {% endfor %}
+    </div>
+    {% elif search and has_establishments %}
+    <div class="marketplace-empty establishment-empty" data-reveal role="status">
+      <span class="marketplace-empty__icon">{{ icon('search') }}</span>
+      <h2>Nenhum estabelecimento encontrado.</h2>
+      <p>Não encontramos resultados para “{{ search }}”. Tente outro nome, categoria ou localização.</p>
+      <a class="btn btn-dark" href="{{ url_for('public.establishments') }}">Limpar busca</a>
     </div>
     {% else %}
     <div class="marketplace-empty establishment-empty" data-reveal>

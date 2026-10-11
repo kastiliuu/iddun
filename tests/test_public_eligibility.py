@@ -229,3 +229,67 @@ def test_professional_directory_search_stays_in_directory(
     assert empty.status_code == 200
     assert "Nenhum profissional encontrado".encode() in empty.data
     assert b'href="/profissionais"' in empty.data
+
+
+def test_establishment_directory_search_filters_public_results(
+    client, monkeypatch,
+):
+    from types import SimpleNamespace
+
+    establishments = [
+        SimpleNamespace(
+            name="Studio Aurora",
+            slug="studio-aurora",
+            category="salao",
+            neighborhood="Batel",
+            city="Curitiba",
+            state="PR",
+            active_memberships=[],
+            cover_url=None,
+            logo_url=None,
+        ),
+        SimpleNamespace(
+            name="Barbearia Horizonte",
+            slug="barbearia-horizonte",
+            category="barbearia",
+            neighborhood="Centro",
+            city="Londrina",
+            state="PR",
+            active_memberships=[],
+            cover_url=None,
+            logo_url=None,
+        ),
+    ]
+    monkeypatch.setattr(
+        "app.routes.public.list_establishments",
+        lambda: establishments,
+    )
+
+    by_neighborhood = client.get("/estabelecimentos?q=batel")
+    assert by_neighborhood.status_code == 200
+    assert b"Studio Aurora" in by_neighborhood.data
+    assert b"Barbearia Horizonte" not in by_neighborhood.data
+    assert b'action="/estabelecimentos"' in by_neighborhood.data
+
+    by_category = client.get("/estabelecimentos?q=BARBEARIA")
+    assert by_category.status_code == 200
+    assert b"Barbearia Horizonte" in by_category.data
+    assert b"Studio Aurora" not in by_category.data
+
+    unmatched = client.get("/estabelecimentos?q=sem-resultado")
+    assert unmatched.status_code == 200
+    assert b"Nenhum estabelecimento encontrado." in unmatched.data
+    assert b'href="/estabelecimentos"' in unmatched.data
+    assert b"Os primeiros estabelecimentos est" not in unmatched.data
+
+
+def test_establishment_directory_without_real_list_uses_launch_empty_state(
+    client, monkeypatch,
+):
+    monkeypatch.setattr(
+        "app.routes.public.list_establishments",
+        lambda: [],
+    )
+    response = client.get("/estabelecimentos")
+    assert response.status_code == 200
+    assert b"Os primeiros estabelecimentos est" in response.data
