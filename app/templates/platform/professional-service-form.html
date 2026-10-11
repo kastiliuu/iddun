@@ -1,0 +1,38 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% block title %}Novo serviço | IDDUN Pro{% endblock %}
+{% block body_class %}platform-page platform-editor-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-editor" aria-labelledby="new-service-title">
+  <div class="container platform-editor__layout">
+    <header class="platform-editor__head">
+      <a class="platform-back-link" href="{{ url_for('professional.services') }}">{{ icon('arrow-left') }} Meus serviços</a>
+      <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
+      <h1 id="new-service-title">Criar serviço</h1>
+      <p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>
+    </header>
+    <section class="platform-panel">
+      <form method="post" class="platform-editor-form">
+        {{ form.hidden_tag() }}
+        <div class="platform-form-grid">
+          {% for field in [form.title, form.category, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
+          <div class="platform-field{% if field.name in ['short_description', 'description'] %} platform-field--wide{% endif %}">
+            {{ field.label(class_='platform-label') }}
+            {{ field(class_='platform-input' if field.name not in ['description', 'category'] else 'platform-textarea' if field.name == 'description' else 'platform-select') }}
+            {{ field_errors(field) }}
+          </div>
+          {% endfor %}
+        </div>
+        <div class="platform-editor-actions">
+          {{ form.submit(class_='btn btn-primary') }}
+          <a class="btn btn-outline" href="{{ url_for('professional.services') }}">Cancelar</a>
+        </div>
+      </form>
+    </section>
+  </div>
+</section>
+{% endblock %}
