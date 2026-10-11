@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 
 from flask import (
     Blueprint,
@@ -87,7 +87,7 @@ from app.services.professional_schedule_service import (
 )
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle, unique_slug
-from app.services.time_service import to_local
+from app.services.time_service import to_local, local_naive_to_utc
 
 
 professional_bp = Blueprint(
@@ -2104,6 +2104,65 @@ def services(slug):
         counts=counts,
         ExperienceStatus=ExperienceStatus,
         current_page="business-services",
+    )
+
+
+@business_bp.get("/<slug>/reservas")
+@login_required
+def bookings(slug):
+    establishment, access = _managed_establishment(slug)
+    selected_status = (request.args.get("status") or "").strip().lower()
+    allowed_statuses = {value for value, _ in BookingStatus.CHOICES}
+    if selected_status and selected_status not in allowed_statuses:
+        abort(400)
+
+    raw_date = (request.args.get("date") or "").strip()
+    selected_date = None
+    if raw_date:
+        try:
+            selected_date = date.fromisoformat(raw_date)
+        except ValueError:
+            abort(400)
+
+    query = (
+        select(Booking)
+        .join(ExperienceSlot, Booking.slot_id == ExperienceSlot.id)
+        .where(Booking.establishment_id == establishment.id)
+    )
+    if selected_status:
+        query = query.where(Booking.status == selected_status)
+    if selected_date:
+        start = local_naive_to_utc(
+            datetime.combine(selected_date, time.min), establishment.timezone
+        )
+        end = local_naive_to_utc(
+            datetime.combine(selected_date + timedelta(days=1), time.min),
+            establishment.timezone,
+        )
+        query = query.where(
+            ExperienceSlot.starts_at >= start,
+            ExperienceSlot.starts_at < end,
+        )
+    items = db.session.scalars(
+        query.order_by(ExperienceSlot.starts_at.desc(), Booking.id.desc())
+        .limit(100)
+    ).all()
+    rows = [
+        {
+            "booking": item,
+            "local_start": to_local(item.slot.starts_at, establishment.timezone),
+        }
+        for item in items
+    ]
+    return render_template(
+        "platform/business-bookings.html",
+        establishment=establishment,
+        access=access,
+        rows=rows,
+        selected_status=selected_status,
+        selected_date=raw_date,
+        status_choices=BookingStatus.CHOICES,
+        current_page="business-bookings",
     )
 
 
