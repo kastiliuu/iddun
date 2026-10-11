@@ -90,6 +90,53 @@ jobs:
         run: npm run lint
 
 
+
+  postgres-booking:
+    name: PostgreSQL / concorrência de reservas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: iddun_test
+          POSTGRES_PASSWORD: iddun_test_password
+          POSTGRES_DB: iddun_qa
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U iddun_test -d iddun_qa"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql+psycopg2://iddun_test:iddun_test_password@localhost:5432/iddun_qa
+      IDDUN_TEST_POSTGRES_URL: postgresql+psycopg2://iddun_test:iddun_test_password@localhost:5432/iddun_qa
+      SECRET_KEY: qa-ci-postgres-disposable-secret
+      APP_ENV: development
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Instalar dependências
+        run: python -m pip install -r requirements.txt
+
+      - name: Aplicar migrations PostgreSQL
+        run: python -m flask --app run:app db upgrade
+
+      - name: Verificar restrição com duas transações concorrentes
+        run: python -m pytest -q tests/test_postgres_booking_concurrency.py
+
   security-baseline:
     name: Auditoria inicial de segurança Python
     runs-on: ubuntu-latest
