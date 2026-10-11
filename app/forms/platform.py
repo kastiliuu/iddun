@@ -82,6 +82,29 @@ class ProfessionalEditForm(FlaskForm):
     submit = SubmitField("Salvar perfil")
 
 
+
+class ProfessionalWorkExperienceForm(FlaskForm):
+    company_name = StringField(
+        "Estabelecimento ou empresa",
+        validators=[DataRequired(), Length(max=160)],
+    )
+    role_title = StringField(
+        "Cargo ou função",
+        validators=[DataRequired(), Length(max=140)],
+    )
+    started_at = DateField(
+        "Data de início", validators=[DataRequired()],
+    )
+    ended_at = DateField(
+        "Data de término", validators=[Optional()],
+    )
+    is_current = BooleanField("Trabalho aqui atualmente")
+    description = TextAreaField(
+        "Descrição", validators=[Optional(), Length(max=2000)],
+    )
+    submit = SubmitField("Adicionar experiência")
+
+
 BUSINESS_CATEGORY_CHOICES = [
     ("salao", "Salão de beleza"),
     ("barbearia", "Barbearia"),
