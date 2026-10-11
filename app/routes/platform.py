@@ -769,6 +769,51 @@ def create_service():
     )
 
 
+@professional_bp.route("/servicos/<int:service_id>/editar", methods=["GET", "POST"])
+@login_required
+def edit_service(service_id):
+    profile = current_user.professional_profile
+    if profile is None:
+        abort(404)
+
+    item = db.session.scalar(
+        select(Experience).where(
+            Experience.id == service_id,
+            Experience.professional_id == profile.id,
+        )
+    )
+    if item is None:
+        abort(404)
+
+    # Changes to published services could unexpectedly alter the terms
+    # of existing bookings. Keep this first editing flow to inactive items.
+    if item.status not in {ExperienceStatus.DRAFT, ExperienceStatus.PAUSED}:
+        flash("Somente serviços em rascunho ou pausados podem ser editados.", "info")
+        return redirect(url_for("professional.services"))
+
+    form = ProfessionalServiceDraftForm(obj=item)
+    if form.validate_on_submit():
+        item.title = form.title.data.strip()
+        item.category = form.category.data
+        item.short_description = form.short_description.data.strip()
+        item.description = (form.description.data or "").strip() or None
+        item.regular_price = form.regular_price.data
+        item.price = form.price.data
+        item.duration_minutes = form.duration_minutes.data
+        # Preserve the existing slug so previously shared links are stable.
+        # Never change publication state through an edit form.
+        db.session.commit()
+        flash("Serviço atualizado.", "success")
+        return redirect(url_for("professional.services"))
+
+    return render_template(
+        "platform/professional-service-form.html",
+        form=form,
+        service=item,
+        current_page="professional-services",
+    )
+
+
 @professional_bp.get("/servicos")
 @login_required
 def services():
