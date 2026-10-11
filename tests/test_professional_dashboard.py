@@ -631,3 +631,87 @@ def test_pro_cannot_create_draft_with_price_above_regular_price(app, client):
         assert db.session.scalar(
             select(Experience).where(Experience.title == "Preco invalido")
         ) is None
+
+
+def test_pro_edits_own_draft_service_without_changing_publication(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    with app.app_context():
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        draft = Experience(
+            professional_id=professional.id,
+            title="Rascunho original",
+            slug="rascunho-original",
+            category="unhas",
+            short_description="Descrição inicial",
+            regular_price="130.00",
+            price="100.00",
+            duration_minutes=60,
+            status=ExperienceStatus.DRAFT,
+        )
+        db.session.add(draft)
+        db.session.commit()
+        draft_id = draft.id
+    _login(client, user_id)
+    page = client.get(f"/pro/servicos/{draft_id}/editar")
+    assert page.status_code == 200
+    assert b"Rascunho original" in page.data
+    updated = client.post(
+        f"/pro/servicos/{draft_id}/editar",
+        data={
+            "title": "Rascunho atualizado",
+            "category": "unhas",
+            "short_description": "Descrição atualizada",
+            "regular_price": "150.00",
+            "price": "120.00",
+            "duration_minutes": "90",
+        },
+        follow_redirects=False,
+    )
+    assert updated.status_code == 302
+    with app.app_context():
+        item = db.session.get(Experience, draft_id)
+        assert item.title == "Rascunho atualizado"
+        assert item.duration_minutes == 90
+        assert item.slug == "rascunho-original"
+        assert item.status == ExperienceStatus.DRAFT
+
+
+def test_pro_cannot_edit_another_pro_service_or_published_one(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    with app.app_context():
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        published = db.session.scalar(
+            select(Experience).where(Experience.professional_id == professional.id)
+        )
+        published_id = published.id
+        other_user = User(
+            name="Outro profissional",
+            email="outro-servicos-edit@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        other_user.set_password("senha-forte-123")
+        db.session.add(other_user)
+        db.session.flush()
+        other_pro = ProfessionalProfile(
+            user=other_user, display_name="Outro", slug="outro-servicos-edit",
+        )
+        db.session.add(other_pro)
+        db.session.commit()
+        other_id = other_user.id
+    _login(client, user_id)
+    published_response = client.get(f"/pro/servicos/{published_id}/editar")
+    assert published_response.status_code == 302
+    with client.session_transaction() as session:
+        session["_user_id"] = str(other_id)
+    from flask import g
+    g.pop("_login_user", None)
+    forbidden = client.get(f"/pro/servicos/{published_id}/editar")
+    assert forbidden.status_code == 404
