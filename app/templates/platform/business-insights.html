@@ -1,0 +1,52 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% block title %}Indicadores | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-insights-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block content %}
+<section class="platform-editor" aria-labelledby="business-insights-title">
+  <div class="container platform-editor__layout">
+    <header class="platform-editor__head">
+      <a class="platform-back-link" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('arrow-left') }} Voltar ao painel</a>
+      <span class="platform-kicker">IDDUN BUSINESS · OPERAÇÃO</span>
+      <h1 id="business-insights-title">Indicadores operacionais</h1>
+      <p>Dados históricos reais das reservas vinculadas a {{ establishment.name }}. Não incluem atendimentos realizados fora do IDDUN.</p>
+      <a class="btn btn-outline" href="{{ url_for('business.bookings', slug=establishment.slug) }}">Consultar reservas</a>
+    </header>
+    <section class="platform-panel">
+      <header class="platform-panel__head"><div>
+        <span class="platform-kicker">RESERVAS REGISTRADAS</span>
+        <h2>{{ metrics.total_bookings }} no total</h2>
+      </div></header>
+      <div class="platform-form-grid">
+        {% for status, label in BookingStatus.CHOICES %}
+        <div class="platform-field">
+          <span class="platform-kicker">{{ label }}</span>
+          <h3>{{ metrics.counts[status] }}</h3>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    <section class="platform-panel">
+      <span class="platform-kicker">VALOR DOS ATENDIMENTOS CONCLUÍDOS</span>
+      <h2>R$ {{ '%.2f'|format(metrics.completed_booking_value)|replace('.', ',') }}</h2>
+      <p>Soma dos preços registrados nas reservas concluídas. <strong>Este valor não representa pagamentos recebidos, faturamento líquido nem repasses ao estabelecimento.</strong></p>
+    </section>
+    <section class="platform-panel">
+      <header class="platform-panel__head"><div>
+        <span class="platform-kicker">SERVIÇOS MAIS REALIZADOS</span>
+        <h2>Até 5 serviços por atendimentos concluídos</h2>
+      </div></header>
+      {% if metrics.top_services %}
+        <ul>
+          {% for item in metrics.top_services %}
+          <li><strong>{{ item.title }}</strong> — {{ item.completed_count }} {{ 'atendimento concluído' if item.completed_count == 1 else 'atendimentos concluídos' }}</li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Ainda não há atendimentos concluídos registrados para este estabelecimento.</p>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}
