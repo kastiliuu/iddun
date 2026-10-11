@@ -15,6 +15,7 @@
       <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
       <h1 id="pro-services-title">Meus serviços</h1>
       <p>Acompanhe os serviços vinculados ao seu perfil e o estado de publicação de cada um.</p>
+      <a class="btn btn-primary" href="{{ url_for('professional.create_service') }}">Criar serviço</a>
     </header>
 
     <section class="platform-panel">
@@ -45,7 +46,7 @@
       </div>
       {% else %}
         <p>Você ainda não possui serviços cadastrados no IDDUN.</p>
-        <p>O cadastro e a publicação de novos serviços serão disponibilizados nesta área.</p>
+        <a class="btn btn-primary" href="{{ url_for('professional.create_service') }}">Criar meu primeiro serviço</a>
       {% endif %}
     </section>
   </div>

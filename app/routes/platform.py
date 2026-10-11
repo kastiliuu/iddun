@@ -22,6 +22,7 @@ from app.forms.platform import (
     ProfessionalEditForm,
     ProfessionalOnboardingForm,
     ProfessionalWorkExperienceForm,
+    ProfessionalServiceDraftForm,
     TeamMemberForm,
     WorkModeChoiceForm,
 )
@@ -82,7 +83,7 @@ from app.services.professional_schedule_service import (
     schedule_rows,
 )
 from app.services.reputation_service import reputation_summary
-from app.services.slug_service import unique_public_handle
+from app.services.slug_service import unique_public_handle, unique_slug
 
 
 professional_bp = Blueprint(
@@ -732,6 +733,39 @@ def insights():
         current_page="professional-insights",
         capacity=capacity,
         **context,
+    )
+
+
+@professional_bp.route("/servicos/novo", methods=["GET", "POST"])
+@login_required
+def create_service():
+    profile = current_user.professional_profile
+    if profile is None:
+        return redirect(url_for("professional.start"))
+
+    form = ProfessionalServiceDraftForm()
+    if form.validate_on_submit():
+        item = Experience(
+            professional_id=profile.id,
+            title=form.title.data.strip(),
+            slug=unique_slug(Experience, form.title.data),
+            category=form.category.data,
+            short_description=form.short_description.data.strip(),
+            description=(form.description.data or "").strip() or None,
+            regular_price=form.regular_price.data,
+            price=form.price.data,
+            duration_minutes=form.duration_minutes.data,
+            status=ExperienceStatus.DRAFT,
+        )
+        db.session.add(item)
+        db.session.commit()
+        flash("Rascunho do serviço criado. Você poderá publicá-lo após completar as informações necessárias.", "success")
+        return redirect(url_for("professional.services"))
+
+    return render_template(
+        "platform/professional-service-form.html",
+        form=form,
+        current_page="professional-services",
     )
 
 
