@@ -1,0 +1,48 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Serviços da empresa | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-services-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-editor" aria-labelledby="business-services-title">
+  <div class="container platform-editor__layout">
+    <header class="platform-editor__head">
+      <a class="platform-back-link" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('arrow-left') }} Voltar ao painel</a>
+      <span class="platform-kicker">IDDUN BUSINESS · CATÁLOGO</span>
+      <h1 id="business-services-title">Serviços da empresa</h1>
+      <p>Confira os serviços vinculados a {{ establishment.name }}, inclusive rascunhos e serviços pausados. A edição comercial continua sob controle do profissional responsável.</p>
+    </header>
+    <section class="platform-panel">
+      <header class="platform-panel__head">
+        <div>
+          <span class="platform-kicker">CATÁLOGO VINCULADO</span>
+          <h2>{{ experiences|length }} {{ 'serviço' if experiences|length == 1 else 'serviços' }}</h2>
+          <p>{{ counts[ExperienceStatus.PUBLISHED] }} publicados · {{ counts[ExperienceStatus.DRAFT] }} rascunhos · {{ counts[ExperienceStatus.PAUSED] }} pausados · {{ counts[ExperienceStatus.ARCHIVED] }} arquivados</p>
+        </div>
+      </header>
+      {% if experiences %}
+      <div class="platform-form-grid">
+        {% for item in experiences %}
+        <article class="platform-field platform-field--wide">
+          <span class="platform-kicker">{{ item.category_label }} · {{ item.status_label }}</span>
+          <h3>{{ item.title }}</h3>
+          <p>Responsável: {{ item.professional.display_name }}</p>
+          <p>{{ item.short_description }}</p>
+          <p>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} · {{ item.duration_minutes }} min</p>
+          {% if item.status == ExperienceStatus.PUBLISHED %}
+            <a class="btn btn-outline" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Ver página pública do serviço</a>
+          {% else %}
+            <p>Este serviço não está disponível para novas reservas públicas.</p>
+          {% endif %}
+        </article>
+        {% endfor %}
+      </div>
+      {% else %}
+        <p>Nenhum serviço está vinculado a este estabelecimento. Os profissionais podem escolher o local ao cadastrar ou editar seus serviços, desde que tenham um vínculo ativo.</p>
+      {% endif %}
+    </section>
+  </div>
+</section>
+{% endblock %}
