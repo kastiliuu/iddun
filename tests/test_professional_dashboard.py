@@ -901,3 +901,86 @@ def test_pro_service_rejects_invalid_image_without_creating_draft(app, client):
         assert db.session.scalar(
             select(Experience).where(Experience.title == "Imagem inválida")
         ) is None
+
+
+def test_pro_can_open_service_slot_through_existing_availability_service(
+    app, client, monkeypatch,
+):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        item = db.session.scalar(
+            select(Experience).where(Experience.slug == "manutencao-painel")
+        )
+        service_id = item.id
+
+    observed = []
+
+    def create(**kwargs):
+        observed.append({
+            "user_id": kwargs["user"].id,
+            "reference": kwargs["experience_reference"],
+            "date": kwargs["slot_date"],
+            "time": kwargs["slot_time"],
+        })
+
+    monkeypatch.setattr("app.routes.platform.create_availability", create)
+    response = client.post(
+        f"/pro/servicos/{service_id}/horarios",
+        data={"slot_date": "2026-12-15", "slot_time": "14:00"},
+    )
+    assert response.status_code == 302
+    assert observed == [{
+        "user_id": user_id,
+        "reference": str(service_id),
+        "date": "2026-12-15",
+        "time": "14:00",
+    }]
+    page = client.get("/pro/servicos")
+    assert page.status_code == 200
+    assert b"Disponibilizar hor" in page.data
+    assert b"Pr" in page.data
+
+
+def test_pro_cannot_open_another_professionals_service_slot(app, client, monkeypatch):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        owner = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user_id)
+        )
+        other = ProfessionalProfile(
+            display_name="Outro Dono", slug="outro-dono-slots",
+        )
+        db.session.add(other)
+        db.session.flush()
+        item = Experience(
+            professional=other,
+            title="Servico de outro",
+            slug="servico-outro-slot",
+            category="unhas",
+            short_description="Atendimento de outro profissional",
+            regular_price="100.00",
+            price="90.00",
+            duration_minutes=60,
+            status=ExperienceStatus.PUBLISHED,
+        )
+        db.session.add(item)
+        db.session.commit()
+        other_service_id = item.id
+
+    called = []
+    monkeypatch.setattr(
+        "app.routes.platform.create_availability",
+        lambda **kwargs: called.append(kwargs),
+    )
+    response = client.post(
+        f"/pro/servicos/{other_service_id}/horarios",
+        data={"slot_date": "2026-12-15", "slot_time": "14:00"},
+    )
+    assert response.status_code == 404
+    assert called == []
