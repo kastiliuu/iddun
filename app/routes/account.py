@@ -105,7 +105,7 @@ def dashboard():
         flash("Perfil atualizado com sucesso.", "success")
         return redirect(url_for("account.dashboard"))
 
-    return render_template("account/dashboard.html", **_dashboard_context(form, profile))
+    return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
 
 
 
