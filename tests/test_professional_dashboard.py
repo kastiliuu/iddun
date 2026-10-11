@@ -541,3 +541,31 @@ def test_pro_cannot_operate_another_professional_slot(
             slot.status
             == SlotStatus.AVAILABLE
         )
+
+
+def test_pro_services_page_shows_only_owned_catalog(app, client):
+    user_id = _catalog(app)
+    _login(client, user_id)
+    response = client.get("/pro/servicos")
+    assert response.status_code == 200
+    assert b"Manuten" in response.data
+    assert b"Visualizar e consultar hor" in response.data
+    dashboard = client.get("/pro/painel")
+    assert dashboard.status_code == 200
+    assert b'href="/pro/servicos"' in dashboard.data
+
+
+def test_pro_services_page_redirects_client_without_profile(app, client):
+    user = User(
+        name="Cliente somente", email="cliente-servicos@example.com",
+        role=UserRole.CLIENT,
+    )
+    user.set_password("senha-forte-123")
+    with app.app_context():
+        db.session.add(user)
+        db.session.commit()
+        user_id = user.id
+    _login(client, user_id)
+    response = client.get("/pro/servicos")
+    assert response.status_code == 302
+    assert "/pro/comecar" in response.headers["Location"]
