@@ -922,6 +922,19 @@
     },
   );
 
+  // Account "Favoritos" deep link opens the existing private saved panel.
+  if (
+    window.location.hash === '#feed-saved-panel'
+    && savedPanel
+  ) {
+    closeAccountMenu();
+    closeNotifications();
+    savedPanel.hidden = false;
+    savedTriggers.forEach((trigger) => {
+      trigger.setAttribute('aria-expanded', 'true');
+    });
+  }
+
   if (window.location.hash) {
     const target = document.querySelector(
       window.location.hash,
