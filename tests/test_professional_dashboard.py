@@ -1156,3 +1156,86 @@ def test_pro_day_schedule_denies_service_owned_by_another_professional(app, clie
         data={"slot_date": "2027-02-15"},
     )
     assert response.status_code == 404
+
+
+def test_pro_can_manage_own_available_service_slot_from_catalog(app, client, monkeypatch):
+    from sqlalchemy import select
+
+    monkeypatch.setattr("app.services.booking_service.utcnow", lambda: FIXED_NOW)
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        slot = db.session.scalar(
+            select(ExperienceSlot).where(ExperienceSlot.status == SlotStatus.AVAILABLE)
+        )
+        service_id = slot.experience_id
+        slot_id = slot.id
+
+    blocked = client.post(f"/pro/servicos/{service_id}/horarios/{slot_id}/bloquear")
+    assert blocked.status_code == 302
+    with app.app_context():
+        assert db.session.get(ExperienceSlot, slot_id).status == SlotStatus.BLOCKED_MANUAL
+
+    reopened = client.post(f"/pro/servicos/{service_id}/horarios/{slot_id}/liberar")
+    assert reopened.status_code == 302
+    with app.app_context():
+        assert db.session.get(ExperienceSlot, slot_id).status == SlotStatus.AVAILABLE
+
+
+def test_pro_service_slot_controls_never_modify_booked_slot(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        slot = db.session.scalar(
+            select(ExperienceSlot).where(ExperienceSlot.status == SlotStatus.BOOKED)
+        )
+        service_id = slot.experience_id
+        slot_id = slot.id
+        booking_id = db.session.scalar(
+            select(Booking).where(Booking.slot_id == slot_id)
+        ).id
+
+    for action in ("bloquear", "liberar"):
+        response = client.post(
+            f"/pro/servicos/{service_id}/horarios/{slot_id}/{action}"
+        )
+        assert response.status_code == 302
+    with app.app_context():
+        assert db.session.get(ExperienceSlot, slot_id).status == SlotStatus.BOOKED
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED
+
+
+def test_pro_service_slot_management_rejects_wrong_service_and_owner(app, client):
+    from sqlalchemy import select
+
+    user_id = _catalog(app)
+    _login(client, user_id)
+    with app.app_context():
+        slot = db.session.scalar(select(ExperienceSlot))
+        slot_id = slot.id
+        service_id = slot.experience_id
+    for action in ("bloquear", "liberar"):
+        wrong_service = client.post(
+            f"/pro/servicos/{service_id + 9999}/horarios/{slot_id}/{action}"
+        )
+        assert wrong_service.status_code == 404
+
+    with app.app_context():
+        other_user = User(
+            name="Outro gestor", email="other-slot-manager@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        other_user.set_password("senha-forte-123")
+        db.session.add(other_user)
+        db.session.commit()
+        other_user_id = other_user.id
+    _login(client, other_user_id)
+    from flask import g
+    g.pop("_login_user", None)
+    for action in ("bloquear", "liberar"):
+        response = client.post(
+            f"/pro/servicos/{service_id}/horarios/{slot_id}/{action}"
+        )
+        assert response.status_code in (403, 404)

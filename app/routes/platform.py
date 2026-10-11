@@ -1002,6 +1002,44 @@ def create_service_slots_from_schedule(service_id):
     return redirect(url_for("professional.services") + f"#servico-{item.id}")
 
 
+@professional_bp.post("/servicos/<int:service_id>/horarios/<int:slot_id>/bloquear")
+@login_required
+def block_service_slot(service_id, slot_id):
+    slot = _professional_slot_or_404(slot_id)
+    if slot.experience_id != service_id:
+        abort(404)
+    # Never cancel pending holds as a side effect from the service catalog.
+    if slot.status != SlotStatus.AVAILABLE:
+        flash("Somente horários disponíveis podem ser bloqueados aqui.", "error")
+    elif block_slot_manual(slot):
+        flash("Horário bloqueado.", "success")
+    else:
+        flash("Este horário não pode ser bloqueado.", "error")
+    return redirect(url_for("professional.services") + f"#servico-{service_id}")
+
+
+@professional_bp.post("/servicos/<int:service_id>/horarios/<int:slot_id>/liberar")
+@login_required
+def reopen_service_slot(service_id, slot_id):
+    slot = _professional_slot_or_404(slot_id)
+    if slot.experience_id != service_id:
+        abort(404)
+    if slot.status != SlotStatus.BLOCKED_MANUAL:
+        flash("Somente horários bloqueados manualmente podem ser liberados.", "error")
+    else:
+        try:
+            reopen_manual_slot(slot)
+        except BookingStateError as exc:
+            flash(str(exc), "error")
+        else:
+            flash(
+                "Horário liberado." if slot.status == SlotStatus.AVAILABLE
+                else "O prazo para reservar este horário já terminou.",
+                "success" if slot.status == SlotStatus.AVAILABLE else "info",
+            )
+    return redirect(url_for("professional.services") + f"#servico-{service_id}")
+
+
 @professional_bp.get("/servicos")
 @login_required
 def services():
@@ -1028,7 +1066,9 @@ def services():
         rows = slots_by_service.get(slot.experience_id)
         if rows is not None and len(rows) < 5:
             rows.append({
+                "id": slot.id,
                 "starts_at": to_local(slot.starts_at, profile.timezone),
+                "raw_status": slot.status,
                 "status": SlotStatus.LABELS.get(slot.status, slot.status),
             })
 
@@ -1038,6 +1078,7 @@ def services():
         experiences=items,
         slots_by_service=slots_by_service,
         ExperienceStatus=ExperienceStatus,
+        SlotStatus=SlotStatus,
         current_page="professional-services",
     )
 

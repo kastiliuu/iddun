@@ -95,7 +95,20 @@
             <h4>Próximos horários</h4>
             <ul>
               {% for slot in slots_by_service[item.id] %}
-                <li>{{ slot.starts_at.strftime('%d/%m/%Y %H:%M') }} — {{ slot.status }}</li>
+                <li>
+                  {{ slot.starts_at.strftime('%d/%m/%Y %H:%M') }} — {{ slot.status }}
+                  {% if slot.raw_status == SlotStatus.AVAILABLE %}
+                    <form method="post" action="{{ url_for('professional.block_service_slot', service_id=item.id, slot_id=slot.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-outline">Bloquear horário</button>
+                    </form>
+                  {% elif slot.raw_status == SlotStatus.BLOCKED_MANUAL %}
+                    <form method="post" action="{{ url_for('professional.reopen_service_slot', service_id=item.id, slot_id=slot.id) }}">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn btn-outline">Liberar horário</button>
+                    </form>
+                  {% endif %}
+                </li>
               {% endfor %}
             </ul>
           {% elif item.status == ExperienceStatus.PUBLISHED %}
