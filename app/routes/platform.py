@@ -740,6 +740,20 @@ def insights():
     )
 
 
+def _service_establishment_choices(profile):
+    memberships = db.session.scalars(
+        select(ProfessionalEstablishmentMembership).where(
+            ProfessionalEstablishmentMembership.professional_id == profile.id,
+            ProfessionalEstablishmentMembership.status == MembershipStatus.ACTIVE,
+        )
+    ).all()
+    return [(0, "Atendimento independente (sem estabelecimento)")] + [
+        (membership.establishment_id, membership.establishment.name)
+        for membership in memberships
+        if membership.establishment.is_active
+    ]
+
+
 @professional_bp.route("/servicos/novo", methods=["GET", "POST"])
 @login_required
 def create_service():
@@ -748,6 +762,7 @@ def create_service():
         return redirect(url_for("professional.start"))
 
     form = ProfessionalServiceDraftForm()
+    form.establishment_id.choices = _service_establishment_choices(profile)
     if form.validate_on_submit():
         try:
             with UploadBatch() as uploads:
@@ -756,6 +771,7 @@ def create_service():
                 )
                 item = Experience(
                     professional_id=profile.id,
+                    establishment_id=form.establishment_id.data or None,
                     title=form.title.data.strip(),
                     slug=unique_slug(Experience, form.title.data),
                     category=form.category.data,
@@ -816,6 +832,27 @@ def edit_service(service_id):
         return redirect(url_for("professional.services"))
 
     form = ProfessionalServiceDraftForm(obj=item)
+    form.establishment_id.choices = _service_establishment_choices(profile)
+    if request.method == "GET":
+        form.establishment_id.data = item.establishment_id or 0
+
+    # A change of location must never desynchronize existing slot/booking rows.
+    changing_location = (
+        request.method == "POST"
+        and form.establishment_id.data is not None
+        and (form.establishment_id.data or None) != item.establishment_id
+    )
+    if changing_location and db.session.scalar(
+        select(ExperienceSlot.id).where(ExperienceSlot.experience_id == item.id).limit(1)
+    ) is not None:
+        form.establishment_id.errors.append(
+            "Não é possível alterar o local de um serviço que já possui horários."
+        )
+        return render_template(
+            "platform/professional-service-form.html",
+            form=form, service=item, current_page="professional-services",
+        ), 200
+
     if form.validate_on_submit():
         old_image_url = item.image_url
         try:
@@ -823,6 +860,7 @@ def edit_service(service_id):
                 new_image_url = uploads.save_image(
                     form.image_file.data, "experiences",
                 )
+                item.establishment_id = form.establishment_id.data or None
                 item.title = form.title.data.strip()
                 item.category = form.category.data
                 item.short_description = form.short_description.data.strip()
