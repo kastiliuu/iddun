@@ -735,6 +735,27 @@ def insights():
     )
 
 
+@professional_bp.get("/servicos")
+@login_required
+def services():
+    profile = current_user.professional_profile
+    if profile is None:
+        return redirect(url_for("professional.start"))
+
+    items = db.session.scalars(
+        select(Experience)
+        .where(Experience.professional_id == profile.id)
+        .order_by(Experience.created_at.desc(), Experience.id.desc())
+    ).all()
+    return render_template(
+        "platform/professional-services.html",
+        profile=profile,
+        experiences=items,
+        ExperienceStatus=ExperienceStatus,
+        current_page="professional-services",
+    )
+
+
 @professional_bp.get(
     "/clientes"
 )
