@@ -36,6 +36,9 @@
           {% if item.establishment %}
             <p>Local: {{ item.establishment.name }}</p>
           {% endif %}
+          {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
+            <a class="btn btn-outline" href="{{ url_for('professional.edit_service', service_id=item.id) }}">Editar serviço</a>
+          {% endif %}
           {% if item.status == ExperienceStatus.PUBLISHED %}
             <a class="btn btn-outline" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Visualizar e consultar horários</a>
           {% else %}
