@@ -36,8 +36,20 @@ jobs:
       - name: Instalar dependências
         run: python -m pip install -r requirements.txt
 
-      - name: Executar testes
-        run: python -m pytest -q
+      - name: Instalar instrumento de cobertura
+        run: python -m pip install 'pytest-cov>=6,<8'
+
+      - name: Executar testes e medir cobertura
+        run: python -m pytest -q --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iddun-backend-coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Validar migrations Alembic
         env:
@@ -76,3 +88,42 @@ jobs:
 
       - name: Validar ESLint
         run: npm run lint
+
+
+  security-baseline:
+    name: Auditoria inicial de segurança Python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Obter código
+        uses: actions/checkout@v7
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      - name: Instalar ferramentas de segurança
+        run: python -m pip install 'bandit>=1.8,<2' 'pip-audit>=2.9,<3'
+
+      # Advisory during QA-01 baseline: do not silently suppress findings.
+      # Fail-on-findings is enabled after triage and explicit exceptions.
+      - name: Analisar riscos estáticos com Bandit
+        continue-on-error: true
+        run: bandit -r app -ll -ii -f txt -o bandit-report.txt
+
+      - name: Auditar dependências com pip-audit
+        continue-on-error: true
+        run: pip-audit -r requirements.txt --progress-spinner off --format json --output pip-audit-report.json
+
+      - name: Publicar relatórios de segurança
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iddun-security-baseline
+          path: |
+            bandit-report.txt
+            pip-audit-report.json
+          if-no-files-found: ignore
+          retention-days: 14
