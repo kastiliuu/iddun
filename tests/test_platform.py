@@ -876,6 +876,11 @@ def test_pro_can_edit_and_remove_only_own_work_experience(app, client):
     ).status_code == 404
 
     _login_session(client, owner_id)
+    # The test fixture keeps an application context active, and Flask-Login
+    # caches the first user on g. Clear it when simulating a second login.
+    from flask import g
+    g.pop("_login_user", None)
+
     view = client.get(f"/pro/perfil/editar?experiencia={history_id}")
     assert view.status_code == 200
     assert b"Studio Antigo" in view.data
