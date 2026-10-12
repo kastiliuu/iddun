@@ -226,7 +226,7 @@ export default function OpenSlotScreen() {
   >(null);
 
   const [serviceId, setServiceId] =
-    useState(
+    useState<string>(
       Array.isArray(params.serviceId)
         ? params.serviceId[0] ?? ""
         : params.serviceId ?? "",
@@ -255,7 +255,7 @@ export default function OpenSlotScreen() {
           );
 
           setServiceId(
-            (current) =>
+            (current: string) =>
               response.items.some((item) => item.id === current)
                 ? current
                 : response.items[0]?.id ?? "",
