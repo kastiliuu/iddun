@@ -1207,3 +1207,136 @@ def test_v1_completed_booking_flows_from_client_through_pro_to_business(
     assert client.get("/business/studio-booking/indicadores").status_code == 403
     with app.app_context():
         assert db.session.get(Booking, booking_id).status == BookingStatus.COMPLETED
+
+
+def test_v1_cancellation_and_no_show_update_business_without_completed_value(
+    app, client, monkeypatch,
+):
+    """Two client bookings; Pro cancels one and flags the other as no-show."""
+    from flask import g
+    from app.models.establishment import (
+        EstablishmentAccessRole, EstablishmentUserAccess,
+    )
+
+    _, slot_ids = _catalog(app, slot_count=2)
+    first_user_id, first_profile_id = _client_user(
+        app, email="v1-cancel-client@example.com",
+    )
+    second_user_id, second_profile_id = _client_user(
+        app, email="v1-noshow-client@example.com",
+    )
+    with app.app_context():
+        professional = db.session.scalar(
+            select(ProfessionalProfile).where(
+                ProfessionalProfile.slug == "camila-booking"
+            )
+        )
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.slug == "studio-booking")
+        )
+        pro_user = User(
+            name="Pro Operação",
+            email="v1-cancel-noshow-pro@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        pro_user.set_password("senha-forte-123")
+        manager = User(
+            name="Gerente Operação",
+            email="v1-cancel-noshow-manager@example.com",
+            role=UserRole.CLIENT,
+        )
+        manager.set_password("senha-forte-123")
+        db.session.add_all([pro_user, manager])
+        db.session.flush()
+        professional.user_id = pro_user.id
+        db.session.add(
+            EstablishmentUserAccess(
+                user_id=manager.id,
+                establishment_id=establishment.id,
+                role=EstablishmentAccessRole.OWNER,
+            )
+        )
+        db.session.commit()
+        pro_user_id, manager_id = pro_user.id, manager.id
+
+    booking_ids = []
+    for user_id, profile_id, slot_id in (
+        (first_user_id, first_profile_id, slot_ids[0]),
+        (second_user_id, second_profile_id, slot_ids[1]),
+    ):
+        _login_session(client, user_id)
+        g.pop("_login_user", None)
+        assert client.post(
+            f"/experiencias/hair-experience-booking/slots/{slot_id}/reservar"
+        ).status_code == 302
+        with app.app_context():
+            booking_id = db.session.scalar(
+                select(Booking.id).where(
+                    Booking.client_id == profile_id,
+                    Booking.status == BookingStatus.PENDING,
+                )
+            )
+            assert booking_id is not None
+        assert client.post(f"/reserva/{booking_id}/confirmar").status_code == 302
+        booking_ids.append(booking_id)
+
+    cancelled_id, no_show_id = booking_ids
+    monkeypatch.setattr(
+        "app.routes.platform.delete_booking_event",
+        lambda booking: None,
+    )
+    _login_session(client, pro_user_id)
+    g.pop("_login_user", None)
+
+    cancelled = client.post(f"/pro/painel/reservas/{cancelled_id}/cancelar")
+    assert cancelled.status_code == 302
+    with app.app_context():
+        cancelled_booking = db.session.get(Booking, cancelled_id)
+        assert cancelled_booking.status == BookingStatus.CANCELLED
+        assert cancelled_booking.cancelled_at is not None
+        assert cancelled_booking.slot.status == SlotStatus.AVAILABLE
+
+    # A no-show must not be recorded before the appointment begins.
+    early = client.post(f"/pro/painel/reservas/{no_show_id}/no-show")
+    assert early.status_code == 302
+    with app.app_context():
+        booking = db.session.get(Booking, no_show_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        after_start = booking.slot.starts_at + timedelta(minutes=1)
+
+    monkeypatch.setattr(
+        "app.services.booking_service.utcnow",
+        lambda: after_start,
+    )
+    marked = client.post(f"/pro/painel/reservas/{no_show_id}/no-show")
+    assert marked.status_code == 302
+    with app.app_context():
+        booking = db.session.get(Booking, no_show_id)
+        assert booking.status == BookingStatus.NO_SHOW
+        assert booking.no_show_at is not None
+
+    _login_session(client, manager_id)
+    g.pop("_login_user", None)
+    for status, expected in (
+        ("cancelled", "Cancelada"),
+        ("no_show", "Não compareceu"),
+    ):
+        response = client.get(
+            f"/business/studio-booking/reservas?status={status}"
+        )
+        assert response.status_code == 200
+        html = response.get_data(as_text=True)
+        assert "Hair Experience Booking" in html
+        assert expected in html
+
+    indicators = client.get("/business/studio-booking/indicadores")
+    assert indicators.status_code == 200
+    html = indicators.get_data(as_text=True)
+    assert "2 no total" in html
+    assert "R$ 0,00" in html
+    assert "Ainda não há atendimentos concluídos" in html
+
+    # Business can inspect the operation but cannot mutate either booking.
+    with app.app_context():
+        assert db.session.get(Booking, cancelled_id).status == BookingStatus.CANCELLED
+        assert db.session.get(Booking, no_show_id).status == BookingStatus.NO_SHOW
