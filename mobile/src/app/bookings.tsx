@@ -111,6 +111,9 @@ export default function BookingsScreen() {
     );
 
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [nextOffset, setNextOffset] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
 
   const [tab, setTab] =
     useState<BookingTab>(
@@ -138,6 +141,8 @@ export default function BookingsScreen() {
             setItems(
               response.items,
             );
+            setNextOffset(response.pagination.nextOffset);
+            setLoadMoreError(null);
             setErrorMessage(
               null,
             );
@@ -214,7 +219,34 @@ export default function BookingsScreen() {
       setItems(
         response.items,
       );
+      setNextOffset(response.pagination.nextOffset);
+      setLoadMoreError(null);
     };
+
+  const loadMore = async () => {
+    if (nextOffset === null || loadingMore) {
+      return;
+    }
+
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const response = await getBookings({ limit: 50, offset: nextOffset });
+      setItems((current) => {
+        const known = new Set(current.map((item) => item.id));
+        return [...current, ...response.items.filter((item) => !known.has(item.id))];
+      });
+      setNextOffset(response.pagination.nextOffset);
+    } catch (error) {
+      setLoadMoreError(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível carregar mais agendamentos.",
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleCancel =
     async (
@@ -472,6 +504,8 @@ export default function BookingsScreen() {
               void getBookings({ limit: 50 })
                 .then((response) => {
                   setItems(response.items);
+                  setNextOffset(response.pagination.nextOffset);
+                  setLoadMoreError(null);
                   setErrorMessage(null);
                   setSessionExpired(false);
                 })
@@ -723,6 +757,23 @@ export default function BookingsScreen() {
             )}
           </View>
         )}
+
+        {!errorMessage && nextOffset !== null ? (
+          <View style={styles.actions}>
+            <Button
+              title={loadingMore ? "Carregando..." : "Carregar mais agendamentos"}
+              variant="secondary"
+              loading={loadingMore}
+              onPress={() => void loadMore()}
+            />
+          </View>
+        ) : null}
+
+        {loadMoreError ? (
+          <Text accessibilityRole="alert" style={styles.metaTextMuted}>
+            {loadMoreError}
+          </Text>
+        ) : null}
 
         <View
           style={
