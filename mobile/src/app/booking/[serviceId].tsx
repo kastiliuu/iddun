@@ -21,6 +21,7 @@ import * as Haptics from "expo-haptics";
 import {
   cancelBooking,
   confirmBooking,
+  getBooking,
   holdExperienceSlot,
   type Booking,
 } from "@/api/bookings";
@@ -680,12 +681,45 @@ export default function BookingScreen() {
             error.message,
           );
         } else {
-          Alert.alert(
-            "Não foi possível confirmar",
-            error instanceof Error
-              ? error.message
-              : "Tente novamente em instantes.",
-          );
+          // A resposta pode ter sido perdida após o servidor confirmar.
+          // Consultar a reserva antes de orientar outra tentativa.
+          let confirmedOnServer = false;
+          try {
+            const latest = await getBooking(booking.id);
+            setBooking(latest.booking);
+            if (latest.booking.status === "confirmed") {
+              confirmedOnServer = true;
+              setStep("success");
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              ).catch(() => {});
+            } else if (latest.booking.status !== "pending") {
+              setBooking(null);
+              setSelectedSlotId(null);
+              setStep("time");
+              try {
+                await refreshAvailability();
+              } catch {
+                // A pessoa ainda pode recarregar a disponibilidade.
+              }
+            }
+          } catch {
+            // Sem resposta do servidor, manter a reserva pendente visível.
+          }
+
+          if (!confirmedOnServer) {
+            Alert.alert(
+              "Não foi possível verificar a confirmação",
+              "A conexão falhou. Confira em Meus agendamentos antes de tentar reservar novamente.",
+              [
+                {
+                  text: "Ver agendamentos",
+                  onPress: () => router.push("/bookings"),
+                },
+                { text: "OK", style: "cancel" },
+              ],
+            );
+          }
         }
       } finally {
         setSubmitting(false);
