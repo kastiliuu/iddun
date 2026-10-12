@@ -226,9 +226,10 @@ export default function OpenSlotScreen() {
   >(null);
 
   const [serviceId, setServiceId] =
-    useState(
-      params.serviceId ??
-        "",
+    useState<string>(
+      Array.isArray(params.serviceId)
+        ? params.serviceId[0] ?? ""
+        : params.serviceId ?? "",
     );
 
   useEffect(() => {
@@ -254,10 +255,10 @@ export default function OpenSlotScreen() {
           );
 
           setServiceId(
-            (current) =>
-              current ||
-              response.items[0]?.id ||
-              "",
+            (current: string) =>
+              response.items.some((item) => item.id === current)
+                ? current
+                : response.items[0]?.id ?? "",
           );
 
           setOptionsError(
@@ -332,9 +333,11 @@ export default function OpenSlotScreen() {
 
   const canSubmit =
     Boolean(
-      serviceId &&
+      selectedService &&
         selectedDate &&
-        selectedTime,
+        selectedTime &&
+        !optionsLoading &&
+        !loading,
     );
 
   const handleSubmit =
