@@ -79,8 +79,7 @@ function isAuthenticationError(
 ): error is ApiError {
   return (
     error instanceof ApiError &&
-    (error.status === 401 ||
-      error.status === 403)
+    error.status === 401
   );
 }
 
@@ -260,7 +259,13 @@ export async function refreshSession() {
     if (
       isAuthenticationError(error)
     ) {
-      await clearSession();
+      // clearSession() waits for refreshPromise. Calling it from
+      // the refresh operation itself would deadlock the promise.
+      try {
+        await clearAuthTokens();
+      } finally {
+        store.setUser(null);
+      }
     }
 
     throw error;
