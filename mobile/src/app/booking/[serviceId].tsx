@@ -183,6 +183,7 @@ export default function BookingScreen() {
   const params =
     useLocalSearchParams<{
       serviceId: string;
+      bookingId?: string;
     }>();
 
   const experienceSlug =
@@ -191,6 +192,10 @@ export default function BookingScreen() {
     )
       ? params.serviceId[0]
       : params.serviceId;
+
+  const resumeBookingId = Array.isArray(params.bookingId)
+    ? params.bookingId[0]
+    : params.bookingId;
 
   const [
     experience,
@@ -291,6 +296,40 @@ export default function BookingScreen() {
             return;
           }
 
+          if (resumeBookingId) {
+            try {
+              const existing = await getBooking(resumeBookingId);
+              if (controller.signal.aborted) return;
+              if (existing.booking.experience.slug !== experienceSlug) {
+                setLoadError("Esta reserva pertence a outra experiência.");
+                return;
+              }
+
+              if (
+                existing.booking.status === "pending" &&
+                existing.booking.holdExpiresAt &&
+                Date.parse(existing.booking.holdExpiresAt) > Date.now()
+              ) {
+                setBooking(existing.booking);
+                setStep("confirm");
+              } else if (existing.booking.status === "confirmed") {
+                setBooking(existing.booking);
+                setStep("success");
+              } else {
+                setLoadError("Este horário não está mais reservado. Escolha um novo horário.");
+              }
+            } catch (error) {
+              if (controller.signal.aborted) return;
+              setLoadError(
+                error instanceof ApiError && error.status === 404
+                  ? "Reserva não encontrada nesta conta."
+                  : "Não foi possível recuperar a reserva. Tente novamente em Meus agendamentos.",
+              );
+              return;
+            }
+          }
+
+          if (controller.signal.aborted) return;
           setExperience(
             experienceResponse,
           );
@@ -357,7 +396,7 @@ export default function BookingScreen() {
     return () => {
       controller.abort();
     };
-  }, [experienceSlug]);
+  }, [experienceSlug, resumeBookingId]);
 
   const selectedDay =
     useMemo<

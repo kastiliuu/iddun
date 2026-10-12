@@ -725,14 +725,22 @@ export default function BookingsScreen() {
                     }
                   >
                     <Button
-                      title="Reservar novamente"
+                      title={booking.status === "pending" ? "Continuar confirmação" : "Reservar novamente"}
                       variant="secondary"
                       compact
-                      onPress={() =>
-                        router.push(
-                          `/booking/${booking.experience.slug}`,
-                        )
-                      }
+                      onPress={() => {
+                        if (booking.status === "pending") {
+                          router.push({
+                            pathname: "/booking/[serviceId]",
+                            params: {
+                              serviceId: booking.experience.slug,
+                              bookingId: booking.id,
+                            },
+                          });
+                        } else {
+                          router.push(`/booking/${booking.experience.slug}`);
+                        }
+                      }}
                     />
 
                     {booking.canCancel ? (
