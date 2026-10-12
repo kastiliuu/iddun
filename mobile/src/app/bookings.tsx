@@ -110,6 +110,8 @@ export default function BookingsScreen() {
       null,
     );
 
+  const [sessionExpired, setSessionExpired] = useState(false);
+
   const [tab, setTab] =
     useState<BookingTab>(
       "upcoming",
@@ -139,6 +141,7 @@ export default function BookingsScreen() {
             setErrorMessage(
               null,
             );
+            setSessionExpired(false);
           } catch (error) {
             if (!active) {
               return;
@@ -148,10 +151,12 @@ export default function BookingsScreen() {
               error instanceof ApiError &&
               error.status === 401
             ) {
+              setSessionExpired(true);
               setErrorMessage(
                 "Entre na sua conta para acompanhar seus agendamentos.",
               );
             } else {
+              setSessionExpired(false);
               setErrorMessage(
                 error instanceof Error
                   ? error.message
@@ -453,15 +458,36 @@ export default function BookingsScreen() {
             description={
               errorMessage
             }
-            actionLabel="Entrar"
-            onActionPress={() =>
-              router.push({
-                pathname: "/login",
-                params: {
-                  returnTo: "bookings",
-                },
-              })
-            }
+            actionLabel={sessionExpired ? "Entrar" : "Tentar novamente"}
+            onActionPress={() => {
+              if (sessionExpired) {
+                router.push({
+                  pathname: "/login",
+                  params: { returnTo: "bookings" },
+                });
+                return;
+              }
+
+              setLoading(true);
+              void getBookings({ limit: 50 })
+                .then((response) => {
+                  setItems(response.items);
+                  setErrorMessage(null);
+                  setSessionExpired(false);
+                })
+                .catch((error: unknown) => {
+                  const needsLogin = error instanceof ApiError && error.status === 401;
+                  setSessionExpired(needsLogin);
+                  setErrorMessage(
+                    needsLogin
+                      ? "Entre na sua conta para acompanhar seus agendamentos."
+                      : error instanceof Error
+                        ? error.message
+                        : "Não foi possível carregar seus agendamentos.",
+                  );
+                })
+                .finally(() => setLoading(false));
+            }}
           />
         ) : items.length ===
           0 ? (
