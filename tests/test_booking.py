@@ -1438,3 +1438,121 @@ def test_v1_google_busy_window_invalidates_client_hold_and_restores_slot(
         )
         assert new_booking is not None
         assert new_booking.id != booking_id
+
+
+def test_v1_google_freebusy_adapter_syncs_real_response_shape_without_network(
+    app, monkeypatch,
+):
+    """FreeBusy adapter -> reconcile -> restore, with no external credentials."""
+    from app.models.calendar import CalendarConnection, CalendarProvider
+    from app.services.google_calendar_service import sync_connection
+    from app.services.time_service import as_utc
+
+    _, slot_ids = _catalog(app, slot_count=2)
+    requests = []
+    payloads = []
+
+    class FakeRequest:
+        def execute(self):
+            return payloads.pop(0)
+
+    class FakeFreebusy:
+        def query(self, *, body):
+            requests.append(body)
+            return FakeRequest()
+
+    class FakeGoogleService:
+        def freebusy(self):
+            return FakeFreebusy()
+
+    monkeypatch.setattr(
+        "app.services.google_calendar_service.service_for",
+        lambda connection: FakeGoogleService(),
+    )
+
+    with app.app_context():
+        target = db.session.get(ExperienceSlot, slot_ids[0])
+        unaffected = db.session.get(ExperienceSlot, slot_ids[1])
+        connection = CalendarConnection(
+            professional_id=target.professional_id,
+            provider=CalendarProvider.GOOGLE,
+            calendar_id="primary-test@example.com",
+            sync_enabled=True,
+        )
+        db.session.add(connection)
+        db.session.commit()
+        connection_id = connection.id
+        busy_start = as_utc(target.starts_at).isoformat().replace("+00:00", "Z")
+        busy_end = as_utc(target.ends_at).isoformat().replace("+00:00", "Z")
+
+        payloads.append({
+            "calendars": {
+                "primary-test@example.com": {
+                    "busy": [{"start": busy_start, "end": busy_end}],
+                },
+            },
+        })
+        first = sync_connection(connection)
+        assert first["blocked"] == 1
+        assert target.status == SlotStatus.BLOCKED_EXTERNAL
+        assert target.external_calendar_provider == CalendarProvider.GOOGLE
+        assert unaffected.status == SlotStatus.AVAILABLE
+        assert connection.last_sync_status == "success"
+        assert connection.last_synced_at is not None
+        assert requests[0]["items"] == [{"id": "primary-test@example.com"}]
+        assert requests[0]["timeMin"].endswith("Z")
+        assert requests[0]["timeMax"].endswith("Z")
+
+        payloads.append({
+            "calendars": {"primary-test@example.com": {"busy": []}},
+        })
+        second = sync_connection(connection)
+        assert second["restored"] == 1
+        assert target.status == SlotStatus.AVAILABLE
+        assert target.external_calendar_provider is None
+        assert db.session.get(CalendarConnection, connection_id).last_sync_status == "success"
+
+
+def test_v1_google_freebusy_failure_keeps_slots_and_records_error(app, monkeypatch):
+    """Provider outages should never silently remove availability."""
+    from app.models.calendar import CalendarConnection, CalendarProvider
+    from app.services.google_calendar_service import sync_connection
+
+    _, slot_ids = _catalog(app, slot_count=1)
+
+    class UnavailableRequest:
+        def execute(self):
+            raise RuntimeError("Google FreeBusy temporariamente indisponível")
+
+    class UnavailableService:
+        def freebusy(self):
+            return self
+
+        def query(self, *, body):
+            return UnavailableRequest()
+
+    monkeypatch.setattr(
+        "app.services.google_calendar_service.service_for",
+        lambda connection: UnavailableService(),
+    )
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        connection = CalendarConnection(
+            professional_id=slot.professional_id,
+            provider=CalendarProvider.GOOGLE,
+            calendar_id="primary-test@example.com",
+            sync_enabled=True,
+        )
+        db.session.add(connection)
+        db.session.commit()
+        connection_id = connection.id
+
+        import pytest
+        with pytest.raises(RuntimeError, match="FreeBusy"):
+            sync_connection(connection)
+
+        assert db.session.get(ExperienceSlot, slot_ids[0]).status == SlotStatus.AVAILABLE
+        saved = db.session.get(CalendarConnection, connection_id)
+        assert saved.last_sync_status == "error"
+        assert "FreeBusy" in saved.last_sync_error
