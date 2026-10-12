@@ -1106,6 +1106,11 @@ def test_v1_client_booking_is_visible_only_to_its_business(
 def test_v1_completed_booking_flows_from_client_through_pro_to_business(
     app, client, monkeypatch,
 ):
+    from flask import g
+    from app.models.establishment import (
+        EstablishmentAccessRole, EstablishmentUserAccess,
+    )
+
     _, slot_ids = _catalog(app, slot_count=1)
     client_id, client_profile_id = _client_user(
         app, email="integrated-completion-client@example.com",
