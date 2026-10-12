@@ -521,6 +521,15 @@ export default function BookingScreen() {
       }
 
       if (
+        step === "confirm" && resumeBookingId
+      ) {
+        // Retomar uma reserva não significa iniciar outro hold.
+        // Voltar à lista não deve cancelar o horário existente.
+        router.replace("/bookings");
+        return;
+      }
+
+      if (
         step === "confirm"
       ) {
         setSubmitting(true);
@@ -853,10 +862,10 @@ export default function BookingScreen() {
             loadError ??
             "Essa experiência não pode ser reservada agora."
           }
-          actionLabel="Descobrir experiências"
+          actionLabel={resumeBookingId ? "Meus agendamentos" : "Descobrir experiências"}
           onActionPress={() =>
             router.replace(
-              "/(tabs)/discover",
+              resumeBookingId ? "/bookings" : "/(tabs)/discover",
             )
           }
         />
