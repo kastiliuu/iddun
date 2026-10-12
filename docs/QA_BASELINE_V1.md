@@ -28,3 +28,7 @@ Tornar o CI mais informativo e preparar gates de segurança sem interromper o de
 - `coverage.xml` aparece ao final de uma execução bem-sucedida.
 - Bandit e pip-audit geram relatórios consultáveis, ou registram sua falha sem serem confundidos com aprovação de segurança.
 - Nenhum modelo, API, template, migration ou permissão de produção foi alterado.
+
+## Homologação externa Google Calendar
+
+O fluxo de integração com uma conta Google de teste, consentimento OAuth, calendário real, conflitos, reabertura, criação/exclusão de eventos e registro de evidências está descrito em [QA_GOOGLE_CALENDAR_LIVE_V1.md](QA_GOOGLE_CALENDAR_LIVE_V1.md). Os testes automatizados do adaptador não substituem essa execução manual.
