@@ -1340,3 +1340,101 @@ def test_v1_cancellation_and_no_show_update_business_without_completed_value(
     with app.app_context():
         assert db.session.get(Booking, cancelled_id).status == BookingStatus.CANCELLED
         assert db.session.get(Booking, no_show_id).status == BookingStatus.NO_SHOW
+
+
+def test_v1_google_busy_window_invalidates_client_hold_and_restores_slot(
+    app, client,
+):
+    """HTTP hold -> external collision -> no stale confirmation -> restored availability."""
+    from app.services.calendar_sync_service import (
+        BusyWindow,
+        reconcile_external_busy_windows,
+    )
+
+    _, slot_ids = _catalog(app, slot_count=2)
+    client_id, client_profile_id = _client_user(
+        app, email="calendar-conflict-v1@example.com",
+    )
+    _login_session(client, client_id)
+
+    held = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar"
+    )
+    assert held.status_code == 302
+
+    with app.app_context():
+        booking = db.session.scalar(
+            select(Booking).where(Booking.client_id == client_profile_id)
+        )
+        assert booking is not None
+        assert booking.status == BookingStatus.PENDING
+        booking_id = booking.id
+        conflict_slot = db.session.get(ExperienceSlot, slot_ids[0])
+        non_conflicting_slot = db.session.get(ExperienceSlot, slot_ids[1])
+        assert non_conflicting_slot.status == SlotStatus.AVAILABLE
+        busy = BusyWindow(
+            starts_at=conflict_slot.starts_at,
+            ends_at=conflict_slot.ends_at,
+            external_event_id="google-test-conflict-v1",
+            label="Atendimento na agenda Google",
+        )
+        result = reconcile_external_busy_windows(
+            conflict_slot.professional_id,
+            [busy],
+            provider="google",
+        )
+        assert result["blocked"] == 1
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CANCELLED
+        assert conflict_slot.status == SlotStatus.BLOCKED_EXTERNAL
+        assert conflict_slot.external_event_id == "google-test-conflict-v1"
+        assert non_conflicting_slot.status == SlotStatus.AVAILABLE
+
+    # An invalidated pending hold must not be confirmable over HTTP.
+    old_confirmation = client.post(f"/reserva/{booking_id}/confirmar")
+    assert old_confirmation.status_code == 302
+    assert old_confirmation.headers["Location"].endswith(
+        "/experiencias/hair-experience-booking"
+    )
+    with app.app_context():
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CANCELLED
+
+    # A second attempt for the busy time cannot create another hold.
+    blocked = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar"
+    )
+    assert blocked.status_code == 302
+    with app.app_context():
+        active_holds = db.session.scalars(
+            select(Booking).where(
+                Booking.slot_id == slot_ids[0],
+                Booking.status == BookingStatus.PENDING,
+            )
+        ).all()
+        assert active_holds == []
+
+        target = db.session.get(ExperienceSlot, slot_ids[0])
+        restored = reconcile_external_busy_windows(
+            target.professional_id,
+            [],
+            provider="google",
+        )
+        assert restored["restored"] == 1
+        assert target.status == SlotStatus.AVAILABLE
+        assert target.external_event_id is None
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CANCELLED
+
+    # Restoration reopens the slot but never resurrects the cancelled hold.
+    new_hold = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar"
+    )
+    assert new_hold.status_code == 302
+    assert "/reserva/" in new_hold.headers["Location"]
+    with app.app_context():
+        new_booking = db.session.scalar(
+            select(Booking).where(
+                Booking.slot_id == slot_ids[0],
+                Booking.status == BookingStatus.PENDING,
+            )
+        )
+        assert new_booking is not None
+        assert new_booking.id != booking_id
