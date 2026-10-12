@@ -225,6 +225,8 @@ export default function OpenSlotScreen() {
     string | null
   >(null);
 
+  const [optionsRetry, setOptionsRetry] = useState(0);
+
   const [serviceId, setServiceId] =
     useState<string>(
       Array.isArray(params.serviceId)
@@ -289,7 +291,7 @@ export default function OpenSlotScreen() {
     return () => {
       mounted = false;
     };
-  }, [canManage]);
+  }, [canManage, optionsRetry]);
 
   const dates =
     useMemo(
@@ -519,12 +521,12 @@ export default function OpenSlotScreen() {
         <EmptyState
           title="Serviços indisponíveis"
           description={optionsError}
-          actionLabel="Voltar"
-          onActionPress={() =>
-            router.replace(
-              "/(tabs)/create",
-            )
-          }
+          actionLabel="Tentar novamente"
+          onActionPress={() => {
+            setOptionsLoading(true);
+            setOptionsError(null);
+            setOptionsRetry((current) => current + 1);
+          }}
         />
       </View>
     );
@@ -577,7 +579,7 @@ export default function OpenSlotScreen() {
                 router.back();
               } else {
                 router.replace(
-                  "/manage-services",
+                  "/(tabs)/create",
                 );
               }
             }}
