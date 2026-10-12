@@ -663,23 +663,45 @@ export default function BookingScreen() {
           error instanceof ApiError &&
           error.status === 409
         ) {
-          setBooking(null);
-          setSelectedSlotId(
-            null,
-          );
-          setStep("time");
-
+          // A confirmação pode ter sido concluída em uma tentativa anterior.
+          // Não descartar a reserva sem consultar o estado persistido.
+          let latestStatus: Booking["status"] | null = null;
           try {
-            await refreshAvailability();
+            const latest = await getBooking(booking.id);
+            latestStatus = latest.booking.status;
+            setBooking(latest.booking);
           } catch {
-            // A mensagem de conflito já orienta
-            // a pessoa a escolher outro horário.
+            // Não presumir falha definitiva sem conseguir consultar a API.
           }
 
-          Alert.alert(
-            "Reserva não confirmada",
-            error.message,
-          );
+          if (latestStatus === "confirmed") {
+            setStep("success");
+            Haptics.notificationAsync(
+              Haptics.NotificationFeedbackType.Success,
+            ).catch(() => {});
+          } else if (latestStatus === null) {
+            Alert.alert(
+              "Não foi possível verificar sua reserva",
+              "Confira Meus agendamentos antes de reservar novamente.",
+              [
+                {
+                  text: "Ver agendamentos",
+                  onPress: () => router.push("/bookings"),
+                },
+                { text: "OK", style: "cancel" },
+              ],
+            );
+          } else {
+            setBooking(null);
+            setSelectedSlotId(null);
+            setStep("time");
+            try {
+              await refreshAvailability();
+            } catch {
+              // A disponibilidade poderá ser atualizada novamente.
+            }
+            Alert.alert("Reserva não confirmada", error.message);
+          }
         } else {
           // A resposta pode ter sido perdida após o servidor confirmar.
           // Consultar a reserva antes de orientar outra tentativa.
