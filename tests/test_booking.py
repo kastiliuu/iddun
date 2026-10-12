@@ -1000,3 +1000,104 @@ def test_confirmed_cancellation_deletes_calendar_after_database_update(
     response = client.post(f"/reserva/{booking_id}/cancelar")
     assert response.status_code == 302
     assert observed == [(booking_id, BookingStatus.CANCELLED)]
+
+
+def test_v1_client_booking_is_visible_only_to_its_business(
+    app, client,
+):
+    """End-to-end: client holds/confirms; Business views; outsider denied."""
+    from flask import g
+    from app.models.establishment import (
+        EstablishmentUserAccess, EstablishmentAccessRole,
+    )
+
+    _, slot_ids = _catalog(app, slot_count=1)
+    client_user_id, client_profile_id = _client_user(
+        app, email="client-integrated-v1@example.com",
+    )
+
+    with app.app_context():
+        linked_business = db.session.scalar(
+            select(Establishment).where(Establishment.slug == "studio-booking")
+        )
+        owner = User(
+            name="Gestora Studio",
+            email="gestora-integrated-v1@example.com",
+            role=UserRole.CLIENT,
+        )
+        owner.set_password("senha-forte-123")
+        outsider = User(
+            name="Outra gestora",
+            email="outsider-integrated-v1@example.com",
+            role=UserRole.CLIENT,
+        )
+        outsider.set_password("senha-forte-123")
+        db.session.add_all([owner, outsider])
+        db.session.flush()
+        db.session.add(
+            EstablishmentUserAccess(
+                user_id=owner.id,
+                establishment_id=linked_business.id,
+                role=EstablishmentAccessRole.OWNER,
+            )
+        )
+        db.session.commit()
+        owner_id, outsider_id = owner.id, outsider.id
+        establishment_id = linked_business.id
+
+    _login_session(client, client_user_id)
+    held = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar"
+    )
+    assert held.status_code == 302
+
+    with app.app_context():
+        booking = db.session.scalar(
+            select(Booking).where(Booking.client_id == client_profile_id)
+        )
+        assert booking is not None
+        assert booking.establishment_id == establishment_id
+        assert booking.status == BookingStatus.PENDING
+        booking_id = booking.id
+
+    confirmed = client.post(f"/reserva/{booking_id}/confirmar")
+    assert confirmed.status_code == 302
+
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot.status == SlotStatus.BOOKED
+
+    # A client does not automatically receive access to the company's
+    # internal dashboard just because they booked there.
+    assert client.get("/business/studio-booking/reservas").status_code == 403
+
+    _login_session(client, owner_id)
+    g.pop("_login_user", None)
+
+    catalog = client.get("/business/studio-booking/servicos")
+    assert catalog.status_code == 200
+    assert "Hair Experience Booking" in catalog.get_data(as_text=True)
+
+    bookings_page = client.get("/business/studio-booking/reservas?status=confirmed")
+    assert bookings_page.status_code == 200
+    booking_html = bookings_page.get_data(as_text=True)
+    assert "Hair Experience Booking" in booking_html
+    assert "Cliente IDDUN" in booking_html
+    assert "R$ 249,00" in booking_html
+
+    metrics = client.get("/business/studio-booking/indicadores")
+    assert metrics.status_code == 200
+    metrics_html = metrics.get_data(as_text=True)
+    assert "1 no total" in metrics_html
+    assert "R$ 0,00" in metrics_html
+
+    _login_session(client, outsider_id)
+    g.pop("_login_user", None)
+    for path in ("servicos", "reservas", "indicadores"):
+        response = client.get(f"/business/studio-booking/{path}")
+        assert response.status_code == 403
+
+    # Viewing operational data cannot mutate the original reservation.
+    with app.app_context():
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED
