@@ -40,9 +40,8 @@ export default function ManageJobsScreen() {
   const toast = useToast();
   const params =
     useLocalSearchParams<{ id?: string }>();
-  const establishmentId = String(
-    params.id ?? "",
-  );
+  const establishmentId =
+    Array.isArray(params.id) ? params.id[0] ?? "" : params.id ?? "";
 
   const [items, setItems] =
     useState<JobPost[]>([]);
@@ -50,6 +49,7 @@ export default function ManageJobsScreen() {
     useState(true);
   const [saving, setSaving] =
     useState(false);
+  const [mutatingJobId, setMutatingJobId] = useState<string | null>(null);
   const [title, setTitle] =
     useState("");
   const [specialty, setSpecialty] =
@@ -166,6 +166,8 @@ export default function ManageJobsScreen() {
   const handlePublish = async (
     job: JobPost,
   ) => {
+    if (mutatingJobId) return;
+    setMutatingJobId(job.id);
     try {
       await publishJob(
         establishmentId,
@@ -186,12 +188,16 @@ export default function ManageJobsScreen() {
             : "Tente novamente.",
         icon: "alert-circle",
       });
+    } finally {
+      setMutatingJobId(null);
     }
   };
 
   const handleClose = async (
     job: JobPost,
   ) => {
+    if (mutatingJobId) return;
+    setMutatingJobId(job.id);
     try {
       await closeJob(
         establishmentId,
@@ -212,6 +218,8 @@ export default function ManageJobsScreen() {
             : "Tente novamente.",
         icon: "alert-circle",
       });
+    } finally {
+      setMutatingJobId(null);
     }
   };
 
@@ -372,6 +380,8 @@ export default function ManageJobsScreen() {
                       <Button
                         title="Publicar"
                         compact
+                        loading={mutatingJobId === job.id}
+                        disabled={mutatingJobId !== null || saving}
                         onPress={() => {
                           void handlePublish(job);
                         }}
@@ -385,6 +395,7 @@ export default function ManageJobsScreen() {
                           title="Candidatos"
                           variant="secondary"
                           compact
+                          disabled={mutatingJobId !== null}
                           onPress={() =>
                             router.push(
                               `/job-candidates/${encodeURIComponent(establishmentId)}/${job.id}`,
@@ -396,6 +407,8 @@ export default function ManageJobsScreen() {
                           title="Encerrar"
                           variant="outline"
                           compact
+                          loading={mutatingJobId === job.id}
+                          disabled={mutatingJobId !== null || saving}
                           onPress={() => {
                             void handleClose(job);
                           }}
