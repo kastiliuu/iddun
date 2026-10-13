@@ -118,6 +118,7 @@ export default function EstablishmentTeamScreen() {
       return;
     }
 
+    if (inviting || removingId !== null) return;
     setInviting(true);
 
     try {
@@ -172,18 +173,23 @@ export default function EstablishmentTeamScreen() {
   const confirmRemove = (
     membership: TeamMembership,
   ) => {
+    if (removingId !== null || inviting) return;
+    const isPending = membership.status === "pending";
     Alert.alert(
-      "Remover da equipe?",
-      `${membership.professional.name} deixará de aparecer como membro ativo deste estabelecimento.`,
+      isPending ? "Cancelar convite?" : "Remover da equipe?",
+      isPending
+        ? `O convite enviado para ${membership.professional.name} será cancelado.`
+        : `${membership.professional.name} deixará de aparecer como membro ativo deste estabelecimento.`,
       [
         {
           text: "Voltar",
           style: "cancel",
         },
         {
-          text: "Remover",
+          text: isPending ? "Cancelar convite" : "Remover",
           style: "destructive",
           onPress: () => {
+            if (removingId !== null || inviting) return;
             setRemovingId(
               membership.id,
             );
@@ -208,8 +214,10 @@ export default function EstablishmentTeamScreen() {
                 );
 
                 toast.show({
-                  title: "Vínculo removido",
-                  body: `${membership.professional.name} não faz mais parte da equipe ativa.`,
+                  title: isPending ? "Convite cancelado" : "Vínculo removido",
+                  body: isPending
+                    ? `O convite para ${membership.professional.name} foi cancelado.`
+                    : `${membership.professional.name} não faz mais parte da equipe ativa.`,
                   icon: "user-minus",
                 });
               })
@@ -350,6 +358,7 @@ export default function EstablishmentTeamScreen() {
               <Button
                 title="Enviar convite"
                 loading={inviting}
+                disabled={inviting || removingId !== null}
                 onPress={() => {
                   void handleInvite();
                 }}
@@ -400,7 +409,7 @@ export default function EstablishmentTeamScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={`Remover ${membership.professional.name} da equipe`}
                           disabled={
-                            removingId === membership.id
+                            removingId !== null || inviting
                           }
                           onPress={() =>
                             confirmRemove(membership)
@@ -470,7 +479,7 @@ export default function EstablishmentTeamScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={`Cancelar convite de ${membership.professional.name}`}
                           disabled={
-                            removingId === membership.id
+                            removingId !== null || inviting
                           }
                           onPress={() =>
                             confirmRemove(membership)
