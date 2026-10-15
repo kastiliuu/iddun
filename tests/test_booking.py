@@ -1057,15 +1057,15 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
     from flask import request as flask_request
     from flask_login import current_user as authenticated_user
     observed_identity = []
-    @app.before_request
-    def _observe_executor_identity():
-        if flask_request.path.endswith("/cancelamento/efetivar"):
-            stored = db.session.get(Booking, booking_id)
-            observed_identity.append((
-                str(authenticated_user.id) if authenticated_user.is_authenticated else "anonymous",
-                str(stored.professional.user_id),
-                flask_request.endpoint,
-            ))
+    original_abort = __import__("app.routes.bookings", fromlist=["abort"]).abort
+    def _diagnostic_abort(code):
+        observed_identity.append((
+            str(authenticated_user.id) if authenticated_user.is_authenticated else "anonymous",
+            str(db.session.get(Booking, booking_id).professional.user_id),
+            flask_request.endpoint,
+        ))
+        return original_abort(code)
+    monkeypatch.setattr("app.routes.bookings.abort", _diagnostic_abort)
     result = executor_client.post(
         f"/reserva/{booking_id}/cancelamento/efetivar",
         data={"motivo": "Solicitação analisada"},
