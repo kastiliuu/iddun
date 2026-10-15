@@ -1789,3 +1789,96 @@ def test_non_owner_cannot_submit_or_execute_cancellation_web(app, client):
         assert db.session.scalar(
             select(CancellationRequest).where(CancellationRequest.booking_id == booking_id)
         ) is None
+
+def test_reschedule_request_keeps_original_until_executor_approval(app):
+    from app.models.reschedule_request import RescheduleRequest
+    from app.services.reschedule_service import request_reschedule, resolve_reschedule
+    _, slots = _catalog(app, slot_count=2)
+    user_id, profile_id = _client_user(app, "reschedule-success@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        executor = User(name="Executor reschedule", email="reschedule-executor@example.com", role=UserRole.PROFESSIONAL)
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        booking.professional.user = executor
+        db.session.commit()
+        user = db.session.get(User, user_id)
+        old_slot_id = booking.slot_id
+        record = request_reschedule(booking, user, slots[1], "Nova data")
+        assert booking.slot_id == old_slot_id
+        assert booking.slot.status == SlotStatus.BOOKED
+        assert db.session.get(ExperienceSlot, slots[1]).status == SlotStatus.AVAILABLE
+        resolved = resolve_reschedule(booking.id, executor, approve=True)
+        db.session.refresh(booking)
+        assert resolved.id == record.id
+        assert resolved.status == "executed"
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot_id == slots[1]
+        assert db.session.get(ExperienceSlot, old_slot_id).status == SlotStatus.AVAILABLE
+        assert db.session.get(ExperienceSlot, slots[1]).status == SlotStatus.BOOKED
+        assert db.session.get(RescheduleRequest, record.id).original_slot_id == old_slot_id
+
+
+def test_reschedule_conflict_and_rejection_preserve_booking(app):
+    from app.services.booking_service import BookingStateError
+    from app.services.reschedule_service import (
+        request_reschedule, resolve_reschedule, withdraw_reschedule,
+    )
+    _, slots = _catalog(app, slot_count=2)
+    user_id, profile_id = _client_user(app, "reschedule-conflict@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        executor = User(name="Executor conflict", email="reschedule-conflict-pro@example.com", role=UserRole.PROFESSIONAL)
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        booking.professional.user = executor
+        db.session.commit()
+        requester = db.session.get(User, user_id)
+        record = request_reschedule(booking, requester, slots[1])
+        target = db.session.get(ExperienceSlot, slots[1])
+        target.status = SlotStatus.BLOCKED_EXTERNAL
+        db.session.commit()
+        try:
+            resolve_reschedule(booking.id, executor, approve=True)
+        except BookingStateError:
+            pass
+        else:
+            raise AssertionError("A booked or blocked target must be rejected")
+        assert booking.slot_id == slots[0]
+        assert booking.slot.status == SlotStatus.BOOKED
+        assert record.status == "pending"
+        rejected = resolve_reschedule(booking.id, executor, approve=False, reason="Sem agenda")
+        assert rejected.status == "rejected"
+        assert booking.slot_id == slots[0]
+        target.status = SlotStatus.AVAILABLE
+        db.session.commit()
+        second = request_reschedule(booking, requester, slots[1])
+        withdrawn = withdraw_reschedule(booking, requester)
+        assert withdrawn.id == second.id
+        assert withdrawn.status == "withdrawn"
+        assert booking.slot_id == slots[0]
+
+
+def test_client_cannot_request_reschedule_of_other_clients_booking(app, client):
+    from app.models.reschedule_request import RescheduleRequest
+    _, slots = _catalog(app, slot_count=2)
+    _, profile_id = _client_user(app, "reschedule-owner@example.com")
+    attacker, _ = _client_user(app, "reschedule-attacker@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, attacker)
+    response = client.post(
+        f"/reserva/{booking_id}/reagendar", data={"slot_id": slots[1]}
+    )
+    assert response.status_code == 404
+    with app.app_context():
+        assert db.session.get(Booking, booking_id).slot_id == slots[0]
+        assert db.session.scalar(
+            select(RescheduleRequest).where(RescheduleRequest.booking_id == booking_id)
+        ) is None
