@@ -29,9 +29,11 @@ def upgrade():
     op.create_index("ix_booking_cancellation_requests_booking_id", "booking_cancellation_requests", ["booking_id"])
     op.create_index("ix_booking_cancellation_requests_status", "booking_cancellation_requests", ["status"])
     op.create_index("ix_booking_cancellation_request_status", "booking_cancellation_requests", ["booking_id", "status"])
+    op.create_index("uq_booking_pending_cancellation", "booking_cancellation_requests", ["booking_id"], unique=True, postgresql_where=sa.text("status = 'pending'"), sqlite_where=sa.text("status = 'pending'"))
 
 
 def downgrade():
+    op.drop_index("uq_booking_pending_cancellation", table_name="booking_cancellation_requests")
     op.drop_index("ix_booking_cancellation_request_status", table_name="booking_cancellation_requests")
     op.drop_index("ix_booking_cancellation_requests_status", table_name="booking_cancellation_requests")
     op.drop_index("ix_booking_cancellation_requests_booking_id", table_name="booking_cancellation_requests")
