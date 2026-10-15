@@ -87,10 +87,7 @@
     <span>Profissionais</span>
   </a>
 
-  <!-- ======================================================
-       VISITOR
-       ====================================================== -->
-  {% else %}
+  <!-- Visitante: acesso ao perfil exige autenticação. -->
 
     <a
       href="{{ url_for('auth.login', next=url_for('account.dashboard')) }}"
