@@ -301,6 +301,15 @@ my-bookings-page visual-v2-page
             </div>
 
 
+            {% if item.status in [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] %}
+            <div class="booking-sharing" aria-label="Calendário e compartilhamento seguro">
+              <a href="{{ url_for('bookings.export_booking_calendar', booking_id=item.id) }}"
+                 download="iddun-reserva-{{ item.id }}.ics">Adicionar ao calendário (.ics)</a>
+              <a href="{{ url_for('bookings.share_booking', booking_id=item.id) }}"
+                 target="_blank" rel="noopener noreferrer">Compartilhar informações essenciais</a>
+              <small>O calendário contém o horário atual. Após reagendar, baixe novamente o arquivo atualizado.</small>
+            </div>
+            {% endif %}
             <details class="booking-detail" id="detalhes-reserva-{{ item.id }}">
               <summary>Detalhes e linha do tempo</summary>
               <dl>

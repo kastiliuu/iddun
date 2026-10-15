@@ -2040,3 +2040,61 @@ def test_no_show_dispute_web_scoping_and_moderation_access(app, client):
         record = db.session.scalar(select(NoShowDispute))
         assert record.booking_id == booking_id
         assert record.status == "pending"
+
+
+def test_calendar_and_share_owner_only_minimal_payload(app, client):
+    _, slots = _catalog(app, slot_count=1)
+    owner_id, profile_id = _client_user(app, "calendar-owner@example.com")
+    outsider_id, _ = _client_user(app, "calendar-outsider@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, outsider_id)
+    assert client.get(f"/reserva/{booking_id}/calendario.ics").status_code == 404
+    assert client.get(f"/reserva/{booking_id}/compartilhar").status_code == 404
+    from flask import g
+    g.pop("_login_user", None)
+    _login_session(client, owner_id)
+    calendar = client.get(f"/reserva/{booking_id}/calendario.ics")
+    assert calendar.status_code == 200
+    assert calendar.mimetype == "text/calendar"
+    assert "no-store" in calendar.headers["Cache-Control"]
+    content = calendar.get_data(as_text=True)
+    assert "BEGIN:VCALENDAR" in content
+    assert f"UID:iddun-booking-{booking_id}@iddun.local" in content
+    assert "DTSTART:" in content and "DTEND:" in content
+    assert "END:VCALENDAR" in content
+    for secret in ("calendar-outsider@example.com", "calendar-owner@example.com", "senha-forte", "token"):
+        assert secret not in content.lower()
+    shared = client.get(f"/reserva/{booking_id}/compartilhar")
+    assert shared.status_code == 200
+    text = shared.get_data(as_text=True)
+    assert "Reserva IDDUN:" in text
+    assert "Data:" in text and "Horário:" in text
+    assert "http" not in text and "@" not in text
+    assert "no-store" in shared.headers["Cache-Control"]
+
+
+def test_calendar_share_reflects_rescheduling_and_blocks_cancelled(app, client):
+    from app.services.booking_share_service import calendar_payload, share_payload
+    _, slots = _catalog(app, slot_count=2)
+    user_id, profile_id = _client_user(app, "calendar-updated@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+        original = calendar_payload(booking)
+        booking.slot_id = slots[1]
+        db.session.commit()
+        changed = calendar_payload(booking)
+        assert f"UID:iddun-booking-{booking_id}@iddun.local" in original
+        assert f"UID:iddun-booking-{booking_id}@iddun.local" in changed
+        assert original != changed
+        booking.status = BookingStatus.CANCELLED
+        db.session.commit()
+        assert calendar_payload(booking) is None
+        assert share_payload(booking) is None
+    _login_session(client, user_id)
+    assert client.get(f"/reserva/{booking_id}/calendario.ics").status_code == 409
+    assert client.get(f"/reserva/{booking_id}/compartilhar").status_code == 409
