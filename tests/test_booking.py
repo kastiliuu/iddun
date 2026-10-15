@@ -2160,3 +2160,39 @@ def test_rebook_protects_ownership_and_revalidates_published_offer(app, client):
     assert "historico" in response.headers["Location"]
     with app.app_context():
         assert db.session.query(Booking).count() == before
+
+
+def test_stabilization_reschedule_alternatives_respect_cutoff(app):
+    from app.services.reschedule_service import eligible_reschedule_slots
+    _, slots = _catalog(app, slot_count=3)
+    owner_id, profile_id = _client_user(app, "cutoff-reschedule@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        soon = db.session.get(ExperienceSlot, slots[1])
+        soon.booking_cutoff_minutes = 60 * 24 * 7
+        db.session.commit()
+        alternatives = eligible_reschedule_slots(booking)
+        assert slots[1] not in [slot.id for slot in alternatives]
+        assert slots[2] in [slot.id for slot in alternatives]
+
+
+def test_stabilization_rebook_checks_valid_slot_beyond_first_forty(app):
+    from app.services.post_service_service import rebook_offer
+    from app.models.booking import ExperienceSlot
+    _, slots = _catalog(app, slot_count=42)
+    owner_id, profile_id = _client_user(app, "rebook-window@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking.status = BookingStatus.COMPLETED
+        booking.completed_at = utcnow()
+        for slot_id in slots[1:41]:
+            slot = db.session.get(ExperienceSlot, slot_id)
+            slot.booking_cutoff_minutes = 60 * 24 * 100
+        db.session.commit()
+        assert rebook_offer(booking) is not None
+        valid = db.session.get(ExperienceSlot, slots[41])
+        valid.status = SlotStatus.BLOCKED_MANUAL
+        db.session.commit()
+        assert rebook_offer(booking) is None
