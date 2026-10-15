@@ -33,7 +33,5 @@ def rebook_offer(booking, *, now=None):
             ExperienceSlot.starts_at > now,
         )
         .order_by(ExperienceSlot.starts_at.asc())
-        .limit(40)
     ).all()
-    valid = [slot for slot in candidates if now < booking_deadline(slot)]
-    return experience if valid else None
+    return experience if any(now < booking_deadline(slot) for slot in candidates) else None
