@@ -230,7 +230,7 @@ def _booking_payload(booking):
             booking.status
             == BookingStatus.PENDING
         ),
-        "canCancel": False,
+        "canCancel": booking.status == BookingStatus.PENDING,
         "canRequestCancellation": booking.status == BookingStatus.CONFIRMED,
         "cancellationRequestStatus": (
             pending_cancellation(booking.id).status if pending_cancellation(booking.id) else None
@@ -618,6 +618,21 @@ def cancel_client_booking(booking_id):
     booking = _booking_for_client(booking_id, client.id)
     if booking is None:
         return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    # An unconfirmed hold is not yet a confirmed booking: allow release.
+    if booking.status == BookingStatus.PENDING:
+        try:
+            cancel_booking(booking, reason="Retenção temporária liberada pelo cliente")
+        except BookingStateError as exc:
+            return api_error("booking_state_conflict", str(exc), 409)
+        return api_json(
+            {"booking": _booking_payload(booking)},
+            cache_control="private, no-store",
+        )
+    if booking.status == BookingStatus.CANCELLED:
+        return api_json(
+            {"booking": _booking_payload(booking)},
+            cache_control="private, no-store",
+        )
     user = _bearer_user()
     payload = request.get_json(silent=True) or {}
     try:
