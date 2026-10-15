@@ -640,7 +640,7 @@ def test_booking_http_flow_confirms_and_appears_in_my_bookings(
         response
         .headers["Location"]
         .endswith(
-            "/minhas-reservas"
+            f"/minhas-reservas?confirmada={booking_id}"
         )
     )
 
@@ -1587,3 +1587,44 @@ def test_v1_google_freebusy_failure_keeps_slots_and_records_error(app, monkeypat
         saved = db.session.get(CalendarConnection, connection_id)
         assert saved.last_sync_status == "error"
         assert "FreeBusy" in saved.last_sync_error
+
+
+def test_booking_confirmation_feedback_is_scoped_to_confirmed_owner(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app)
+    _login_session(client, user_id)
+
+    start = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar",
+        follow_redirects=False,
+    )
+    assert start.status_code == 302
+
+    with app.app_context():
+        booking = db.session.scalar(
+            select(Booking).where(Booking.client_id == profile_id)
+        )
+        booking_id = booking.id
+
+    review = client.get(f"/reserva/{booking_id}/confirmar")
+    assert review.status_code == 200
+    assert "pagamento do serviço será combinado diretamente" in review.get_data(as_text=True)
+
+    confirm = client.post(
+        f"/reserva/{booking_id}/confirmar", follow_redirects=False
+    )
+    assert confirm.status_code == 302
+    assert confirm.headers["Location"].endswith(
+        f"/minhas-reservas?confirmada={booking_id}"
+    )
+
+    confirmed_page = client.get(confirm.headers["Location"])
+    html = confirmed_page.get_data(as_text=True)
+    assert "Reserva confirmada!" in html
+    assert 'id="reserva-confirmada"' in html
+
+    ordinary_page = client.get("/minhas-reservas").get_data(as_text=True)
+    assert "Reserva confirmada!" not in ordinary_page
+
+    missing_page = client.get("/minhas-reservas?confirmada=999999").get_data(as_text=True)
+    assert "Reserva confirmada!" not in missing_page
