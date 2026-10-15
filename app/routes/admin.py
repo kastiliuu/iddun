@@ -1,3 +1,6 @@
+from app.models.no_show_dispute import NoShowDispute
+from app.services.no_show_dispute_service import decide_dispute
+from app.services.booking_service import BookingStateError
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from sqlalchemy import func, select
 
@@ -807,3 +810,28 @@ def handle_availability():
         "handle": slugify(value),
         "message": message if not available else "Este endereço está disponível.",
     }
+
+@admin_bp.get("/contestacoes-no-show")
+@admin_required
+def list_no_show_disputes():
+    disputes = db.session.scalars(
+        select(NoShowDispute).order_by(NoShowDispute.created_at.desc()).limit(100)
+    ).all()
+    return render_template("admin/no-show-disputes.html", disputes=disputes)
+
+
+@admin_bp.post("/contestacoes-no-show/<int:dispute_id>/decidir")
+@admin_required
+def moderate_no_show_dispute(dispute_id):
+    from flask_login import current_user
+    dispute = db.session.get(NoShowDispute, dispute_id)
+    if dispute is None:
+        abort(404)
+    try:
+        decide_dispute(dispute, current_user, request.form.get("decision"), request.form.get("motivo"))
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Contestação analisada. Registro original mantido.", "success")
+    return redirect(url_for("admin.list_no_show_disputes"))
+
