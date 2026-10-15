@@ -1955,3 +1955,88 @@ def test_my_bookings_request_timeline_and_local_alternatives(app, client):
     assert "Retirar pedido de reagendamento" in html
     assert local_label in html
     assert "(UTC)</option>" not in html
+
+
+def test_no_show_dispute_preserves_original_record_and_enforces_authorization(app, client):
+    from app.models.no_show_dispute import NoShowDispute
+    from app.services.no_show_dispute_service import submit_dispute, decide_dispute
+    from app.services.booking_service import BookingStateError
+    _, slots = _catalog(app, slot_count=1)
+    owner_id, profile_id = _client_user(app, "dispute-owner@example.com")
+    attacker_id, _ = _client_user(app, "dispute-attacker@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking.status = BookingStatus.NO_SHOW
+        booking.no_show_at = utcnow()
+        db.session.commit()
+        booking_id, original_at = booking.id, booking.no_show_at
+        owner = db.session.get(User, owner_id)
+        attacker = db.session.get(User, attacker_id)
+        try:
+            submit_dispute(booking, attacker, "Contesto minha ausência")
+        except BookingStateError:
+            pass
+        else:
+            raise AssertionError("Another client cannot dispute this booking")
+        record = submit_dispute(booking, owner, "Compareci ao local na hora marcada.", "Protocolo 123")
+        assert record.status == "pending"
+        assert db.session.get(Booking, booking_id).status == BookingStatus.NO_SHOW
+        try:
+            submit_dispute(booking, owner, "Nova contestação indevida")
+        except BookingStateError:
+            pass
+        else:
+            raise AssertionError("Duplicate pending dispute must be rejected")
+        try:
+            decide_dispute(record, attacker, "accepted", "Acolho por decisão da moderação.")
+        except BookingStateError:
+            pass
+        else:
+            raise AssertionError("Non-admin cannot moderate")
+        admin = User(name="Moderadora", email="dispute-moderator@example.com", role=UserRole.ADMIN)
+        admin.set_password("senha-forte-123")
+        db.session.add(admin)
+        db.session.commit()
+        resolved = decide_dispute(record, admin, "accepted", "Evidência analisada pela moderação.")
+        assert resolved.status == "accepted"
+        assert resolved.reviewer_user_id == admin.id
+        assert resolved.resolved_at is not None
+        assert db.session.get(Booking, booking_id).status == BookingStatus.NO_SHOW
+        assert db.session.get(Booking, booking_id).no_show_at == original_at
+        assert db.session.get(NoShowDispute, record.id).justification == "Compareci ao local na hora marcada."
+
+
+def test_no_show_dispute_web_scoping_and_moderation_access(app, client):
+    from app.models.no_show_dispute import NoShowDispute
+    _, slots = _catalog(app, slot_count=1)
+    owner_id, profile_id = _client_user(app, "dispute-web-owner@example.com")
+    other_id, _ = _client_user(app, "dispute-web-other@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking.status = BookingStatus.NO_SHOW
+        booking.no_show_at = utcnow()
+        db.session.commit()
+        booking_id = booking.id
+    _login_session(client, other_id)
+    assert client.post(
+        f"/reserva/{booking_id}/no-show/contestar",
+        data={"justificativa": "Compareci no horário combinado."},
+    ).status_code == 404
+    assert client.get("/admin/contestacoes-no-show").status_code == 403
+    _login_session(client, owner_id)
+    from flask import g
+    g.pop("_login_user", None)
+    response = client.post(
+        f"/reserva/{booking_id}/no-show/contestar",
+        data={"justificativa": "Compareci no horário combinado.", "evidencia": "Protocolo privado"},
+    )
+    assert response.status_code == 302
+    html = client.get("/minhas-reservas?aba=solicitacoes").get_data(as_text=True)
+    assert "Contestação de ausência" in html
+    assert "Protocolo privado" not in html
+    with app.app_context():
+        record = db.session.scalar(select(NoShowDispute))
+        assert record.booking_id == booking_id
+        assert record.status == "pending"
