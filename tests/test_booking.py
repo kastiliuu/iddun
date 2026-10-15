@@ -1054,8 +1054,12 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
     # Close the initial client session and switch identity on a new client.
     executor_client = app.test_client()
     _login_session(executor_client, executor_id)
-    # Explicit request context isolates the Flask-Login user cache from
-    # any request context kept open by the pytest client fixture.
+    # The pytest app fixture holds an application context across requests.
+    # Flask-Login caches _login_user on g, so clear that fixture-local cache
+    # when switching accounts. The production auth guard remains unchanged.
+    from flask import g
+    with app.app_context():
+        g.pop("_login_user", None)
     with executor_client:
         with executor_client.session_transaction() as session:
             assert session["_user_id"] == str(executor_id)
