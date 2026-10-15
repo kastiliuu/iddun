@@ -336,12 +336,12 @@ def _mobile_nav_links(html):
     import re
 
     nav = re.search(
-        r'<nav\\b[^>]*class="([^"]*mobile-bottom-nav[^"]*)"[^>]*>(.*?)</nav>',
+        r'<nav\b[^>]*class="([^"]*mobile-bottom-nav[^"]*)"[^>]*>(.*?)</nav>',
         html,
         flags=re.DOTALL,
     )
     assert nav is not None
-    links = re.findall(r'<a\\b[^>]*>.*?</a>', nav.group(2), re.DOTALL)
+    links = re.findall(r'<a\b[^>]*>.*?</a>', nav.group(2), re.DOTALL)
     return nav.group(1), links
 
 
