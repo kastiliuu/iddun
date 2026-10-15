@@ -18,6 +18,10 @@ from app.services.booking_service import (
 from app.services.cancellation_request_service import (
     request_cancellation, withdraw_cancellation, execute_cancellation, pending_cancellation,
 )
+from app.services.reschedule_service import (
+    pending_reschedule, eligible_reschedule_slots, request_reschedule,
+    withdraw_reschedule, resolve_reschedule,
+)
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
 from app.services.time_service import to_local
@@ -157,6 +161,11 @@ def mine():
         rows=rows,
         BookingStatus=BookingStatus,
         pending_cancellations={item.id: pending_cancellation(item.id) for item in items},
+        pending_reschedules={item.id: pending_reschedule(item.id) for item in items},
+        available_reschedule_slots={
+            item.id: eligible_reschedule_slots(item)
+            for item in items if item.status == BookingStatus.CONFIRMED
+        },
         current_page="account",
     )
 
@@ -215,6 +224,73 @@ def execute_cancel_request(booking_id):
             current_app.logger.warning("Falha ao remover evento booking_id=%s", booking.id, exc_info=True)
         flash("Cancelamento efetivado e registrado.", "success")
     return redirect(url_for("professional.dashboard"))
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/reagendar")
+@login_required
+def request_booking_reschedule(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    try:
+        slot_id = int(request.form.get("slot_id") or 0)
+        request_reschedule(booking, current_user, slot_id, request.form.get("motivo"))
+    except (BookingStateError, ValueError) as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Reagendamento solicitado. Seu horário original continua confirmado até a análise.", "info")
+    return redirect(url_for("bookings.mine"))
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/reagendamento/retirar")
+@login_required
+def withdraw_booking_reschedule(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    try:
+        withdraw_reschedule(booking, current_user)
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Solicitação retirada. A reserva original não foi alterada.", "success")
+    return redirect(url_for("bookings.mine"))
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/reagendamento/decidir")
+@login_required
+def decide_booking_reschedule(booking_id):
+    booking = db.session.get(Booking, booking_id)
+    if booking is None or booking.professional.user_id != current_user.id:
+        abort(404)
+    approve = request.form.get("decision") == "approve"
+    try:
+        record = resolve_reschedule(
+            booking_id, current_user, approve=approve,
+            reason=request.form.get("motivo"),
+        )
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        if record.status == "executed":
+            try:
+                delete_booking_event(booking, slot=record.original_slot)
+                create_booking_event(booking)
+            except Exception:
+                current_app.logger.warning(
+                    "Falha na sincronização do calendário após reagendamento booking_id=%s",
+                    booking.id, exc_info=True,
+                )
+            flash("Reagendamento efetivado com novo horário confirmado.", "success")
+        else:
+            flash("Solicitação recusada. A reserva original foi mantida.", "info")
+    return redirect(url_for("professional.dashboard") + "#solicitacoes-reagendamento")
 
 
 @bookings_bp.route("/reserva/<int:booking_id>/avaliar", methods=["GET", "POST"])

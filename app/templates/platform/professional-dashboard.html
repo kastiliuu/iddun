@@ -217,6 +217,30 @@
       </article>
     </section>
 
+    {% if reschedule_requests %}
+    <section class="pro-panel" id="solicitacoes-reagendamento">
+      <header class="pro-panel__head"><div><span class="pro-kicker">AGENDA</span><h2>Pedidos de reagendamento</h2></div></header>
+      {% for item in reschedule_requests %}
+      <article class="pro-invitation-item">
+        <div>
+          <strong>{{ item.booking.experience.title }}</strong>
+          <p>Cliente: {{ item.booking.client.user.name }}</p>
+          <p>Novo horário solicitado: {{ item.requested_slot.starts_at.strftime('%d/%m/%Y %H:%M') }} (UTC)</p>
+          {% if item.reason %}<p>Motivo: {{ item.reason }}</p>{% endif %}
+          <small>O horário original continua reservado até a aprovação.</small>
+        </div>
+        <form method="post" action="{{ url_for('bookings.decide_booking_reschedule', booking_id=item.booking_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="reschedule-reason-{{ item.id }}">Observação (opcional)</label>
+          <input id="reschedule-reason-{{ item.id }}" name="motivo" maxlength="255">
+          <button type="submit" name="decision" value="approve">Aprovar novo horário</button>
+          <button type="submit" name="decision" value="reject">Recusar e manter original</button>
+        </form>
+      </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
     {% if cancellation_requests %}
     <section class="pro-panel" id="solicitacoes-cancelamento">
       <header class="pro-panel__head">
