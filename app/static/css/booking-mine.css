@@ -775,3 +775,26 @@
     transition: none;
   }
 }
+
+/* Confirmation feedback is only rendered for the authenticated booking owner. */
+.booking-confirmed-feedback {
+  margin: 0 0 24px;
+  padding: 20px 24px;
+  border: 1px solid var(--color-plum);
+  border-radius: 16px;
+  background: var(--color-plum-soft, rgba(107, 46, 255, .07));
+}
+
+.booking-confirmed-feedback strong {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.booking-confirmed-feedback p {
+  margin: 6px 0 0;
+}
+
+#reserva-confirmada {
+  scroll-margin-top: 120px;
+}
