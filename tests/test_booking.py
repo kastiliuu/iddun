@@ -1058,8 +1058,10 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
     # Flask-Login caches _login_user on g, so clear that fixture-local cache
     # when switching accounts. The production auth guard remains unchanged.
     from flask import g
-    with app.app_context():
-        g.pop("_login_user", None)
+    # The pytest fixture already keeps the application context active.
+    # A nested app.app_context() creates a DIFFERENT g and does not clear
+    # the cached user on the fixture's original application context.
+    g.pop("_login_user", None)
     with executor_client:
         with executor_client.session_transaction() as session:
             assert session["_user_id"] == str(executor_id)
