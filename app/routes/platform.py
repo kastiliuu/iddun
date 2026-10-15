@@ -1,5 +1,5 @@
 from app.models.cancellation_request import CancellationRequest
-from app.services.cancellation_request_service import execute_cancellation
+from app.services.cancellation_request_service import execute_cancellation, pending_cancellation
 from datetime import date, datetime, time, timedelta, timezone
 
 from flask import (
@@ -627,9 +627,15 @@ def dashboard_cancel_booking(
     )
 
     try:
-        execute_cancellation(
-            booking, current_user, request.form.get("motivo")
-        )
+        request_reason = (request.form.get("motivo") or "").strip()
+        if pending_cancellation(booking.id):
+            execute_cancellation(
+                booking, current_user, request_reason or "Solicitação aceita pelo executor"
+            )
+        else:
+            cancel_booking(
+                booking, reason=request_reason or "Cancelada pelo profissional"
+            )
         try:
             delete_booking_event(booking)
         except Exception:
