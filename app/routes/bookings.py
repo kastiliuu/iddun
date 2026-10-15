@@ -24,7 +24,7 @@ from app.services.reschedule_service import (
 )
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
-from app.services.time_service import to_local
+from app.services.time_service import to_local, utcnow, as_utc
 from app.services.reputation_service import ReviewError, get_review, save_booking_reviews
 
 
@@ -137,15 +137,120 @@ def mine():
         .where(Booking.client_id == profile.id)
         .order_by(Booking.created_at.desc())
     ).all()
+    from app.models.cancellation_request import CancellationRequest
+    from app.models.reschedule_request import RescheduleRequest
+    now = utcnow()
+    tab = request.args.get("aba", "proximas")
+    if tab not in {"proximas", "solicitacoes", "historico"}:
+        tab = "proximas"
+    status_filter = request.args.get("status", "todos")
+    allowed_status = {"todos", "pending", "confirmed", "completed", "cancelled", "no_show"}
+    if status_filter not in allowed_status:
+        status_filter = "todos"
+
+    cancellation_rows = db.session.scalars(
+        select(CancellationRequest)
+        .where(CancellationRequest.booking_id.in_([i.id for i in items]))
+        .order_by(CancellationRequest.requested_at.asc(), CancellationRequest.id.asc())
+    ).all() if items else []
+    reschedule_rows = db.session.scalars(
+        select(RescheduleRequest)
+        .where(RescheduleRequest.booking_id.in_([i.id for i in items]))
+        .order_by(RescheduleRequest.requested_at.asc(), RescheduleRequest.id.asc())
+    ).all() if items else []
+    events = {item.id: [] for item in items}
+    for event in cancellation_rows:
+        events[event.booking_id].append({
+            "at": event.requested_at, "kind": "Cancelamento",
+            "description": "Solicitação de cancelamento registrada",
+            "status": "pending", "reason": event.reason,
+        })
+        if event.resolved_at:
+            events[event.booking_id].append({
+                "at": event.resolved_at, "kind": "Cancelamento",
+                "description": {
+                    "withdrawn": "Solicitação retirada pelo cliente",
+                    "executed": "Cancelamento efetivado pelo executor",
+                }.get(event.status, "Solicitação encerrada"),
+                "status": event.status, "reason": event.resolution_reason,
+            })
+    for event in reschedule_rows:
+        proposed = to_local(event.requested_slot.starts_at, event.booking.professional.timezone)
+        events[event.booking_id].append({
+            "at": event.requested_at, "kind": "Reagendamento",
+            "description": "Novo horário solicitado: " + proposed.strftime("%d/%m/%Y %H:%M"),
+            "status": "pending", "reason": event.reason,
+        })
+        if event.resolved_at:
+            events[event.booking_id].append({
+                "at": event.resolved_at, "kind": "Reagendamento",
+                "description": {
+                    "withdrawn": "Solicitação retirada pelo cliente",
+                    "executed": "Novo horário confirmado pelo executor",
+                    "rejected": "Solicitação recusada pelo executor",
+                }.get(event.status, "Solicitação encerrada"),
+                "status": event.status, "reason": event.resolution_reason,
+            })
+    for item in items:
+        events[item.id].append({
+            "at": item.created_at, "kind": "Reserva",
+            "description": "Reserva iniciada", "status": item.status, "reason": None,
+        })
+        if item.confirmed_at:
+            events[item.id].append({
+                "at": item.confirmed_at, "kind": "Reserva",
+                "description": "Reserva confirmada", "status": "confirmed", "reason": None,
+            })
+        if item.cancelled_at:
+            events[item.id].append({
+                "at": item.cancelled_at, "kind": "Reserva",
+                "description": "Reserva cancelada", "status": "cancelled",
+                "reason": item.cancellation_reason,
+            })
+        if item.completed_at:
+            events[item.id].append({
+                "at": item.completed_at, "kind": "Reserva",
+                "description": "Atendimento concluído", "status": "completed", "reason": None,
+            })
+        if item.no_show_at:
+            events[item.id].append({
+                "at": item.no_show_at, "kind": "Reserva",
+                "description": "Ausência registrada", "status": "no_show", "reason": None,
+            })
+    for item in items:
+        events[item.id].sort(key=lambda entry: as_utc(entry["at"]))
+
+    def _section(item):
+        if item.status in {BookingStatus.COMPLETED, BookingStatus.CANCELLED, BookingStatus.NO_SHOW}:
+            return "historico"
+        if as_utc(item.slot.starts_at) <= now:
+            return "historico"
+        return "proximas"
+
+    pending_cancel = {i.id: pending_cancellation(i.id) for i in items}
+    pending_change = {i.id: pending_reschedule(i.id) for i in items}
+    sections = {
+        "proximas": [i for i in items if _section(i) == "proximas"],
+        "solicitacoes": [i for i in items if pending_cancel[i.id] or pending_change[i.id]],
+        "historico": [i for i in items if _section(i) == "historico"],
+    }
+    visible = [
+        item for item in sections[tab]
+        if status_filter == "todos" or item.status == status_filter
+    ]
     rows = [
         {
             "booking": item,
             "local_start": to_local(item.slot.starts_at, item.professional.timezone),
             "local_end": to_local(item.slot.ends_at, item.professional.timezone),
+            "timeline": [
+                {**event, "local_at": to_local(event["at"], item.professional.timezone)}
+                for event in events[item.id]
+            ],
             "has_professional_review": any(review.target_type == ReviewTarget.PROFESSIONAL for review in item.reviews),
             "has_establishment_review": any(review.target_type == ReviewTarget.ESTABLISHMENT for review in item.reviews),
         }
-        for item in items
+        for item in visible
     ]
     confirmed_id = request.args.get("confirmada", type=int)
     confirmed_booking = next(
@@ -159,12 +264,16 @@ def mine():
         "bookings/mine.html",
         confirmed_booking=confirmed_booking,
         rows=rows,
+        tab=tab,
+        status_filter=status_filter,
+        section_counts={key: len(value) for key, value in sections.items()},
+        total_bookings=len(items),
         BookingStatus=BookingStatus,
-        pending_cancellations={item.id: pending_cancellation(item.id) for item in items},
-        pending_reschedules={item.id: pending_reschedule(item.id) for item in items},
+        pending_cancellations=pending_cancel,
+        pending_reschedules=pending_change,
         available_reschedule_slots={
             item.id: eligible_reschedule_slots(item)
-            for item in items if item.status == BookingStatus.CONFIRMED
+            for item in visible if item.status == BookingStatus.CONFIRMED
         },
         current_page="account",
     )
