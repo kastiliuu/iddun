@@ -1,6 +1,4 @@
 """Minimal, owner-scoped calendar and sharing payloads for bookings."""
-from datetime import timedelta
-
 from app.models.booking import BookingStatus
 from app.services.time_service import as_utc, utcnow
 
@@ -34,7 +32,7 @@ def calendar_payload(booking):
         f"DTSTAMP:{stamp}", f"DTSTART:{fmt(start)}", f"DTEND:{fmt(end)}",
         f"SUMMARY:{title}",
         "DESCRIPTION:Reserva IDDUN. Consulte sua conta para detalhes e alteracoes.",
-        "STATUS:CONFIRMED" if booking.status == BookingStatus.CONFIRMED else "STATUS:CONFIRMED",
+        "STATUS:CONFIRMED",
         "END:VEVENT", "END:VCALENDAR", "",
     ]
     return "\r\n".join(lines)
