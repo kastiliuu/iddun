@@ -964,20 +964,14 @@ def test_pending_booking_has_resume_link(app, client):
     assert location in response.get_data(as_text=True)
 
 
-def test_invalid_repeat_cancellation_does_not_delete_calendar_event(
+def test_pending_hold_cannot_be_submitted_as_cancellation_request(
     app, client, monkeypatch,
 ):
     _, slot_ids = _catalog(app, slot_count=1)
-    user_id, profile_id = _client_user(
-        app, "safe-cancellation@example.com",
-    )
+    user_id, profile_id = _client_user(app, "safe-cancellation@example.com")
     _login_session(client, user_id)
-
     held = client.post(
-        (
-            "/experiencias/hair-experience-booking/"
-            f"slots/{slot_ids[0]}/reservar"
-        ),
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar",
         follow_redirects=False,
     )
     assert held.status_code == 302
@@ -986,51 +980,87 @@ def test_invalid_repeat_cancellation_does_not_delete_calendar_event(
             select(Booking).where(Booking.client_id == profile_id)
         )
         booking_id = booking.id
-
     deleted = []
     monkeypatch.setattr(
         "app.routes.bookings.delete_booking_event",
         lambda booking: deleted.append(booking.id),
     )
-
-    first = client.post(f"/reserva/{booking_id}/cancelar")
-    assert first.status_code == 302
-    second = client.post(f"/reserva/{booking_id}/cancelar")
-    assert second.status_code == 302
+    for _ in range(2):
+        response = client.post(f"/reserva/{booking_id}/cancelar")
+        assert response.status_code == 302
     assert deleted == []
-
     with app.app_context():
+        from app.models.cancellation_request import CancellationRequest
         booking = db.session.get(Booking, booking_id)
-        assert booking.status == BookingStatus.CANCELLED
+        assert booking.status == BookingStatus.PENDING
+        assert booking.slot.status == SlotStatus.HELD
+        assert db.session.scalar(
+            select(CancellationRequest).where(
+                CancellationRequest.booking_id == booking_id
+            )
+        ) is None
 
 
-def test_confirmed_cancellation_deletes_calendar_after_database_update(
+def test_cancel_request_keeps_calendar_until_executor_effectuates(
     app, client, monkeypatch,
 ):
+    from app.models.cancellation_request import CancellationRequest
+    from app.services.cancellation_request_service import execute_cancellation
+
     _, slot_ids = _catalog(app, slot_count=1)
     user_id, profile_id = _client_user(
         app, "confirmed-safe-cancel@example.com",
     )
     _login_session(client, user_id)
-
     with app.app_context():
         client_profile = db.session.get(ClientProfile, profile_id)
-        held = hold_slot(slot_ids[0], client_profile)
-        confirmed = confirm_booking(held.id, client_profile)
+        confirmed = confirm_booking(
+            hold_slot(slot_ids[0], client_profile).id, client_profile
+        )
         booking_id = confirmed.id
+        executor = User(
+            name="Executor calendar", email="executor-calendar@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        confirmed.professional.user_id = executor.id
+        db.session.commit()
+        executor_id = executor.id
 
     observed = []
-
-    def observe_deleted(booking):
-        observed.append((booking.id, booking.status))
-
     monkeypatch.setattr(
         "app.routes.bookings.delete_booking_event",
-        observe_deleted,
+        lambda booking: observed.append((booking.id, booking.status)),
     )
-    response = client.post(f"/reserva/{booking_id}/cancelar")
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "Preciso cancelar"},
+    )
     assert response.status_code == 302
+    assert observed == []
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot.status == SlotStatus.BOOKED
+        pending = db.session.scalar(
+            select(CancellationRequest).where(
+                CancellationRequest.booking_id == booking_id
+            )
+        )
+        assert pending.status == "pending"
+    _login_session(client, executor_id)
+    result = client.post(
+        f"/reserva/{booking_id}/cancelamento/efetivar",
+        data={"motivo": "Solicitação analisada"},
+    )
+    assert result.status_code == 302
     assert observed == [(booking_id, BookingStatus.CANCELLED)]
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CANCELLED
+        assert db.session.get(CancellationRequest, pending.id).status == "executed"
 
 
 def test_v1_client_booking_is_visible_only_to_its_business(
