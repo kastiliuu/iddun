@@ -1,3 +1,4 @@
+from app.models.reschedule_request import RescheduleRequest
 from app.models.cancellation_request import CancellationRequest
 from app.services.cancellation_request_service import execute_cancellation, pending_cancellation
 from datetime import date, datetime, time, timedelta, timezone
@@ -416,6 +417,15 @@ def dashboard():
     return render_template(
         "platform/professional-dashboard.html",
         profile=profile,
+        reschedule_requests=db.session.scalars(
+            select(RescheduleRequest)
+            .join(Booking, Booking.id == RescheduleRequest.booking_id)
+            .where(
+                Booking.professional_id == profile.id,
+                Booking.status == BookingStatus.CONFIRMED,
+                RescheduleRequest.status == "pending",
+            ).order_by(RescheduleRequest.requested_at.asc())
+        ).all(),
         cancellation_requests=db.session.scalars(
             select(CancellationRequest)
             .join(Booking, Booking.id == CancellationRequest.booking_id)
