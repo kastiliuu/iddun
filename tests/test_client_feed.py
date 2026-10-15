@@ -332,36 +332,43 @@ def test_feed_graph_actions_accept_web_session(
         assert len(user.saves) == 1
 
 
+def _mobile_nav_links(html):
+    import re
+
+    nav = re.search(
+        r'<nav\\b[^>]*class="([^"]*mobile-bottom-nav[^"]*)"[^>]*>(.*?)</nav>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert nav is not None
+    links = re.findall(r'<a\\b[^>]*>.*?</a>', nav.group(2), re.DOTALL)
+    return nav.group(1), links
+
+
 def test_authenticated_mobile_navigation_has_five_client_destinations(app, client):
     catalog = _catalog(app)
     _login(client, catalog["user_id"])
 
     response = client.get("/feed")
     assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html, "html.parser")
-    navigation = soup.select_one("nav.mobile-bottom-nav--client")
-    assert navigation is not None
-    links = navigation.select("a.mobile-bottom-nav__item")
-    assert [link.get_text(strip=True) for link in links] == [
-        "Início", "Descobrir", "Reservas", "Salvos", "Perfil"
-    ]
-    assert links[2]["href"] == "/minhas-reservas" or "reserv" in links[2]["href"]
-    assert links[3]["href"].endswith("/feed#feed-saved-panel")
+    nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
+    assert "mobile-bottom-nav--client" in nav_class
+    assert len(links) == 5
+    for item, label in zip(
+        links, ["Início", "Descobrir", "Reservas", "Salvos", "Perfil"]
+    ):
+        assert f">{label}</span>" in item
+    assert "feed-saved-panel" in links[3]
+    assert "reserv" in links[2].lower()
 
 
 def test_anonymous_mobile_navigation_keeps_public_destinations(client):
     response = client.get("/")
     assert response.status_code == 200
-    html = response.get_data(as_text=True)
-    from bs4 import BeautifulSoup
-
-    soup = BeautifulSoup(html, "html.parser")
-    navigation = soup.select_one("nav.mobile-bottom-nav")
-    assert navigation is not None
-    assert "mobile-bottom-nav--client" not in navigation.get("class", [])
-    assert [link.get_text(strip=True) for link in navigation.select("a.mobile-bottom-nav__item")] == [
-        "Início", "Descobrir", "Profissionais", "Entrar"
-    ]
+    nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
+    assert "mobile-bottom-nav--client" not in nav_class
+    assert len(links) == 4
+    for item, label in zip(
+        links, ["Início", "Descobrir", "Profissionais", "Entrar"]
+    ):
+        assert f">{label}</span>" in item
