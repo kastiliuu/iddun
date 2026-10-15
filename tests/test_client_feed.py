@@ -230,67 +230,61 @@ def test_feed_more_returns_private_html_page(
     ]
 
 
-def test_feed_profile_completion_is_contextual(
-    app,
-    client,
-):
+def test_feed_profile_completion_requires_verified_email(app, client):
     catalog = _catalog(app)
-
-    _login(
-        client,
-        catalog["user_id"],
-    )
-
-    incomplete = client.get(
-        "/feed"
-    ).get_data(
-        as_text=True
-    )
-
-    assert (
-        "Seu perfil está quase lá."
-        in incomplete
-    )
+    _login(client, catalog["user_id"])
 
     with app.app_context():
-        user = db.session.get(
-            User,
-            catalog["user_id"],
-        )
+        user = db.session.get(User, catalog["user_id"])
+        assert user.client_profile.city == "Curitiba"
+        assert user.email_verified_at is None
+
+    response = client.get("/feed")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Seu perfil está quase lá." in html
+    assert "e-mail verificado" in html
+
+
+def test_feed_profile_completion_uses_only_approved_required_fields(app, client):
+    from datetime import datetime, timezone
+
+    catalog = _catalog(app)
+    _login(client, catalog["user_id"])
+
+    with app.app_context():
+        user = db.session.get(User, catalog["user_id"])
+        user.email_verified_at = datetime.now(timezone.utc)
         profile = user.client_profile
-
-        user.email = (
-            "feed-client@example.com"
-        )
-        profile.avatar_url = (
-            "img/category-hair.jpg"
-        )
-        profile.phone = (
-            "(41) 99999-9999"
-        )
-
-        from datetime import date
-
-        profile.birth_date = date(
-            1996,
-            5,
-            16,
-        )
-        profile.city = "Curitiba"
-        profile.state = "PR"
-
+        assert profile.avatar_url is None
+        assert profile.phone is None
+        assert profile.birth_date is None
+        assert profile.state == "PR"
         db.session.commit()
 
-    complete = client.get(
-        "/feed"
-    ).get_data(
-        as_text=True
-    )
+    complete = client.get("/feed")
+    html = complete.get_data(as_text=True)
+    assert complete.status_code == 200
+    assert "Seu perfil está quase lá." not in html
+    assert 'class="feed-completion-card"' not in html
+    assert "Editar perfil" in html
 
-    assert (
-        "Seu perfil está quase lá."
-        not in complete
-    )
+
+def test_feed_profile_completion_requires_city(app, client):
+    from datetime import datetime, timezone
+
+    catalog = _catalog(app)
+    _login(client, catalog["user_id"])
+
+    with app.app_context():
+        user = db.session.get(User, catalog["user_id"])
+        user.email_verified_at = datetime.now(timezone.utc)
+        user.client_profile.city = None
+        db.session.commit()
+
+    html = client.get("/feed").get_data(as_text=True)
+    assert "Seu perfil está quase lá." in html
+    assert "cidade" in html
 
 
 def test_feed_graph_actions_accept_web_session(

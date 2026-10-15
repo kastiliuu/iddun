@@ -30,41 +30,24 @@ from app.services.time_service import utcnow
 
 
 def _profile_completion(user, profile):
+    """DEC-ID-090: only name, verified e-mail and city are required."""
     fields = {
-        "nome": user.name,
-        "e-mail": user.email,
-        "foto": profile.avatar_url,
-        "telefone": profile.phone,
-        "data de nascimento": profile.birth_date,
-        "cidade": profile.city,
-        "UF": profile.state,
+        "nome": bool(user.name and user.name.strip()),
+        "e-mail verificado": bool(user.email and user.is_email_verified),
+        "cidade": bool(profile.city and profile.city.strip()),
     }
-
-    completed = sum(
-        bool(value)
-        for value in fields.values()
-    )
 
     missing = [
         label
-        for label, value in fields.items()
-        if not value
+        for label, is_complete in fields.items()
+        if not is_complete
     ]
+    completed = len(fields) - len(missing)
 
     return {
-        "percentage": round(
-            (
-                completed
-                / len(fields)
-            )
-            * 100
-        ),
+        "percentage": round(completed / len(fields) * 100),
         "missing": missing,
-        "next": (
-            missing[0]
-            if missing
-            else None
-        ),
+        "next": missing[0] if missing else None,
     }
 
 
