@@ -668,7 +668,7 @@ def test_booking_http_flow_confirms_and_appears_in_my_bookings(
     )
 
     assert (
-        "Cancelar reserva"
+        "Solicitar cancelamento"
         in html
     )
 
@@ -1628,3 +1628,91 @@ def test_booking_confirmation_feedback_is_scoped_to_confirmed_owner(app, client)
 
     missing_page = client.get("/minhas-reservas?confirmada=999999").get_data(as_text=True)
     assert "Reserva confirmada!" not in missing_page
+
+def test_client_requests_and_withdraws_without_cancelling_booking(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    from app.services.cancellation_request_service import (
+        request_cancellation, withdraw_cancellation, pending_cancellation,
+    )
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "requester@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = hold_slot(slots[0], profile)
+        booking = confirm_booking(booking.id, profile)
+        initial_slot_status = booking.slot.status
+        user = db.session.get(User, user_id)
+        first = request_cancellation(booking, user, "Mudança de planos")
+        second = request_cancellation(booking, user, "Outro motivo")
+        assert first.id == second.id
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot.status == initial_slot_status
+        assert first.reason == "Mudança de planos"
+        assert pending_cancellation(booking.id).id == first.id
+        withdraw_cancellation(booking, user)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert pending_cancellation(booking.id) is None
+        assert db.session.get(CancellationRequest, first.id).status == "withdrawn"
+
+
+def test_only_booking_executor_can_execute_request_and_history_remains(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    from app.services.booking_service import BookingStateError
+    from app.services.cancellation_request_service import (
+        request_cancellation, execute_cancellation,
+    )
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "cancel-owner@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        executor = User(name="Executor", email="executor-cancel@example.com", role=UserRole.PROFESSIONAL)
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        booking.professional.user_id = executor.id
+        db.session.commit()
+        owner = db.session.get(User, user_id)
+        pending = request_cancellation(booking, owner, "Compromisso")
+        for actor, reason in [(owner, "Não autorizado"), (executor, "")]:
+            try:
+                execute_cancellation(booking, actor, reason)
+            except BookingStateError:
+                pass
+            else:
+                raise AssertionError("Cancellation must require executor and reason")
+        assert booking.status == BookingStatus.CONFIRMED
+        execute_cancellation(booking, executor, "Cliente pediu para cancelar")
+        assert booking.status == BookingStatus.CANCELLED
+        audit = db.session.get(CancellationRequest, pending.id)
+        assert audit.status == "executed"
+        assert audit.client_user_id == owner.id
+        assert audit.resolved_by_user_id == executor.id
+        assert audit.resolution_reason == "Cliente pediu para cancelar"
+
+
+def test_client_web_cancellation_form_creates_pending_request(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "web-cancel@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, user_id)
+    html = client.get("/minhas-reservas").get_data(as_text=True)
+    assert "Solicitar cancelamento" in html
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "Preciso remarcar"}, follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        req = db.session.scalar(select(CancellationRequest).where(CancellationRequest.booking_id == booking_id))
+        assert req.status == "pending"
+        assert req.reason == "Preciso remarcar"
+    html = client.get("/minhas-reservas").get_data(as_text=True)
+    assert "Retirar solicitação" in html
+    assert "Cancelar reserva" not in html
