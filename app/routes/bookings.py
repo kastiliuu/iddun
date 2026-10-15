@@ -60,7 +60,9 @@ def start_booking(slug, slot_id):
         booking = hold_slot(slot_id, profile)
     except SlotUnavailableError as exc:
         flash(str(exc), "error")
-        return redirect(url_for("public.experience_detail", slug=slug))
+        return redirect(
+            url_for("public.experience_detail", slug=slug) + "#horarios"
+        )
 
     return redirect(url_for("bookings.confirm", booking_id=booking.id))
 

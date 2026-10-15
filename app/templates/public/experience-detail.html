@@ -423,6 +423,15 @@ experience-detail-page visual-v2-page
 
         {% if slot_groups %}
 
+          <p class="slot-availability-summary" role="status">
+            {{ available_slot_count }}
+            horário{% if available_slot_count != 1 %}s{% endif %}
+            disponível{% if available_slot_count != 1 %}is{% endif %}
+            em {{ slot_groups|length }}
+            data{% if slot_groups|length != 1 %}s{% endif %}.
+            Selecione o dia e o horário para continuar sua reserva.
+          </p>
+
           <!-- ================================================
                DATE TABS
                ================================================ -->
