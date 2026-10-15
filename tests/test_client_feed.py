@@ -330,3 +330,38 @@ def test_feed_graph_actions_accept_web_session(
 
         assert len(user.follows) == 1
         assert len(user.saves) == 1
+
+
+def test_authenticated_mobile_navigation_has_five_client_destinations(app, client):
+    catalog = _catalog(app)
+    _login(client, catalog["user_id"])
+
+    response = client.get("/feed")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    navigation = soup.select_one("nav.mobile-bottom-nav--client")
+    assert navigation is not None
+    links = navigation.select("a.mobile-bottom-nav__item")
+    assert [link.get_text(strip=True) for link in links] == [
+        "Início", "Descobrir", "Reservas", "Salvos", "Perfil"
+    ]
+    assert links[2]["href"] == "/minhas-reservas" or "reserv" in links[2]["href"]
+    assert links[3]["href"].endswith("/feed#feed-saved-panel")
+
+
+def test_anonymous_mobile_navigation_keeps_public_destinations(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    from bs4 import BeautifulSoup
+
+    soup = BeautifulSoup(html, "html.parser")
+    navigation = soup.select_one("nav.mobile-bottom-nav")
+    assert navigation is not None
+    assert "mobile-bottom-nav--client" not in navigation.get("class", [])
+    assert [link.get_text(strip=True) for link in navigation.select("a.mobile-bottom-nav__item")] == [
+        "Início", "Descobrir", "Profissionais", "Entrar"
+    ]
