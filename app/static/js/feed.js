@@ -922,18 +922,25 @@
     },
   );
 
-  // Account "Favoritos" deep link opens the existing private saved panel.
-  if (
-    window.location.hash === '#feed-saved-panel'
-    && savedPanel
-  ) {
+  // Saved-items navigation works both from other pages and within /feed.
+  const openSavedFromHash = () => {
+    if (
+      window.location.hash !== '#feed-saved-panel'
+      || !savedPanel
+    ) {
+      return;
+    }
+
     closeAccountMenu();
     closeNotifications();
     savedPanel.hidden = false;
     savedTriggers.forEach((trigger) => {
       trigger.setAttribute('aria-expanded', 'true');
     });
-  }
+  };
+
+  window.addEventListener('hashchange', openSavedFromHash);
+  openSavedFromHash();
 
   if (window.location.hash) {
     const target = document.querySelector(
