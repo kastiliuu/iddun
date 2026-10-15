@@ -260,6 +260,10 @@ def mine():
         ),
         None,
     )
+    available_slots = {
+        item.id: eligible_reschedule_slots(item)
+        for item in visible if item.status == BookingStatus.CONFIRMED
+    }
     return render_template(
         "bookings/mine.html",
         confirmed_booking=confirmed_booking,
@@ -270,16 +274,13 @@ def mine():
         total_bookings=len(items),
         local_alternative_labels={
             slot.id: to_local(slot.starts_at, item.professional.timezone).strftime('%d/%m/%Y %H:%M')
-            for item in visible if item.status == BookingStatus.CONFIRMED
-            for slot in eligible_reschedule_slots(item)
+            for item in visible if item.id in available_slots
+            for slot in available_slots[item.id]
         },
         BookingStatus=BookingStatus,
         pending_cancellations=pending_cancel,
         pending_reschedules=pending_change,
-        available_reschedule_slots={
-            item.id: eligible_reschedule_slots(item)
-            for item in visible if item.status == BookingStatus.CONFIRMED
-        },
+        available_reschedule_slots=available_slots,
         current_page="account",
     )
 
