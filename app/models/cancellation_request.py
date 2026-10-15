@@ -19,4 +19,7 @@ class CancellationRequest(db.Model):
     __table_args__ = (
         db.CheckConstraint("status IN ('pending', 'withdrawn', 'executed')", name="ck_cancellation_request_status"),
         db.Index("ix_booking_cancellation_request_status", "booking_id", "status"),
+        db.Index("uq_booking_pending_cancellation", "booking_id", unique=True,
+                 postgresql_where=db.text("status = 'pending'"),
+                 sqlite_where=db.text("status = 'pending'")),
     )
