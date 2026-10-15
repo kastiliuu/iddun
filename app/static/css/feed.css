@@ -1020,6 +1020,22 @@
   object-fit: cover;
 }
 
+.feed-card__media-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.feed-card__media-link:focus-visible {
+  outline: 3px solid var(--color-plum);
+  outline-offset: -4px;
+}
+
+.feed-card__media .feed-save-button,
+.feed-card__media .feed-card__experience-chip {
+  z-index: 2;
+}
+
 .feed-save-button {
   position: absolute;
   top: 10px;

@@ -18,6 +18,12 @@
       style="object-position: {{ post.imageFocusX }}% {{ post.imageFocusY }}%;"
     >
 
+    <a
+      class="feed-card__media-link"
+      href="{% if post.service %}{{ url_for('public.experience_detail', slug=post.service.id) }}{% elif post.author.kind == 'professional' %}{{ url_for('public.professional_detail', slug=post.author.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}{% endif %}"
+      aria-label="{% if post.service %}Ver serviço {{ post.service.name }}{% else %}Conhecer perfil de {{ post.author.name }}{% endif %}"
+    ></a>
+
     <button
       class="feed-save-button{% if is_saved %} is-active{% endif %}"
       type="button"

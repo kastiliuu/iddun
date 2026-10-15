@@ -367,3 +367,16 @@ def test_anonymous_mobile_navigation_keeps_public_destinations(client):
         links, ["Início", "Descobrir", "Profissionais", "Entrar"]
     ):
         assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
+
+
+def test_feed_image_opens_real_author_profile_when_post_has_no_service(app, client):
+    catalog = _catalog(app)
+    _login(client, catalog["user_id"])
+
+    response = client.get("/feed")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert 'class="feed-card__media-link"' in html
+    assert 'href="/profissionais/marina-feed"' in html
+    assert 'aria-label="Conhecer perfil de Marina Feed"' in html
+    assert 'data-save-button' in html
