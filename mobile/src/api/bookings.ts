@@ -224,3 +224,47 @@ export function cancelBooking(
       ),
   );
 }
+
+export type BookingActionsResponse = {
+  rescheduleRequestStatus: "pending" | null;
+  rescheduleSlots: Array<{
+    id: number;
+    startsAt: string;
+    localDate: string;
+    localTime: string;
+    timezone: string;
+  }>;
+  canRebook: boolean;
+  rebookExperienceSlug: string | null;
+};
+
+export function getBookingActions(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<BookingActionsResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/actions`,
+      { token },
+    ),
+  );
+}
+
+export function requestBookingReschedule(
+  bookingId: string, slotId: number, reason?: string,
+) {
+  return withAuthenticatedRequest((token) =>
+    api.post<BookingResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/reschedule-request`,
+      { slotId, reason },
+      { token },
+    ),
+  );
+}
+
+export function withdrawBookingReschedule(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.post<BookingResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/reschedule-request/withdraw`,
+      undefined,
+      { token },
+    ),
+  );
+}
