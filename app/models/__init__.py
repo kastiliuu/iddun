@@ -1,3 +1,4 @@
+from app.models.no_show_dispute import NoShowDispute
 from app.models.reschedule_request import RescheduleRequest
 from app.models.cancellation_request import CancellationRequest
 from app.models.job import JobApplication, JobApplicationStatus, JobPost, JobPostStatus
