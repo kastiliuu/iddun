@@ -26,7 +26,7 @@ from app.services.booking_service import (
     mark_external_conflict,
     refresh_slot,
 )
-from app.services.time_service import utcnow
+from app.services.time_service import utcnow, to_local
 
 
 def _catalog(
@@ -1882,3 +1882,76 @@ def test_client_cannot_request_reschedule_of_other_clients_booking(app, client):
         assert db.session.scalar(
             select(RescheduleRequest).where(RescheduleRequest.booking_id == booking_id)
         ) is None
+
+
+def test_my_bookings_sections_filters_and_details_are_scoped(app, client):
+    """DEC-ID-188/189: explicit tabs, filter, local detail and protected rows."""
+    _, slots = _catalog(app, slot_count=2)
+    user_id, profile_id = _client_user(app, "timeline-owner@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        confirmed = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        completed = Booking(
+            client_id=profile_id,
+            experience_id=confirmed.experience_id,
+            professional_id=confirmed.professional_id,
+            establishment_id=confirmed.establishment_id,
+            slot_id=slots[1],
+            status=BookingStatus.COMPLETED,
+            price_at_booking=confirmed.price_at_booking,
+            completed_at=utcnow(),
+        )
+        db.session.add(completed)
+        db.session.commit()
+        confirmed_id, completed_id = confirmed.id, completed.id
+    _login_session(client, user_id)
+    upcoming = client.get("/minhas-reservas")
+    assert upcoming.status_code == 200
+    html = upcoming.get_data(as_text=True)
+    assert "Próximas (1)" in html
+    assert "Histórico (1)" in html
+    assert "Solicitações (0)" in html
+    assert f'detalhes-reserva-{confirmed_id}' in html
+    assert f'detalhes-reserva-{completed_id}' not in html
+    assert "Detalhes e linha do tempo" in html
+    assert "Reserva confirmada" in html
+    assert "America/Sao_Paulo" in html
+    history = client.get("/minhas-reservas?aba=historico")
+    assert history.status_code == 200
+    assert f'detalhes-reserva-{completed_id}' in history.get_data(as_text=True)
+    assert f'detalhes-reserva-{confirmed_id}' not in history.get_data(as_text=True)
+    empty = client.get("/minhas-reservas?aba=proximas&status=cancelled")
+    assert "Nenhuma reserva nesta seleção" in empty.get_data(as_text=True)
+    invalid = client.get("/minhas-reservas?aba=arbitraria&status=qualquer")
+    assert invalid.status_code == 200
+    assert f'detalhes-reserva-{confirmed_id}' in invalid.get_data(as_text=True)
+
+
+def test_my_bookings_request_timeline_and_local_alternatives(app, client):
+    from app.services.reschedule_service import request_reschedule
+    from app.services.cancellation_request_service import request_cancellation
+    _, slots = _catalog(app, slot_count=3)
+    user_id, profile_id = _client_user(app, "timeline-request@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        owner = db.session.get(User, user_id)
+        request_reschedule(booking, owner, slots[1], "Trocar período")
+        request_cancellation(booking, owner, "Mudança de planos")
+        booking_id = booking.id
+        local_label = to_local(
+            db.session.get(ExperienceSlot, slots[1]).starts_at,
+            booking.professional.timezone,
+        ).strftime("%d/%m/%Y %H:%M")
+    _login_session(client, user_id)
+    response = client.get("/minhas-reservas?aba=solicitacoes")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Solicitações (1)" in html
+    assert f'detalhes-reserva-{booking_id}' in html
+    assert "Novo horário solicitado" in html
+    assert "Mudança de planos" in html
+    assert "Trocar período" in html
+    assert "Retirar pedido de reagendamento" in html
+    assert local_label in html
+    assert "(UTC)</option>" not in html
