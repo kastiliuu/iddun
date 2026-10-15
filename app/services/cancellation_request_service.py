@@ -4,6 +4,7 @@ from app.extensions import db
 from app.models.booking import BookingStatus
 from app.models.cancellation_request import CancellationRequest
 from app.services.booking_service import BookingStateError, cancel_booking
+from app.services.notification_service import notify_booking_cancelled
 from app.services.time_service import as_utc, utcnow
 
 
@@ -62,10 +63,11 @@ def execute_cancellation(booking, user, reason):
         raise BookingStateError("Não há solicitação pendente.")
     # The underlying operation validates booking state and slot timing.
     # Never acknowledge a request until its booking cancellation commits.
-    cancel_booking(booking, reason=reason[:255])
+    cancel_booking(booking, reason=reason[:255], commit=False)
     item.status = "executed"
     item.resolved_at = utcnow()
     item.resolved_by_user_id = user.id
     item.resolution_reason = reason[:255]
     db.session.commit()
+    notify_booking_cancelled(booking)
     return item
