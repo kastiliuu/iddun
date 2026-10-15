@@ -441,6 +441,19 @@ my-bookings-page visual-v2-page
                   <p>Contestação #{{ dispute.id }}: {{ 'Aguardando análise' if dispute.status == 'pending' else ('Acolhida' if dispute.status == 'accepted' else 'Não acolhida') }}</p>
                 {% endfor %}
               {% elif item.status == BookingStatus.COMPLETED %}
+                <section class="booking-post-service" aria-label="Resumo pós-atendimento">
+                  <h3>Experiência concluída</h3>
+                  <p>{{ item.experience.title }} com {{ item.professional.display_name }}.</p>
+                  <p>Realizada em {{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} ({{ item.professional.timezone }}).</p>
+                  <p>Valor registrado: R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}.</p>
+                  {% if row.rebook_offer %}
+                    <p>Uma nova reserva usará o preço e a disponibilidade atuais, não os valores históricos.</p>
+                    <a class="booking-review-link" href="{{ url_for('bookings.rebook', booking_id=item.id) }}">Reservar novamente</a>
+                  {% else %}
+                    <p>Sem novos horários disponíveis para esta oferta no momento.</p>
+                  {% endif %}
+                </section>
+
 
                 <a
                   class="booking-review-link"

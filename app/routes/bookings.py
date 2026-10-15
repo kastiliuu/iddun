@@ -25,6 +25,7 @@ from app.services.reschedule_service import (
 from app.models.no_show_dispute import NoShowDispute
 from app.services.no_show_dispute_service import submit_dispute, pending_dispute
 from app.services.booking_share_service import calendar_payload, share_payload
+from app.services.post_service_service import rebook_offer
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
 from app.services.time_service import to_local, utcnow, as_utc
@@ -268,6 +269,7 @@ def mine():
                 {**event, "local_at": to_local(event["at"], item.professional.timezone)}
                 for event in events[item.id]
             ],
+            "rebook_offer": rebook_offer(item) if item.status == BookingStatus.COMPLETED else None,
             "has_professional_review": any(review.target_type == ReviewTarget.PROFESSIONAL for review in item.reviews),
             "has_establishment_review": any(review.target_type == ReviewTarget.ESTABLISHMENT for review in item.reviews),
         }
@@ -366,6 +368,24 @@ def share_booking(booking_id):
         body, mimetype="text/plain",
         headers={"Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff"},
     )
+
+
+@bookings_bp.get("/reserva/<int:booking_id>/reservar-novamente")
+@login_required
+def rebook(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    experience = rebook_offer(booking)
+    if experience is None:
+        flash("Esta oferta não possui horários válidos no momento. Consulte outras experiências.", "info")
+        return redirect(url_for("bookings.mine", aba="historico"))
+    # No hold/booking is created here: the client explicitly selects an available
+    # slot and confirms the CURRENT price through the standard booking flow.
+    return redirect(url_for("public.experience_detail", slug=experience.slug) + "#horarios")
 
 
 @bookings_bp.post("/reserva/<int:booking_id>/cancelar")

@@ -2098,3 +2098,65 @@ def test_calendar_share_reflects_rescheduling_and_blocks_cancelled(app, client):
     _login_session(client, user_id)
     assert client.get(f"/reserva/{booking_id}/calendario.ics").status_code == 409
     assert client.get(f"/reserva/{booking_id}/compartilhar").status_code == 409
+
+
+def test_completed_booking_rebook_requires_current_offer_and_creates_no_hold(app, client):
+    from app.services.post_service_service import rebook_offer
+    _, slots = _catalog(app, slot_count=2)
+    owner_id, profile_id = _client_user(app, "rebook-owner@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking.status = BookingStatus.COMPLETED
+        booking.completed_at = utcnow()
+        db.session.commit()
+        booking_id = booking.id
+        original_price = booking.price_at_booking
+        experience = booking.experience
+        experience.price = original_price + 10
+        db.session.commit()
+        assert rebook_offer(booking) is not None
+        assert booking.price_at_booking == original_price
+        before = db.session.query(Booking).count()
+    _login_session(client, owner_id)
+    page = client.get("/minhas-reservas?aba=historico")
+    assert page.status_code == 200
+    assert "Experiência concluída" in page.get_data(as_text=True)
+    assert "Reservar novamente" in page.get_data(as_text=True)
+    response = client.get(f"/reserva/{booking_id}/reservar-novamente")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("#horarios")
+    with app.app_context():
+        assert db.session.query(Booking).count() == before
+        assert db.session.get(Booking, booking_id).price_at_booking == original_price
+        assert db.session.get(ExperienceSlot, slots[1]).status == SlotStatus.AVAILABLE
+
+
+def test_rebook_protects_ownership_and_revalidates_published_offer(app, client):
+    from app.services.post_service_service import rebook_offer
+    _, slots = _catalog(app, slot_count=2)
+    owner_id, profile_id = _client_user(app, "rebook-secure-owner@example.com")
+    outsider_id, _ = _client_user(app, "rebook-secure-outsider@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking.status = BookingStatus.COMPLETED
+        booking.completed_at = utcnow()
+        db.session.commit()
+        booking_id = booking.id
+    _login_session(client, outsider_id)
+    assert client.get(f"/reserva/{booking_id}/reservar-novamente").status_code == 404
+    from flask import g
+    g.pop("_login_user", None)
+    _login_session(client, owner_id)
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        booking.experience.status = ExperienceStatus.PAUSED
+        db.session.commit()
+        assert rebook_offer(booking) is None
+        before = db.session.query(Booking).count()
+    response = client.get(f"/reserva/{booking_id}/reservar-novamente")
+    assert response.status_code == 302
+    assert "historico" in response.headers["Location"]
+    with app.app_context():
+        assert db.session.query(Booking).count() == before
