@@ -30,6 +30,8 @@ from app.services.google_calendar_service import (
 from app.services.cancellation_request_service import (
     request_cancellation, withdraw_cancellation, pending_cancellation,
 )
+from app.services.reschedule_service import request_reschedule, withdraw_reschedule, pending_reschedule, eligible_reschedule_slots
+from app.services.post_service_service import rebook_offer
 from app.services.profile_service import ensure_client_profile
 from app.services.time_service import as_utc, to_local, utcnow
 
@@ -663,3 +665,69 @@ def withdraw_client_booking_cancellation(booking_id):
         {"booking": _booking_payload(booking), "cancellationRequest": {"id": item.id, "status": item.status}},
         cache_control="private, no-store",
     )
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/actions")
+def booking_actions(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    pending = pending_reschedule(booking.id)
+    alternatives = (
+        eligible_reschedule_slots(booking)
+        if booking.status == BookingStatus.CONFIRMED and pending is None
+        else []
+    )
+    return api_json({
+        "rescheduleRequestStatus": pending.status if pending else None,
+        "rescheduleSlots": [
+            {"id": slot.id, "startsAt": as_utc(slot.starts_at).isoformat(),
+             "localDate": to_local(slot.starts_at, booking.professional.timezone).strftime("%Y-%m-%d"),
+             "localTime": to_local(slot.starts_at, booking.professional.timezone).strftime("%H:%M"),
+             "timezone": booking.professional.timezone}
+            for slot in alternatives
+        ],
+        "canRebook": rebook_offer(booking) is not None,
+        "rebookExperienceSlug": booking.experience.slug if rebook_offer(booking) else None,
+    }, cache_control="private, no-store")
+
+
+@api_bookings_bp.post("/bookings/<int:booking_id>/reschedule-request")
+@csrf.exempt
+def request_client_booking_reschedule(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    payload = request.get_json(silent=True) or {}
+    try:
+        slot_id = int(payload.get("slotId") or 0)
+        item = request_reschedule(booking, _bearer_user(), slot_id, payload.get("reason"))
+    except (BookingStateError, ValueError) as exc:
+        return api_error("booking_state_conflict", str(exc), 409)
+    return api_json({"booking": _booking_payload(booking),
+                     "rescheduleRequest": {"id": item.id, "status": item.status}},
+                    cache_control="private, no-store")
+
+
+@api_bookings_bp.post("/bookings/<int:booking_id>/reschedule-request/withdraw")
+@csrf.exempt
+def withdraw_client_booking_reschedule(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    try:
+        item = withdraw_reschedule(booking, _bearer_user())
+    except BookingStateError as exc:
+        return api_error("booking_state_conflict", str(exc), 409)
+    return api_json({"booking": _booking_payload(booking),
+                     "rescheduleRequest": {"id": item.id, "status": item.status}},
+                    cache_control="private, no-store")
