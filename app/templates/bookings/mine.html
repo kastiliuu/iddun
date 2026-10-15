@@ -379,7 +379,7 @@ my-bookings-page visual-v2-page
                       <label for="new-slot-{{ item.id }}">Solicitar outro horário</label>
                       <select name="slot_id" id="new-slot-{{ item.id }}" required>
                         {% for alternative in available_reschedule_slots[item.id] %}
-                        <option value="{{ alternative.id }}">{{ alternative.starts_at|local_booking_time(item.professional.timezone) }}</option>
+                        <option value="{{ alternative.id }}">{{ local_alternative_labels[alternative.id] }} ({{ item.professional.timezone }})</option>
                         {% endfor %}
                       </select>
                       <label for="reason-reschedule-{{ item.id }}">Motivo (opcional)</label>
