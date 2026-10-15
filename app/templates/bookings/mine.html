@@ -413,6 +413,24 @@ my-bookings-page visual-v2-page
                    COMPLETED
                    ============================================ -->
 
+              {% elif item.status == BookingStatus.NO_SHOW %}
+                {% set disputes = disputes_by_booking.get(item.id, []) %}
+                {% set open_dispute = disputes|selectattr('status', 'equalto', 'pending')|list %}
+                {% if open_dispute %}
+                  <p role="status">Contestação de ausência aguardando moderação.</p>
+                {% else %}
+                  <form method="post" action="{{ url_for('bookings.contest_no_show', booking_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="justification-{{ item.id }}">Contestar ausência — justificativa</label>
+                    <textarea id="justification-{{ item.id }}" name="justificativa" minlength="10" maxlength="2000" required></textarea>
+                    <label for="evidence-{{ item.id }}">Referência de evidência (opcional, apenas texto privado)</label>
+                    <input id="evidence-{{ item.id }}" name="evidencia" maxlength="500" placeholder="Ex.: protocolo ou informação para análise">
+                    <button type="submit">Enviar contestação</button>
+                  </form>
+                {% endif %}
+                {% for dispute in disputes %}
+                  <p>Contestação #{{ dispute.id }}: {{ 'Aguardando análise' if dispute.status == 'pending' else ('Acolhida' if dispute.status == 'accepted' else 'Não acolhida') }}</p>
+                {% endfor %}
               {% elif item.status == BookingStatus.COMPLETED %}
 
                 <a
