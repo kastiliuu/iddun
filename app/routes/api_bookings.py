@@ -27,6 +27,9 @@ from app.services.google_calendar_service import (
     create_booking_event,
     delete_booking_event,
 )
+from app.services.cancellation_request_service import (
+    request_cancellation, withdraw_cancellation, pending_cancellation,
+)
 from app.services.profile_service import ensure_client_profile
 from app.services.time_service import as_utc, to_local, utcnow
 
@@ -227,12 +230,10 @@ def _booking_payload(booking):
             booking.status
             == BookingStatus.PENDING
         ),
-        "canCancel": (
-            booking.status
-            in {
-                BookingStatus.PENDING,
-                BookingStatus.CONFIRMED,
-            }
+        "canCancel": booking.status == BookingStatus.PENDING,
+        "canRequestCancellation": booking.status == BookingStatus.CONFIRMED,
+        "cancellationRequestStatus": (
+            pending_cancellation(booking.id).status if pending_cancellation(booking.id) else None
         ),
     }
 
@@ -607,77 +608,58 @@ def confirm_client_booking(
     )
 
 
-@api_bookings_bp.post(
-    "/bookings/<int:booking_id>/cancel"
-)
+@api_bookings_bp.post("/bookings/<int:booking_id>/cancel")
 @csrf.exempt
-def cancel_client_booking(
-    booking_id,
-):
+def cancel_client_booking(booking_id):
+    """Backwards-compatible endpoint: now submits a request, never cancels."""
     client, error = _require_client()
-
     if error is not None:
         return error
-
-    booking = _booking_for_client(
-        booking_id,
-        client.id,
-    )
-
+    booking = _booking_for_client(booking_id, client.id)
     if booking is None:
-        return api_error(
-            "booking_not_found",
-            "Reserva não encontrada.",
-            404,
-        )
-
-    if (
-        booking.status
-        == BookingStatus.CANCELLED
-    ):
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    # An unconfirmed hold is not yet a confirmed booking: allow release.
+    if booking.status == BookingStatus.PENDING:
+        try:
+            cancel_booking(booking, reason="Retenção temporária liberada pelo cliente")
+        except BookingStateError as exc:
+            return api_error("booking_state_conflict", str(exc), 409)
         return api_json(
-            {
-                "booking": (
-                    _booking_payload(
-                        booking
-                    )
-                )
-            },
+            {"booking": _booking_payload(booking)},
             cache_control="private, no-store",
         )
-
+    if booking.status == BookingStatus.CANCELLED:
+        return api_json(
+            {"booking": _booking_payload(booking)},
+            cache_control="private, no-store",
+        )
+    user = _bearer_user()
+    payload = request.get_json(silent=True) or {}
     try:
-        try:
-            delete_booking_event(
-                booking
-            )
-        except Exception:
-            current_app.logger.warning(
-                (
-                    "Falha ao remover evento da reserva "
-                    "booking_id=%s"
-                ),
-                booking.id,
-                exc_info=True,
-            )
-
-        booking = cancel_booking(
-            booking
-        )
+        item = request_cancellation(booking, user, payload.get("reason"))
     except BookingStateError as exc:
-        return api_error(
-            "booking_state_conflict",
-            str(exc),
-            409,
-        )
-
+        return api_error("booking_state_conflict", str(exc), 409)
     return api_json(
-        {
-            "booking": (
-                _booking_payload(
-                    booking
-                )
-            )
-        },
+        {"booking": _booking_payload(booking),
+         "cancellationRequest": {"id": item.id, "status": item.status, "reason": item.reason}},
+        cache_control="private, no-store",
+    )
+
+
+@api_bookings_bp.post("/bookings/<int:booking_id>/cancel-request/withdraw")
+@csrf.exempt
+def withdraw_client_booking_cancellation(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    try:
+        item = withdraw_cancellation(booking, _bearer_user())
+    except BookingStateError as exc:
+        return api_error("booking_state_conflict", str(exc), 409)
+    return api_json(
+        {"booking": _booking_payload(booking), "cancellationRequest": {"id": item.id, "status": item.status}},
         cache_control="private, no-store",
     )

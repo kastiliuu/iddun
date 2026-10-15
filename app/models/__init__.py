@@ -1,3 +1,4 @@
+from app.models.cancellation_request import CancellationRequest
 from app.models.job import JobApplication, JobApplicationStatus, JobPost, JobPostStatus
 from app.models.notification import Notification, NotificationKind, NotificationPreference
 from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus

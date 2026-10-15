@@ -15,6 +15,9 @@ from app.services.booking_service import (
     hold_slot,
     release_expired_holds,
 )
+from app.services.cancellation_request_service import (
+    request_cancellation, withdraw_cancellation, execute_cancellation, pending_cancellation,
+)
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
 from app.services.time_service import to_local
@@ -153,6 +156,7 @@ def mine():
         confirmed_booking=confirmed_booking,
         rows=rows,
         BookingStatus=BookingStatus,
+        pending_cancellations={item.id: pending_cancellation(item.id) for item in items},
         current_page="account",
     )
 
@@ -160,35 +164,57 @@ def mine():
 @bookings_bp.post("/reserva/<int:booking_id>/cancelar")
 @login_required
 def cancel(booking_id):
+    """Compatibility URL: it requests cancellation, never cancels directly."""
     profile = ensure_client_profile(current_user)
     booking = db.session.scalar(
-        select(Booking).where(
-            Booking.id == booking_id,
-            Booking.client_id == profile.id,
-        )
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
     )
     if booking is None:
         abort(404)
-
-    was_confirmed = booking.status == BookingStatus.CONFIRMED
     try:
-        cancel_booking(booking)
+        request_cancellation(booking, current_user, request.form.get("motivo"))
     except BookingStateError as exc:
         flash(str(exc), "error")
     else:
-        # Never delete an external event before the local cancellation
-        # has passed its business rules and committed successfully.
-        if was_confirmed:
-            try:
-                delete_booking_event(booking)
-            except Exception:
-                current_app.logger.warning(
-                    "Falha ao remover evento da reserva booking_id=%s",
-                    booking.id,
-                    exc_info=True,
-                )
-        flash("Reserva cancelada.", "info")
+        flash("Solicitação enviada ao profissional. Sua reserva permanece confirmada até a análise.", "info")
     return redirect(url_for("bookings.mine"))
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/cancelamento/retirar")
+@login_required
+def withdraw_cancel_request(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    try:
+        withdraw_cancellation(booking, current_user)
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Solicitação retirada. A reserva permanece ativa.", "success")
+    return redirect(url_for("bookings.mine"))
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/cancelamento/efetivar")
+@login_required
+def execute_cancel_request(booking_id):
+    booking = db.session.get(Booking, booking_id)
+    if booking is None or booking.professional.user_id != current_user.id:
+        abort(404)
+    try:
+        execute_cancellation(booking, current_user, request.form.get("motivo"))
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        try:
+            delete_booking_event(booking)
+        except Exception:
+            current_app.logger.warning("Falha ao remover evento booking_id=%s", booking.id, exc_info=True)
+        flash("Cancelamento efetivado e registrado.", "success")
+    return redirect(url_for("professional.dashboard"))
 
 
 @bookings_bp.route("/reserva/<int:booking_id>/avaliar", methods=["GET", "POST"])

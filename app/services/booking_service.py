@@ -412,7 +412,7 @@ def confirm_booking(booking_id, client_profile, now=None):
     return booking
 
 
-def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
+def cancel_booking(booking, reason="Cancelada pelo cliente", now=None, *, commit=True):
     now = as_utc(now or utcnow())
     was_confirmed = (
         booking.status
@@ -434,9 +434,10 @@ def cancel_booking(booking, reason="Cancelada pelo cliente", now=None):
     else:
         slot.status = SlotStatus.EXPIRED
     slot.hold_expires_at = None
-    db.session.commit()
+    if commit:
+        db.session.commit()
 
-    if was_confirmed:
+    if commit and was_confirmed:
         notify_booking_cancelled(
             booking
         )

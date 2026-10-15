@@ -217,6 +217,33 @@
       </article>
     </section>
 
+    {% if cancellation_requests %}
+    <section class="pro-panel" id="solicitacoes-cancelamento">
+      <header class="pro-panel__head">
+        <div>
+          <span class="pro-kicker">RESERVAS</span>
+          <h2>Solicitações de cancelamento</h2>
+        </div>
+      </header>
+      {% for cancellation in cancellation_requests %}
+      <article class="pro-invitation-item">
+        <div>
+          <strong>{{ cancellation.booking.experience.title }}</strong>
+          <p>{{ cancellation.booking.client.user.name }} solicitou cancelamento.</p>
+          {% if cancellation.reason %}<p>Motivo informado: {{ cancellation.reason }}</p>{% endif %}
+          <small>A reserva permanece confirmada até sua decisão.</small>
+        </div>
+        <form method="post" action="{{ url_for('bookings.execute_cancel_request', booking_id=cancellation.booking_id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="execution-reason-{{ cancellation.id }}">Motivo da efetivação</label>
+          <input id="execution-reason-{{ cancellation.id }}" name="motivo" maxlength="255" required>
+          <button class="pro-operation-button pro-operation-button--danger" type="submit">Efetivar cancelamento</button>
+        </form>
+      </article>
+      {% endfor %}
+    </section>
+    {% endif %}
+
     <section
       id="agenda-hoje"
       class="pro-panel pro-schedule-panel"

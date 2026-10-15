@@ -1,3 +1,5 @@
+from app.models.cancellation_request import CancellationRequest
+from app.services.cancellation_request_service import execute_cancellation, pending_cancellation
 from datetime import date, datetime, time, timedelta, timezone
 
 from flask import (
@@ -414,6 +416,16 @@ def dashboard():
     return render_template(
         "platform/professional-dashboard.html",
         profile=profile,
+        cancellation_requests=db.session.scalars(
+            select(CancellationRequest)
+            .join(Booking, Booking.id == CancellationRequest.booking_id)
+            .where(
+                Booking.professional_id == profile.id,
+                Booking.status == BookingStatus.CONFIRMED,
+                CancellationRequest.status == "pending",
+            )
+            .order_by(CancellationRequest.requested_at.asc())
+        ).all(),
         confirmed_bookings=confirmed_bookings,
         published_experiences=published_experiences,
         reputation=reputation,
@@ -615,21 +627,21 @@ def dashboard_cancel_booking(
     )
 
     try:
-        try:
-            delete_booking_event(
-                booking
+        request_reason = (request.form.get("motivo") or "").strip()
+        if pending_cancellation(booking.id):
+            execute_cancellation(
+                booking, current_user, request_reason or "Solicitação aceita pelo executor"
             )
+        else:
+            cancel_booking(
+                booking, reason=request_reason or "Cancelada pelo profissional"
+            )
+        try:
+            delete_booking_event(booking)
         except Exception:
             current_app.logger.exception(
-                "Falha ao remover evento externo ao cancelar reserva pelo painel Pro."
+                "Falha ao remover evento externo após o cancelamento confirmado."
             )
-
-        cancel_booking(
-            booking,
-            reason=(
-                "Cancelada pelo profissional"
-            ),
-        )
     except BookingStateError as exc:
         flash(
             str(exc),

@@ -668,7 +668,7 @@ def test_booking_http_flow_confirms_and_appears_in_my_bookings(
     )
 
     assert (
-        "Cancelar reserva"
+        "Solicitar cancelamento"
         in html
     )
 
@@ -964,20 +964,14 @@ def test_pending_booking_has_resume_link(app, client):
     assert location in response.get_data(as_text=True)
 
 
-def test_invalid_repeat_cancellation_does_not_delete_calendar_event(
+def test_pending_hold_cannot_be_submitted_as_cancellation_request(
     app, client, monkeypatch,
 ):
     _, slot_ids = _catalog(app, slot_count=1)
-    user_id, profile_id = _client_user(
-        app, "safe-cancellation@example.com",
-    )
+    user_id, profile_id = _client_user(app, "safe-cancellation@example.com")
     _login_session(client, user_id)
-
     held = client.post(
-        (
-            "/experiencias/hair-experience-booking/"
-            f"slots/{slot_ids[0]}/reservar"
-        ),
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar",
         follow_redirects=False,
     )
     assert held.status_code == 302
@@ -986,51 +980,101 @@ def test_invalid_repeat_cancellation_does_not_delete_calendar_event(
             select(Booking).where(Booking.client_id == profile_id)
         )
         booking_id = booking.id
-
     deleted = []
     monkeypatch.setattr(
         "app.routes.bookings.delete_booking_event",
         lambda booking: deleted.append(booking.id),
     )
-
-    first = client.post(f"/reserva/{booking_id}/cancelar")
-    assert first.status_code == 302
-    second = client.post(f"/reserva/{booking_id}/cancelar")
-    assert second.status_code == 302
+    for _ in range(2):
+        response = client.post(f"/reserva/{booking_id}/cancelar")
+        assert response.status_code == 302
     assert deleted == []
-
     with app.app_context():
+        from app.models.cancellation_request import CancellationRequest
         booking = db.session.get(Booking, booking_id)
-        assert booking.status == BookingStatus.CANCELLED
+        assert booking.status == BookingStatus.PENDING
+        assert booking.slot.status == SlotStatus.HELD
+        assert db.session.scalar(
+            select(CancellationRequest).where(
+                CancellationRequest.booking_id == booking_id
+            )
+        ) is None
 
 
-def test_confirmed_cancellation_deletes_calendar_after_database_update(
+def test_cancel_request_keeps_calendar_until_executor_effectuates(
     app, client, monkeypatch,
 ):
+    from app.models.cancellation_request import CancellationRequest
+
     _, slot_ids = _catalog(app, slot_count=1)
     user_id, profile_id = _client_user(
         app, "confirmed-safe-cancel@example.com",
     )
     _login_session(client, user_id)
-
     with app.app_context():
         client_profile = db.session.get(ClientProfile, profile_id)
-        held = hold_slot(slot_ids[0], client_profile)
-        confirmed = confirm_booking(held.id, client_profile)
+        confirmed = confirm_booking(
+            hold_slot(slot_ids[0], client_profile).id, client_profile
+        )
         booking_id = confirmed.id
+        executor = User(
+            name="Executor calendar", email="executor-calendar@example.com",
+            role=UserRole.PROFESSIONAL,
+        )
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        confirmed.professional.user = executor
+        db.session.commit()
+        executor_id = executor.id
+        assert db.session.get(Booking, booking_id).professional.user_id == executor_id
 
     observed = []
-
-    def observe_deleted(booking):
-        observed.append((booking.id, booking.status))
-
     monkeypatch.setattr(
         "app.routes.bookings.delete_booking_event",
-        observe_deleted,
+        lambda booking: observed.append((booking.id, booking.status)),
     )
-    response = client.post(f"/reserva/{booking_id}/cancelar")
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "Preciso cancelar"},
+    )
     assert response.status_code == 302
+    assert observed == []
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot.status == SlotStatus.BOOKED
+        pending = db.session.scalar(
+            select(CancellationRequest).where(
+                CancellationRequest.booking_id == booking_id
+            )
+        )
+        assert pending.status == "pending"
+    # Flask-Login may cache current_user in the active request context.
+    # Close the initial client session and switch identity on a new client.
+    executor_client = app.test_client()
+    _login_session(executor_client, executor_id)
+    # The pytest app fixture holds an application context across requests.
+    # Flask-Login caches _login_user on g, so clear that fixture-local cache
+    # when switching accounts. The production auth guard remains unchanged.
+    from flask import g
+    # The pytest fixture already keeps the application context active.
+    # A nested app.app_context() creates a DIFFERENT g and does not clear
+    # the cached user on the fixture's original application context.
+    g.pop("_login_user", None)
+    with executor_client:
+        with executor_client.session_transaction() as session:
+            assert session["_user_id"] == str(executor_id)
+        result = executor_client.post(
+            f"/reserva/{booking_id}/cancelamento/efetivar",
+            data={"motivo": "Solicitação analisada"},
+        )
+    assert result.status_code == 302
     assert observed == [(booking_id, BookingStatus.CANCELLED)]
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CANCELLED
+        assert db.session.get(CancellationRequest, pending.id).status == "executed"
 
 
 def test_v1_client_booking_is_visible_only_to_its_business(
@@ -1628,3 +1672,120 @@ def test_booking_confirmation_feedback_is_scoped_to_confirmed_owner(app, client)
 
     missing_page = client.get("/minhas-reservas?confirmada=999999").get_data(as_text=True)
     assert "Reserva confirmada!" not in missing_page
+
+def test_client_requests_and_withdraws_without_cancelling_booking(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    from app.services.cancellation_request_service import (
+        request_cancellation, withdraw_cancellation, pending_cancellation,
+    )
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "requester@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = hold_slot(slots[0], profile)
+        booking = confirm_booking(booking.id, profile)
+        initial_slot_status = booking.slot.status
+        user = db.session.get(User, user_id)
+        first = request_cancellation(booking, user, "Mudança de planos")
+        second = request_cancellation(booking, user, "Outro motivo")
+        assert first.id == second.id
+        assert booking.status == BookingStatus.CONFIRMED
+        assert booking.slot.status == initial_slot_status
+        assert first.reason == "Mudança de planos"
+        assert pending_cancellation(booking.id).id == first.id
+        withdraw_cancellation(booking, user)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert pending_cancellation(booking.id) is None
+        assert db.session.get(CancellationRequest, first.id).status == "withdrawn"
+
+
+def test_only_booking_executor_can_execute_request_and_history_remains(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    from app.services.booking_service import BookingStateError
+    from app.services.cancellation_request_service import (
+        request_cancellation, execute_cancellation,
+    )
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "cancel-owner@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        executor = User(name="Executor", email="executor-cancel@example.com", role=UserRole.PROFESSIONAL)
+        executor.set_password("senha-forte-123")
+        db.session.add(executor)
+        db.session.flush()
+        booking.professional.user_id = executor.id
+        db.session.commit()
+        owner = db.session.get(User, user_id)
+        pending = request_cancellation(booking, owner, "Compromisso")
+        for actor, reason in [(owner, "Não autorizado"), (executor, "")]:
+            try:
+                execute_cancellation(booking, actor, reason)
+            except BookingStateError:
+                pass
+            else:
+                raise AssertionError("Cancellation must require executor and reason")
+        assert booking.status == BookingStatus.CONFIRMED
+        execute_cancellation(booking, executor, "Cliente pediu para cancelar")
+        assert booking.status == BookingStatus.CANCELLED
+        audit = db.session.get(CancellationRequest, pending.id)
+        assert audit.status == "executed"
+        assert audit.client_user_id == owner.id
+        assert audit.resolved_by_user_id == executor.id
+        assert audit.resolution_reason == "Cliente pediu para cancelar"
+
+
+def test_client_web_cancellation_form_creates_pending_request(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    _, slots = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "web-cancel@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, user_id)
+    html = client.get("/minhas-reservas").get_data(as_text=True)
+    assert "Solicitar cancelamento" in html
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "Preciso remarcar"}, follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        req = db.session.scalar(select(CancellationRequest).where(CancellationRequest.booking_id == booking_id))
+        assert req.status == "pending"
+        assert req.reason == "Preciso remarcar"
+    html = client.get("/minhas-reservas").get_data(as_text=True)
+    assert "Retirar solicitação" in html
+    assert "Cancelar reserva" not in html
+
+def test_non_owner_cannot_submit_or_execute_cancellation_web(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    _, slots = _catalog(app, slot_count=1)
+    owner_id, owner_profile = _client_user(app, "owner-denied@example.com")
+    attacker_id, _ = _client_user(app, "attacker-denied@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, owner_profile)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, attacker_id)
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "intrusão"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 404
+    response = client.post(
+        f"/reserva/{booking_id}/cancelamento/efetivar",
+        data={"motivo": "intrusão"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 404
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert db.session.scalar(
+            select(CancellationRequest).where(CancellationRequest.booking_id == booking_id)
+        ) is None
