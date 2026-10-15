@@ -1050,30 +1050,20 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
             )
         )
         assert pending.status == "pending"
-    # Switch identity using a fresh client to avoid stale login/session state.
+    # Flask-Login may cache current_user in the active request context.
+    # Close the initial client session and switch identity on a new client.
     executor_client = app.test_client()
     _login_session(executor_client, executor_id)
-    # Verify identity from inside the actual request before authorization.
-    from flask import request as flask_request
-    from flask_login import current_user as authenticated_user
-    observed_identity = []
-    original_abort = __import__("app.routes.bookings", fromlist=["abort"]).abort
-    def _diagnostic_abort(code):
-        observed_identity.append((
-            str(authenticated_user.id) if authenticated_user.is_authenticated else "anonymous",
-            str(db.session.get(Booking, booking_id).professional.user_id),
-            flask_request.endpoint,
-        ))
-        return original_abort(code)
-    monkeypatch.setattr("app.routes.bookings.abort", _diagnostic_abort)
-    result = executor_client.post(
-        f"/reserva/{booking_id}/cancelamento/efetivar",
-        data={"motivo": "Solicitação analisada"},
-    )
-    assert result.status_code == 302, (
-        f"executor authorization diagnostic: {observed_identity}; "
-        f"response={result.get_data(as_text=True)[:160]}"
-    )
+    # Explicit request context isolates the Flask-Login user cache from
+    # any request context kept open by the pytest client fixture.
+    with executor_client:
+        with executor_client.session_transaction() as session:
+            assert session["_user_id"] == str(executor_id)
+        result = executor_client.post(
+            f"/reserva/{booking_id}/cancelamento/efetivar",
+            data={"motivo": "Solicitação analisada"},
+        )
+    assert result.status_code == 302
     assert observed == [(booking_id, BookingStatus.CANCELLED)]
     with app.app_context():
         booking = db.session.get(Booking, booking_id)
