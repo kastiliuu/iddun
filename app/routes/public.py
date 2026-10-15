@@ -478,6 +478,7 @@ def experience_detail(slug):
         experience=item,
         db_experience=db_experience,
         slot_groups=slot_groups,
+        available_slot_count=sum(len(group["slots"]) for group in slot_groups),
         current_page="experiences",
     )
 
