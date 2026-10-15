@@ -264,7 +264,7 @@ export default function BookingsScreen() {
         await refresh();
       } catch (error) {
         Alert.alert(
-          "Não foi possível cancelar",
+          "Não foi possível processar a solicitação",
           error instanceof Error
             ? error.message
             : "Tente novamente em instantes.",
@@ -280,15 +280,17 @@ export default function BookingsScreen() {
     booking: Booking,
   ) => {
     Alert.alert(
-      "Cancelar reserva?",
-      "O horário será liberado novamente se ainda estiver dentro das regras de agendamento.",
+      booking.status === "pending" ? "Liberar horário?" : "Solicitar cancelamento?",
+      booking.status === "pending"
+        ? "Esta retenção temporária será liberada."
+        : "A reserva permanecerá confirmada até a análise do profissional executor.",
       [
         {
           text: "Manter reserva",
           style: "cancel",
         },
         {
-          text: "Cancelar reserva",
+          text: booking.status === "pending" ? "Liberar horário" : "Enviar solicitação",
           style: "destructive",
           onPress: () => {
             void handleCancel(
@@ -743,9 +745,9 @@ export default function BookingsScreen() {
                       }}
                     />
 
-                    {booking.canCancel ? (
+                    {(booking.canCancel || (booking.canRequestCancellation && !booking.cancellationRequestStatus)) ? (
                       <Button
-                        title="Cancelar"
+                        title={booking.status === "pending" ? "Liberar horário" : "Solicitar cancelamento"}
                         variant="ghost"
                         compact
                         loading={
@@ -758,6 +760,8 @@ export default function BookingsScreen() {
                           )
                         }
                       />
+                    ) : booking.cancellationRequestStatus === "pending" ? (
+                      <Text>Solicitação de cancelamento pendente de análise pelo executor.</Text>
                     ) : null}
                   </View>
                 </View>
