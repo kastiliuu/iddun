@@ -1005,7 +1005,6 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
     app, client, monkeypatch,
 ):
     from app.models.cancellation_request import CancellationRequest
-    from app.services.cancellation_request_service import execute_cancellation
 
     _, slot_ids = _catalog(app, slot_count=1)
     user_id, profile_id = _client_user(
@@ -1025,9 +1024,10 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
         executor.set_password("senha-forte-123")
         db.session.add(executor)
         db.session.flush()
-        confirmed.professional.user_id = executor.id
+        confirmed.professional.user = executor
         db.session.commit()
         executor_id = executor.id
+        assert db.session.get(Booking, booking_id).professional.user_id == executor_id
 
     observed = []
     monkeypatch.setattr(
@@ -1050,8 +1050,10 @@ def test_cancel_request_keeps_calendar_until_executor_effectuates(
             )
         )
         assert pending.status == "pending"
-    _login_session(client, executor_id)
-    result = client.post(
+    # Switch identity using a fresh client to avoid stale login/session state.
+    executor_client = app.test_client()
+    _login_session(executor_client, executor_id)
+    result = executor_client.post(
         f"/reserva/{booking_id}/cancelamento/efetivar",
         data={"motivo": "Solicitação analisada"},
     )
