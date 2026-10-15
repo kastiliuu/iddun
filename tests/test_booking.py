@@ -380,6 +380,17 @@ def test_confirm_booking_marks_slot_booked(
         )
 
 
+def test_booking_detail_shows_only_real_available_slot_count(app, client):
+    _catalog(app, slot_count=2)
+    html = client.get(
+        "/experiencias/hair-experience-booking"
+    ).get_data(as_text=True)
+    assert "2" in html
+    assert "horários" in html
+    assert "disponíveis" in html
+    assert "Selecione o dia e o horário para continuar sua reserva." in html
+
+
 def test_real_experience_detail_shows_available_slot(
     app,
     client,
