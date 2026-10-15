@@ -324,30 +324,24 @@ my-bookings-page visual-v2-page
                 </a>
                 {% endif %}
 
-                <form
-                  method="post"
-                  action="{{ url_for(
-                    'bookings.cancel',
-                    booking_id=item.id
-                  ) }}"
-                  onsubmit="return confirm('Cancelar esta reserva?');"
-                >
-
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token() }}"
-                  >
-
-
-                  <button
-                    type="submit"
-                    aria-label="Cancelar reserva {{ item.experience.title }}"
-                  >
-                    Cancelar reserva
-                  </button>
-
-                </form>
+                {% set pending_request = pending_cancellations[item.id] %}
+                {% if item.status == BookingStatus.CONFIRMED and pending_request %}
+                  <p role="status">
+                    Cancelamento solicitado. A reserva permanece confirmada
+                    até o executor efetivar a solicitação.
+                  </p>
+                  <form method="post" action="{{ url_for('bookings.withdraw_cancel_request', booking_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit">Retirar solicitação</button>
+                  </form>
+                {% elif item.status == BookingStatus.CONFIRMED %}
+                  <form method="post" action="{{ url_for('bookings.cancel', booking_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="cancel-reason-{{ item.id }}">Motivo (opcional)</label>
+                    <input id="cancel-reason-{{ item.id }}" name="motivo" type="text" maxlength="255">
+                    <button type="submit">Solicitar cancelamento</button>
+                  </form>
+                {% endif %}
 
 
               <!-- ============================================
