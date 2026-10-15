@@ -1,4 +1,4 @@
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, Response, abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import select
 
@@ -24,6 +24,7 @@ from app.services.reschedule_service import (
 )
 from app.models.no_show_dispute import NoShowDispute
 from app.services.no_show_dispute_service import submit_dispute, pending_dispute
+from app.services.booking_share_service import calendar_payload, share_payload
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
 from app.services.time_service import to_local, utcnow, as_utc
@@ -325,6 +326,46 @@ def contest_no_show(booking_id):
     else:
         flash("Contestação registrada para análise. O status original foi preservado.", "info")
     return redirect(url_for("bookings.mine", aba="solicitacoes"))
+
+
+@bookings_bp.get("/reserva/<int:booking_id>/calendario.ics")
+@login_required
+def export_booking_calendar(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    body = calendar_payload(booking)
+    if body is None:
+        abort(409, description="Esta reserva não está ativa para exportação.")
+    return Response(
+        body, mimetype="text/calendar",
+        headers={
+            "Content-Disposition": f'attachment; filename="iddun-reserva-{booking.id}.ics"',
+            "Cache-Control": "no-store, private",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@bookings_bp.get("/reserva/<int:booking_id>/compartilhar")
+@login_required
+def share_booking(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    body = share_payload(booking)
+    if body is None:
+        abort(409, description="Esta reserva não está disponível para compartilhamento.")
+    return Response(
+        body, mimetype="text/plain",
+        headers={"Cache-Control": "no-store, private", "X-Content-Type-Options": "nosniff"},
+    )
 
 
 @bookings_bp.post("/reserva/<int:booking_id>/cancelar")
