@@ -798,3 +798,21 @@
 #reserva-confirmada {
   scroll-margin-top: 120px;
 }
+
+/* PR #98 — Navegação de reservas e histórico legível */
+.bookings-tabs { display:flex; gap:.65rem; flex-wrap:wrap; margin:1.25rem 0; }
+.bookings-tabs a { display:inline-flex; padding:.7rem 1rem; border:1px solid var(--color-border,#dadde1); border-radius:999px; color:inherit; text-decoration:none; }
+.bookings-tabs a[aria-current="page"] { border-color:#6b2eff; box-shadow:inset 0 0 0 1px #6b2eff; font-weight:700; }
+.bookings-filter { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin:1rem 0 1.5rem; }
+.bookings-filter select { padding:.6rem; border:1px solid #dadde1; border-radius:.5rem; color:inherit; background:transparent; }
+.bookings-filter button { padding:.6rem 1rem; border:1px solid #6b2eff; border-radius:.5rem; cursor:pointer; }
+.booking-detail { padding:1rem; border-top:1px solid #dadde1; }
+.booking-detail summary { cursor:pointer; font-weight:650; }
+.booking-detail dl { display:grid; grid-template-columns:minmax(100px, 1fr) 2fr; gap:.5rem .8rem; margin-top:1rem; }
+.booking-detail dt { font-weight:600; }
+.booking-detail dd { margin:0; overflow-wrap:anywhere; }
+.booking-timeline { padding-left:1.2rem; }
+.booking-timeline li { padding:.4rem 0; }
+.booking-timeline time { display:block; font-size:.85em; opacity:.75; }
+.bookings-filter-empty { padding:2rem 0; }
+@media (max-width:600px) { .booking-detail dl { grid-template-columns:1fr; } }
