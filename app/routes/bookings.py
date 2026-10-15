@@ -268,6 +268,11 @@ def mine():
         status_filter=status_filter,
         section_counts={key: len(value) for key, value in sections.items()},
         total_bookings=len(items),
+        local_alternative_labels={
+            slot.id: to_local(slot.starts_at, item.professional.timezone).strftime('%d/%m/%Y %H:%M')
+            for item in visible if item.status == BookingStatus.CONFIRMED
+            for slot in eligible_reschedule_slots(item)
+        },
         BookingStatus=BookingStatus,
         pending_cancellations=pending_cancel,
         pending_reschedules=pending_change,
