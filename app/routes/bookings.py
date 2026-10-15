@@ -22,6 +22,8 @@ from app.services.reschedule_service import (
     pending_reschedule, eligible_reschedule_slots, request_reschedule,
     withdraw_reschedule, resolve_reschedule,
 )
+from app.models.no_show_dispute import NoShowDispute
+from app.services.no_show_dispute_service import submit_dispute, pending_dispute
 from app.services.profile_service import ensure_client_profile
 from app.services.google_calendar_service import create_booking_event, delete_booking_event
 from app.services.time_service import to_local, utcnow, as_utc
@@ -139,6 +141,11 @@ def mine():
     ).all()
     from app.models.cancellation_request import CancellationRequest
     from app.models.reschedule_request import RescheduleRequest
+    disputes = db.session.scalars(
+        select(NoShowDispute)
+        .where(NoShowDispute.booking_id.in_([item.id for item in items]))
+        .order_by(NoShowDispute.created_at.asc(), NoShowDispute.id.asc())
+    ).all() if items else []
     now = utcnow()
     tab = request.args.get("aba", "proximas")
     if tab not in {"proximas", "solicitacoes", "historico"}:
@@ -191,6 +198,19 @@ def mine():
                 }.get(event.status, "Solicitação encerrada"),
                 "status": event.status, "reason": event.resolution_reason,
             })
+    for dispute in disputes:
+        events[dispute.booking_id].append({
+            "at": dispute.created_at, "kind": "Contestação de ausência",
+            "description": "Contestação registrada — aguardando moderação",
+            "status": "pending", "reason": dispute.justification,
+        })
+        if dispute.resolved_at:
+            events[dispute.booking_id].append({
+                "at": dispute.resolved_at, "kind": "Contestação de ausência",
+                "description": ("Contestação acolhida pela moderação" if dispute.status == "accepted"
+                                else "Contestação não acolhida pela moderação"),
+                "status": dispute.status, "reason": dispute.resolution_note,
+            })
     for item in items:
         events[item.id].append({
             "at": item.created_at, "kind": "Reserva",
@@ -231,7 +251,7 @@ def mine():
     pending_change = {i.id: pending_reschedule(i.id) for i in items}
     sections = {
         "proximas": [i for i in items if _section(i) == "proximas"],
-        "solicitacoes": [i for i in items if pending_cancel[i.id] or pending_change[i.id]],
+        "solicitacoes": [i for i in items if pending_cancel[i.id] or pending_change[i.id] or any(d.booking_id == i.id and d.status == "pending" for d in disputes)],
         "historico": [i for i in items if _section(i) == "historico"],
     }
     visible = [
@@ -280,9 +300,31 @@ def mine():
         BookingStatus=BookingStatus,
         pending_cancellations=pending_cancel,
         pending_reschedules=pending_change,
+        disputes_by_booking={item.id: [d for d in disputes if d.booking_id == item.id] for item in visible},
         available_reschedule_slots=available_slots,
         current_page="account",
     )
+
+
+@bookings_bp.post("/reserva/<int:booking_id>/no-show/contestar")
+@login_required
+def contest_no_show(booking_id):
+    profile = ensure_client_profile(current_user)
+    booking = db.session.scalar(
+        select(Booking).where(Booking.id == booking_id, Booking.client_id == profile.id)
+    )
+    if booking is None:
+        abort(404)
+    try:
+        submit_dispute(
+            booking, current_user, request.form.get("justificativa"),
+            request.form.get("evidencia"),
+        )
+    except BookingStateError as exc:
+        flash(str(exc), "error")
+    else:
+        flash("Contestação registrada para análise. O status original foi preservado.", "info")
+    return redirect(url_for("bookings.mine", aba="solicitacoes"))
 
 
 @bookings_bp.post("/reserva/<int:booking_id>/cancelar")
