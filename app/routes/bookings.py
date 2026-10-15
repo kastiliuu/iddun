@@ -104,7 +104,7 @@ def confirm(booking_id):
             )
         else:
             flash("Reserva confirmada. Seu horário está garantido no IDDUN.", "success")
-        return redirect(url_for("bookings.mine"))
+        return redirect(url_for("bookings.mine", confirmada=booking.id))
 
     local_start = to_local(booking.slot.starts_at, booking.professional.timezone)
     local_end = to_local(booking.slot.ends_at, booking.professional.timezone)
@@ -140,8 +140,17 @@ def mine():
         }
         for item in items
     ]
+    confirmed_id = request.args.get("confirmada", type=int)
+    confirmed_booking = next(
+        (
+            item for item in items
+            if item.id == confirmed_id and item.status == BookingStatus.CONFIRMED
+        ),
+        None,
+    )
     return render_template(
         "bookings/mine.html",
+        confirmed_booking=confirmed_booking,
         rows=rows,
         BookingStatus=BookingStatus,
         current_page="account",
