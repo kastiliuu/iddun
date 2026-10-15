@@ -128,6 +128,22 @@ my-bookings-page visual-v2-page
     </section>
     {% endif %}
 
+    {% if total_bookings %}
+    <nav class="bookings-tabs" aria-label="Seções de reservas">
+      {% for slug, label in [('proximas', 'Próximas'), ('solicitacoes', 'Solicitações'), ('historico', 'Histórico')] %}
+      <a href="{{ url_for('bookings.mine', aba=slug) }}" {% if tab == slug %}aria-current="page"{% endif %}>{{ label }} ({{ section_counts[slug] }})</a>
+      {% endfor %}
+    </nav>
+    <form method="get" action="{{ url_for('bookings.mine') }}" class="bookings-filter">
+      <input type="hidden" name="aba" value="{{ tab }}">
+      <label for="booking-status-filter">Filtrar por status</label>
+      <select id="booking-status-filter" name="status">
+        {% for value, label in [('todos', 'Todos'), ('pending', 'Aguardando confirmação'), ('confirmed', 'Confirmada'), ('completed', 'Concluída'), ('cancelled', 'Cancelada'), ('no_show', 'Não compareceu')] %}
+        <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Filtrar</button>
+    </form>
     {% if rows %}
 
       <!-- ====================================================
@@ -285,6 +301,31 @@ my-bookings-page visual-v2-page
             </div>
 
 
+            <details class="booking-detail" id="detalhes-reserva-{{ item.id }}">
+              <summary>Detalhes e linha do tempo</summary>
+              <dl>
+                <dt>Serviço</dt><dd>{{ item.experience.title }}</dd>
+                <dt>Executor</dt><dd>{{ item.professional.display_name }}</dd>
+                <dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Atendimento independente — consulte o profissional' }}</dd>
+                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }} ({{ item.professional.timezone }})</dd>
+                <dt>Duração</dt><dd>{{ item.experience.duration_minutes }} minutos</dd>
+                <dt>Preço</dt><dd>R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}</dd>
+                <dt>Status</dt><dd>{{ item.status_label }}</dd>
+                <dt>Cancelamento</dt><dd>O cliente solicita e o executor efetiva, conforme as regras da reserva.</dd>
+                <dt>Reagendamento</dt><dd>Sujeito à disponibilidade real e à confirmação do executor.</dd>
+              </dl>
+              <h3>Histórico de eventos</h3>
+              <ol class="booking-timeline">
+                {% for event in row.timeline %}
+                <li>
+                  <time datetime="{{ event.local_at.isoformat() }}">{{ event.local_at.strftime('%d/%m/%Y %H:%M') }}</time>
+                  <strong>{{ event.kind }}</strong> — {{ event.description }}
+                  {% if event.reason %}<p>Motivo: {{ event.reason }}</p>{% endif %}
+                </li>
+                {% endfor %}
+              </ol>
+            </details>
+
             <!-- ==============================================
                  FOOTER / ACTION
                  ============================================== -->
@@ -338,7 +379,7 @@ my-bookings-page visual-v2-page
                       <label for="new-slot-{{ item.id }}">Solicitar outro horário</label>
                       <select name="slot_id" id="new-slot-{{ item.id }}" required>
                         {% for alternative in available_reschedule_slots[item.id] %}
-                        <option value="{{ alternative.id }}">{{ alternative.starts_at.strftime('%d/%m/%Y %H:%M') }} (UTC)</option>
+                        <option value="{{ alternative.id }}">{{ local_alternative_labels[alternative.id] }} ({{ item.professional.timezone }})</option>
                         {% endfor %}
                       </select>
                       <label for="reason-reschedule-{{ item.id }}">Motivo (opcional)</label>
@@ -406,8 +447,13 @@ my-bookings-page visual-v2-page
         {% endfor %}
 
       </div>
-
-
+    {% else %}
+    <section class="bookings-filter-empty" role="status">
+      <h2>Nenhuma reserva nesta seleção</h2>
+      <p>Escolha outra seção ou remova o filtro para consultar suas reservas.</p>
+      <a href="{{ url_for('bookings.mine', aba=tab) }}">Limpar filtro</a>
+    </section>
+    {% endif %}
     {% else %}
 
       <!-- ====================================================
