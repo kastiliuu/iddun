@@ -54,6 +54,8 @@ export type Booking = {
   createdAt: string;
   canConfirm: boolean;
   canCancel: boolean;
+  canRequestCancellation?: boolean;
+  cancellationRequestStatus?: "pending" | null;
 };
 
 export type BookingResponse = {
