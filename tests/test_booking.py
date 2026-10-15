@@ -1716,3 +1716,32 @@ def test_client_web_cancellation_form_creates_pending_request(app, client):
     html = client.get("/minhas-reservas").get_data(as_text=True)
     assert "Retirar solicitação" in html
     assert "Cancelar reserva" not in html
+
+def test_non_owner_cannot_submit_or_execute_cancellation_web(app, client):
+    from app.models.cancellation_request import CancellationRequest
+    _, slots = _catalog(app, slot_count=1)
+    owner_id, owner_profile = _client_user(app, "owner-denied@example.com")
+    attacker_id, _ = _client_user(app, "attacker-denied@example.com")
+    with app.app_context():
+        profile = db.session.get(ClientProfile, owner_profile)
+        booking = confirm_booking(hold_slot(slots[0], profile).id, profile)
+        booking_id = booking.id
+    _login_session(client, attacker_id)
+    response = client.post(
+        f"/reserva/{booking_id}/cancelar",
+        data={"motivo": "intrusão"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 404
+    response = client.post(
+        f"/reserva/{booking_id}/cancelamento/efetivar",
+        data={"motivo": "intrusão"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 404
+    with app.app_context():
+        booking = db.session.get(Booking, booking_id)
+        assert booking.status == BookingStatus.CONFIRMED
+        assert db.session.scalar(
+            select(CancellationRequest).where(CancellationRequest.booking_id == booking_id)
+        ) is None
