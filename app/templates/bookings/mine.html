@@ -115,6 +115,19 @@ my-bookings-page visual-v2-page
 
   <div class="container">
 
+    {% if confirmed_booking %}
+    <section class="booking-confirmed-feedback" role="status" aria-live="polite">
+      <strong>Reserva confirmada!</strong>
+      <p>
+        {{ confirmed_booking.experience.title }} com
+        {{ confirmed_booking.professional.display_name }}.
+        Confira abaixo o horário e os detalhes da sua reserva
+        #{{ '%04d'|format(confirmed_booking.id) }}.
+      </p>
+      <p>O pagamento do serviço será realizado diretamente com o profissional ou estabelecimento.</p>
+    </section>
+    {% endif %}
+
     {% if rows %}
 
       <!-- ====================================================
@@ -165,6 +178,7 @@ my-bookings-page visual-v2-page
           {% set item = row.booking %}
 
           <article
+            {% if confirmed_booking and item.id == confirmed_booking.id %}id="reserva-confirmada"{% endif %}
             class="booking-card booking-card--{{ item.status }}"
             aria-labelledby="booking-title-{{ item.id }}"
           >
