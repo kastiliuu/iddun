@@ -391,6 +391,26 @@ def test_booking_detail_shows_only_real_available_slot_count(app, client):
     assert "Selecione o dia e o horário para continuar sua reserva." in html
 
 
+def test_unavailable_slot_returns_client_to_availability_section(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, _ = _client_user(app)
+    _login_session(client, user_id)
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        slot.status = SlotStatus.BOOKED
+        db.session.commit()
+
+    response = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith(
+        "/experiencias/hair-experience-booking#horarios"
+    )
+
+
 def test_real_experience_detail_shows_available_slot(
     app,
     client,
