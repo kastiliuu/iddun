@@ -308,8 +308,8 @@ def create_booking_event(booking):
     return event
 
 
-def delete_booking_event(booking):
-    slot = booking.slot
+def delete_booking_event(booking, *, slot=None):
+    slot = slot if slot is not None else booking.slot
     if slot.external_calendar_provider != CalendarProvider.GOOGLE or not slot.external_event_id:
         return False
     connection = db.session.query(CalendarConnection).filter_by(
