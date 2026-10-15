@@ -280,7 +280,7 @@ def decide_booking_reschedule(booking_id):
     else:
         if record.status == "executed":
             try:
-                delete_booking_event(booking)
+                delete_booking_event(booking, slot=record.original_slot)
                 create_booking_event(booking)
             except Exception:
                 current_app.logger.warning(
