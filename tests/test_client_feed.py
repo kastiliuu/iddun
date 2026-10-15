@@ -1,3 +1,4 @@
+import re
 from sqlalchemy import select
 
 from app.extensions import db
@@ -351,14 +352,13 @@ def test_authenticated_mobile_navigation_has_five_client_destinations(app, clien
 
     response = client.get("/feed")
     assert response.status_code == 200
-    import re
     nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
     assert "mobile-bottom-nav--client" in nav_class
     assert len(links) == 5
     for item, label in zip(
         links, ["Início", "Descobrir", "Reservas", "Salvos", "Perfil"]
     ):
-        assert re.search(r"<span>\\s*" + re.escape(label) + r"\\s*</span>", item)
+        assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
     assert "feed-saved-panel" in links[3]
     assert "reserv" in links[2].lower()
 
@@ -372,4 +372,4 @@ def test_anonymous_mobile_navigation_keeps_public_destinations(client):
     for item, label in zip(
         links, ["Início", "Descobrir", "Profissionais", "Entrar"]
     ):
-        assert re.search(r"<span>\\s*" + re.escape(label) + r"\\s*</span>", item)
+        assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
