@@ -1,0 +1,31 @@
+{% extends 'layouts/base.html' %}
+{% block title %}Moderação de ausências | IDDUN{% endblock %}
+{% block content %}
+<main class="container" style="padding-block:2rem">
+  <h1>Contestações de ausência</h1>
+  <p>A análise não remove o no-show original nem altera a reserva.</p>
+  {% for dispute in disputes %}
+    <article style="border:1px solid #dadde1;padding:1rem;margin:1rem 0;border-radius:1rem">
+      <h2>Reserva #{{ dispute.booking_id }} — {{ dispute.status }}</h2>
+      <p><strong>Cliente:</strong> {{ dispute.booking.client.user.name }}</p>
+      <p><strong>Justificativa:</strong> {{ dispute.justification }}</p>
+      {% if dispute.evidence_reference %}
+        <p><strong>Referência privada da evidência:</strong> {{ dispute.evidence_reference }}</p>
+      {% endif %}
+      {% if dispute.status == 'pending' %}
+      <form method="post" action="{{ url_for('admin.moderate_no_show_dispute', dispute_id=dispute.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="decision-reason-{{ dispute.id }}">Fundamentação da decisão (obrigatória)</label>
+        <textarea id="decision-reason-{{ dispute.id }}" name="motivo" minlength="10" maxlength="2000" required></textarea>
+        <button type="submit" name="decision" value="accepted">Acolher</button>
+        <button type="submit" name="decision" value="rejected">Não acolher</button>
+      </form>
+      {% else %}
+        <p><strong>Decisão:</strong> {{ dispute.resolution_note }}</p>
+      {% endif %}
+    </article>
+  {% else %}
+    <p>Não há contestações registradas.</p>
+  {% endfor %}
+</main>
+{% endblock %}
