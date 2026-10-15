@@ -1,3 +1,4 @@
+import re
 from sqlalchemy import select
 
 from app.extensions import db
@@ -330,3 +331,45 @@ def test_feed_graph_actions_accept_web_session(
 
         assert len(user.follows) == 1
         assert len(user.saves) == 1
+
+
+def _mobile_nav_links(html):
+    import re
+
+    nav = re.search(
+        r'<nav\b[^>]*class="([^"]*mobile-bottom-nav[^"]*)"[^>]*>(.*?)</nav>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert nav is not None
+    links = re.findall(r'<a\b[^>]*>.*?</a>', nav.group(2), re.DOTALL)
+    return nav.group(1), links
+
+
+def test_authenticated_mobile_navigation_has_five_client_destinations(app, client):
+    catalog = _catalog(app)
+    _login(client, catalog["user_id"])
+
+    response = client.get("/feed")
+    assert response.status_code == 200
+    nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
+    assert "mobile-bottom-nav--client" in nav_class
+    assert len(links) == 5
+    for item, label in zip(
+        links, ["Início", "Descobrir", "Reservas", "Salvos", "Perfil"]
+    ):
+        assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
+    assert "feed-saved-panel" in links[3]
+    assert "reserv" in links[2].lower()
+
+
+def test_anonymous_mobile_navigation_keeps_public_destinations(client):
+    response = client.get("/")
+    assert response.status_code == 200
+    nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
+    assert "mobile-bottom-nav--client" not in nav_class
+    assert len(links) == 4
+    for item, label in zip(
+        links, ["Início", "Descobrir", "Profissionais", "Entrar"]
+    ):
+        assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)

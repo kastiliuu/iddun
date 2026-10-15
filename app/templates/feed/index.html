@@ -682,24 +682,7 @@
 {% block site_footer %}{% endblock %}
 
 {% block mobile_bottom_nav %}
-<nav class="feed-mobile-nav" aria-label="Navegação principal">
-  <a class="is-active" href="{{ url_for('feed.home') }}" aria-current="page">
-    {{ icon('home') }}
-    <span>Início</span>
-  </a>
-  <a href="{{ url_for('public.experiences') }}">
-    {{ icon('compass') }}
-    <span>Descobrir</span>
-  </a>
-  <a href="{{ url_for('bookings.mine') }}">
-    {{ icon('calendar') }}
-    <span>Reservas</span>
-  </a>
-  <a href="{{ url_for('account.dashboard') }}">
-    {{ icon('user') }}
-    <span>Perfil</span>
-  </a>
-</nav>
+{% include 'components/mobile-bottom-nav.html' %}
 {% endblock %}
 
 {% block scripts %}
