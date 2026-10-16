@@ -704,3 +704,31 @@ def test_mobile_reschedule_and_cancellation_requests_are_scoped_and_reversible(a
     assert client.post(
         f"/api/v1/bookings/{booking_id}/cancel-request/withdraw", headers=headers
     ).status_code == 200
+
+
+def test_booking_timeline_private_and_chronological(app, client):
+    _, slots = _catalog(app, slot_count=2)
+    _, owner_headers = _authenticated_client(app, email="timeline-owner@example.com")
+    _, outsider_headers = _authenticated_client(app, email="timeline-outsider@example.com")
+    held = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner_headers,
+    )
+    booking_id = held.get_json()["booking"]["id"]
+    assert client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=owner_headers).status_code == 200
+    path = f"/api/v1/bookings/{booking_id}/timeline"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=outsider_headers).status_code == 404
+    result = client.get(path, headers=owner_headers)
+    assert result.status_code == 200
+    assert "no-store" in result.headers["Cache-Control"]
+    events = result.get_json()["items"]
+    assert [entry["label"] for entry in events][:2] == ["Reserva iniciada", "Reserva confirmada"]
+    assert [entry["at"] for entry in events] == sorted(entry["at"] for entry in events)
+    requested = client.post(
+        f"/api/v1/bookings/{booking_id}/reschedule-request",
+        headers=owner_headers, json={"slotId": slots[1]},
+    )
+    assert requested.status_code == 200
+    events = client.get(path, headers=owner_headers).get_json()["items"]
+    assert "Reagendamento solicitado" in [entry["label"] for entry in events]
