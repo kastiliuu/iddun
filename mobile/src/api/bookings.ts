@@ -279,3 +279,16 @@ export function withdrawBookingCancellation(bookingId: string) {
     ),
   );
 }
+
+export type BookingTimeline = {
+  items: { at: string; label: string }[];
+};
+
+export function getBookingTimeline(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<BookingTimeline>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/timeline`,
+      { token },
+    ),
+  );
+}
