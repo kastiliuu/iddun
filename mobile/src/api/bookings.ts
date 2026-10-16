@@ -328,3 +328,27 @@ export function createNoShowDispute(
     ),
   );
 }
+
+export type BookingReviewResponse = {
+  eligible: boolean;
+  review: { rating: number; recommended: boolean; comment: string | null } | null;
+};
+
+export function getBookingReview(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<BookingReviewResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/review`, { token },
+    ),
+  );
+}
+
+export function saveBookingReview(
+  bookingId: string, rating: number, recommended: boolean, comment: string,
+) {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ saved: boolean }>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/review`,
+      { rating, recommended, comment }, { token },
+    ),
+  );
+}

@@ -781,3 +781,38 @@ def test_mobile_no_show_dispute_owner_validation_and_immutable_history(app, clie
         assert booking.status == BookingStatus.NO_SHOW
         assert booking.no_show_at == original
         assert db.session.scalar(select(NoShowDispute)).client_user_id is not None
+
+
+def test_mobile_review_only_after_completion_and_scoped_to_owner(app, client):
+    from app.models.reputation import Review, ReviewTarget
+    _, slots = _catalog(app, slot_count=1)
+    _, owner = _authenticated_client(app, email="review-mobile-owner@example.com")
+    _, outsider = _authenticated_client(app, email="review-mobile-outsider@example.com")
+    held = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner,
+    )
+    booking_id = held.get_json()["booking"]["id"]
+    assert client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=owner).status_code == 200
+    path = f"/api/v1/bookings/{booking_id}/review"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=outsider).status_code == 404
+    assert client.post(path, headers=outsider, json={"rating": 5, "recommended": True}).status_code == 404
+    assert client.get(path, headers=owner).get_json()["eligible"] is False
+    assert client.post(path, headers=owner, json={"rating": 5, "recommended": True}).status_code == 409
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.status = BookingStatus.COMPLETED
+        booking.completed_at = utcnow()
+        db.session.commit()
+    assert client.post(path, headers=owner, json={"rating": 6, "recommended": True}).status_code == 409
+    saved = client.post(path, headers=owner, json={"rating": 5, "recommended": True, "comment": "Atendimento excelente"})
+    assert saved.status_code == 200
+    assert client.get(path, headers=owner).get_json()["review"]["rating"] == 5
+    assert client.post(path, headers=owner, json={"rating": 4, "recommended": False}).status_code == 200
+    with app.app_context():
+        reviews = db.session.scalars(
+            select(Review).where(Review.booking_id == int(booking_id), Review.target_type == ReviewTarget.PROFESSIONAL)
+        ).all()
+        assert len(reviews) == 1
+        assert reviews[0].rating == 4

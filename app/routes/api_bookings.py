@@ -5,6 +5,8 @@ from sqlalchemy.orm import selectinload
 
 from app.extensions import csrf, db
 from app.models.no_show_dispute import NoShowDispute
+from app.models.reputation import ReviewTarget
+from app.services.reputation_service import get_review, save_review, ReviewError
 from app.services.no_show_dispute_service import submit_dispute, pending_dispute
 from app.models.cancellation_request import CancellationRequest
 from app.models.reschedule_request import RescheduleRequest
@@ -834,3 +836,53 @@ def create_client_no_show_dispute(booking_id):
     except BookingStateError as exc:
         return api_error("booking_state_conflict", str(exc), 409)
     return api_json({"dispute": _dispute_payload(dispute)}, 201, cache_control="private, no-store")
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/review")
+def get_client_booking_review(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    review = get_review(booking.id, ReviewTarget.PROFESSIONAL)
+    return api_json({
+        "eligible": booking.status == BookingStatus.COMPLETED,
+        "review": ({
+            "rating": review.rating, "recommended": review.recommended,
+            "comment": review.comment,
+        } if review else None),
+    }, cache_control="private, no-store")
+
+
+@api_bookings_bp.post("/bookings/<int:booking_id>/review")
+@csrf.exempt
+def save_client_booking_review(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error("invalid_payload", "Informe os dados da avaliação.", 400)
+    rating = payload.get("rating")
+    recommended = payload.get("recommended")
+    comment = payload.get("comment")
+    if isinstance(rating, bool) or not isinstance(rating, int) or not isinstance(recommended, bool) or (comment is not None and not isinstance(comment, str)):
+        return api_error("invalid_payload", "Avaliação inválida.", 400)
+    if comment is not None and len(comment) > 2000:
+        return api_error("invalid_payload", "Comentário muito longo.", 400)
+    try:
+        save_review(
+            booking=booking, client_profile=client,
+            target_type=ReviewTarget.PROFESSIONAL,
+            rating=rating, recommended=recommended, comment=comment,
+        )
+        db.session.commit()
+    except ReviewError as exc:
+        db.session.rollback()
+        return api_error("review_not_allowed", str(exc), 409)
+    return api_json({"saved": True}, cache_control="private, no-store")
