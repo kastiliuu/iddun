@@ -133,3 +133,13 @@ def test_mobile_transport_diagnostics_do_not_log_credentials_or_file_uri():
     assert "token" not in diagnostic
     assert "body" not in diagnostic
     assert "uri" not in diagnostic
+
+
+def test_mobile_media_upload_uses_real_blob_for_expo_fetch():
+    media = _read("mobile/src/api/media.ts")
+    assert "await fileResponse.blob()" in media
+    assert 'form.append("file", blob, image.name)' in media
+    assert "as unknown as Blob" not in media
+    assert "await imageFormData(image" in media
+    for endpoint in ("avatar", "cover", "portfolio"):
+        assert f'/api/v1/media/professional/{endpoint}' in media
