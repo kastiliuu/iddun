@@ -4,6 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.extensions import csrf, db
+from app.models.no_show_dispute import NoShowDispute
+from app.services.no_show_dispute_service import submit_dispute, pending_dispute
 from app.models.cancellation_request import CancellationRequest
 from app.models.reschedule_request import RescheduleRequest
 from app.models.booking import (
@@ -781,3 +783,54 @@ def booking_timeline(booking_id):
         "items": [{"at": as_utc(event["at"]).isoformat(), "label": event["label"]}
                   for event in events],
     }, cache_control="private, no-store")
+
+
+def _dispute_payload(dispute):
+    return {
+        "id": dispute.id,
+        "status": dispute.status,
+        "justification": dispute.justification,
+        "evidenceReference": dispute.evidence_reference,
+        "resolutionNote": dispute.resolution_note,
+        "createdAt": as_utc(dispute.created_at).isoformat(),
+        "resolvedAt": as_utc(dispute.resolved_at).isoformat() if dispute.resolved_at else None,
+    }
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/no-show-disputes")
+def list_client_no_show_disputes(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    disputes = db.session.scalars(
+        select(NoShowDispute).where(NoShowDispute.booking_id == booking.id)
+        .order_by(NoShowDispute.created_at.asc(), NoShowDispute.id.asc())
+    ).all()
+    return api_json({
+        "canDispute": booking.status == BookingStatus.NO_SHOW and pending_dispute(booking.id) is None,
+        "items": [_dispute_payload(item) for item in disputes],
+    }, cache_control="private, no-store")
+
+
+@api_bookings_bp.post("/bookings/<int:booking_id>/no-show-disputes")
+@csrf.exempt
+def create_client_no_show_dispute(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error("invalid_payload", "Informe os dados da contestação.", 400)
+    if not isinstance(payload.get("justification"), str) or not isinstance(payload.get("evidenceReference", ""), str):
+        return api_error("invalid_payload", "Justificativa ou referência inválida.", 400)
+    try:
+        dispute = submit_dispute(booking, _bearer_user(), payload["justification"], payload.get("evidenceReference"))
+    except BookingStateError as exc:
+        return api_error("booking_state_conflict", str(exc), 409)
+    return api_json({"dispute": _dispute_payload(dispute)}, 201, cache_control="private, no-store")
