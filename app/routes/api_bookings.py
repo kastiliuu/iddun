@@ -237,6 +237,9 @@ def _booking_payload(booking):
         "cancellationRequestStatus": (
             pending_cancellation(booking.id).status if pending_cancellation(booking.id) else None
         ),
+        "rescheduleRequestStatus": (
+            pending_reschedule(booking.id).status if pending_reschedule(booking.id) else None
+        ),
     }
 
 
