@@ -152,6 +152,12 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Conferir versão oficial do Expo SDK
+        run: npx expo install --check
+
+      - name: Conferir instalação do expo-calendar
+        run: npm ls expo-calendar --depth=0
+
       - name: Validar TypeScript
         run: npm run typecheck
 
