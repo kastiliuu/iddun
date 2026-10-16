@@ -816,3 +816,47 @@ def test_mobile_review_only_after_completion_and_scoped_to_owner(app, client):
         ).all()
         assert len(reviews) == 1
         assert reviews[0].rating == 4
+
+
+def test_mobile_calendar_share_owner_status_privacy_and_reschedule_freshness(app, client):
+    _, slots = _catalog(app, slot_count=2)
+    _, owner = _authenticated_client(app, email="calendar-mobile-owner@example.com")
+    _, outsider = _authenticated_client(app, email="calendar-mobile-outsider@example.com")
+    held = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner,
+    )
+    booking_id = held.get_json()["booking"]["id"]
+    prefix = f"/api/v1/bookings/{booking_id}"
+    assert client.get(prefix + "/calendar").status_code == 401
+    assert client.get(prefix + "/share", headers=outsider).status_code == 404
+    assert client.get(prefix + "/calendar", headers=owner).status_code == 409
+    assert client.post(prefix + "/confirm", headers=owner).status_code == 200
+    calendar = client.get(prefix + "/calendar", headers=owner)
+    sharing = client.get(prefix + "/share", headers=owner)
+    assert calendar.status_code == sharing.status_code == 200
+    assert "no-store" in calendar.headers["Cache-Control"]
+    assert "no-store" in sharing.headers["Cache-Control"]
+    event = calendar.get_json()
+    assert "BEGIN:VCALENDAR" in event["ics"]
+    assert "DTSTART:" in event["ics"]
+    assert event["uid"] in event["ics"]
+    assert "Authorization" not in event["ics"]
+    message = sharing.get_json()["message"]
+    assert "http" not in message.lower()
+    assert "Bearer" not in message
+    assert "@" not in message
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.slot_id = slots[1]
+        db.session.commit()
+    revised = client.get(prefix + "/calendar", headers=owner).get_json()
+    assert revised["uid"] == event["uid"]
+    assert revised["startsAt"] != event["startsAt"]
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.status = BookingStatus.CANCELLED
+        booking.cancelled_at = utcnow()
+        db.session.commit()
+    assert client.get(prefix + "/calendar", headers=owner).status_code == 409
+    assert client.get(prefix + "/share", headers=owner).status_code == 409
