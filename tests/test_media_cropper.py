@@ -114,3 +114,22 @@ def test_legacy_cropper_implementations_do_not_return():
 
         for forbidden_contract in forbidden_contracts:
             assert forbidden_contract not in source
+
+def test_professional_edit_shows_validation_summary():
+    template = _read("app/templates/platform/professional-edit.html")
+    assert "{% if form.errors %}" in template
+    assert 'role="alert"' in template
+    assert "Não foi possível salvar o perfil" in template
+    assert "form.errors.items()" in template
+
+
+def test_mobile_transport_diagnostics_do_not_log_credentials_or_file_uri():
+    client = _read("mobile/src/api/client.ts")
+    assert '"[IDDUN API] Transport failure"' in client
+    diagnostic = client.split('"[IDDUN API] Transport failure"', 1)[1].split("});", 1)[0]
+    assert "isMultipart: isFormData" in diagnostic
+    assert "errorMessage:" in diagnostic
+    assert "Authorization" not in diagnostic
+    assert "token" not in diagnostic
+    assert "body" not in diagnostic
+    assert "uri" not in diagnostic
