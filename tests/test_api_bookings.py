@@ -860,3 +860,35 @@ def test_mobile_calendar_share_owner_status_privacy_and_reschedule_freshness(app
         db.session.commit()
     assert client.get(prefix + "/calendar", headers=owner).status_code == 409
     assert client.get(prefix + "/share", headers=owner).status_code == 409
+
+
+def test_native_calendar_event_is_owner_scoped_and_reschedule_updates_time(app, client):
+    _, slots = _catalog(app, slot_count=2)
+    _, owner = _authenticated_client(app, email="native-calendar-owner@example.com")
+    _, outsider = _authenticated_client(app, email="native-calendar-outsider@example.com")
+    hold = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner,
+    )
+    booking_id = hold.get_json()["booking"]["id"]
+    url = f"/api/v1/bookings/{booking_id}/calendar"
+    assert client.get(url, headers=outsider).status_code == 404
+    assert client.get(url, headers=owner).status_code == 409
+    assert client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=owner).status_code == 200
+    first = client.get(url, headers=owner).get_json()
+    assert "iddun-booking-" in first["uid"]
+    assert first["startsAt"] and first["endsAt"]
+    assert "no-store" in client.get(url, headers=owner).headers["Cache-Control"]
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.slot_id = slots[1]
+        db.session.commit()
+    changed = client.get(url, headers=owner).get_json()
+    assert changed["uid"] == first["uid"]
+    assert changed["startsAt"] != first["startsAt"]
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.status = BookingStatus.CANCELLED
+        booking.cancelled_at = utcnow()
+        db.session.commit()
+    assert client.get(url, headers=owner).status_code == 409

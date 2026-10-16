@@ -9,6 +9,7 @@ import {
   type BookingTimeline, type NoShowDisputesResponse,
 } from "@/api/bookings";
 import { Button } from "@/components/Button";
+import { syncNativeBookingCalendar, removeNativeBookingCalendar } from "@/services/nativeBookingCalendar";
 import { fonts, makeStyles, spacing, radius, useTheme } from "@/theme";
 
 export default function BookingDetailScreen() {
@@ -97,6 +98,15 @@ export default function BookingDetailScreen() {
             <View style={styles.card}>
               <Text style={styles.subtitle}>Calendário e compartilhamento</Text>
               <Text style={styles.text}>Adicione um evento ao Google Calendar ou compartilhe apenas os detalhes mínimos. Dados de contato, links autenticados e endereços privados não são enviados.</Text>
+              <Button title="Salvar/atualizar no calendário do dispositivo" compact variant="secondary"
+                loading={busy} onPress={() => {
+                  if (!id || busy) return;
+                  setBusy(true);
+                  void syncNativeBookingCalendar(id)
+                    .then((result) => Alert.alert("Calendário", result === "created" ? "Evento adicionado." : result === "updated" ? "Evento atualizado." : "O evento já está atualizado."))
+                    .catch((caught: unknown) => Alert.alert("Calendário indisponível", caught instanceof Error ? caught.message : "Tente novamente."))
+                    .finally(() => setBusy(false));
+                }} />
               <Button title="Adicionar ao Google Calendar" compact variant="secondary" onPress={() => {
                 if (!id || busy) return;
                 setBusy(true);
@@ -120,6 +130,20 @@ export default function BookingDetailScreen() {
                   .finally(() => setBusy(false));
               }} />
               <Text style={styles.text}>Se a reserva mudar, abra novamente esta tela e gere um novo evento. Eventos adicionados anteriormente não são alterados automaticamente.</Text>
+            </View>
+          ) : null}
+          {booking.status === "cancelled" ? (
+            <View style={styles.card}>
+              <Text style={styles.subtitle}>Reserva cancelada</Text>
+              <Text style={styles.text}>Se você adicionou esta reserva ao calendário pelo IDDUN, pode remover a cópia local.</Text>
+              <Button title="Remover evento do calendário" compact variant="ghost" loading={busy} onPress={() => {
+                if (!id || busy) return;
+                setBusy(true);
+                void removeNativeBookingCalendar(id)
+                  .then((removed) => Alert.alert("Calendário", removed ? "Evento removido." : "Nenhum evento salvo por este dispositivo foi localizado."))
+                  .catch((caught: unknown) => Alert.alert("Não foi possível remover", caught instanceof Error ? caught.message : "Tente novamente."))
+                  .finally(() => setBusy(false));
+              }} />
             </View>
           ) : null}
           {booking.status === "completed" ? (
