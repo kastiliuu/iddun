@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "rea
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   getBooking, getBookingActions, getBookingTimeline, getNoShowDisputes, createNoShowDispute,
+  getBookingReview, saveBookingReview, type BookingReviewResponse,
   requestBookingReschedule, type Booking, type BookingActionsResponse,
   type BookingTimeline, type NoShowDisputesResponse,
 } from "@/api/bookings";
@@ -18,6 +19,10 @@ export default function BookingDetailScreen() {
   const [actions, setActions] = useState<BookingActionsResponse | null>(null);
   const [timeline, setTimeline] = useState<BookingTimeline["items"]>([]);
   const [busy, setBusy] = useState(false);
+  const [review, setReview] = useState<BookingReviewResponse | null>(null);
+  const [rating, setRating] = useState(5);
+  const [recommended, setRecommended] = useState(true);
+  const [reviewComment, setReviewComment] = useState("");
   const [disputes, setDisputes] = useState<NoShowDisputesResponse | null>(null);
   const [justification, setJustification] = useState("");
   const [evidenceReference, setEvidenceReference] = useState("");
@@ -25,13 +30,19 @@ export default function BookingDetailScreen() {
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [detail, available, history, disputeHistory] = await Promise.all([
-        getBooking(id), getBookingActions(id), getBookingTimeline(id), getNoShowDisputes(id),
+      const [detail, available, history, disputeHistory, reviewResponse] = await Promise.all([
+        getBooking(id), getBookingActions(id), getBookingTimeline(id), getNoShowDisputes(id), getBookingReview(id),
       ]);
       setBooking(detail.booking);
       setActions(available);
       setTimeline(history.items);
       setDisputes(disputeHistory);
+      setReview(reviewResponse);
+      if (reviewResponse.review) {
+        setRating(reviewResponse.review.rating);
+        setRecommended(reviewResponse.review.recommended);
+        setReviewComment(reviewResponse.review.comment || "");
+      }
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível carregar a reserva.");
@@ -81,6 +92,51 @@ export default function BookingDetailScreen() {
               <Text style={styles.text}>{event.label}</Text>
             </View>
           ))}
+          {booking.status === "completed" ? (
+            <View style={styles.card}>
+              <Text style={styles.subtitle}>Pós-atendimento</Text>
+              <Text style={styles.text}>Atendimento concluído com {booking.professional.name}.</Text>
+              <Text style={styles.text}>Preço registrado: R$ {booking.price.toFixed(2).replace(".", ",")}</Text>
+              {actions?.canRebook && actions.rebookExperienceSlug ? (
+                <Button title="Reservar novamente" compact variant="secondary"
+                  onPress={() => router.push({
+                    pathname: "/booking/[serviceId]",
+                    params: { serviceId: actions.rebookExperienceSlug || "" },
+                  })} />
+              ) : <Text style={styles.text}>Esta oferta não possui novos horários válidos no momento.</Text>}
+              {review?.eligible ? (
+                <>
+                  <Text style={styles.subtitle}>Avaliar profissional</Text>
+                  <Text style={styles.text}>Nota: {rating} de 5</Text>
+                  <View style={styles.ratingRow}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <View key={star} style={styles.slot}>
+                        <Button title={String(star)} compact
+                          variant={rating === star ? "secondary" : "ghost"}
+                          onPress={() => setRating(star)} />
+                      </View>
+                    ))}
+                  </View>
+                  <Button compact title={recommended ? "Recomendo este profissional" : "Não recomendo"}
+                    variant="ghost" onPress={() => setRecommended(!recommended)} />
+                  <TextInput style={styles.input} multiline maxLength={2000}
+                    placeholder="Conte como foi sua experiência (opcional)"
+                    placeholderTextColor={colors.muted} accessibilityLabel="Comentário da avaliação"
+                    value={reviewComment} onChangeText={setReviewComment} />
+                  <Button title={review.review ? "Atualizar avaliação" : "Publicar avaliação"}
+                    compact loading={busy} onPress={() => {
+                      if (!id || busy) return;
+                      setBusy(true);
+                      void saveBookingReview(id, rating, recommended, reviewComment)
+                        .then(() => load())
+                        .catch((caught: unknown) => Alert.alert("Avaliação não salva",
+                          caught instanceof Error ? caught.message : "Tente novamente."))
+                        .finally(() => setBusy(false));
+                    }} />
+                </>
+              ) : null}
+            </View>
+          ) : null}
           {booking.status === "no_show" ? (
             <View style={styles.card}>
               <Text style={styles.subtitle}>Contestação de ausência</Text>
@@ -149,5 +205,6 @@ const useStyles = makeStyles((colors) => ({
   card: { backgroundColor: colors.surfaceSecondary, padding: spacing.lg, borderRadius: radius.md, gap: spacing.sm },
   event: { borderLeftWidth: 2, borderLeftColor: colors.plum, paddingLeft: spacing.md, gap: spacing.xs },
   slot: { marginTop: spacing.xs },
+  ratingRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   input: { borderWidth: 1, borderColor: colors.glassBorder, color: colors.onSurface, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, minHeight: 48 },
 }));
