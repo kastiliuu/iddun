@@ -461,3 +461,33 @@ def test_establishment_draft_updates_mobile_auth_context(
             "establishment"
         ]["id"]
     )
+
+
+def test_professional_publication_requirements_separate_optional_media():
+    profile = ProfessionalProfile(
+        display_name="Marina",
+        primary_specialty="Nail Designer",
+        specialties_text="Unhas, Estética",
+        bio="Atendimento em unhas naturais.",
+        city="Curitiba",
+        state="PR",
+    )
+    assert all(profile.publication_requirements.values())
+    assert profile.avatar_url is None
+    assert profile.cover_url is None
+    assert not profile.portfolio_items
+
+
+def test_professional_publication_requirements_flag_missing_identity_fields():
+    profile = ProfessionalProfile(
+        display_name="Marina",
+        primary_specialty="",
+        specialties_text="",
+        bio="",
+        city="Curitiba",
+        state="PR",
+    )
+    assert profile.publication_requirements["display_name"] is True
+    assert profile.publication_requirements["specialty"] is False
+    assert profile.publication_requirements["categories"] is False
+    assert profile.publication_requirements["bio"] is False
