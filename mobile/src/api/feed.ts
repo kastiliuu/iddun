@@ -13,8 +13,9 @@ import {
   unsaveGraphTarget,
 } from "@/api/graph";
 
-import type {
-  UploadableImage,
+import {
+  imageFormData,
+  type UploadableImage,
 } from "@/api/media";
 
 
@@ -194,23 +195,10 @@ async function withAuthenticatedRequest<T>(
 }
 
 
-function postFormData(
+async function postFormData(
   payload: CreatePostPayload,
 ) {
-  const form =
-    new FormData();
-
-  form.append(
-    "file",
-    {
-      uri:
-        payload.image.uri,
-      name:
-        payload.image.name,
-      type:
-        payload.image.type,
-    } as unknown as Blob,
-  );
+  const form = await imageFormData(payload.image);
 
   form.append(
     "authorType",
@@ -345,18 +333,15 @@ export async function getMyPosts() {
 export async function createPost(
   payload: CreatePostPayload,
 ) {
-  const form =
-    postFormData(
-      payload,
-    );
-
   return withAuthenticatedRequest(
-    (token) =>
-      api.post<CreatePostResponse>(
+    async (token) => {
+      const form = await postFormData(payload);
+      return api.post<CreatePostResponse>(
         "/api/v1/posts",
         form,
         { token },
-      ),
+      );
+    },
   );
 }
 
@@ -382,34 +367,15 @@ export async function replacePostImage(
   focusX = 50,
   focusY = 50,
 ) {
-  const form =
-    new FormData();
-
-  form.append(
-    "file",
-    {
-      uri: image.uri,
-      name: image.name,
-      type: image.type,
-    } as unknown as Blob,
-  );
-
-  form.append(
-    "focusX",
-    String(focusX),
-  );
-  form.append(
-    "focusY",
-    String(focusY),
-  );
-
   return withAuthenticatedRequest(
-    (token) =>
-      api.post<CreatePostResponse>(
+    async (token) => {
+      const form = await imageFormData(image, {focusX, focusY});
+      return api.post<CreatePostResponse>(
         `/api/v1/posts/${postId}/image`,
         form,
         { token },
-      ),
+      );
+    },
   );
 }
 
