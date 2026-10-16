@@ -732,3 +732,52 @@ def test_booking_timeline_private_and_chronological(app, client):
     assert requested.status_code == 200
     events = client.get(path, headers=owner_headers).get_json()["items"]
     assert "Reagendamento solicitado" in [entry["label"] for entry in events]
+
+
+def test_mobile_no_show_dispute_owner_validation_and_immutable_history(app, client):
+    from app.models.no_show_dispute import NoShowDispute
+    _, slots = _catalog(app, slot_count=1)
+    _, owner_headers = _authenticated_client(app, email="dispute-mobile-owner@example.com")
+    _, outsider_headers = _authenticated_client(app, email="dispute-mobile-outsider@example.com")
+    hold = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner_headers,
+    )
+    booking_id = hold.get_json()["booking"]["id"]
+    assert client.post(
+        f"/api/v1/bookings/{booking_id}/confirm", headers=owner_headers
+    ).status_code == 200
+    path = f"/api/v1/bookings/{booking_id}/no-show-disputes"
+    assert client.get(path).status_code == 401
+    assert client.get(path, headers=outsider_headers).status_code == 404
+    assert client.post(path, headers=outsider_headers, json={
+        "justification": "Estou contestando o registro de ausência."
+    }).status_code == 404
+    assert client.post(path, headers=owner_headers, json={
+        "justification": "Estou contestando o registro de ausência."
+    }).status_code == 409
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        booking.status = BookingStatus.NO_SHOW
+        booking.no_show_at = utcnow()
+        db.session.commit()
+        original = booking.no_show_at
+    created = client.post(path, headers=owner_headers, json={
+        "justification": "Compareci à experiência no horário reservado.",
+        "evidenceReference": "Protocolo particular 456",
+    })
+    assert created.status_code == 201
+    assert created.get_json()["dispute"]["status"] == "pending"
+    assert client.post(path, headers=owner_headers, json={
+        "justification": "Outra contestação enquanto pendente."
+    }).status_code == 409
+    history = client.get(path, headers=owner_headers)
+    assert history.status_code == 200
+    assert "no-store" in history.headers["Cache-Control"]
+    assert history.get_json()["canDispute"] is False
+    assert history.get_json()["items"][0]["evidenceReference"] == "Protocolo particular 456"
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        assert booking.status == BookingStatus.NO_SHOW
+        assert booking.no_show_at == original
+        assert db.session.scalar(select(NoShowDispute)).client_user_id is not None
