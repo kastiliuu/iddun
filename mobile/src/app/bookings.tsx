@@ -18,8 +18,6 @@ import {
 import {
   cancelBooking,
   getBookings,
-  getBookingActions,
-  requestBookingReschedule,
   withdrawBookingReschedule,
   withdrawBookingCancellation,
   type Booking,
@@ -311,32 +309,8 @@ export default function BookingsScreen() {
     }
   };
 
-  const chooseReschedule = async (booking: Booking) => {
-    try {
-      const actions = await getBookingActions(booking.id);
-      if (actions.rescheduleRequestStatus === "pending") {
-        Alert.alert("Solicitação pendente", "O horário original permanece reservado até a análise.");
-        return;
-      }
-      if (!actions.rescheduleSlots.length) {
-        Alert.alert("Sem novos horários", "Não há alternativas válidas para esta oferta agora.");
-        return;
-      }
-      Alert.alert(
-        "Solicitar outro horário",
-        "Escolha entre as duas primeiras opções disponíveis. O executor deverá aprovar; sua reserva original permanece confirmada.",
-        [
-          ...actions.rescheduleSlots.slice(0, 2).map((slot) => ({
-            text: `${slot.localDate} às ${slot.localTime}`,
-            onPress: () => void runAction(booking.id,
-              () => requestBookingReschedule(booking.id, slot.id)),
-          })),
-          { text: "Voltar", style: "cancel" as const },
-        ],
-      );
-    } catch (error) {
-      Alert.alert("Horários indisponíveis", error instanceof Error ? error.message : "Tente novamente.");
-    }
+  const chooseReschedule = (booking: Booking) => {
+    router.push({ pathname: "/booking-detail", params: { id: booking.id } });
   };
 
   if (loading) {
@@ -774,6 +748,11 @@ export default function BookingsScreen() {
                       styles.actions
                     }
                   >
+                    <Button title="Detalhes e histórico" variant="secondary" compact
+                      onPress={() => router.push({
+                        pathname: "/booking-detail", params: { id: booking.id },
+                      })} />
+
                     <Button
                       title={booking.status === "pending" ? "Continuar confirmação" : "Ver experiência"}
                       variant="secondary"

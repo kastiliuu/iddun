@@ -4,6 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 
 from app.extensions import csrf, db
+from app.models.cancellation_request import CancellationRequest
+from app.models.reschedule_request import RescheduleRequest
 from app.models.booking import (
     Booking,
     BookingStatus,
@@ -734,3 +736,48 @@ def withdraw_client_booking_reschedule(booking_id):
     return api_json({"booking": _booking_payload(booking),
                      "rescheduleRequest": {"id": item.id, "status": item.status}},
                     cache_control="private, no-store")
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/timeline")
+def booking_timeline(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    events = [{"at": booking.created_at, "label": "Reserva iniciada"}]
+    for date, label in (
+        (booking.confirmed_at, "Reserva confirmada"),
+        (booking.cancelled_at, "Reserva cancelada"),
+        (booking.completed_at, "Atendimento concluído"),
+        (booking.no_show_at, "Ausência registrada"),
+    ):
+        if date is not None:
+            events.append({"at": date, "label": label})
+    cancellations = db.session.scalars(
+        select(CancellationRequest).where(CancellationRequest.booking_id == booking.id)
+    ).all()
+    for item in cancellations:
+        events.append({"at": item.requested_at, "label": "Cancelamento solicitado"})
+        if item.resolved_at:
+            events.append({"at": item.resolved_at, "label": {
+                "withdrawn": "Cancelamento retirado",
+                "executed": "Cancelamento efetivado",
+            }.get(item.status, "Solicitação de cancelamento encerrada")})
+    reschedules = db.session.scalars(
+        select(RescheduleRequest).where(RescheduleRequest.booking_id == booking.id)
+    ).all()
+    for item in reschedules:
+        events.append({"at": item.requested_at, "label": "Reagendamento solicitado"})
+        if item.resolved_at:
+            events.append({"at": item.resolved_at, "label": {
+                "withdrawn": "Reagendamento retirado",
+                "executed": "Reagendamento confirmado",
+                "rejected": "Reagendamento recusado",
+            }.get(item.status, "Solicitação de reagendamento encerrada")})
+    events.sort(key=lambda event: as_utc(event["at"]))
+    return api_json({
+        "items": [{"at": as_utc(event["at"]).isoformat(), "label": event["label"]}
+                  for event in events],
+    }, cache_control="private, no-store")
