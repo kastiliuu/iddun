@@ -19,7 +19,7 @@ def pending_reschedule(booking_id):
 
 def eligible_reschedule_slots(booking):
     now = utcnow()
-    return db.session.scalars(
+    candidates = db.session.scalars(
         select(ExperienceSlot).where(
             ExperienceSlot.experience_id == booking.experience_id,
             ExperienceSlot.professional_id == booking.professional_id,
@@ -30,6 +30,7 @@ def eligible_reschedule_slots(booking):
             ExperienceSlot.starts_at > now,
         ).order_by(ExperienceSlot.starts_at.asc()).limit(40)
     ).all()
+    return [slot for slot in candidates if now < booking_deadline(slot)]
 
 
 def request_reschedule(booking, user, slot_id, reason=None):
