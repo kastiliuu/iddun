@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Share, ScrollView, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
   getBooking, getBookingActions, getBookingTimeline, getNoShowDisputes, createNoShowDispute,
-  getBookingReview, saveBookingReview, type BookingReviewResponse,
+  getBookingReview, saveBookingReview, getBookingCalendar, getBookingSafeShare,
+  type BookingReviewResponse,
   requestBookingReschedule, type Booking, type BookingActionsResponse,
   type BookingTimeline, type NoShowDisputesResponse,
 } from "@/api/bookings";
@@ -92,6 +93,35 @@ export default function BookingDetailScreen() {
               <Text style={styles.text}>{event.label}</Text>
             </View>
           ))}
+          {(booking.status === "confirmed" || booking.status === "completed") ? (
+            <View style={styles.card}>
+              <Text style={styles.subtitle}>Calendário e compartilhamento</Text>
+              <Text style={styles.text}>Adicione um evento ao Google Calendar ou compartilhe apenas os detalhes mínimos. Dados de contato, links autenticados e endereços privados não são enviados.</Text>
+              <Button title="Adicionar ao Google Calendar" compact variant="secondary" onPress={() => {
+                if (!id || busy) return;
+                setBusy(true);
+                void getBookingCalendar(id).then(async (event) => {
+                  const utc = (date: string) => new Date(date).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+                  const url = "https://calendar.google.com/calendar/render?action=TEMPLATE"
+                    + "&text=" + encodeURIComponent(event.title)
+                    + "&dates=" + encodeURIComponent(utc(event.startsAt) + "/" + utc(event.endsAt))
+                    + "&details=" + encodeURIComponent("Reserva IDDUN. Consulte a plataforma para alterações.");
+                  await Linking.openURL(url);
+                }).catch((caught: unknown) => Alert.alert("Calendário indisponível",
+                  caught instanceof Error ? caught.message : "Tente novamente."))
+                  .finally(() => setBusy(false));
+              }} />
+              <Button title="Compartilhar resumo seguro" compact variant="ghost" onPress={() => {
+                if (!id || busy) return;
+                setBusy(true);
+                void getBookingSafeShare(id).then(({ message }) => Share.share({ message }))
+                  .catch((caught: unknown) => Alert.alert("Compartilhamento indisponível",
+                    caught instanceof Error ? caught.message : "Tente novamente."))
+                  .finally(() => setBusy(false));
+              }} />
+              <Text style={styles.text}>Se a reserva mudar, abra novamente esta tela e gere um novo evento. Eventos adicionados anteriormente não são alterados automaticamente.</Text>
+            </View>
+          ) : null}
           {booking.status === "completed" ? (
             <View style={styles.card}>
               <Text style={styles.subtitle}>Pós-atendimento</Text>

@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.extensions import csrf, db
 from app.models.no_show_dispute import NoShowDispute
+from app.services.booking_share_service import calendar_payload, share_payload
 from app.models.reputation import ReviewTarget
 from app.services.reputation_service import get_review, save_review, ReviewError
 from app.services.no_show_dispute_service import submit_dispute, pending_dispute
@@ -886,3 +887,37 @@ def save_client_booking_review(booking_id):
         db.session.rollback()
         return api_error("review_not_allowed", str(exc), 409)
     return api_json({"saved": True}, cache_control="private, no-store")
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/calendar")
+def client_booking_calendar(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    ics = calendar_payload(booking)
+    if ics is None:
+        return api_error("booking_not_exportable", "Reserva indisponível para calendário.", 409)
+    return api_json({
+        "ics": ics,
+        "startsAt": as_utc(booking.slot.starts_at).isoformat(),
+        "endsAt": as_utc(booking.slot.ends_at).isoformat(),
+        "title": "IDDUN - " + booking.experience.title,
+        "uid": f"iddun-booking-{booking.id}@iddun.local",
+    }, cache_control="private, no-store")
+
+
+@api_bookings_bp.get("/bookings/<int:booking_id>/share")
+def client_booking_share(booking_id):
+    client, error = _require_client()
+    if error is not None:
+        return error
+    booking = _booking_for_client(booking_id, client.id)
+    if booking is None:
+        return api_error("booking_not_found", "Reserva não encontrada.", 404)
+    message = share_payload(booking)
+    if message is None:
+        return api_error("booking_not_shareable", "Reserva indisponível para compartilhamento.", 409)
+    return api_json({"message": message}, cache_control="private, no-store")

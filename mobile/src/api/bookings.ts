@@ -352,3 +352,29 @@ export function saveBookingReview(
     ),
   );
 }
+
+export type CalendarBookingPayload = {
+  ics: string;
+  startsAt: string;
+  endsAt: string;
+  title: string;
+  uid: string;
+};
+
+export function getBookingCalendar(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<CalendarBookingPayload>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/calendar`,
+      { token },
+    ),
+  );
+}
+
+export function getBookingSafeShare(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ message: string }>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/share`,
+      { token },
+    ),
+  );
+}
