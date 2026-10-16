@@ -189,7 +189,26 @@ class ProfessionalProfile(db.Model):
         return round((sum(checks) / len(checks)) * 100)
 
     @property
+    def publication_requirements(self):
+        """Mandatory identity fields, independent of optional media.
+
+        Delivery modality is not stored yet; callers must not use this
+        diagnostic list alone to authorize publication.
+        """
+        return {
+            "display_name": bool(self.display_name and self.display_name.strip()),
+            "specialty": bool(self.primary_specialty and self.primary_specialty.strip()),
+            "categories": bool(self.specialties_text and self.specialties_text.strip()),
+            "bio": bool(self.bio and self.bio.strip()),
+            "city": bool(self.city and self.city.strip()),
+            "state": bool(self.state and self.state.strip()),
+        }
+
+    @property
     def ready_to_publish(self):
+        # Legacy gate until modality persistence and unified publication
+        # eligibility land together. Do not equate visual completion to
+        # the approved publication rule (DEC-ID-093–095).
         return self.profile_completion == 100
 
 
