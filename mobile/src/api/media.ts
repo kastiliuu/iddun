@@ -75,7 +75,7 @@ async function withAuthenticatedRequest<T>(
 }
 
 
-async function imageFormData(
+export async function imageFormData(
   image: UploadableImage,
   extras: Record<
     string,
