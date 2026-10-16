@@ -56,6 +56,13 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "O IDDUN usa o calendário para salvar e atualizar reservas quando você solicitar.",
+          "remindersPermission": "O IDDUN não acessa seus lembretes."
+        }
       ]
     ],
     "experiments": {
