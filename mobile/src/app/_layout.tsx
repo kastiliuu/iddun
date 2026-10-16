@@ -192,6 +192,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="booking-detail"
+              />
+
+              <Stack.Screen
                 name="jobs"
               />
 
