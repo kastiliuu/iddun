@@ -75,24 +75,29 @@ async function withAuthenticatedRequest<T>(
 }
 
 
-function imageFormData(
+async function imageFormData(
   image: UploadableImage,
   extras: Record<
     string,
     string | number | undefined
   > = {},
-) {
-  const form =
-    new FormData();
+): Promise<FormData> {
+  // Expo's fetch rejects a React Native { uri, name, type } object
+  // masquerading as Blob. Read the normalized file as a real Blob.
+  const fileResponse = await fetch(image.uri);
 
-  form.append(
-    "file",
-    {
-      uri: image.uri,
-      name: image.name,
-      type: image.type,
-    } as unknown as Blob,
-  );
+  if (!fileResponse.ok) {
+    throw new Error("Não foi possível ler a imagem selecionada.");
+  }
+
+  const blob = await fileResponse.blob();
+
+  if (!blob.size) {
+    throw new Error("A imagem selecionada está vazia.");
+  }
+
+  const form = new FormData();
+  form.append("file", blob, image.name);
 
   for (
     const [
@@ -125,25 +130,21 @@ export function uploadProfessionalAvatar(
     y?: number;
   } = {},
 ) {
-  const body =
-    imageFormData(
-      image,
-      {
+  return withAuthenticatedRequest(
+    async (token) => {
+      const body = await imageFormData(image, {
         focusX: focus.x,
         focusY: focus.y,
-      },
-    );
-
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<{
+      });
+      return api.post<{
         avatar: ProfessionalMediaImage;
         completion: MediaCompletion;
       }>(
         "/api/v1/media/professional/avatar",
         body,
         { token },
-      ),
+      );
+    },
   );
 }
 
@@ -155,25 +156,21 @@ export function uploadProfessionalCover(
     y?: number;
   } = {},
 ) {
-  const body =
-    imageFormData(
-      image,
-      {
+  return withAuthenticatedRequest(
+    async (token) => {
+      const body = await imageFormData(image, {
         focusX: focus.x,
         focusY: focus.y,
-      },
-    );
-
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<{
+      });
+      return api.post<{
         cover: ProfessionalMediaImage;
         completion: MediaCompletion;
       }>(
         "/api/v1/media/professional/cover",
         body,
         { token },
-      ),
+      );
+    },
   );
 }
 
@@ -182,26 +179,22 @@ export function uploadProfessionalPortfolioItem(
   image: UploadableImage,
   caption?: string,
 ) {
-  const body =
-    imageFormData(
-      image,
-      {
+  return withAuthenticatedRequest(
+    async (token) => {
+      const body = await imageFormData(image, {
         caption:
           caption?.trim() ||
           undefined,
-      },
-    );
-
-  return withAuthenticatedRequest(
-    (token) =>
-      api.post<{
+      });
+      return api.post<{
         item: ProfessionalPortfolioMedia;
         completion: MediaCompletion;
       }>(
         "/api/v1/media/professional/portfolio",
         body,
         { token },
-      ),
+      );
+    },
   );
 }
 
