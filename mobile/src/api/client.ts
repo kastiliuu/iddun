@@ -336,6 +336,17 @@ export async function apiRequest<T>(
       throw error;
     }
 
+    // Diagnostic context only: never log tokens, request bodies or image URIs.
+    if (__DEV__) {
+      console.warn("[IDDUN API] Transport failure", {
+        method,
+        path,
+        isMultipart: isFormData,
+        errorName: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : "Unknown transport error",
+      });
+    }
+
     throw new ApiError(
       "Não foi possível conectar ao servidor.",
       0,
