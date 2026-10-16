@@ -18,6 +18,10 @@ import {
 import {
   cancelBooking,
   getBookings,
+  getBookingActions,
+  requestBookingReschedule,
+  withdrawBookingReschedule,
+  withdrawBookingCancellation,
   type Booking,
 } from "@/api/bookings";
 import { ApiError } from "@/api/client";
@@ -35,6 +39,7 @@ import {
 
 type BookingTab =
   | "upcoming"
+  | "requests"
   | "history";
 
 const STATUS_LABELS: Record<
@@ -110,6 +115,7 @@ export default function BookingsScreen() {
       null,
     );
 
+  const [workingId, setWorkingId] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -183,31 +189,19 @@ export default function BookingsScreen() {
     }, []),
   );
 
-  const visibleItems =
-    useMemo(
-      () =>
-        items.filter(
-          (booking) =>
-            tab ===
-              "upcoming"
-              ? (
-                  booking.status
-                  === "pending"
-                  || booking.status
-                  === "confirmed"
-                )
-              : (
-                  booking.status
-                  !== "pending"
-                  && booking.status
-                  !== "confirmed"
-                ),
-        ),
-      [
-        items,
-        tab,
-      ],
-    );
+  const visibleItems = useMemo(() => items.filter((booking) => {
+    if (tab === "requests") {
+      return booking.cancellationRequestStatus === "pending"
+        || booking.rescheduleRequestStatus === "pending";
+    }
+    if (tab === "history") {
+      return booking.status === "completed" || booking.status === "cancelled"
+        || booking.status === "no_show"
+        || (booking.status === "confirmed" && new Date(booking.slot.startsAt).getTime() <= Date.now());
+    }
+    return (booking.status === "pending" || booking.status === "confirmed")
+      && new Date(booking.slot.startsAt).getTime() > Date.now();
+  }), [items, tab]);
 
   const refresh =
     async () => {
@@ -300,6 +294,47 @@ export default function BookingsScreen() {
         },
       ],
     );
+  };
+
+  const runAction = async (bookingId: string, action: () => Promise<unknown>) => {
+    if (workingId) return;
+    setWorkingId(bookingId);
+    try {
+      await action();
+      await refresh();
+    } catch (error) {
+      Alert.alert("Não foi possível concluir", error instanceof Error ? error.message : "Tente novamente.");
+    } finally {
+      setWorkingId(null);
+    }
+  };
+
+  const chooseReschedule = async (booking: Booking) => {
+    try {
+      const actions = await getBookingActions(booking.id);
+      if (actions.rescheduleRequestStatus === "pending") {
+        Alert.alert("Solicitação pendente", "O horário original permanece reservado até a análise.");
+        return;
+      }
+      if (!actions.rescheduleSlots.length) {
+        Alert.alert("Sem novos horários", "Não há alternativas válidas para esta oferta agora.");
+        return;
+      }
+      Alert.alert(
+        "Solicitar outro horário",
+        "O profissional deverá aprovar. Sua reserva original permanece confirmada.",
+        [
+          ...actions.rescheduleSlots.slice(0, 10).map((slot) => ({
+            text: `${slot.localDate} às ${slot.localTime}`,
+            onPress: () => void runAction(booking.id,
+              () => requestBookingReschedule(booking.id, slot.id)),
+          })),
+          { text: "Voltar", style: "cancel" as const },
+        ],
+      );
+    } catch (error) {
+      Alert.alert("Horários indisponíveis", error instanceof Error ? error.message : "Tente novamente.");
+    }
   };
 
   if (loading) {
@@ -436,6 +471,10 @@ export default function BookingsScreen() {
                     "Próximos",
                 },
                 {
+                  id: "requests",
+                  label: "Solicitações",
+                },
+                {
                   id:
                     "history",
                   label:
@@ -544,13 +583,13 @@ export default function BookingsScreen() {
               tab ===
                 "upcoming"
                 ? "Nenhum agendamento futuro"
-                : "Seu histórico está vazio"
+                : tab === "requests" ? "Nenhuma solicitação pendente" : "Seu histórico está vazio"
             }
             description={
               tab ===
                 "upcoming"
                 ? "Quando você reservar uma experiência, ela aparece aqui."
-                : "Atendimentos concluídos ou cancelados aparecem aqui."
+                : tab === "requests" ? "Pedidos de cancelamento e reagendamento em análise aparecem aqui." : "Atendimentos concluídos ou cancelados aparecem aqui."
             }
             actionLabel="Explorar experiências"
             onActionPress={() =>
@@ -721,13 +760,20 @@ export default function BookingsScreen() {
                     </View>
                   ) : null}
 
+                  {booking.cancellationRequestStatus === "pending" ? (
+                    <Text style={styles.metaText}>Cancelamento solicitado — aguardando executor.</Text>
+                  ) : null}
+                  {booking.rescheduleRequestStatus === "pending" ? (
+                    <Text style={styles.metaText}>Reagendamento solicitado — horário original mantido.</Text>
+                  ) : null}
+
                   <View
                     style={
                       styles.actions
                     }
                   >
                     <Button
-                      title={booking.status === "pending" ? "Continuar confirmação" : "Reservar novamente"}
+                      title={booking.status === "pending" ? "Continuar confirmação" : "Ver experiência"}
                       variant="secondary"
                       compact
                       onPress={() => {
@@ -745,6 +791,23 @@ export default function BookingsScreen() {
                       }}
                     />
 
+                    {booking.status === "confirmed" && !booking.rescheduleRequestStatus ? (
+                      <Button title="Solicitar reagendamento" variant="secondary" compact
+                        loading={workingId === booking.id}
+                        onPress={() => void chooseReschedule(booking)} />
+                    ) : null}
+                    {booking.rescheduleRequestStatus === "pending" ? (
+                      <Button title="Retirar reagendamento" variant="ghost" compact
+                        loading={workingId === booking.id}
+                        onPress={() => void runAction(booking.id,
+                          () => withdrawBookingReschedule(booking.id))} />
+                    ) : null}
+                    {booking.cancellationRequestStatus === "pending" ? (
+                      <Button title="Retirar cancelamento" variant="ghost" compact
+                        loading={workingId === booking.id}
+                        onPress={() => void runAction(booking.id,
+                          () => withdrawBookingCancellation(booking.id))} />
+                    ) : null}
                     {(booking.canCancel || (booking.canRequestCancellation && !booking.cancellationRequestStatus)) ? (
                       <Button
                         title={booking.status === "pending" ? "Liberar horário" : "Solicitar cancelamento"}
