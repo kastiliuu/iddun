@@ -1,10 +1,10 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
-  getBooking, getBookingActions, getBookingTimeline,
+  getBooking, getBookingActions, getBookingTimeline, getNoShowDisputes, createNoShowDispute,
   requestBookingReschedule, type Booking, type BookingActionsResponse,
-  type BookingTimeline,
+  type BookingTimeline, type NoShowDisputesResponse,
 } from "@/api/bookings";
 import { Button } from "@/components/Button";
 import { fonts, makeStyles, spacing, radius, useTheme } from "@/theme";
@@ -18,16 +18,20 @@ export default function BookingDetailScreen() {
   const [actions, setActions] = useState<BookingActionsResponse | null>(null);
   const [timeline, setTimeline] = useState<BookingTimeline["items"]>([]);
   const [busy, setBusy] = useState(false);
+  const [disputes, setDisputes] = useState<NoShowDisputesResponse | null>(null);
+  const [justification, setJustification] = useState("");
+  const [evidenceReference, setEvidenceReference] = useState("");
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
     if (!id) return;
     try {
-      const [detail, available, history] = await Promise.all([
-        getBooking(id), getBookingActions(id), getBookingTimeline(id),
+      const [detail, available, history, disputeHistory] = await Promise.all([
+        getBooking(id), getBookingActions(id), getBookingTimeline(id), getNoShowDisputes(id),
       ]);
       setBooking(detail.booking);
       setActions(available);
       setTimeline(history.items);
+      setDisputes(disputeHistory);
       setError(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível carregar a reserva.");
@@ -77,6 +81,49 @@ export default function BookingDetailScreen() {
               <Text style={styles.text}>{event.label}</Text>
             </View>
           ))}
+          {booking.status === "no_show" ? (
+            <View style={styles.card}>
+              <Text style={styles.subtitle}>Contestação de ausência</Text>
+              <Text style={styles.text}>O registro da ausência permanece no histórico durante a análise.</Text>
+              {disputes?.items.map((item) => (
+                <View key={item.id} style={styles.event}>
+                  <Text style={styles.text}>Status: {item.status === "pending" ? "Em análise" : item.status === "accepted" ? "Acolhida" : "Não acolhida"}</Text>
+                  <Text style={styles.text}>Solicitada em {new Date(item.createdAt).toLocaleString("pt-BR")}</Text>
+                  <Text style={styles.text}>Justificativa: {item.justification}</Text>
+                  {item.resolvedAt ? <Text style={styles.text}>Analisada em {new Date(item.resolvedAt).toLocaleString("pt-BR")}</Text> : null}
+                  {item.resolutionNote ? <Text style={styles.text}>Decisão: {item.resolutionNote}</Text> : null}
+                </View>
+              ))}
+              {disputes?.canDispute ? (
+                <>
+                  <Text style={styles.text}>Justificativa (10 a 2000 caracteres)</Text>
+                  <TextInput style={styles.input} multiline maxLength={2000} value={justification}
+                    onChangeText={setJustification} placeholder="Explique por que contesta a ausência"
+                    placeholderTextColor={colors.muted} accessibilityLabel="Justificativa da contestação" />
+                  <Text style={styles.text}>Referência de evidência (opcional, apenas texto privado)</Text>
+                  <TextInput style={styles.input} maxLength={500} value={evidenceReference}
+                    onChangeText={setEvidenceReference} placeholder="Ex.: número de protocolo"
+                    placeholderTextColor={colors.muted} accessibilityLabel="Referência privada de evidência" />
+                  <Button title="Enviar contestação" compact loading={busy}
+                    onPress={() => {
+                      if (!id || busy) return;
+                      if (justification.trim().length < 10) {
+                        Alert.alert("Justificativa incompleta", "Informe pelo menos 10 caracteres.");
+                        return;
+                      }
+                      setBusy(true);
+                      void createNoShowDispute(id, justification, evidenceReference).then(() => {
+                        setJustification("");
+                        setEvidenceReference("");
+                        return load();
+                      }).catch((caught: unknown) => {
+                        Alert.alert("Não foi possível contestar", caught instanceof Error ? caught.message : "Tente novamente.");
+                      }).finally(() => setBusy(false));
+                    }} />
+                </>
+              ) : null}
+            </View>
+          ) : null}
           <Text style={styles.subtitle}>Solicitar outro horário</Text>
           {actions?.rescheduleRequestStatus === "pending" ? (
             <Text style={styles.text}>Solicitação em análise. O horário original continua reservado.</Text>
@@ -102,4 +149,5 @@ const useStyles = makeStyles((colors) => ({
   card: { backgroundColor: colors.surfaceSecondary, padding: spacing.lg, borderRadius: radius.md, gap: spacing.sm },
   event: { borderLeftWidth: 2, borderLeftColor: colors.plum, paddingLeft: spacing.md, gap: spacing.xs },
   slot: { marginTop: spacing.xs },
+  input: { borderWidth: 1, borderColor: colors.glassBorder, color: colors.onSurface, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, minHeight: 48 },
 }));
