@@ -202,7 +202,7 @@ export default function BookingsScreen() {
         || (booking.status === "confirmed" && new Date(booking.slot.startsAt).getTime() <= referenceTime);
     }
     return (booking.status === "pending" || booking.status === "confirmed")
-      && new Date(booking.slot.startsAt).getTime() > Date.now();
+      && new Date(booking.slot.startsAt).getTime() > referenceTime;
   }), [items, tab, referenceTime]);
 
   const refresh =
