@@ -56,6 +56,20 @@
     >
       {{ form.hidden_tag() }}
 
+      {% if form.errors %}
+      <div class="platform-panel" role="alert" aria-live="assertive" id="profile-validation-errors" tabindex="-1">
+        <h2>Não foi possível salvar o perfil</h2>
+        <p>Revise os campos abaixo antes de tentar novamente:</p>
+        <ul>
+          {% for field_name, messages in form.errors.items() %}
+            {% for message in messages %}
+              <li>{{ form[field_name].label.text if field_name in form else 'Formulário' }}: {{ message }}</li>
+            {% endfor %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
       <section class="platform-panel">
         <header class="platform-panel__head">
           <div>
