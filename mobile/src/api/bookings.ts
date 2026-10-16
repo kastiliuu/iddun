@@ -292,3 +292,39 @@ export function getBookingTimeline(bookingId: string) {
     ),
   );
 }
+
+export type NoShowDispute = {
+  id: number;
+  status: "pending" | "accepted" | "rejected";
+  justification: string;
+  evidenceReference: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+export type NoShowDisputesResponse = {
+  canDispute: boolean;
+  items: NoShowDispute[];
+};
+
+export function getNoShowDisputes(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<NoShowDisputesResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/no-show-disputes`,
+      { token },
+    ),
+  );
+}
+
+export function createNoShowDispute(
+  bookingId: string, justification: string, evidenceReference?: string,
+) {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ dispute: NoShowDispute }>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/no-show-disputes`,
+      { justification, evidenceReference: evidenceReference || "" },
+      { token },
+    ),
+  );
+}
