@@ -228,13 +228,13 @@ export function cancelBooking(
 
 export type BookingActionsResponse = {
   rescheduleRequestStatus: "pending" | null;
-  rescheduleSlots: Array<{
+  rescheduleSlots: {
     id: number;
     startsAt: string;
     localDate: string;
     localTime: string;
     timezone: string;
-  }>;
+  }[];
   canRebook: boolean;
   rebookExperienceSlug: string | null;
 };
