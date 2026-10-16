@@ -322,9 +322,9 @@ export default function BookingsScreen() {
       }
       Alert.alert(
         "Solicitar outro horário",
-        "O profissional deverá aprovar. Sua reserva original permanece confirmada.",
+        "Escolha entre as duas primeiras opções disponíveis. O executor deverá aprovar; sua reserva original permanece confirmada.",
         [
-          ...actions.rescheduleSlots.slice(0, 10).map((slot) => ({
+          ...actions.rescheduleSlots.slice(0, 2).map((slot) => ({
             text: `${slot.localDate} às ${slot.localTime}`,
             onPress: () => void runAction(booking.id,
               () => requestBookingReschedule(booking.id, slot.id)),
