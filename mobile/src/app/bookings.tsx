@@ -116,6 +116,7 @@ export default function BookingsScreen() {
     );
 
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [referenceTime, setReferenceTime] = useState<number>(0);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -129,6 +130,7 @@ export default function BookingsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       let active = true;
+      setReferenceTime(Date.now());
 
       const load =
         async () => {
@@ -197,11 +199,11 @@ export default function BookingsScreen() {
     if (tab === "history") {
       return booking.status === "completed" || booking.status === "cancelled"
         || booking.status === "no_show"
-        || (booking.status === "confirmed" && new Date(booking.slot.startsAt).getTime() <= Date.now());
+        || (booking.status === "confirmed" && new Date(booking.slot.startsAt).getTime() <= referenceTime);
     }
     return (booking.status === "pending" || booking.status === "confirmed")
       && new Date(booking.slot.startsAt).getTime() > Date.now();
-  }), [items, tab]);
+  }), [items, tab, referenceTime]);
 
   const refresh =
     async () => {
