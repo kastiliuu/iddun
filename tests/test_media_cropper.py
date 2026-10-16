@@ -143,3 +143,15 @@ def test_mobile_media_upload_uses_real_blob_for_expo_fetch():
     assert "await imageFormData(image" in media
     for endpoint in ("avatar", "cover", "portfolio"):
         assert f'/api/v1/media/professional/{endpoint}' in media
+
+
+def test_mobile_post_upload_reuses_real_blob_multipart_builder():
+    feed = _read("mobile/src/api/feed.ts")
+    media = _read("mobile/src/api/media.ts")
+    assert "export async function imageFormData(" in media
+    assert "await imageFormData(payload.image)" in feed
+    assert "await imageFormData(image, {focusX, focusY})" in feed
+    assert "await postFormData(payload)" in feed
+    assert "as unknown as Blob" not in feed
+    assert '"/api/v1/posts"' in feed
+    assert "/image" in feed
