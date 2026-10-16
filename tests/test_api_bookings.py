@@ -892,3 +892,25 @@ def test_native_calendar_event_is_owner_scoped_and_reschedule_updates_time(app, 
         booking.cancelled_at = utcnow()
         db.session.commit()
     assert client.get(url, headers=owner).status_code == 409
+
+
+def test_rebook_actions_are_consistent_and_owner_scoped(app, client):
+    _, slots = _catalog(app, slot_count=2)
+    _, owner = _authenticated_client(app, email="stabilization-rebook-owner@example.com")
+    _, other = _authenticated_client(app, email="stabilization-rebook-other@example.com")
+    held = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold",
+        headers=owner,
+    )
+    assert held.status_code == 201
+    booking_id = held.get_json()["booking"]["id"]
+    assert client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=owner).status_code == 200
+    endpoint = f"/api/v1/bookings/{booking_id}/actions"
+    assert client.get(endpoint).status_code == 401
+    assert client.get(endpoint, headers=other).status_code == 404
+    result = client.get(endpoint, headers=owner)
+    assert result.status_code == 200
+    assert "no-store" in result.headers["Cache-Control"]
+    data = result.get_json()
+    assert data["canRebook"] is (data["rebookExperienceSlug"] is not None)
+    assert isinstance(data["rescheduleSlots"], list)

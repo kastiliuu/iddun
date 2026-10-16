@@ -691,6 +691,7 @@ def booking_actions(booking_id):
         if booking.status == BookingStatus.CONFIRMED and pending is None
         else []
     )
+    rebook_eligible = rebook_offer(booking) is not None
     return api_json({
         "rescheduleRequestStatus": pending.status if pending else None,
         "rescheduleSlots": [
@@ -700,8 +701,8 @@ def booking_actions(booking_id):
              "timezone": booking.professional.timezone}
             for slot in alternatives
         ],
-        "canRebook": rebook_offer(booking) is not None,
-        "rebookExperienceSlug": booking.experience.slug if rebook_offer(booking) else None,
+        "canRebook": rebook_eligible,
+        "rebookExperienceSlug": booking.experience.slug if rebook_eligible else None,
     }, cache_control="private, no-store")
 
 
