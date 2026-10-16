@@ -28,3 +28,16 @@ As execuções acima **não equivalem** a `npm ci` normal com scripts, lint, typ
 Também continuam pendentes os testes em iOS/Android development build: permissões, sincronização e cancelamento do calendário, acessibilidade VoiceOver/TalkBack e reconciliação em falhas de persistência local.
 
 Nenhuma funcionalidade de produto foi adicionada.
+
+
+## Correção adicional após falha do check Expo — 16/10/2026
+
+O CI do PR detectou oito versões incompatíveis com o Expo SDK instalado. Foram atualizados **somente** os pacotes apontados pelo `npx expo install --check`:
+`@expo/ui ~57.0.25`, `expo ~57.0.30`, `expo-constants ~57.0.22`,
+`expo-image-manipulator ~57.0.21`, `expo-linking ~57.0.13`,
+`expo-router ~57.0.28`, `expo-splash-screen ~57.0.10`,
+`expo-calendar ~57.0.5`.
+
+[GitHub Actions 38927452855](https://github.com/kastiliuu/iddun/actions/runs/38927452855): **success** ao executar, na branch do PR, `npm install --package-lock-only --ignore-scripts --no-audit --no-fund`, `npm ci --no-audit --no-fund` (instalação completa) e `npx expo install --check`. O lockfile gerado pelo npm contém `integrity` verificável para `expo-calendar@57.0.5`. O workflow de escrita foi removido após sua conclusão. Esta seção substitui a situação anterior de lockfile sem `integrity`.
+
+**Pendente:** conferir jobs do workflow principal no commit final (pytest, Playwright, lint, typecheck e migrations); desenvolvimento e testes em aparelhos físicos continuam necessários.
