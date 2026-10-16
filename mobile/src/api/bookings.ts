@@ -56,6 +56,7 @@ export type Booking = {
   canCancel: boolean;
   canRequestCancellation?: boolean;
   cancellationRequestStatus?: "pending" | null;
+  rescheduleRequestStatus?: "pending" | null;
 };
 
 export type BookingResponse = {
@@ -227,13 +228,13 @@ export function cancelBooking(
 
 export type BookingActionsResponse = {
   rescheduleRequestStatus: "pending" | null;
-  rescheduleSlots: Array<{
+  rescheduleSlots: {
     id: number;
     startsAt: string;
     localDate: string;
     localTime: string;
     timezone: string;
-  }>;
+  }[];
   canRebook: boolean;
   rebookExperienceSlug: string | null;
 };
@@ -263,6 +264,16 @@ export function withdrawBookingReschedule(bookingId: string) {
   return withAuthenticatedRequest((token) =>
     api.post<BookingResponse>(
       `/api/v1/bookings/${encodeURIComponent(bookingId)}/reschedule-request/withdraw`,
+      undefined,
+      { token },
+    ),
+  );
+}
+
+export function withdrawBookingCancellation(bookingId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.post<BookingResponse>(
+      `/api/v1/bookings/${encodeURIComponent(bookingId)}/cancel-request/withdraw`,
       undefined,
       { token },
     ),

@@ -655,3 +655,52 @@ def test_booking_list_is_scoped_to_authenticated_client(
         str(item["id"])
         for item in owner_list.get_json()["items"]
     ]
+
+
+def test_mobile_reschedule_and_cancellation_requests_are_scoped_and_reversible(app, client):
+    from app.models.reschedule_request import RescheduleRequest
+    _, slots = _catalog(app, slot_count=3)
+    profile_id, headers = _authenticated_client(app, email="mobile-parity-owner@example.com")
+    _, outsider = _authenticated_client(app, email="mobile-parity-outsider@example.com")
+    hold = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slots[0]}/hold", headers=headers
+    )
+    assert hold.status_code == 201
+    booking_id = hold.get_json()["booking"]["id"]
+    assert client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=headers).status_code == 200
+    actions_url = f"/api/v1/bookings/{booking_id}/actions"
+    assert client.get(actions_url, headers=outsider).status_code == 404
+    actions = client.get(actions_url, headers=headers)
+    assert actions.status_code == 200
+    assert slots[1] in [row["id"] for row in actions.get_json()["rescheduleSlots"]]
+    requested = client.post(
+        f"/api/v1/bookings/{booking_id}/reschedule-request",
+        headers=headers, json={"slotId": slots[1]},
+    )
+    assert requested.status_code == 200
+    assert requested.get_json()["rescheduleRequest"]["status"] == "pending"
+    listing = client.get("/api/v1/bookings", headers=headers).get_json()["items"]
+    assert listing[0]["rescheduleRequestStatus"] == "pending"
+    assert client.get(actions_url, headers=headers).get_json()["rescheduleSlots"] == []
+    assert client.post(
+        f"/api/v1/bookings/{booking_id}/reschedule-request/withdraw",
+        headers=outsider,
+    ).status_code == 404
+    withdrawn = client.post(
+        f"/api/v1/bookings/{booking_id}/reschedule-request/withdraw", headers=headers
+    )
+    assert withdrawn.status_code == 200
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        assert booking.slot_id == slots[0]
+        assert booking.status == BookingStatus.CONFIRMED
+        assert db.session.scalar(select(RescheduleRequest)).status == "withdrawn"
+    cancellation = client.post(
+        f"/api/v1/bookings/{booking_id}/cancel", headers=headers, json={}
+    )
+    assert cancellation.status_code == 200
+    assert cancellation.get_json()["booking"]["status"] == "confirmed"
+    assert client.get("/api/v1/bookings", headers=headers).get_json()["items"][0]["cancellationRequestStatus"] == "pending"
+    assert client.post(
+        f"/api/v1/bookings/{booking_id}/cancel-request/withdraw", headers=headers
+    ).status_code == 200
