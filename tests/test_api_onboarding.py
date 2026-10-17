@@ -2,6 +2,7 @@ from datetime import date
 
 from sqlalchemy import func, select
 
+from app.models.experience import Experience, ExperienceStatus
 from app.extensions import db
 from app.models.establishment import (
     Establishment,
@@ -540,3 +541,50 @@ def test_publication_requires_valid_identity_without_media(app, client):
     assert published.status_code == 200
     assert published.get_json()["profile"]["isActive"] is True
     assert published.get_json()["profile"]["completion"]["percentage"] < 100
+
+
+def test_private_professional_services_list_scopes_owner_and_includes_drafts(app, client):
+    first_id, first_headers = _authenticated_client(app, email="catalog-first@example.com")
+    second_id, second_headers = _authenticated_client(app, email="catalog-second@example.com")
+
+    assert client.get(f"{BASE}/professional/services").status_code == 401
+    assert client.get(f"{BASE}/professional/services", headers=first_headers).status_code == 409
+
+    for headers in (first_headers, second_headers):
+        created = client.post(
+            f"{BASE}/professional",
+            headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert created.status_code in (200, 201)
+
+    with app.app_context():
+        first = db.session.scalar(select(ProfessionalProfile).where(ProfessionalProfile.user_id == first_id))
+        second = db.session.scalar(select(ProfessionalProfile).where(ProfessionalProfile.user_id == second_id))
+        db.session.add_all([
+            Experience(
+                professional_id=first.id, title="Serviço privado",
+                slug="servico-privado-catalog-119", category="unhas",
+                short_description="Rascunho somente do proprietário",
+                regular_price=90, price=75, duration_minutes=60,
+                status=ExperienceStatus.DRAFT,
+            ),
+            Experience(
+                professional_id=second.id, title="Serviço de outro profissional",
+                slug="servico-outro-catalog-119", category="unhas",
+                short_description="Não deve aparecer para o primeiro",
+                regular_price=100, price=100, duration_minutes=45,
+                status=ExperienceStatus.PUBLISHED,
+            ),
+        ])
+        db.session.commit()
+
+    response = client.get(f"{BASE}/professional/services", headers=first_headers)
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "private, no-store"
+    items = response.get_json()["items"]
+    assert len(items) == 1
+    assert items[0]["title"] == "Serviço privado"
+    assert items[0]["status"] == "draft"
+    assert items[0]["price"] == 75.0
+    assert items[0]["durationMinutes"] == 60
