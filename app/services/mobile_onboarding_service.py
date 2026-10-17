@@ -43,6 +43,23 @@ PROFESSIONAL_CATEGORIES = {
     "massagem": "Massagem",
 }
 
+PROFESSIONAL_ATTENDANCE_MODALITIES = {
+    "establishment",
+    "own_space",
+    "client_location",
+}
+
+
+def _attendance_modalities(values):
+    if values is None:
+        return None
+    if not isinstance(values, list) or len(values) > 3:
+        raise MobileOnboardingError("Modalidades de atendimento inválidas.")
+    if any(not isinstance(value, str) or value not in PROFESSIONAL_ATTENDANCE_MODALITIES for value in values):
+        raise MobileOnboardingError("Modalidade de atendimento inválida.")
+    return ",".join(sorted(set(values))) or None
+
+
 BUSINESS_CATEGORIES = {
     value for value, _ in BUSINESS_CATEGORY_CHOICES
 }
@@ -140,6 +157,7 @@ def create_professional_draft(
     state,
     bio="",
     phone="",
+    attendance_modalities=None,
 ):
     """Cria ou atualiza o único perfil profissional da conta."""
     _active_user(user)
@@ -194,6 +212,8 @@ def create_professional_draft(
     profile.whatsapp_enabled = bool(clean_phone)
     profile.city = clean_city
     profile.state = clean_state
+    if attendance_modalities is not None:
+        profile.attendance_modalities = _attendance_modalities(attendance_modalities)
 
     try:
         db.session.commit()

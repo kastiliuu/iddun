@@ -53,6 +53,7 @@ class ProfessionalProfile(db.Model):
     cover_focus_x = db.Column(db.SmallInteger, nullable=False, default=50)
     cover_focus_y = db.Column(db.SmallInteger, nullable=False, default=50)
     visual_theme = db.Column(db.String(24), nullable=False, default=ProfileTheme.BEAUTY)
+    attendance_modalities = db.Column(db.String(120), nullable=True)
     plan_tier = db.Column(db.String(24), nullable=False, default=ProfilePlan.FREE)
     onboarding_completed = db.Column(db.Boolean, nullable=False, default=False)
     published_at = db.Column(db.DateTime(timezone=True), nullable=True)
