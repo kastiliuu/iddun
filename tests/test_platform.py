@@ -162,6 +162,45 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     assert "Trabalhos recentes" in public_html
 
 
+def test_web_can_publish_professional_without_optional_media(app, client):
+    user_id = _create_user(app, email="no-media-web@example.com")
+    _login_session(client, user_id)
+
+    response = client.post(
+        "/pro/onboarding",
+        data={
+            "attendance_modalities": ["own_space"],
+            "display_name": "Profissional Sem Fotos",
+            "primary_specialty": "Nail Designer",
+            "specialties_text": "",
+            "bio": "Atendimento profissional dedicado com qualidade e cuidado.",
+            "city": "Curitiba",
+            "state": "PR",
+            "visual_theme": "beauty",
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    with app.app_context():
+        profile = db.session.scalar(
+            select(ProfessionalProfile).where(
+                ProfessionalProfile.user_id == user_id
+            )
+        )
+        assert profile is not None
+        assert profile.is_active is True
+        assert profile.ready_to_publish is True
+        assert profile.avatar_url is None
+        assert profile.cover_url is None
+        assert len(profile.portfolio_items) == 0
+        assert profile.attendance_modalities == "own_space"
+        slug = profile.slug
+
+    assert client.get(f"/profissionais/{slug}").status_code == 200
+
+
 def test_web_portfolio_removal_preserves_published_profile(
     app,
     client,
