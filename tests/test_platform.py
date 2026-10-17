@@ -161,7 +161,7 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     assert "Trabalhos recentes" in public_html
 
 
-def test_web_portfolio_removal_unpublishes_incomplete_profile(
+def test_web_portfolio_removal_preserves_published_profile(
     app,
     client,
 ):
@@ -246,16 +246,16 @@ def test_web_portfolio_removal_unpublishes_incomplete_profile(
         )
 
         assert profile is not None
-        assert profile.ready_to_publish is False
-        assert profile.onboarding_completed is False
-        assert profile.is_active is False
-        assert profile.published_at is None
+        assert profile.ready_to_publish is True
+        assert profile.onboarding_completed is True
+        assert profile.is_active is True
+        assert profile.published_at is not None
 
     public = client.get(
         f"/profissionais/{slug}"
     )
 
-    assert public.status_code == 404
+    assert public.status_code == 200
 
 
 def test_business_onboarding_creates_owner_access_and_public_page(
