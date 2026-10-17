@@ -282,7 +282,14 @@
               }}
             </div>
 
-            <div class="platform-field">
+              <div class="platform-field platform-field--wide">
+              <label class="platform-label" for="attendance_modalities">Onde você atende? *</label>
+              <p class="platform-help">Selecione uma ou mais modalidades de atendimento.</p>
+              {{ form.attendance_modalities(class_='platform-select', size=3) }}
+              {{ field_errors(form.attendance_modalities) }}
+            </div>
+
+          <div class="platform-field">
               {{
                 form.visual_theme.label(
                   class_='platform-label'
@@ -503,11 +510,7 @@
             </h2>
 
             <p>
-              Adicione no mínimo 3 imagens.
-              Perfis vazios não entram no
-              marketplace porque qualidade
-              visual também faz parte da
-              experiência IDDUN.
+              Você pode adicionar fotos agora ou depois. O portfólio é opcional para publicar seu perfil.
             </p>
           </div>
 
@@ -522,7 +525,7 @@
               multi_upload(
                 form.portfolio_files,
                 'Escolher fotos do portfólio',
-                '3 a 8 imagens · até 5 MB cada · 30 MB no envio'
+                'Até 8 imagens opcionais · até 5 MB cada'
               )
             }}
 
