@@ -491,3 +491,35 @@ def test_professional_publication_requirements_flag_missing_identity_fields():
     assert profile.publication_requirements["specialty"] is False
     assert profile.publication_requirements["categories"] is False
     assert profile.publication_requirements["bio"] is False
+
+
+def test_professional_attendance_modalities_roundtrip_and_validation(app, client):
+    _, headers = _authenticated_client(app, email="modalities@example.com")
+    created = client.post(
+        f"{BASE}/professional",
+        headers=headers,
+        json=_professional_payload(
+            attendanceModalities=["own_space", "client_location"],
+        ),
+    )
+    assert created.status_code in (200, 201)
+    assert set(created.get_json()["profile"]["attendanceModalities"]) == {
+        "own_space", "client_location"
+    }
+
+    refreshed = client.get(f"{BASE}/professional", headers=headers)
+    assert set(refreshed.get_json()["profile"]["attendanceModalities"]) == {
+        "own_space", "client_location"
+    }
+
+    invalid = client.post(
+        f"{BASE}/professional",
+        headers=headers,
+        json=_professional_payload(attendanceModalities=["unsupported"]),
+    )
+    assert invalid.status_code == 400
+
+    unchanged = client.get(f"{BASE}/professional", headers=headers)
+    assert set(unchanged.get_json()["profile"]["attendanceModalities"]) == {
+        "own_space", "client_location"
+    }
