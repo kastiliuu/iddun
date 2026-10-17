@@ -514,3 +514,29 @@ def test_professional_attendance_modalities_roundtrip_and_validation(app, client
     assert set(unchanged.get_json()["profile"]["attendanceModalities"]) == {
         "own_space", "client_location"
     }
+
+
+def test_publication_requires_valid_identity_without_media(app, client):
+    _, headers = _authenticated_client(app, email="publish-validation@example.com")
+    created = client.post(
+        f"{BASE}/professional",
+        headers=headers,
+        json=_professional_payload(
+            attendanceModalities=["client_location"],
+            bio="",
+        ),
+    )
+    assert created.status_code in (200, 201)
+    blocked = client.post(f"{BASE}/professional/publish", headers=headers)
+    assert blocked.status_code == 409
+
+    updated = client.post(
+        f"{BASE}/professional",
+        headers=headers,
+        json=_professional_payload(attendanceModalities=["client_location"]),
+    )
+    assert updated.status_code == 200
+    published = client.post(f"{BASE}/professional/publish", headers=headers)
+    assert published.status_code == 200
+    assert published.get_json()["profile"]["isActive"] is True
+    assert published.get_json()["profile"]["completion"]["percentage"] < 100
