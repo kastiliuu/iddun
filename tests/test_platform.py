@@ -87,6 +87,7 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     response = client.post(
         "/pro/onboarding",
         data={
+            "attendance_modalities": ["own_space"],
             "display_name": "Camila Teste",
             "headline": "Especialista em transformações",
             "primary_specialty": "Hair Stylist",
@@ -177,6 +178,7 @@ def test_web_portfolio_removal_preserves_published_profile(
     created = client.post(
         "/pro/onboarding",
         data={
+            "attendance_modalities": ["own_space"],
             "display_name": "Perfil Remoção",
             "headline": "Perfil completo",
             "primary_specialty": "Nail Designer",
@@ -360,6 +362,7 @@ def test_same_account_can_be_client_professional_and_business_owner(
     client.post(
         "/pro/onboarding",
         data={
+            "attendance_modalities": ["own_space"],
             "display_name": "Conta Multi Pro",
             "primary_specialty": "Barbeiro",
             "bio": (
@@ -536,6 +539,7 @@ def test_business_invitation_requires_professional_acceptance(
     client.post(
         "/pro/onboarding",
         data={
+            "attendance_modalities": ["own_space"],
             "display_name": "Pro Convidada",
             "primary_specialty": "Nail Designer",
             "bio": (
