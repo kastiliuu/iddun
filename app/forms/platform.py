@@ -31,7 +31,7 @@ class WorkModeChoiceForm(FlaskForm):
 
 
 class ProfessionalOnboardingForm(FlaskForm):
-    avatar_file = FileField("Foto de perfil", validators=[FileRequired(), *IMAGE_VALIDATORS])
+    avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     avatar_focus_x = focus_field()
     avatar_focus_y = focus_field()
