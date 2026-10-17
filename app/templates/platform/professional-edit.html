@@ -196,6 +196,13 @@
             }}
           </div>
 
+            <div class="platform-field platform-field--wide">
+              <label class="platform-label" for="attendance_modalities">Onde você atende? *</label>
+              <p class="platform-help">Selecione uma ou mais modalidades de atendimento.</p>
+              {{ form.attendance_modalities(class_='platform-select', size=3) }}
+              {{ field_errors(form.attendance_modalities) }}
+            </div>
+
           <div class="platform-field">
             {{
               form.visual_theme.label(
