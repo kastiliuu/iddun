@@ -1,6 +1,10 @@
 from datetime import date
 
 from flask import Blueprint, request
+from sqlalchemy import select
+
+from app.extensions import db
+from app.models.experience import Experience
 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
@@ -650,4 +654,45 @@ def publish_professional():
             )
         },
         cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.get("/professional/services")
+def list_professional_services():
+    """Private catalog, including drafts and paused services.
+
+    Never return services belonging to other professionals.
+    """
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+
+    profile = user.professional_profile
+    if profile is None:
+        return api_error(
+            "professional_profile_required",
+            "Crie seu perfil profissional para gerenciar serviços.",
+            409,
+        )
+
+    items = db.session.scalars(
+        select(Experience)
+        .where(Experience.professional_id == profile.id)
+        .order_by(Experience.created_at.desc(), Experience.id.desc())
+    ).all()
+
+    return api_json(
+        {"items": [
+            {
+                "id": item.id,
+                "title": item.title,
+                "category": item.category,
+                "status": item.status,
+                "price": float(item.price),
+                "durationMinutes": item.duration_minutes,
+                "establishmentId": item.establishment_id,
+            }
+            for item in items
+        ]},
+        cache_control="private, no-store",
     )
