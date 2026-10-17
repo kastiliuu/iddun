@@ -45,7 +45,22 @@ export default function ManageServicesScreen() {
       setLoading(false);
     }
   }, []);
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    let active = true;
+    getManagedServices().then(
+      (response) => {
+        if (active) setItems(response.items);
+      },
+      (cause) => {
+        if (active) {
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
+        }
+      },
+    ).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
 
   return (
     <View style={styles.container}>
