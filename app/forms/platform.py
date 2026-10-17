@@ -51,6 +51,15 @@ class ProfessionalOnboardingForm(FlaskForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
+    attendance_modalities = SelectMultipleField(
+        "Onde você atende?",
+        choices=[
+            ("establishment", "Em estabelecimento"),
+            ("own_space", "Em espaço próprio"),
+            ("client_location", "No endereço do cliente"),
+        ],
+        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
+    )
     visual_theme = SelectField(
         "Universo visual",
         choices=ProfileTheme.CHOICES,
@@ -78,6 +87,15 @@ class ProfessionalEditForm(FlaskForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
+    attendance_modalities = SelectMultipleField(
+        "Onde você atende?",
+        choices=[
+            ("establishment", "Em estabelecimento"),
+            ("own_space", "Em espaço próprio"),
+            ("client_location", "No endereço do cliente"),
+        ],
+        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
+    )
     visual_theme = SelectField("Universo visual", choices=ProfileTheme.CHOICES, validators=[DataRequired()])
     portfolio_files = MultipleFileField("Adicionar trabalhos")
     submit = SubmitField("Salvar perfil")
