@@ -68,6 +68,7 @@ export type ProfessionalOnboardingProfile = {
   displayName: string;
   primarySpecialty?: string | null;
   categories: string[];
+  attendanceModalities: string[];
   bio: string;
   phone: string;
   city: string;
@@ -96,6 +97,7 @@ export type ProfessionalDraftPayload = {
   displayName: string;
   primarySpecialty: string;
   categories: string[];
+  attendanceModalities?: string[];
   city: string;
   state: string;
   bio?: string;
