@@ -207,10 +207,21 @@ class ProfessionalProfile(db.Model):
 
     @property
     def ready_to_publish(self):
-        # Legacy gate until modality persistence and unified publication
-        # eligibility land together. Do not equate visual completion to
-        # the approved publication rule (DEC-ID-093–095).
-        return self.profile_completion == 100
+        # DEC-ID-093–095: identity, category and modality are mandatory;
+        # avatar, cover, portfolio, services and availability are optional.
+        if not all(self.publication_requirements.values()):
+            return False
+        modalities = {
+            value.strip()
+            for value in (self.attendance_modalities or "").split(",")
+            if value.strip()
+        }
+        allowed = {"establishment", "own_space", "client_location"}
+        if modalities and modalities.issubset(allowed):
+            return True
+        # Backward compatibility: do not unpublish already-active profiles
+        # solely because modality was introduced after they were published.
+        return bool(self.is_active and self.published_at)
 
 
 class ProfessionalPortfolioItem(db.Model):

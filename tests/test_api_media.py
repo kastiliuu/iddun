@@ -462,7 +462,7 @@ def test_portfolio_can_upload_reorder_and_resume_from_onboarding(
     )
 
 
-def test_deleting_required_portfolio_media_unpublishes_profile(
+def test_deleting_optional_portfolio_media_preserves_published_profile(
     app,
     client,
 ):
@@ -474,6 +474,11 @@ def test_deleting_required_portfolio_media_unpublishes_profile(
             ),
         )
     )
+
+    with app.app_context():
+        profile = db.session.get(ProfessionalProfile, profile_id)
+        profile.attendance_modalities = "own_space"
+        db.session.commit()
 
     avatar = client.post(
         f"{BASE}/avatar",
@@ -544,13 +549,13 @@ def test_deleting_required_portfolio_media_unpublishes_profile(
         removed.get_json()[
             "completion"
         ]["readyToPublish"]
-        is False
+        is True
     )
     assert (
         removed.get_json()[
             "completion"
         ]["isActive"]
-        is False
+        is True
     )
 
     with app.app_context():
@@ -561,15 +566,15 @@ def test_deleting_required_portfolio_media_unpublishes_profile(
 
         assert (
             profile.is_active
-            is False
+            is True
         )
         assert (
             profile.published_at
-            is None
+            is not None
         )
         assert (
             profile.onboarding_completed
-            is False
+            is True
         )
 
 
