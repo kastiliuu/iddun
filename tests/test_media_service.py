@@ -128,6 +128,7 @@ def _login_session(client, user_id):
 
 def _onboarding_payload():
     return {
+        "attendance_modalities": ["own_space"],
         "display_name": "Profissional de mídia",
         "primary_specialty": "Hair Stylist",
         "bio": (
