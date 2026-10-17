@@ -163,11 +163,7 @@
     );
 
     return {
-      minimum:
-        isOnboarding
-        && isPortfolio
-          ? 3
-          : 0,
+      minimum: 0,
       maximum:
         isPortfolio
           ? 8
