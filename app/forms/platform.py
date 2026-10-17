@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize, MultipleFileField
-from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, StringField, SubmitField, TextAreaField
+from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, URL
 from wtforms.widgets import HiddenInput
 
@@ -31,7 +31,7 @@ class WorkModeChoiceForm(FlaskForm):
 
 
 class ProfessionalOnboardingForm(FlaskForm):
-    avatar_file = FileField("Foto de perfil", validators=[FileRequired(), *IMAGE_VALIDATORS])
+    avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     avatar_focus_x = focus_field()
     avatar_focus_y = focus_field()
@@ -51,6 +51,15 @@ class ProfessionalOnboardingForm(FlaskForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
+    attendance_modalities = SelectMultipleField(
+        "Onde você atende?",
+        choices=[
+            ("establishment", "Em estabelecimento"),
+            ("own_space", "Em espaço próprio"),
+            ("client_location", "No endereço do cliente"),
+        ],
+        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
+    )
     visual_theme = SelectField(
         "Universo visual",
         choices=ProfileTheme.CHOICES,
@@ -78,6 +87,15 @@ class ProfessionalEditForm(FlaskForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
+    attendance_modalities = SelectMultipleField(
+        "Onde você atende?",
+        choices=[
+            ("establishment", "Em estabelecimento"),
+            ("own_space", "Em espaço próprio"),
+            ("client_location", "No endereço do cliente"),
+        ],
+        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
+    )
     visual_theme = SelectField("Universo visual", choices=ProfileTheme.CHOICES, validators=[DataRequired()])
     portfolio_files = MultipleFileField("Adicionar trabalhos")
     submit = SubmitField("Salvar perfil")
