@@ -224,18 +224,15 @@ def onboarding():
             form.portfolio_files.data
         )
 
-        if len(portfolio_files) < 3:
-            form.portfolio_files.errors.append(
-                "Adicione pelo menos 3 fotos do seu "
-                "trabalho para publicar o perfil."
-            )
+        if len(portfolio_files) > 8:
+            form.portfolio_files.errors.append("Envie no máximo 8 fotos.")
         else:
             try:
                 with UploadBatch() as uploads:
-                    avatar_url = uploads.save_image(
+                    avatar_url = (uploads.save_image(
                         form.avatar_file.data,
                         "professionals",
-                    )
+                    ) if form.avatar_file.data and getattr(form.avatar_file.data, "filename", "") else None)
                     cover_url = uploads.save_image(
                         form.cover_file.data,
                         "professionals/covers",
@@ -267,7 +264,8 @@ def onboarding():
                         specialties_text=(
                             form.specialties_text.data or ""
                         ).strip()
-                        or None,
+                        or form.primary_specialty.data.strip(),
+                        attendance_modalities=",".join(form.attendance_modalities.data),
                         bio=form.bio.data.strip(),
                         phone=(
                             form.phone.data or ""
@@ -1192,6 +1190,8 @@ def edit_profile():
         )
 
     form = ProfessionalEditForm(obj=profile)
+    if request.method == 'GET':
+        form.attendance_modalities.data = (profile.attendance_modalities or '').split(',') if profile.attendance_modalities else []
 
     if form.validate_on_submit():
         replaced_media = []
@@ -1244,6 +1244,7 @@ def edit_profile():
                 profile.visual_theme = (
                     form.visual_theme.data
                 )
+                profile.attendance_modalities = ",".join(form.attendance_modalities.data)
                 profile.avatar_focus_x = (
                     _focus_value(
                         form.avatar_focus_x.data
