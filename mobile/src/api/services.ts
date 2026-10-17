@@ -325,3 +325,27 @@ export async function deleteService(
       ),
   );
 }
+
+export type ManagedService = {
+  id: number;
+  title: string;
+  category: string;
+  status: "draft" | "published" | "paused" | "archived";
+  price: number;
+  durationMinutes: number;
+  establishmentId: number | null;
+};
+
+export type ManagedServicesResponse = {
+  items: ManagedService[];
+};
+
+/** Private owned catalog; unlike discovery, includes drafts and paused items. */
+export function getManagedServices() {
+  return withAuthenticatedRequest((token) =>
+    api.get<ManagedServicesResponse>(
+      "/api/v1/onboarding/professional/services",
+      { token },
+    ),
+  );
+}
