@@ -195,6 +195,7 @@ def _professional_payload(profile):
         "phone": profile.phone or "",
         "city": profile.city or "",
         "state": profile.state or "",
+        "attendanceModalities": (profile.attendance_modalities or "").split(",") if profile.attendance_modalities else [],
         "avatarUrl": (
             resolve_image_url(
                 profile.avatar_url,
@@ -357,6 +358,7 @@ def save_professional_onboarding():
                     "phone",
                     "",
                 ),
+                attendance_modalities=payload.get("attendanceModalities"),
             )
         )
     except MobileOnboardingError as exc:
