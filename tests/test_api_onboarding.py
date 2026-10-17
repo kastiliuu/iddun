@@ -305,7 +305,7 @@ def test_membership_can_verify_professional_experience(
     )
 
 
-def test_publish_requires_existing_profile_completion_rules(
+def test_publish_requires_identity_and_modality_not_optional_media(
     app,
     client,
 ):
@@ -341,21 +341,7 @@ def test_publish_requires_existing_profile_completion_rules(
                 == user_id
             )
         )
-        profile.avatar_url = (
-            "professionals/avatar.webp"
-        )
-
-        for index in range(3):
-            db.session.add(
-                ProfessionalPortfolioItem(
-                    professional=profile,
-                    image_url=(
-                        "professionals/"
-                        f"portfolio/{index}.webp"
-                    ),
-                    sort_order=index,
-                )
-            )
+        profile.attendance_modalities = "own_space"
 
         db.session.add(
             ProfessionalExperience(
@@ -399,6 +385,11 @@ def test_publish_requires_existing_profile_completion_rules(
             )
         )
         assert profile.is_active is True
+        assert profile.avatar_url is None
+        assert len(profile.portfolio_items) == 0
+        assert (
+            profile.profile_completion < 100
+        )
         assert (
             profile.onboarding_completed
             is True
