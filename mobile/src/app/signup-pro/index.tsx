@@ -142,6 +142,9 @@ export default function SignupProfessionalScreen() {
   const [selectedCategories, setSelectedCategories] =
     useState<string[]>([]);
 
+  const [attendanceModalities, setAttendanceModalities] =
+    useState<string[]>([]);
+
   const [bio, setBio] =
     useState("");
 
@@ -200,6 +203,7 @@ export default function SignupProfessionalScreen() {
             setSelectedCategories(
               profile.categories,
             );
+            setAttendanceModalities(profile.attendanceModalities ?? []);
             setCity(
               profile.city ||
                 "Curitiba",
@@ -396,6 +400,7 @@ export default function SignupProfessionalScreen() {
               specialty.trim(),
             categories:
               selectedCategories,
+            attendanceModalities,
             city:
               city.trim(),
             state:
@@ -1015,6 +1020,41 @@ export default function SignupProfessionalScreen() {
               )}
             </View>
           </View>
+
+          {!isEstablishment ? (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Onde você atende?</Text>
+              <Text style={styles.fieldHint}>
+                Escolha os locais em que pretende oferecer seus serviços.
+              </Text>
+              <View style={styles.categories}>
+                {([
+                  ["establishment", "Em estabelecimento"],
+                  ["own_space", "Em espaço próprio"],
+                  ["client_location", "No endereço do cliente"],
+                ] as const).map(([id, label]) => {
+                  const selected = attendanceModalities.includes(id);
+                  return (
+                    <Pressable
+                      key={id}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
+                      onPress={() => setAttendanceModalities(current =>
+                        current.includes(id)
+                          ? current.filter(item => item !== id)
+                          : [...current, id]
+                      )}
+                      style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+                    >
+                      <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          ) : null}
 
           <View
             style={
