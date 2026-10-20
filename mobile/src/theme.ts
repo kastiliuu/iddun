@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet } from "react-native";
 
-export type ColorScheme = "dark";
+export type ColorScheme = "dark" | "light";
 
 export const colors = {
   surface: "#0B0B0F",
@@ -68,6 +68,81 @@ export const colors = {
 
   overlayViolet: "rgba(26,15,46,0.85)",
 };
+
+
+/**
+ * Design System 2.0 — Editorial Híbrido.
+ * Semantic palettes are additive: legacy `colors`, `theme`, `useTheme`
+ * and `makeStyles` remain dark for existing screens.
+ * A later PR will add persisted preference and migrate consumers safely.
+ */
+export const semanticPalettes = {
+  dark: {
+    canvas: "#0B0B0F",
+    surface: "#16161C",
+    elevated: "#1F1F26",
+    inverse: "#F7F6F4",
+    textPrimary: "#F7F6F4",
+    textSecondary: "#DADDE1",
+    textMuted: "#A3A3AF",
+    textInverse: "#0B0B0F",
+    border: "rgba(255,255,255,0.14)",
+    borderSubtle: "rgba(255,255,255,0.08)",
+    action: "#6B2EFF",
+    actionPressed: "#7B46FF",
+    onAction: "#FFFFFF",
+    focus: "#B199FF",
+    link: "#B199FF",
+  },
+  light: {
+    canvas: "#F7F6F4",
+    surface: "#FFFFFF",
+    elevated: "#FFFFFF",
+    inverse: "#0B0B0F",
+    textPrimary: "#0B0B0F",
+    textSecondary: "#51525C",
+    textMuted: "#62636E",
+    textInverse: "#FFFFFF",
+    border: "rgba(11,11,15,0.16)",
+    borderSubtle: "rgba(11,11,15,0.08)",
+    action: "#6B2EFF",
+    actionPressed: "#5920DF",
+    onAction: "#FFFFFF",
+    focus: "#5920DF",
+    link: "#5420CC",
+  },
+} as const;
+
+export const designScale = {
+  typography: {
+    caption: 12,
+    captionLarge: 13,
+    secondary: 14,
+    body: 16,
+    headingSmall: 20,
+    headingMedium: 24,
+  },
+  spacing: {
+    1: 4,
+    2: 8,
+    3: 12,
+    4: 16,
+    6: 24,
+    8: 32,
+    12: 48,
+  },
+  radius: {
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+  },
+  touchMinimum: 44,
+} as const;
+
+export function getSemanticPalette(scheme: ColorScheme) {
+  return semanticPalettes[scheme];
+}
 
 export type ThemeColors = typeof colors;
 
