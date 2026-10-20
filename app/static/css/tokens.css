@@ -409,7 +409,6 @@
 
 :root,
 [data-iddun-surface="dark"] {
-  color-scheme: dark;
 
   --ds-surface-canvas: var(--color-ink);
   --ds-surface-default: var(--color-surface-dark);
@@ -457,6 +456,10 @@
   --ds-shadow-control: 0 2px 8px rgba(0, 0, 0, 0.10);
   --ds-motion-enter: var(--motion-fast);
   --ds-motion-layout: var(--motion-base);
+}
+
+[data-iddun-surface="dark"] {
+  color-scheme: dark;
 }
 
 [data-iddun-surface="light"] {
