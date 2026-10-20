@@ -101,10 +101,13 @@
     let previousImage = image.getAttribute('src') || '';
     let previousPreview = preview?.style.backgroundImage || '';
     let trigger = null;
+    let isNewSelection = false;
     const openEditor = (origin) => {
       trigger = origin || input;
-      savedX = numberOrCenter(focusX.value);
-      savedY = numberOrCenter(focusY.value);
+      if (!isNewSelection) {
+        savedX = numberOrCenter(focusX.value);
+        savedY = numberOrCenter(focusY.value);
+      }
       root.hidden = false;
       root.classList.add('is-open');
       root.setAttribute('aria-hidden', 'false');
@@ -121,6 +124,7 @@
     confirm?.addEventListener('click', () => {
       previousImage = image.getAttribute('src') || '';
       previousPreview = preview?.style.backgroundImage || '';
+      isNewSelection = false;
       savedX = x;
       savedY = y;
       if (launch) launch.hidden = false;
@@ -128,11 +132,12 @@
     });
     cancel?.addEventListener('click', () => {
       updatePosition(savedX, savedY, true);
-      if (input?.files?.length) {
+      if (isNewSelection && input?.files?.length) {
         input.value = '';
         image.src = previousImage;
         if (preview) preview.style.backgroundImage = previousPreview;
       }
+      isNewSelection = false;
       closeEditor();
     });
     root.addEventListener('keydown', (event) => {
@@ -390,6 +395,11 @@
           );
         }
 
+        savedX = x;
+        savedY = y;
+        previousImage = image.getAttribute('src') || '';
+        previousPreview = preview?.style.backgroundImage || '';
+        isNewSelection = true;
         objectUrl = (
           URL.createObjectURL(file)
         );
