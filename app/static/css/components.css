@@ -294,6 +294,97 @@
 }
 
 /* ============================================================
+   DS-05 — SEMANTIC FORM FIELDS (opt-in)
+   Use within data-iddun-surface="light" / "dark" containers.
+   Legacy .auth-input and platform-specific forms are untouched.
+   ============================================================ */
+
+.ds-field {
+  display: grid;
+  gap: var(--ds-space-2, 8px);
+  min-width: 0;
+}
+
+.ds-field__label {
+  color: var(--ds-text-primary, var(--color-off-white));
+  font-family: var(--font-body);
+  font-size: var(--ds-type-secondary, 0.875rem);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+}
+
+.ds-field__input,
+.ds-field__select,
+.ds-field__textarea {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height-touch, 50px);
+  padding: 12px 14px;
+  border: 1px solid var(--ds-border-default, var(--color-border));
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface-default, var(--color-surface-dark));
+  color: var(--ds-text-primary, var(--color-off-white));
+  font: 400 var(--ds-type-body, 1rem)/1.4 var(--font-body);
+  transition: border-color var(--motion-fast) ease,
+              box-shadow var(--motion-fast) ease;
+}
+
+.ds-field__textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.ds-field__input::placeholder,
+.ds-field__textarea::placeholder {
+  color: var(--ds-text-muted, var(--color-text-muted));
+  opacity: 1;
+}
+
+.ds-field__input:focus-visible,
+.ds-field__select:focus-visible,
+.ds-field__textarea:focus-visible {
+  border-color: var(--ds-focus-ring, var(--color-violet-light));
+  outline: 2px solid var(--ds-focus-ring, var(--color-violet-light));
+  outline-offset: 2px;
+}
+
+.ds-field__input:disabled,
+.ds-field__select:disabled,
+.ds-field__textarea:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.ds-field__help {
+  color: var(--ds-text-secondary, var(--color-mist));
+  font-size: var(--ds-type-caption, 0.75rem);
+  line-height: 1.5;
+}
+
+.ds-field__error {
+  color: var(--ds-feedback-danger, var(--color-danger));
+  font-size: var(--ds-type-secondary, 0.875rem);
+  line-height: 1.4;
+}
+
+.ds-field__input[aria-invalid="true"],
+.ds-field__select[aria-invalid="true"],
+.ds-field__textarea[aria-invalid="true"] {
+  border-color: var(--ds-feedback-danger, var(--color-danger));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-field__input,
+  .ds-field__select,
+  .ds-field__textarea {
+    transition: none;
+  }
+}
+
+
+/* ============================================================
    HEADER
    ============================================================ */
 
