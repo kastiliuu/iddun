@@ -3702,3 +3702,34 @@ select option {
       none !important;
   }
 }
+
+
+/* DS-05.5: Semantic editorial styling for standard experience cards.
+   Existing marketplace-specific dimensions, CTAs, data attributes and
+   responsive behaviors remain unchanged. */
+.catalog-card.ds-card {
+  border-color: var(--ds-border-subtle, var(--marketplace-line));
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface-default, var(--marketplace-card));
+  color: var(--ds-text-primary, var(--marketplace-copy));
+  box-shadow: var(--ds-shadow-control, 0 2px 8px rgba(0,0,0,.10));
+}
+
+.catalog-card.ds-card:hover {
+  border-color: var(--ds-border-default, var(--marketplace-line-strong));
+  background: var(--ds-surface-default, var(--marketplace-card));
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+}
+
+.catalog-card.ds-card .catalog-card__title,
+.catalog-card.ds-card .catalog-card__title h3 {
+  color: var(--ds-text-primary, var(--marketplace-copy));
+}
+
+.catalog-card.ds-card .catalog-card__description {
+  color: var(--ds-text-secondary, var(--marketplace-muted-strong));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalog-card.ds-card:hover { transform: none; }
+}

@@ -256,12 +256,13 @@ def test_experiences_uses_explicit_featured_card_above_uniform_grid(
         == 1
     )
 
-    assert (
-        html.count(
-            'class="catalog-card card"'
-        )
-        == 8
+    # Conta cards pelo token CSS, independentemente das classes
+    # adicionais do Design System ou de sua ordem no HTML.
+    regular_cards = re.findall(
+        r'<article\b[^>]*\bclass="[^"]*\bcatalog-card\b[^"]*"',
+        html,
     )
+    assert len(regular_cards) == 8
 
     assert (
         "Destaque IDDUN"
