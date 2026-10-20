@@ -39,9 +39,15 @@
     {{ focus_x(data_focus_x='') }}
     {{ focus_y(data_focus_y='') }}
 
+    <button type="button" class="media-cropper__launch" data-crop-launch {% if not existing_url %}hidden{% endif %}>Ajustar enquadramento</button>
+
     <div
       class="media-cropper media-cropper--{{ kind }}{% if existing_url %} has-image{% endif %}"
       data-media-cropper
+      role="dialog"
+      aria-modal="true"
+      aria-label="Ajustar imagem de {{ field.label.text }}"
+      aria-hidden="true"
       data-crop-input-id="{{ field.id }}"
       data-focus-x-id="{{ focus_x.id }}"
       data-focus-y-id="{{ focus_y.id }}"
@@ -112,6 +118,10 @@
           {{ focus_x_value }}% ·
           {{ focus_y_value }}%
         </output>
+      </div>
+      <div class="media-cropper__actions">
+        <button type="button" class="media-cropper__cancel" data-crop-cancel>Cancelar</button>
+        <button type="button" class="media-cropper__confirm" data-crop-confirm>Aplicar enquadramento</button>
       </div>
     </div>
   </div>

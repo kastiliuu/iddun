@@ -93,6 +93,59 @@
     let y = numberOrCenter(focusY.value);
     let objectUrl = null;
     let dragState = null;
+    const launch = uploadControl?.querySelector('[data-crop-launch]');
+    const confirm = root.querySelector('[data-crop-confirm]');
+    const cancel = root.querySelector('[data-crop-cancel]');
+    let savedX = x;
+    let savedY = y;
+    let previousImage = image.getAttribute('src') || '';
+    let previousPreview = preview?.style.backgroundImage || '';
+    let trigger = null;
+    let isNewSelection = false;
+    const openEditor = (origin) => {
+      trigger = origin || input;
+      if (!isNewSelection) {
+        savedX = numberOrCenter(focusX.value);
+        savedY = numberOrCenter(focusY.value);
+      }
+      root.hidden = false;
+      root.classList.add('is-open');
+      root.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('media-cropper-dialog-open');
+      stage.focus({ preventScroll: true });
+    };
+    const closeEditor = () => {
+      root.classList.remove('is-open');
+      root.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('media-cropper-dialog-open');
+      trigger?.focus?.({ preventScroll: true });
+    };
+    launch?.addEventListener('click', () => openEditor(launch));
+    confirm?.addEventListener('click', () => {
+      previousImage = image.getAttribute('src') || '';
+      previousPreview = preview?.style.backgroundImage || '';
+      isNewSelection = false;
+      savedX = x;
+      savedY = y;
+      if (launch) launch.hidden = false;
+      closeEditor();
+    });
+    cancel?.addEventListener('click', () => {
+      updatePosition(savedX, savedY, true);
+      if (isNewSelection && input?.files?.length) {
+        input.value = '';
+        image.src = previousImage;
+        if (preview) preview.style.backgroundImage = previousPreview;
+      }
+      isNewSelection = false;
+      closeEditor();
+    });
+    root.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && root.classList.contains('is-open')) {
+        event.preventDefault();
+        cancel?.click();
+      }
+    });
 
     const announcePosition = () => {
       if (!output) return;
@@ -342,6 +395,11 @@
           );
         }
 
+        savedX = x;
+        savedY = y;
+        previousImage = image.getAttribute('src') || '';
+        previousPreview = preview?.style.backgroundImage || '';
+        isNewSelection = true;
         objectUrl = (
           URL.createObjectURL(file)
         );
@@ -359,6 +417,7 @@
           50,
           true,
         );
+        openEditor(input);
       },
     );
 
