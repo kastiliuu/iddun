@@ -16,11 +16,11 @@
   align-items: center;
   gap: 12px;
   padding: 11px 11px 11px 16px;
-  border: 1px solid rgba(212, 175, 55, .28);
+  border: 1px solid rgba(107, 46, 255, .28);
   border-radius: 14px;
-  background: rgba(13, 13, 12, .96);
+  background: rgba(11, 11, 15, .96);
   box-shadow: 0 18px 44px rgba(0, 0, 0, .24);
-  color: #f6f0e5;
+  color: var(--color-off-white);
   font-size: .88rem;
   line-height: 1.4;
   backdrop-filter: blur(16px);
@@ -33,7 +33,7 @@
 
 .flash-message--success { border-color: rgba(133, 190, 143, .35); }
 .flash-message--error { border-color: rgba(220, 112, 112, .42); }
-.flash-message--info { border-color: rgba(212,175,55,.30); }
+.flash-message--info { border-color: rgba(107,46,255,.35); }
 
 .flash-message__close {
   width: 34px;
@@ -45,7 +45,7 @@
   border: 0;
   border-radius: 10px;
   background: rgba(255,255,255,.04);
-  color: rgba(246,240,229,.78);
+  color: var(--color-mist);
   font-size: 1.15rem;
   line-height: 1;
 }
@@ -68,4 +68,47 @@
 
 @media (prefers-reduced-motion: reduce) {
   .flash-message { transition: opacity .01ms linear; }
+}
+
+/* DS-05.8 — Opt-in async feedback primitives */
+.ds-skeleton {
+  display: block;
+  border-radius: var(--ds-radius-md, 12px);
+  background: var(--ds-surface-raised, var(--color-surface-dark-raised));
+  background-image: linear-gradient(100deg, transparent 25%, rgba(145, 124, 191, .16) 48%, transparent 70%);
+  background-size: 220% 100%;
+  animation: ds-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+.ds-skeleton--line { height: 1rem; max-width: 100%; }
+.ds-skeleton--avatar { width: 48px; height: 48px; border-radius: 50%; }
+.ds-skeleton--media { width: 100%; aspect-ratio: 4 / 3; }
+.ds-skeleton--title { height: 1.5rem; width: min(75%, 320px); }
+.ds-skeleton[aria-hidden="true"] { pointer-events: none; }
+
+.ds-spark-loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2, 8px);
+  color: var(--ds-text-primary, var(--color-off-white));
+  font-size: var(--ds-type-secondary, .875rem);
+  font-weight: 600;
+}
+.ds-spark-loading__symbol {
+  display: inline-block;
+  color: var(--color-plum);
+  font-size: 1.25em;
+  animation: ds-spark-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ds-skeleton-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+@keyframes ds-spark-pulse {
+  0%, 100% { opacity: .55; transform: scale(.92); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ds-skeleton { animation: none; background-image: none; }
+  .ds-spark-loading__symbol { animation: none; }
 }
