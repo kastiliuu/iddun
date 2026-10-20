@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { Icon } from "@/components/Icon";
 
 import {
+  designScale,
   fonts,
   makeStyles,
   radius,
@@ -223,7 +224,7 @@ const useStyles = makeStyles((colors) => ({
   card: {
     width: "100%",
     minHeight: 150,
-    borderRadius: radius.md,
+    borderRadius: designScale.radius.lg,
     overflow: "hidden",
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
@@ -279,8 +280,8 @@ const useStyles = makeStyles((colors) => ({
   category: {
     color: colors.plum,
     fontFamily: fonts.sansMedium,
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: designScale.typography.caption,
+    lineHeight: 16,
     letterSpacing: 0.6,
     textTransform: "uppercase",
   },
@@ -302,8 +303,8 @@ const useStyles = makeStyles((colors) => ({
     marginTop: spacing.xs,
     color: colors.onSurfaceSecondary,
     fontFamily: fonts.sans,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: designScale.typography.secondary,
+    lineHeight: 20,
   },
 
   metaRow: {
