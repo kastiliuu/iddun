@@ -10,6 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
 
 import {
+  designScale,
   fonts,
   makeStyles,
   radius,
@@ -22,7 +23,8 @@ type ButtonVariant =
   | "primary"
   | "secondary"
   | "ghost"
-  | "outline";
+  | "outline"
+  | "destructive";
 
 type ButtonProps = {
   title: string;
@@ -70,6 +72,8 @@ export function Button({
   const textColor =
     variant === "primary"
       ? colors.onBrandPrimary
+      : variant === "destructive"
+        ? colors.onError
       : variant === "secondary"
         ? colors.onSurface
         : variant === "outline"
@@ -132,6 +136,10 @@ export function Button({
         variant ===
           "secondary" &&
           styles.secondary,
+
+        variant ===
+          "destructive" &&
+          styles.destructive,
 
         variant ===
           "outline" &&
@@ -268,6 +276,12 @@ const useStyles = makeStyles(
         colors.border,
     },
 
+    destructive: {
+      backgroundColor: colors.error,
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
+
     outline: {
       backgroundColor:
         "transparent",
@@ -291,9 +305,9 @@ const useStyles = makeStyles(
       fontFamily:
         fonts.sansMedium,
 
-      fontSize: 14,
+      fontSize: designScale.typography.body,
 
-      lineHeight: 18,
+      lineHeight: 22,
 
       letterSpacing: 0.3,
 
@@ -301,9 +315,9 @@ const useStyles = makeStyles(
     },
 
     textCompact: {
-      fontSize: 13,
+      fontSize: designScale.typography.secondary,
 
-      lineHeight: 17,
+      lineHeight: 20,
     },
   }),
 );
