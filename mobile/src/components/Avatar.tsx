@@ -48,7 +48,9 @@ export function Avatar({
 
   const initials = useMemo(() => getInitials(name), [name]);
 
-  const imageSize = ring === "plum" ? size - 4 : size;
+  const safeSize = Math.max(24, size);
+  const imageSize = ring === "plum" ? safeSize - 4 : safeSize;
+  const avatarLabel = accessibilityLabel ?? `Avatar de ${name || "usuário"}`;
 
   const avatarContent = uri && failedUri !== uri ? (
     <Image
@@ -62,7 +64,8 @@ export function Avatar({
       contentFit="cover"
       transition={180}
       onError={() => setFailedUri(uri)}
-      accessibilityLabel={accessibilityLabel ?? `Foto de ${name}`}
+      accessible={ring === "none"}
+      accessibilityLabel={avatarLabel}
     />
   ) : (
     <LinearGradient
@@ -77,9 +80,11 @@ export function Avatar({
           borderRadius: imageSize / 2,
         },
       ]}
-      accessibilityLabel={accessibilityLabel ?? `Avatar de ${name}`}
+      accessible={ring === "none"}
+      accessibilityLabel={avatarLabel}
     >
       <Text
+        accessible={false}
         style={[
           styles.initials,
           {
@@ -96,6 +101,9 @@ export function Avatar({
   if (ring === "plum") {
     return (
       <LinearGradient
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={avatarLabel}
         colors={[
           colors.plum,
           colors.onBrandTertiary,
@@ -104,9 +112,9 @@ export function Avatar({
         style={[
           styles.ring,
           {
-            width: size,
-            height: size,
-            borderRadius: size / 2,
+            width: safeSize,
+            height: safeSize,
+            borderRadius: safeSize / 2,
           },
         ]}
       >
@@ -114,9 +122,9 @@ export function Avatar({
           style={[
             styles.ringInner,
             {
-              width: size - 3,
-              height: size - 3,
-              borderRadius: (size - 3) / 2,
+              width: safeSize - 3,
+              height: safeSize - 3,
+              borderRadius: (safeSize - 3) / 2,
               backgroundColor: colors.surface,
             },
           ]}
