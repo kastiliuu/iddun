@@ -112,7 +112,7 @@
 
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 10px 28px rgba(107, 46, 255, 0.22);
+    0 2px 8px rgba(107, 46, 255, 0.12);
 }
 
 .btn-primary:hover {
@@ -128,7 +128,7 @@
 
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 14px 34px rgba(107, 46, 255, 0.30);
+    0 4px 12px rgba(107, 46, 255, 0.16);
 }
 
 
@@ -210,7 +210,7 @@
 /* Small */
 
 .btn-sm {
-  min-height: 38px;
+  min-height: var(--ds-control-min-target, 44px);
 
   padding-inline: 16px;
 
@@ -226,6 +226,72 @@
   pointer-events: none;
 }
 
+
+
+/* DS-05: opt-in semantic variants for Editorial Hybrid surfaces.
+   Do not replace legacy classes until individual screens are audited. */
+.btn--ds-primary {
+  color: var(--ds-action-on-primary, #FFFFFF);
+  border-color: transparent;
+  background: var(--ds-action-primary, var(--color-plum));
+  box-shadow: var(--ds-shadow-control, 0 2px 8px rgba(0, 0, 0, .10));
+}
+
+.btn--ds-primary:hover {
+  background: var(--ds-action-primary-hover, var(--color-plum-hover));
+  box-shadow: var(--ds-shadow-control, 0 2px 8px rgba(0, 0, 0, .10));
+}
+
+.btn--ds-secondary {
+  color: var(--ds-text-primary, var(--color-off-white));
+  background: var(--ds-surface-default, var(--color-surface-dark));
+  border-color: var(--ds-border-default, var(--color-border));
+  box-shadow: none;
+}
+
+.btn--ds-secondary:hover {
+  background: var(--ds-surface-raised, var(--color-surface-dark-raised));
+}
+
+.btn--ds-tertiary {
+  color: var(--ds-text-primary, var(--color-off-white));
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.btn--ds-tertiary:hover {
+  background: var(--ds-border-subtle, rgba(255, 255, 255, .08));
+}
+
+.btn--ds-destructive {
+  color: #FFFFFF;
+  border-color: transparent;
+  background: var(--ds-feedback-danger, var(--color-danger));
+  box-shadow: none;
+}
+
+.btn--ds-destructive:hover {
+  filter: brightness(.92);
+}
+
+.btn--ds-primary:focus-visible,
+.btn--ds-secondary:focus-visible,
+.btn--ds-tertiary:focus-visible,
+.btn--ds-destructive:focus-visible {
+  outline: 2px solid var(--ds-focus-ring, var(--color-violet-light));
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn {
+    transition: none;
+  }
+  .btn:hover,
+  .btn:active {
+    transform: none;
+  }
+}
 
 /* ============================================================
    HEADER
