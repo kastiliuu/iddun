@@ -11,6 +11,7 @@ import { FollowButton } from "@/components/FollowButton";
 import { Rating } from "@/components/Rating";
 
 import {
+  designScale,
   fonts,
   makeStyles,
   radius,
@@ -147,7 +148,7 @@ const useStyles = makeStyles((colors) => ({
     alignItems: "center",
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: designScale.radius.lg,
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.glassBorder,
@@ -173,16 +174,16 @@ const useStyles = makeStyles((colors) => ({
   name: {
     color: colors.onSurface,
     fontFamily: fonts.sansSemiBold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: designScale.typography.body,
+    lineHeight: 22,
   },
 
   specialty: {
     marginTop: 2,
     color: colors.onSurfaceSecondary,
     fontFamily: fonts.sans,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: designScale.typography.secondary,
+    lineHeight: 20,
   },
 
   metaRow: {
