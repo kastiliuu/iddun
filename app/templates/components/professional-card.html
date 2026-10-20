@@ -1,6 +1,6 @@
 {% from 'components/icon.html' import icon %}
 {% macro professional_card(item) -%}
-<article class="professional-card card">
+<article class="professional-card card ds-card ds-card--interactive">
   <a href="{{ url_for('public.professional_detail', slug=item.slug) }}" aria-label="Ver perfil de {{ item.name }}">
     <img class="professional-card__photo" src="{{ item.image|media_url }}" alt="{{ item.name }}" style="object-position: {{ item.get('image_position', '50% 50%') }};">
   </a>
