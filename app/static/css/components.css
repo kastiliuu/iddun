@@ -2275,3 +2275,32 @@ input[type="search"]
     transform: none !important;
   }
 }
+
+
+/* DS-05.3 — first real component adoption: professional card.
+   Preserve its compact grid layout and existing actions. */
+.professional-card.ds-card {
+  border-color: var(--ds-border-subtle, var(--color-border-soft));
+  border-radius: var(--ds-radius-lg, 16px);
+  background: var(--ds-surface-default, var(--color-surface-dark));
+  color: var(--ds-text-primary, var(--color-off-white));
+  box-shadow: var(--ds-shadow-control, 0 2px 8px rgba(0, 0, 0, .10));
+}
+
+.professional-card.ds-card:hover {
+  border-color: var(--ds-border-default, var(--color-border));
+  background: var(--ds-surface-default, var(--color-surface-dark));
+  box-shadow: var(--ds-shadow-control, 0 2px 8px rgba(0, 0, 0, .10));
+}
+
+.professional-card.ds-card .professional-card__head a,
+.professional-card.ds-card .professional-card__head strong {
+  color: var(--ds-text-primary, var(--color-off-white));
+}
+
+.professional-card.ds-card .professional-card__head span,
+.professional-card.ds-card .professional-card__rating,
+.professional-card.ds-card .professional-card__rating small,
+.professional-card.ds-card .professional-card__location {
+  color: var(--ds-text-secondary, var(--color-mist));
+}
