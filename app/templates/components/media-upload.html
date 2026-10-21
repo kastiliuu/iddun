@@ -4,6 +4,7 @@
   {% set focus_x_value = focus_x.data if focus_x.data not in (none, '') else 50 %}
   {% set focus_y_value = focus_y.data if focus_y.data not in (none, '') else 50 %}
   {% set crop_ratio = '16 / 7' if kind == 'cover' else '1 / 1' %}
+  {% set crop_aspect = '2.285714' if kind == 'cover' else '1' %}
 
   <div
     class="platform-media-control"
@@ -39,11 +40,20 @@
     {{ focus_x(data_focus_x='') }}
     {{ focus_y(data_focus_y='') }}
 
-    <button type="button" class="media-cropper__launch" data-crop-launch {% if not existing_url %}hidden{% endif %}>Ajustar enquadramento</button>
+    <button
+      type="button"
+      class="media-cropper__launch"
+      data-crop-launch
+      {% if not existing_url %}hidden{% endif %}
+    >
+      Ajustar enquadramento
+    </button>
 
     <div
       class="media-cropper media-cropper--{{ kind }}{% if existing_url %} has-image{% endif %}"
       data-media-cropper
+      data-crop-kind="{{ kind }}"
+      data-crop-aspect="{{ crop_aspect }}"
       role="dialog"
       aria-modal="true"
       aria-label="Ajustar imagem de {{ field.label.text }}"
@@ -51,23 +61,17 @@
       data-crop-input-id="{{ field.id }}"
       data-focus-x-id="{{ focus_x.id }}"
       data-focus-y-id="{{ focus_y.id }}"
-      {% if not existing_url %}
-        hidden
-      {% endif %}
+      {% if not existing_url %}hidden{% endif %}
     >
       <div class="media-cropper__header">
         <div class="media-cropper__copy">
           <strong>
-            Ajustar enquadramento
+            {{ 'Ajustar foto de perfil' if kind == 'avatar' else 'Ajustar foto de capa' }}
           </strong>
 
-          <small
-            id="{{ field.id }}-crop-help"
-          >
-            Arraste a imagem para escolher a área
-            principal. Use as setas para ajustes
-            finos ou Shift + setas para movimentos
-            maiores.
+          <small id="{{ field.id }}-crop-help">
+            Arraste a imagem para posicionar.
+            Use o zoom, a roda do mouse ou gesto de pinça.
           </small>
         </div>
 
@@ -76,52 +80,84 @@
           type="button"
           data-crop-reset
         >
-          Centralizar
+          Redefinir
         </button>
       </div>
 
       <div
-        class="media-cropper__stage"
-        style="aspect-ratio: {{ crop_ratio }};"
-        data-crop-stage
-        tabindex="0"
-        aria-label="Ajustar enquadramento de {{ field.label.text }}"
-        aria-describedby="{{ field.id }}-crop-help"
+        class="media-cropper__viewport media-cropper__viewport--{{ kind }}"
       >
-        <img
-          class="media-cropper__image"
-          data-crop-image
-          {% if existing_url %}
-            src="{{ existing_url|media_url }}"
-          {% endif %}
-          alt=""
-          style="object-position: {{ focus_x_value }}% {{ focus_y_value }}%;"
-          draggable="false"
+        <div
+          class="media-cropper__stage"
+          style="aspect-ratio: {{ crop_ratio }};"
+          data-crop-stage
+          tabindex="0"
+          aria-label="Ajustar enquadramento de {{ field.label.text }}"
+          aria-describedby="{{ field.id }}-crop-help"
         >
+          <img
+            class="media-cropper__image"
+            data-crop-image
+            {% if existing_url %}
+              src="{{ existing_url|media_url }}"
+            {% endif %}
+            alt=""
+            style="object-position: {{ focus_x_value }}% {{ focus_y_value }}%;"
+            draggable="false"
+          >
+          <span class="media-cropper__frame" aria-hidden="true"></span>
+        </div>
+      </div>
 
-        <span
-          class="media-cropper__target"
-          aria-hidden="true"
-        ></span>
+      <div class="media-cropper__zoom">
+        <span aria-hidden="true">−</span>
+        <label class="sr-only" for="{{ field.id }}-crop-zoom">
+          Zoom da imagem
+        </label>
+        <input
+          id="{{ field.id }}-crop-zoom"
+          type="range"
+          min="1"
+          max="3"
+          step="0.01"
+          value="1"
+          data-crop-zoom
+          aria-describedby="{{ field.id }}-crop-help"
+        >
+        <span aria-hidden="true">+</span>
+        <output data-crop-zoom-value>100%</output>
       </div>
 
       <div class="media-cropper__footer">
         <span>
-          A prévia mostra como a imagem
-          aparecerá no perfil.
+          A área visível é exatamente o que será usado
+          {{ 'na foto de perfil.' if kind == 'avatar' else 'na capa.' }}
         </span>
 
         <output
+          class="sr-only"
           data-crop-output
           aria-live="polite"
         >
-          {{ focus_x_value }}% ·
-          {{ focus_y_value }}%
+          Enquadramento pronto.
         </output>
       </div>
+
       <div class="media-cropper__actions">
-        <button type="button" class="media-cropper__cancel" data-crop-cancel>Cancelar</button>
-        <button type="button" class="media-cropper__confirm" data-crop-confirm>Aplicar enquadramento</button>
+        <button
+          type="button"
+          class="media-cropper__cancel"
+          data-crop-cancel
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="media-cropper__confirm"
+          data-crop-confirm
+        >
+          Aplicar enquadramento
+        </button>
       </div>
     </div>
   </div>
