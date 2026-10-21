@@ -5,7 +5,8 @@ from flask import Blueprint, request
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
+from app.models.experience import Experience, ExperienceCategory, ExperienceStatus, ExperienceSlot
+from app.models.establishment import ProfessionalEstablishmentMembership, MembershipStatus
 from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
 
@@ -813,6 +814,7 @@ def get_professional_service_draft(service_id):
         "price": float(item.price),
         "durationMinutes": item.duration_minutes,
         "status": item.status,
+        "establishmentId": item.establishment_id,
     }}, cache_control="private, no-store")
 
 
@@ -837,7 +839,7 @@ def update_professional_service_draft(service_id):
     if error is not None:
         return error
     allowed = {"name", "category", "shortDescription", "description",
-               "regularPrice", "price", "durationMinutes"}
+               "regularPrice", "price", "durationMinutes", "establishmentId"}
     if not payload or set(payload) - allowed:
         return api_error("invalid_fields", "Envie apenas campos editáveis do serviço.", 400)
 
@@ -874,7 +876,21 @@ def update_professional_service_draft(service_id):
     if regular is None or price is None or price > regular:
         return api_error("invalid_price", "Preço inválido ou maior que o preço regular.", 400)
 
-    # Preserve immutable slug, ownership, linked establishment, slots and publication state.
+    establishment_id = payload.get("establishmentId", item.establishment_id)
+    if establishment_id is not None:
+        if isinstance(establishment_id, bool) or not isinstance(establishment_id, int) or establishment_id <= 0:
+            return api_error("invalid_establishment", "Estabelecimento inválido.", 400)
+        if establishment_id not in _owned_active_establishments(profile):
+            return api_error("establishment_not_allowed", "Vínculo ativo com o estabelecimento necessário.", 403)
+    if establishment_id != item.establishment_id:
+        has_slots = db.session.scalar(
+            select(ExperienceSlot.id).where(ExperienceSlot.experience_id == item.id).limit(1)
+        ) is not None
+        if has_slots:
+            return api_error("service_has_slots", "Não é possível mudar o local com horários existentes.", 409)
+
+    # Preserve immutable slug, ownership, slots and publication state.
+    item.establishment_id = establishment_id
     item.title = title.strip()
     item.category = category
     item.short_description = short.strip()
@@ -941,3 +957,32 @@ def change_professional_service_status(service_id):
         "category": item.category, "price": float(item.price),
         "durationMinutes": item.duration_minutes,
     }}, cache_control="private, no-store")
+
+def _owned_active_establishments(profile):
+    memberships = db.session.scalars(
+        select(ProfessionalEstablishmentMembership).where(
+            ProfessionalEstablishmentMembership.professional_id == profile.id,
+            ProfessionalEstablishmentMembership.status == MembershipStatus.ACTIVE,
+        )
+    ).all()
+    return {
+        m.establishment_id: m.establishment.name
+        for m in memberships
+        if m.establishment is not None and m.establishment.is_active
+    }
+
+
+@api_onboarding_bp.get("/professional/service-establishments")
+def list_professional_service_establishments():
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    choices = _owned_active_establishments(profile)
+    return api_json({"items": [
+        {"id": key, "name": name}
+        for key, name in sorted(choices.items(), key=lambda entry: entry[1].lower())
+    ]}, cache_control="private, no-store")
+
