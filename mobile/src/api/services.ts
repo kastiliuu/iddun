@@ -468,3 +468,30 @@ export function createProfessionalSlotsFromSchedule(serviceId: number, date: str
     ),
   );
 }
+
+export type WeeklyScheduleDay = {
+  weekday: number;
+  label: string;
+  enabled: boolean;
+  start: string;
+  end: string;
+  break_enabled: boolean;
+  break_start: string;
+  break_end: string;
+};
+
+export function getProfessionalWeeklySchedule() {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ days: WeeklyScheduleDay[] }>(
+      "/api/v1/onboarding/professional/weekly-schedule", { token },
+    ),
+  );
+}
+
+export function updateProfessionalWeeklySchedule(days: WeeklyScheduleDay[]) {
+  return withAuthenticatedRequest((token) =>
+    api.put<{ days: WeeklyScheduleDay[] }>(
+      "/api/v1/onboarding/professional/weekly-schedule", { days }, { token },
+    ),
+  );
+}
