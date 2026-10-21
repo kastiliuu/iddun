@@ -910,3 +910,81 @@ def test_mobile_weekly_schedule_rejects_invalid_and_persists_valid_days(app, cli
     assert result[0]["enabled"] is True
     assert result[0]["break_enabled"] is True
     assert result[1]["enabled"] is False
+
+
+def test_mobile_schedule_to_slots_block_reopen_and_overlap(app, client):
+    """End-to-end API contract: saved shift -> real availability -> safe state changes."""
+    from datetime import timedelta
+    from app.models.booking import ExperienceSlot, SlotStatus
+    from app.services.time_service import utcnow
+
+    _, owner = _authenticated_client(app, email="agenda-journey-145@example.com")
+    profile_response = client.post(
+        f"{BASE}/professional", headers=owner,
+        json=_professional_payload(attendanceModalities=["own_space"]),
+    )
+    assert profile_response.status_code in (200, 201)
+
+    draft = client.post(f"{BASE}/professional/services", headers=owner, json={
+        "name": "Jornada integrada", "category": "unhas",
+        "shortDescription": "Sessão de uma hora", "price": 90,
+        "regularPrice": 90, "durationMinutes": 60,
+    })
+    assert draft.status_code == 201
+    service_id = draft.get_json()["service"]["id"]
+    with app.app_context():
+        item = db.session.get(Experience, service_id)
+        item.status = ExperienceStatus.PUBLISHED
+        db.session.commit()
+
+    selected_date = (utcnow() + timedelta(days=35)).date()
+    weekday = selected_date.weekday()
+    schedule_url = f"{BASE}/professional/weekly-schedule"
+    read_schedule = client.get(schedule_url, headers=owner)
+    assert read_schedule.status_code == 200
+    days = read_schedule.get_json()["days"]
+    for day in days:
+        day["enabled"] = day["weekday"] == weekday
+    selected = days[weekday]
+    selected.update(start="09:00", end="12:00", break_enabled=True,
+                    break_start="10:00", break_end="11:00")
+    saved = client.put(schedule_url, headers=owner, json={"days": days})
+    assert saved.status_code == 200, saved.get_json()
+
+    availability_url = f"{BASE}/professional/services/{service_id}/availability"
+    generated = client.post(
+        availability_url + "/from-schedule",
+        headers=owner, json={"date": selected_date.isoformat()},
+    )
+    assert generated.status_code == 201, generated.get_json()
+    assert generated.get_json()["createdCount"] == 2
+
+    listing = client.get(availability_url, headers=owner)
+    assert listing.status_code == 200
+    slots = listing.get_json()["items"]
+    assert len(slots) == 2
+    assert all(slot["status"] == SlotStatus.AVAILABLE for slot in slots)
+
+    # Reopening never creates a second slot and cannot circumvent overlap checks.
+    slot_id = slots[0]["id"]
+    status_url = availability_url + f"/{slot_id}/status"
+    blocked = client.post(status_url, headers=owner, json={"action": "block"})
+    assert blocked.status_code == 200
+    assert blocked.get_json()["slot"]["status"] == SlotStatus.BLOCKED_MANUAL
+    assert client.post(status_url, headers=owner, json={"action": "block"}).status_code == 409
+    reopened = client.post(status_url, headers=owner, json={"action": "reopen"})
+    assert reopened.status_code == 200
+    assert reopened.get_json()["slot"]["status"] == SlotStatus.AVAILABLE
+    assert client.post(status_url, headers=owner, json={"action": "reopen"}).status_code == 409
+
+    conflict = client.post(
+        availability_url, headers=owner,
+        json={"date": selected_date.isoformat(), "time": "09:00"},
+    )
+    assert conflict.status_code == 409
+    with app.app_context():
+        assert db.session.scalar(
+            select(func.count(ExperienceSlot.id)).where(
+                ExperienceSlot.experience_id == service_id,
+            )
+        ) == 2
