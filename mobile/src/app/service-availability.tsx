@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   createProfessionalServiceAvailability,
+  changeProfessionalSlotStatus,
   getProfessionalServiceAvailability,
   type ManagedAvailabilitySlot,
 } from "@/api/services";
@@ -19,6 +20,7 @@ export default function ServiceAvailabilityScreen() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
+  const [slotBusy, setSlotBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +49,22 @@ export default function ServiceAvailabilityScreen() {
     ).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [serviceId]);
+
+  const changeStatus = (slot: ManagedAvailabilitySlot, action: "block" | "reopen") => {
+    if (!serviceId) return;
+    Alert.alert(action === "block" ? "Bloquear horário?" : "Reabrir horário?",
+      action === "block" ? "O horário deixará de aceitar reservas." : "O horário poderá voltar a receber reservas se ainda estiver válido.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Confirmar", onPress: () => {
+          setSlotBusy(slot.id);
+          changeProfessionalSlotStatus(serviceId, slot.id, action).then(() => refresh())
+            .catch(cause => Alert.alert("Erro ao atualizar horário", cause instanceof Error ? cause.message : "Tente novamente."))
+            .finally(() => setSlotBusy(null));
+        } },
+      ],
+    );
+  };
 
   const submit = async () => {
     if (!serviceId) return;
@@ -93,6 +111,14 @@ export default function ServiceAvailabilityScreen() {
             <View key={slot.id} style={styles.slot}>
               <Text style={styles.label}>{slot.startsAt.replace("T", " ").slice(0, 16)}</Text>
               <Text style={styles.subtle}>{slot.status}</Text>
+              {(slot.status === "available" || slot.status === "blocked_manual") ? (
+                <Pressable accessibilityRole="button" disabled={slotBusy !== null}
+                  accessibilityLabel={(slot.status === "available" ? "Bloquear " : "Reabrir ") + slot.startsAt}
+                  onPress={() => changeStatus(slot, slot.status === "available" ? "block" : "reopen")}
+                  style={{ paddingVertical: spacing.sm }}>
+                  <Text style={styles.link}>{slotBusy === slot.id ? "Salvando..." : slot.status === "available" ? "Bloquear horário" : "Reabrir horário"}</Text>
+                </Pressable>
+              ) : null}
             </View>
           ))}
     </ScrollView>
