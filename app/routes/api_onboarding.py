@@ -10,7 +10,7 @@ from app.models.booking import ExperienceSlot
 from app.models.establishment import ProfessionalEstablishmentMembership, MembershipStatus
 from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
-from app.services.availability_service import AvailabilityError, create_availability
+from app.services.availability_service import AvailabilityError, create_availability, create_availability_from_working_hours
 from app.services.time_service import utcnow, to_local
 from app.models.booking import SlotStatus
 from app.services.booking_service import block_slot_manual, reopen_manual_slot, BookingStateError
@@ -1094,3 +1094,32 @@ def change_professional_slot_status(service_id, slot_id):
         "status": slot.status,
         "startsAt": to_local(slot.starts_at, profile.timezone).isoformat(),
     }}, cache_control="private, no-store")
+
+
+@api_onboarding_bp.post("/professional/services/<int:service_id>/availability/from-schedule")
+@limiter.limit("20 per hour")
+def create_professional_slots_from_schedule(service_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience.id).where(
+        Experience.id == service_id, Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    if set(payload) != {"date"} or not isinstance(payload["date"], str):
+        return api_error("invalid_fields", "Informe somente a data AAAA-MM-DD.", 400)
+    try:
+        created = create_availability_from_working_hours(
+            user=user, experience_reference=str(service_id), slot_date=payload["date"],
+        )
+    except AvailabilityError as exc:
+        db.session.rollback()
+        return api_error("availability_invalid", str(exc), 409)
+    return api_json({"createdCount": len(created)}, status=201, cache_control="private, no-store")
