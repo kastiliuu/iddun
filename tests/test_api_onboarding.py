@@ -680,3 +680,49 @@ def test_professional_service_edit_keeps_owner_and_publication_state(app, client
         db.session.commit()
 
     assert client.patch(url, headers=headers, json={"name": "Não permitido"}).status_code == 409
+
+
+def test_mobile_service_status_owner_and_transition_guards(app, client):
+    _, owner = _authenticated_client(app, email="status-owner-139@example.com")
+    _, other = _authenticated_client(app, email="status-other-139@example.com")
+    for headers in (owner, other):
+        response = client.post(
+            f"{BASE}/professional", headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert response.status_code in (200, 201)
+
+    draft = client.post(f"{BASE}/professional/services", headers=owner, json={
+        "name": "Manicure status", "category": "unhas",
+        "shortDescription": "Atendimento individual", "price": 90,
+        "regularPrice": 90, "durationMinutes": 60,
+    })
+    assert draft.status_code == 201
+    service_id = draft.get_json()["service"]["id"]
+    endpoint = f"{BASE}/professional/services/{service_id}/status"
+
+    assert client.post(endpoint, json={"action": "publish"}).status_code == 401
+    assert client.post(endpoint, headers=other, json={"action": "publish"}).status_code == 404
+    assert client.post(endpoint, headers=owner, json={"action": "pause"}).status_code == 409
+    assert client.post(endpoint, headers=owner, json={"action": "delete"}).status_code == 400
+    assert client.post(endpoint, headers=owner, json={"action": "publish", "status": "published"}).status_code == 400
+
+    # Publication must use the same eligibility check as web.
+    from app.models.experience import ExperienceStatus
+    from app.services import admin_catalog_service
+    from app.models.experience import Experience
+    original = admin_catalog_service.validate_experience_publication
+    admin_catalog_service.validate_experience_publication = lambda **kwargs: None
+    try:
+        published = client.post(endpoint, headers=owner, json={"action": "publish"})
+        assert published.status_code == 200
+        assert published.get_json()["service"]["status"] == ExperienceStatus.PUBLISHED
+        assert client.post(endpoint, headers=owner, json={"action": "publish"}).status_code == 409
+        paused = client.post(endpoint, headers=owner, json={"action": "pause"})
+        assert paused.status_code == 200
+        assert paused.get_json()["service"]["status"] == ExperienceStatus.PAUSED
+        assert client.post(endpoint, headers=owner, json={"action": "pause"}).status_code == 409
+    finally:
+        admin_catalog_service.validate_experience_publication = original
+    with app.app_context():
+        assert db.session.get(Experience, service_id).status == ExperienceStatus.PAUSED
