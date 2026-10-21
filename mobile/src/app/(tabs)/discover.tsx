@@ -114,6 +114,7 @@ export default function DiscoverScreen() {
         controller.signal,
       )
         .then((response) => {
+          if (controller.signal.aborted) return;
           setRealExperiences(response.items);
           setRealError(false);
         })
@@ -124,6 +125,7 @@ export default function DiscoverScreen() {
           ) {
             return;
           }
+          if (controller.signal.aborted) return;
           setRealExperiences([]);
           setRealError(true);
         })
@@ -153,6 +155,7 @@ export default function DiscoverScreen() {
         controller.signal,
       )
         .then((response) => {
+          if (controller.signal.aborted) return;
           setDiscovery(response);
         })
         .catch((error: unknown) => {
@@ -162,6 +165,7 @@ export default function DiscoverScreen() {
           ) {
             return;
           }
+          if (controller.signal.aborted) return;
           setDiscovery({
             professionals: [],
             establishments: [],
