@@ -83,6 +83,11 @@ export default function DiscoverScreen() {
     setGlobalSearchLoading,
   ] = useState(false);
 
+  const [globalSearchError, setGlobalSearchError] =
+    useState(false);
+  const [searchRetry, setSearchRetry] =
+    useState(0);
+
   const [realExperiences, setRealExperiences] =
     useState<CatalogExperience[]>([]);
   const [realLoading, setRealLoading] =
@@ -176,14 +181,20 @@ export default function DiscoverScreen() {
       search.trim();
 
     if (!normalizedSearch) {
+      setGlobalResults([]);
+      setGlobalSearchError(false);
+      setGlobalSearchLoading(false);
       return;
     }
+
+    // Clear previous filter results immediately, even during debounce.
+    setGlobalResults([]);
+    setGlobalSearchError(false);
+    setGlobalSearchLoading(true);
 
     const controller =
       new AbortController();
     const timer = setTimeout(() => {
-      setGlobalSearchLoading(true);
-
       globalSearch(
         {
           query: normalizedSearch,
@@ -197,9 +208,10 @@ export default function DiscoverScreen() {
         controller.signal,
       )
         .then((response) => {
-          setGlobalResults(
-            response.items,
-          );
+          if (!controller.signal.aborted) {
+            setGlobalResults(response.items);
+            setGlobalSearchError(false);
+          }
         })
         .catch(
           (error: unknown) => {
@@ -211,7 +223,10 @@ export default function DiscoverScreen() {
               return;
             }
 
-            setGlobalResults([]);
+            if (!controller.signal.aborted) {
+              setGlobalResults([]);
+              setGlobalSearchError(true);
+            }
           },
         )
         .finally(() => {
@@ -230,7 +245,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory, location]);
+  }, [search, selectedCategory, location, searchRetry]);
 
   const openRealExperience = (
     experience: CatalogExperience,
@@ -705,6 +720,13 @@ export default function DiscoverScreen() {
               }
             />
           </View>
+        ) : search.trim() && globalSearchError ? (
+          <EmptyState
+            title="Não foi possível carregar a busca"
+            description="Confira sua conexão e tente novamente. Seus filtros foram preservados."
+            actionLabel="Tentar novamente"
+            onActionPress={() => setSearchRetry((value) => value + 1)}
+          />
         ) : visibleDiscoveryItems.length >
         0 ? (
           <View
@@ -816,7 +838,7 @@ export default function DiscoverScreen() {
           >
             <SectionHeader
               title="Profissionais em destaque"
-              subtitle="Perfis públicos próximos de você"
+              subtitle="Conheça perfis públicos da comunidade"
             />
 
             <View
