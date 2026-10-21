@@ -877,3 +877,36 @@ def test_mobile_weekly_schedule_creation_requires_owner_and_valid_date(app, clie
     result = client.post(endpoint, headers=owner, json={"date": "2026-11-05"})
     assert result.status_code == 409
     assert result.get_json()["error"]["code"] == "availability_invalid"
+
+
+def test_mobile_weekly_schedule_rejects_invalid_and_persists_valid_days(app, client):
+    _, owner = _authenticated_client(app, email="weekly-editor-144@example.com")
+    url = f"{BASE}/professional/weekly-schedule"
+    assert client.get(url).status_code == 401
+    assert client.put(url, json={"days": []}).status_code == 401
+    assert client.get(url, headers=owner).status_code == 409
+    profile = client.post(f"{BASE}/professional", headers=owner,
+        json=_professional_payload(attendanceModalities=["own_space"]))
+    assert profile.status_code in (200, 201)
+    initial = client.get(url, headers=owner)
+    assert initial.status_code == 200
+    days = initial.get_json()["days"]
+    assert len(days) == 7
+    assert client.put(url, headers=owner, json={"days": days[:-1]}).status_code == 400
+    duplicate = [dict(day) for day in days]
+    duplicate[1]["weekday"] = 0
+    assert client.put(url, headers=owner, json={"days": duplicate}).status_code == 400
+    invalid = [dict(day) for day in days]
+    invalid[0].update(enabled=True, start="18:00", end="09:00")
+    assert client.put(url, headers=owner, json={"days": invalid}).status_code == 400
+    changed = [dict(day) for day in days]
+    for day in changed:
+        day["enabled"] = day["weekday"] == 0
+    changed[0].update(start="09:00", end="17:00", break_enabled=True,
+        break_start="12:00", break_end="13:00")
+    saved = client.put(url, headers=owner, json={"days": changed})
+    assert saved.status_code == 200
+    result = client.get(url, headers=owner).get_json()["days"]
+    assert result[0]["enabled"] is True
+    assert result[0]["break_enabled"] is True
+    assert result[1]["enabled"] is False
