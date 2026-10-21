@@ -94,6 +94,8 @@ export default function DiscoverScreen() {
     useState(true);
   const [realError, setRealError] =
     useState(false);
+  const [catalogRetry, setCatalogRetry] =
+    useState(0);
   const [discovery, setDiscovery] =
     useState<DiscoveryResponse>({
       professionals: [],
@@ -140,7 +142,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory, location]);
+  }, [search, selectedCategory, location, catalogRetry]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -638,9 +640,12 @@ export default function DiscoverScreen() {
           {realLoading ? (
             <ActivityIndicator color={colors.plum} />
           ) : realError ? (
-            <Text style={styles.realMessage}>
-              Não foi possível carregar o catálogo agora. Tente novamente em instantes.
-            </Text>
+            <EmptyState
+              title="Não foi possível carregar as experiências"
+              description="Confira sua conexão e tente novamente. Sua localização e categoria serão mantidas."
+              actionLabel="Tentar novamente"
+              onActionPress={() => setCatalogRetry((value) => value + 1)}
+            />
           ) : realExperiences.length === 0 ? (
             <Text style={styles.realMessage}>
               Nenhuma experiência publicada corresponde à busca.
@@ -825,6 +830,7 @@ export default function DiscoverScreen() {
               setSelectedCategory(
                 "Todos",
               );
+              setLocation("");
             }}
           />
         )}
