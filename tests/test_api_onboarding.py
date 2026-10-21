@@ -588,3 +588,49 @@ def test_private_professional_services_list_scopes_owner_and_includes_drafts(app
     assert items[0]["status"] == "draft"
     assert items[0]["price"] == 75.0
     assert items[0]["durationMinutes"] == 60
+
+
+def test_mobile_service_draft_creation_requires_professional_and_valid_payload(app, client):
+    _, headers = _authenticated_client(app, email="draft-pro137@example.com")
+    endpoint = f"{BASE}/professional/services"
+    valid = {
+        "name": "Banho de gel",
+        "category": "unhas",
+        "shortDescription": "Aplicação profissional",
+        "price": 120,
+        "regularPrice": 120,
+        "durationMinutes": 60,
+    }
+    assert client.post(endpoint, json=valid).status_code == 401
+    assert client.post(endpoint, headers=headers, json=valid).status_code == 409
+    profile = client.post(
+        f"{BASE}/professional", headers=headers,
+        json=_professional_payload(attendanceModalities=["own_space"]),
+    )
+    assert profile.status_code in (200, 201)
+    for changes in [
+        {"category": "inexistente"},
+        {"price": -1},
+        {"durationMinutes": 0},
+        {"durationMinutes": True},
+        {"price": 200, "regularPrice": 100},
+        {"name": " "},
+        {"price": "NaN"},
+    ]:
+        assert client.post(endpoint, headers=headers, json={**valid, **changes}).status_code == 400
+
+    created = client.post(endpoint, headers=headers, json=valid)
+    assert created.status_code == 201
+    payload = created.get_json()["service"]
+    assert payload["status"] == "draft"
+    assert payload["title"] == "Banho de gel"
+    with app.app_context():
+        from app.models.experience import Experience
+        item = db.session.get(Experience, payload["id"])
+        assert item is not None
+        assert item.status == "draft"
+        assert item.establishment_id is None
+        assert len(item.slots) == 0
+    listed = client.get(endpoint, headers=headers)
+    assert listed.status_code == 200
+    assert any(item["id"] == payload["id"] for item in listed.get_json()["items"])
