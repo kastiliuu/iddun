@@ -12,6 +12,8 @@ from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
 from app.services.availability_service import AvailabilityError, create_availability
 from app.services.time_service import utcnow, to_local
+from app.models.booking import SlotStatus
+from app.services.booking_service import block_slot_manual, reopen_manual_slot, BookingStateError
 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
@@ -1050,3 +1052,45 @@ def professional_service_availability(service_id):
         ],
     }, status=201 if request.method == "POST" else 200,
         cache_control="private, no-store")
+
+
+@api_onboarding_bp.post("/professional/services/<int:service_id>/availability/<int:slot_id>/status")
+@limiter.limit("30 per hour")
+def change_professional_slot_status(service_id, slot_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    slot = db.session.scalar(select(ExperienceSlot).where(
+        ExperienceSlot.id == slot_id,
+        ExperienceSlot.experience_id == service_id,
+        ExperienceSlot.professional_id == profile.id,
+    ).with_for_update())
+    if slot is None:
+        return api_error("slot_not_found", "Horário não encontrado.", 404)
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    if set(payload) != {"action"} or payload["action"] not in ("block", "reopen"):
+        return api_error("invalid_action", "Ação inválida.", 400)
+    if payload["action"] == "block":
+        # Do not silently cancel pending holds or confirmed bookings.
+        if slot.status != SlotStatus.AVAILABLE:
+            return api_error("invalid_slot_state", "Somente horários disponíveis podem ser bloqueados.", 409)
+        if not block_slot_manual(slot):
+            return api_error("invalid_slot_state", "Horário não pode ser bloqueado.", 409)
+    else:
+        if slot.status != SlotStatus.BLOCKED_MANUAL:
+            return api_error("invalid_slot_state", "Somente bloqueios manuais podem ser liberados.", 409)
+        try:
+            reopen_manual_slot(slot)
+        except BookingStateError as exc:
+            db.session.rollback()
+            return api_error("invalid_slot_state", str(exc), 409)
+    return api_json({"slot": {
+        "id": slot.id,
+        "status": slot.status,
+        "startsAt": to_local(slot.starts_at, profile.timezone).isoformat(),
+    }}, cache_control="private, no-store")
