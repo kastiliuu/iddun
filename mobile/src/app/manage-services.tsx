@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Alert } from "react-native";
 import {
   ActivityIndicator,
   Pressable,
@@ -10,7 +11,7 @@ import {
   useRouter,
 } from "expo-router";
 
-import { getManagedServices, type ManagedService } from "@/api/services";
+import { changeProfessionalServiceStatus, getManagedServices, type ManagedService } from "@/api/services";
 
 import {
   EmptyState,
@@ -32,6 +33,7 @@ export default function ManageServicesScreen() {
   const router = useRouter();
   const [items, setItems] = useState<ManagedService[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingId, setPendingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const reload = useCallback(async () => {
     setLoading(true);
@@ -45,6 +47,27 @@ export default function ManageServicesScreen() {
       setLoading(false);
     }
   }, []);
+  const setStatus = (item: ManagedService, action: "publish" | "pause") => {
+    Alert.alert(
+      action === "pause" ? "Pausar serviço?" : "Publicar serviço?",
+      action === "pause"
+        ? "O serviço deixará de aparecer para novas reservas. Reservas existentes continuam válidas."
+        : "O serviço aparecerá no catálogo, mas só poderá receber reservas com horários válidos.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Confirmar", onPress: () => {
+          setPendingId(item.id);
+          changeProfessionalServiceStatus(item.id, action)
+            .then(() => reload())
+            .catch((cause) => {
+              Alert.alert("Não foi possível alterar o serviço", cause instanceof Error ? cause.message : "Tente novamente.");
+            })
+            .finally(() => setPendingId(null));
+        }},
+      ],
+    );
+  };
+
   useEffect(() => {
     let active = true;
     getManagedServices().then(
@@ -124,6 +147,18 @@ export default function ManageServicesScreen() {
                   onPress={() => router.push({ pathname: "/create-service", params: { editId: String(item.id) } })}
                   style={{ paddingVertical: spacing.sm }}>
                   <Text style={{ color: colors.plum, fontWeight: "600" }}>Editar serviço</Text>
+                </Pressable>
+              ) : null}
+              {item.status !== "archived" ? (
+                <Pressable accessibilityRole="button"
+                  accessibilityLabel={item.status === "published" ? `Pausar ${item.title}` : `Publicar ${item.title}`}
+                  accessibilityState={{ disabled: pendingId !== null }}
+                  disabled={pendingId !== null}
+                  onPress={() => setStatus(item, item.status === "published" ? "pause" : "publish")}
+                  style={{ paddingVertical: spacing.sm }}>
+                  <Text style={{ color: colors.plum, fontWeight: "600" }}>
+                    {pendingId === item.id ? "Salvando..." : item.status === "published" ? "Pausar serviço" : "Publicar serviço"}
+                  </Text>
                 </Pressable>
               ) : null}
               <Text style={{ color: colors.plum }}>

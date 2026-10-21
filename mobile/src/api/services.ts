@@ -396,3 +396,13 @@ export function updateProfessionalServiceDraft(id: number, payload: Partial<Serv
     ),
   );
 }
+
+export function changeProfessionalServiceStatus(id: number, action: "publish" | "pause") {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ service: ManagedService }>(
+      `/api/v1/onboarding/professional/services/${id}/status`,
+      { action },
+      { token },
+    ),
+  );
+}

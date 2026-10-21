@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.extensions import db
 from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
 from app.services.slug_service import unique_slug
+from app.services.admin_catalog_service import publish_experience
 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
@@ -891,5 +892,52 @@ def update_professional_service_draft(service_id):
     return api_json({"service": {
         "id": item.id, "title": item.title, "category": item.category,
         "status": item.status, "price": float(item.price),
+        "durationMinutes": item.duration_minutes,
+    }}, cache_control="private, no-store")
+
+
+@api_onboarding_bp.post("/professional/services/<int:service_id>/status")
+@limiter.limit("30 per hour")
+def change_professional_service_status(service_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience).where(
+        Experience.id == service_id,
+        Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    if set(payload) != {"action"} or payload["action"] not in ("publish", "pause"):
+        return api_error("invalid_action", "Informe uma ação válida: publish ou pause.", 400)
+    action = payload["action"]
+    if action == "publish":
+        if item.status not in (ExperienceStatus.DRAFT, ExperienceStatus.PAUSED):
+            return api_error("invalid_state", "Serviço não pode ser publicado neste estado.", 409)
+        try:
+            publish_experience(item)
+        except ValueError as exc:
+            db.session.rollback()
+            return api_error("publication_ineligible", str(exc), 409)
+    else:
+        if item.status != ExperienceStatus.PUBLISHED:
+            return api_error("invalid_state", "Somente serviços publicados podem ser pausados.", 409)
+        item.status = ExperienceStatus.PAUSED
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.exception("Falha ao atualizar status do serviço")
+        return api_error("service_save_failed", "Não foi possível atualizar o serviço.", 500)
+    return api_json({"service": {
+        "id": item.id, "title": item.title, "status": item.status,
+        "category": item.category, "price": float(item.price),
         "durationMinutes": item.duration_minutes,
     }}, cache_control="private, no-store")
