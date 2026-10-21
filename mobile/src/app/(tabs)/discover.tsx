@@ -96,6 +96,9 @@ export default function DiscoverScreen() {
     useState(false);
   const [catalogRetry, setCatalogRetry] =
     useState(0);
+  const [discoveryError, setDiscoveryError] = useState(false);
+  const [discoveryLoading, setDiscoveryLoading] = useState(true);
+  const [discoveryRetry, setDiscoveryRetry] = useState(0);
   const [discovery, setDiscovery] =
     useState<DiscoveryResponse>({
       professionals: [],
@@ -147,6 +150,8 @@ export default function DiscoverScreen() {
   useEffect(() => {
     const controller = new AbortController();
     const timer = setTimeout(() => {
+      setDiscoveryLoading(true);
+      setDiscoveryError(false);
       getDiscovery(
         {
           search,
@@ -159,6 +164,7 @@ export default function DiscoverScreen() {
         .then((response) => {
           if (controller.signal.aborted) return;
           setDiscovery(response);
+          setDiscoveryError(false);
         })
         .catch((error: unknown) => {
           if (
@@ -173,6 +179,10 @@ export default function DiscoverScreen() {
             establishments: [],
             posts: [],
           });
+          setDiscoveryError(true);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setDiscoveryLoading(false);
         });
     }, 250);
 
@@ -180,7 +190,7 @@ export default function DiscoverScreen() {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [search, selectedCategory, location]);
+  }, [search, selectedCategory, location, discoveryRetry]);
 
   useEffect(() => {
     const normalizedSearch =
@@ -732,6 +742,15 @@ export default function DiscoverScreen() {
             description="Confira sua conexão e tente novamente. Seus filtros foram preservados."
             actionLabel="Tentar novamente"
             onActionPress={() => setSearchRetry((value) => value + 1)}
+          />
+        ) : !search.trim() && discoveryLoading ? (
+          <ActivityIndicator color={colors.plum} />
+        ) : !search.trim() && discoveryError ? (
+          <EmptyState
+            title="Não foi possível carregar as inspirações"
+            description="Confira sua conexão e tente novamente. Seus filtros foram preservados."
+            actionLabel="Tentar novamente"
+            onActionPress={() => setDiscoveryRetry((value) => value + 1)}
           />
         ) : visibleDiscoveryItems.length >
         0 ? (
