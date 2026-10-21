@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   createProfessionalServiceAvailability,
+  createProfessionalSlotsFromSchedule,
   changeProfessionalSlotStatus,
   getProfessionalServiceAvailability,
   type ManagedAvailabilitySlot,
@@ -66,6 +67,27 @@ export default function ServiceAvailabilityScreen() {
     );
   };
 
+  const createFromSchedule = () => {
+    if (!serviceId) return;
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(date)) {
+      setError("Informe a data no formato AAAA-MM-DD.");
+      return;
+    }
+    Alert.alert("Abrir horários da jornada?", "Serão usados os horários semanais já cadastrados, respeitando intervalos e disponibilidade.", [
+      { text: "Cancelar", style: "cancel" },
+      { text: "Confirmar", onPress: () => {
+        setBusy(true);
+        setError(null);
+        createProfessionalSlotsFromSchedule(serviceId, date).then(async ({ createdCount }) => {
+          await refresh();
+          Alert.alert("Horários criados", `${createdCount} horários gerados para a data selecionada.`);
+        }).catch(cause => {
+          setError(cause instanceof Error ? cause.message : "Não foi possível abrir os horários.");
+        }).finally(() => setBusy(false));
+      } },
+    ]);
+  };
+
   const submit = async () => {
     if (!serviceId) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
@@ -104,6 +126,10 @@ export default function ServiceAvailabilityScreen() {
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <Button title={busy ? "Salvando..." : "Abrir horário"} fullWidth
         disabled={busy || loading || !serviceId} onPress={() => { void submit(); }} />
+      <Button title="Gerar horários da jornada semanal" fullWidth
+        variant="secondary" disabled={busy || loading || !serviceId}
+        onPress={createFromSchedule} />
+      <Text style={styles.subtle}>Esta ação usa a jornada semanal cadastrada no seu perfil para a data escolhida. Não altera suas regras de trabalho.</Text>
       <Text style={styles.section}>Próximos horários</Text>
       {loading ? <ActivityIndicator accessibilityLabel="Carregando horários" /> :
         slots.length === 0 ? <Text style={styles.subtle}>Nenhum horário futuro cadastrado.</Text> :
