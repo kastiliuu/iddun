@@ -488,6 +488,21 @@ export default function BookingScreen() {
       );
     };
 
+  const retryEmptyAvailability = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      await refreshAvailability();
+    } catch {
+      Alert.alert(
+        "Não foi possível atualizar",
+        "Confira sua conexão e tente novamente.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const leavePendingHold =
     async () => {
       if (
@@ -1187,12 +1202,8 @@ export default function BookingScreen() {
               <EmptyState
                 title="Sem horários disponíveis"
                 description="Esse profissional ainda não publicou novos horários para esta experiência."
-                actionLabel="Voltar ao Descobrir"
-                onActionPress={() =>
-                  router.replace(
-                    "/(tabs)/discover",
-                  )
-                }
+                actionLabel={submitting ? "Atualizando horários…" : "Atualizar horários"}
+                onActionPress={() => { void retryEmptyAvailability(); }}
                 compact
               />
             )}
