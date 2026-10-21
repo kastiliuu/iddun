@@ -419,3 +419,32 @@ export function getProfessionalServiceEstablishments() {
     ),
   );
 }
+
+export type ManagedAvailabilitySlot = {
+  id: number;
+  startsAt: string;
+  endsAt: string;
+  status: string;
+};
+
+export function getProfessionalServiceAvailability(serviceId: number) {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ items: ManagedAvailabilitySlot[] }>(
+      `/api/v1/onboarding/professional/services/${serviceId}/availability`,
+      { token },
+    ),
+  );
+}
+
+export function createProfessionalServiceAvailability(
+  serviceId: number,
+  payload: { date: string; time: string },
+) {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ items: ManagedAvailabilitySlot[] }>(
+      `/api/v1/onboarding/professional/services/${serviceId}/availability`,
+      payload,
+      { token },
+    ),
+  );
+}
