@@ -10,6 +10,8 @@ from app.models.booking import ExperienceSlot
 from app.models.establishment import ProfessionalEstablishmentMembership, MembershipStatus
 from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
+from app.services.availability_service import AvailabilityError, create_availability
+from app.services.time_service import utcnow, to_local
 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
@@ -994,3 +996,57 @@ def list_professional_service_establishments():
         for key, name in sorted(choices.items(), key=lambda entry: entry[1].lower())
     ]}, cache_control="private, no-store")
 
+
+
+@api_onboarding_bp.route("/professional/services/<int:service_id>/availability", methods=["GET", "POST"])
+@limiter.limit("60 per hour")
+def professional_service_availability(service_id):
+    """Manage own service slots using the same booking safeguards as Web."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience).where(
+        Experience.id == service_id, Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+
+    if request.method == "POST":
+        payload, error = _json_body()
+        if error is not None:
+            return error
+        if set(payload) != {"date", "time"} or not all(
+            isinstance(payload[k], str) for k in ("date", "time")
+        ):
+            return api_error("invalid_fields", "Informe data e horário.", 400)
+        try:
+            create_availability(
+                user=user, experience_reference=str(item.id),
+                slot_date=payload["date"], slot_time=payload["time"],
+            )
+        except AvailabilityError as exc:
+            db.session.rollback()
+            return api_error("availability_invalid", str(exc), 409)
+
+    slots = db.session.scalars(
+        select(ExperienceSlot).where(
+            ExperienceSlot.experience_id == item.id,
+            ExperienceSlot.professional_id == profile.id,
+            ExperienceSlot.starts_at >= utcnow(),
+        ).order_by(ExperienceSlot.starts_at.asc()).limit(100)
+    ).all()
+    return api_json({
+        "items": [
+            {
+                "id": slot.id,
+                "startsAt": to_local(slot.starts_at, profile.timezone).isoformat(),
+                "endsAt": to_local(slot.ends_at, profile.timezone).isoformat(),
+                "status": slot.status,
+            }
+            for slot in slots
+        ],
+    }, status=201 if request.method == "POST" else 200,
+        cache_control="private, no-store")
