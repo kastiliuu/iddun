@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { createProfessionalServiceDraft } from "@/api/services";
+import { createProfessionalServiceDraft, getProfessionalServiceDetail, updateProfessionalServiceDraft } from "@/api/services";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { makeStyles, spacing, touch, useTheme } from "@/theme";
@@ -18,6 +18,8 @@ const categories = [
 
 export default function CreateServiceScreen() {
   const router = useRouter();
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
+  const serviceId = editId && /^\d+$/.test(editId) ? Number(editId) : null;
   const { colors } = useTheme();
   const styles = useStyles();
   const [name, setName] = useState("");
@@ -26,7 +28,37 @@ export default function CreateServiceScreen() {
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("60");
   const [saving, setSaving] = useState(false);
+  const [fetching, setFetching] = useState(Boolean(editId));
+  const [editable, setEditable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editId) return;
+    let active = true;
+    if (!serviceId || serviceId <= 0) {
+      Promise.resolve().then(() => {
+        if (active) { setError("Serviço inválido."); setFetching(false); }
+      });
+      return () => { active = false; };
+    }
+    getProfessionalServiceDetail(serviceId).then(({ service }) => {
+      if (!active) return;
+      setName(service.name);
+      setCategory(service.category);
+      setShortDescription(service.shortDescription);
+      setPrice(String(service.price));
+      setDuration(String(service.durationMinutes));
+      setEditable(service.status === "draft" || service.status === "paused");
+      if (service.status !== "draft" && service.status !== "paused") {
+        setError("Somente rascunhos e serviços pausados podem ser editados.");
+      }
+    }).catch(cause => {
+      if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar.");
+    }).finally(() => {
+      if (active) setFetching(false);
+    });
+    return () => { active = false; };
+  }, [editId, serviceId]);
 
   const submit = async () => {
     const value = Number(price.replace(",", "."));
@@ -38,17 +70,20 @@ export default function CreateServiceScreen() {
       setError("Preencha nome, descrição, preço e duração válida (10 a 720 minutos).");
       return;
     }
+    if (editId && (!serviceId || !editable)) return;
     setSaving(true);
     setError(null);
     try {
-      await createProfessionalServiceDraft({
+      const payload = {
         name: name.trim(),
         category,
         shortDescription: shortDescription.trim(),
         price: value,
         regularPrice: value,
         durationMinutes: minutes,
-      });
+      };
+      if (serviceId) await updateProfessionalServiceDraft(serviceId, payload);
+      else await createProfessionalServiceDraft(payload);
       router.replace("/manage-services");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o serviço.");
@@ -65,8 +100,8 @@ export default function CreateServiceScreen() {
         style={styles.backButton}>
         <Icon name="arrow-left" size={20} color={colors.onSurface} />
       </Pressable>
-      <Text style={styles.heading}>Novo serviço</Text>
-      <Text style={styles.description}>Crie um rascunho privado. Você poderá completar e publicar depois.</Text>
+      <Text style={styles.heading}>{editId ? "Editar serviço" : "Novo serviço"}</Text>
+      <Text style={styles.description}>{editId ? "Atualize seu rascunho ou serviço pausado." : "Crie um rascunho privado. Você poderá completar e publicar depois."}</Text>
       <Text style={styles.label}>Nome do serviço *</Text>
       <TextInput accessibilityLabel="Nome do serviço" value={name} onChangeText={setName}
         maxLength={160} placeholder="Ex.: Banho de gel" placeholderTextColor={colors.muted} style={styles.input} />
@@ -93,7 +128,8 @@ export default function CreateServiceScreen() {
         keyboardType="number-pad" placeholder="60" placeholderTextColor={colors.muted} style={styles.input} />
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {saving ? <ActivityIndicator accessibilityLabel="Salvando rascunho" /> : null}
-      <Button title="Salvar rascunho" fullWidth disabled={saving} onPress={() => { void submit(); }} />
+      {fetching ? <ActivityIndicator accessibilityLabel="Carregando serviço" /> : null}
+      <Button title={editId ? "Salvar alterações" : "Salvar rascunho"} fullWidth disabled={saving || fetching || (Boolean(editId) && !editable)} onPress={() => { void submit(); }} />
     </ScrollView>
   );
 }

@@ -786,3 +786,110 @@ def create_professional_service_draft():
             "durationMinutes": item.duration_minutes,
         }
     }, status=201, cache_control="private, no-store")
+
+
+@api_onboarding_bp.get("/professional/services/<int:service_id>")
+def get_professional_service_draft(service_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience).where(
+        Experience.id == service_id,
+        Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    return api_json({"service": {
+        "id": item.id,
+        "name": item.title,
+        "category": item.category,
+        "shortDescription": item.short_description,
+        "description": item.description or "",
+        "regularPrice": float(item.regular_price),
+        "price": float(item.price),
+        "durationMinutes": item.duration_minutes,
+        "status": item.status,
+    }}, cache_control="private, no-store")
+
+
+@api_onboarding_bp.patch("/professional/services/<int:service_id>")
+@limiter.limit("30 per hour")
+def update_professional_service_draft(service_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience).where(
+        Experience.id == service_id,
+        Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    if item.status not in (ExperienceStatus.DRAFT, ExperienceStatus.PAUSED):
+        return api_error("service_not_editable", "Somente rascunhos e serviços pausados podem ser editados.", 409)
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    allowed = {"name", "category", "shortDescription", "description",
+               "regularPrice", "price", "durationMinutes"}
+    if not payload or set(payload) - allowed:
+        return api_error("invalid_fields", "Envie apenas campos editáveis do serviço.", 400)
+
+    title = payload.get("name", item.title)
+    category = payload.get("category", item.category)
+    short = payload.get("shortDescription", item.short_description)
+    description = payload.get("description", item.description or "")
+    duration = payload.get("durationMinutes", item.duration_minutes)
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 160:
+        return api_error("invalid_title", "Nome inválido.", 400)
+    if not isinstance(category, str) or category not in ExperienceCategory.LABELS:
+        return api_error("invalid_category", "Categoria inválida.", 400)
+    if not isinstance(short, str) or not 1 <= len(short.strip()) <= 220:
+        return api_error("invalid_description", "Descrição resumida inválida.", 400)
+    if not isinstance(description, str) or len(description) > 4000:
+        return api_error("invalid_description", "Descrição completa inválida.", 400)
+    if isinstance(duration, bool) or not isinstance(duration, int) or not 10 <= duration <= 720:
+        return api_error("invalid_duration", "Duração inválida.", 400)
+
+    def money(value):
+        if isinstance(value, bool) or not isinstance(value, (str, int, float, Decimal)):
+            return None
+        try:
+            amount = Decimal(str(value))
+            if (not amount.is_finite() or amount < 0 or amount > Decimal("99999999.99")
+                    or amount != amount.quantize(Decimal("0.01"))):
+                return None
+            return amount
+        except (InvalidOperation, ValueError):
+            return None
+
+    regular = money(payload.get("regularPrice", item.regular_price))
+    price = money(payload.get("price", item.price))
+    if regular is None or price is None or price > regular:
+        return api_error("invalid_price", "Preço inválido ou maior que o preço regular.", 400)
+
+    # Preserve immutable slug, ownership, linked establishment, slots and publication state.
+    item.title = title.strip()
+    item.category = category
+    item.short_description = short.strip()
+    item.description = description.strip() or None
+    item.regular_price = regular
+    item.price = price
+    item.duration_minutes = duration
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.exception("Falha ao editar serviço via mobile")
+        return api_error("service_save_failed", "Não foi possível atualizar o serviço.", 500)
+    return api_json({"service": {
+        "id": item.id, "title": item.title, "category": item.category,
+        "status": item.status, "price": float(item.price),
+        "durationMinutes": item.duration_minutes,
+    }}, cache_control="private, no-store")

@@ -119,6 +119,13 @@ export default function ManageServicesScreen() {
             }}>
               <Text style={{ color: colors.onSurface, fontWeight: "700", fontSize: 16 }}>{item.title}</Text>
               <Text style={{ color: colors.muted }}>{item.category} · {item.durationMinutes} min · R$ {item.price.toFixed(2).replace(".", ",")}</Text>
+              {(item.status === "draft" || item.status === "paused") ? (
+                <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${item.title}`}
+                  onPress={() => router.push({ pathname: "/create-service", params: { editId: String(item.id) } })}
+                  style={{ paddingVertical: spacing.sm }}>
+                  <Text style={{ color: colors.plum, fontWeight: "600" }}>Editar serviço</Text>
+                </Pressable>
+              ) : null}
               <Text style={{ color: colors.plum }}>
                 {item.status === "published" ? "Publicado" : item.status === "draft" ? "Rascunho" : item.status === "paused" ? "Pausado" : "Arquivado"}
               </Text>

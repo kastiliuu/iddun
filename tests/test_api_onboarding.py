@@ -634,3 +634,49 @@ def test_mobile_service_draft_creation_requires_professional_and_valid_payload(a
     listed = client.get(endpoint, headers=headers)
     assert listed.status_code == 200
     assert any(item["id"] == payload["id"] for item in listed.get_json()["items"])
+
+
+def test_professional_service_edit_keeps_owner_and_publication_state(app, client):
+    _, headers = _authenticated_client(app, email="pro-edit-138@example.com")
+    _, outsider = _authenticated_client(app, email="outsider-edit-138@example.com")
+    for bearer in (headers, outsider):
+        created_profile = client.post(
+            f"{BASE}/professional", headers=bearer,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert created_profile.status_code in (200, 201)
+
+    payload = {
+        "name": "Manicure", "category": "unhas",
+        "shortDescription": "Cuidado completo",
+        "price": 80, "regularPrice": 80, "durationMinutes": 60,
+    }
+    result = client.post(f"{BASE}/professional/services", headers=headers, json=payload)
+    assert result.status_code == 201
+    service_id = result.get_json()["service"]["id"]
+    url = f"{BASE}/professional/services/{service_id}"
+    assert client.get(url).status_code == 401
+    assert client.patch(url, json={"name": "Invasão"}).status_code == 401
+    assert client.get(url, headers=outsider).status_code == 404
+    assert client.patch(url, headers=outsider, json={"name": "Invasão"}).status_code == 404
+    assert client.patch(url, headers=headers, json={"price": 900}).status_code == 400
+    assert client.patch(url, headers=headers, json={"status": "published"}).status_code == 400
+    assert client.patch(url, headers=headers, json={"durationMinutes": True}).status_code == 400
+
+    changed = client.patch(url, headers=headers, json={
+        "name": "Manicure premium", "price": 75, "durationMinutes": 75,
+    })
+    assert changed.status_code == 200
+    assert changed.get_json()["service"]["status"] == "draft"
+    detail = client.get(url, headers=headers)
+    assert detail.status_code == 200
+    assert detail.get_json()["service"]["name"] == "Manicure premium"
+    with app.app_context():
+        from app.models.experience import Experience, ExperienceStatus
+        item = db.session.get(Experience, service_id)
+        assert item.slug == "manicure"
+        assert item.price == 75
+        item.status = ExperienceStatus.PUBLISHED
+        db.session.commit()
+
+    assert client.patch(url, headers=headers, json={"name": "Não permitido"}).status_code == 409
