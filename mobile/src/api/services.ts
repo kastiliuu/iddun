@@ -373,3 +373,26 @@ export function createProfessionalServiceDraft(payload: ServiceDraftInput) {
     ),
   );
 }
+
+export type ProfessionalServiceDetail = ServiceDraftInput & {
+  id: number;
+  status: ManagedService["status"];
+};
+
+export function getProfessionalServiceDetail(id: number) {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ service: ProfessionalServiceDetail }>(
+      `/api/v1/onboarding/professional/services/${id}`, { token },
+    ),
+  );
+}
+
+export function updateProfessionalServiceDraft(id: number, payload: Partial<ServiceDraftInput>) {
+  return withAuthenticatedRequest((token) =>
+    api.patch<ServiceDraftResult>(
+      `/api/v1/onboarding/professional/services/${id}`,
+      payload,
+      { token },
+    ),
+  );
+}
