@@ -795,3 +795,37 @@ def test_service_establishment_requires_active_membership_and_prevents_slot_reas
     assert client.patch(detail_url, headers=stranger, json={"establishmentId": None}).status_code == 404
     assert client.patch(detail_url, headers=owner, json={"establishmentId": None}).status_code == 200
     assert client.get(detail_url, headers=owner).get_json()["service"]["establishmentId"] is None
+
+
+def test_mobile_service_availability_is_private_and_uses_validation(app, client):
+    _, owner = _authenticated_client(app, email="availability-owner-141@example.com")
+    _, stranger = _authenticated_client(app, email="availability-other-141@example.com")
+    for headers in (owner, stranger):
+        response = client.post(
+            f"{BASE}/professional", headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert response.status_code in (200, 201)
+    created = client.post(f"{BASE}/professional/services", headers=owner, json={
+        "name": "Serviço de agenda", "category": "unhas",
+        "shortDescription": "Procedimento individual", "price": 75,
+        "regularPrice": 75, "durationMinutes": 60,
+    })
+    assert created.status_code == 201
+    id_ = created.get_json()["service"]["id"]
+    url = f"{BASE}/professional/services/{id_}/availability"
+    assert client.get(url).status_code == 401
+    assert client.post(url, json={"date": "2026-11-05", "time": "14:30"}).status_code == 401
+    assert client.get(url, headers=stranger).status_code == 404
+    assert client.post(url, headers=stranger, json={"date": "2026-11-05", "time": "14:30"}).status_code == 404
+    listing = client.get(url, headers=owner)
+    assert listing.status_code == 200
+    assert listing.get_json()["items"] == []
+    assert client.post(url, headers=owner, json={"time": "14:30"}).status_code == 400
+    assert client.post(url, headers=owner, json={"date": "2026-11-05", "time": 1430}).status_code == 400
+    # Drafts are never eligible to open slots, even with valid dates and times.
+    blocked = client.post(url, headers=owner, json={
+        "date": "2026-11-05", "time": "14:30",
+    })
+    assert blocked.status_code == 409
+    assert blocked.get_json()["error"]["code"] == "availability_invalid"
