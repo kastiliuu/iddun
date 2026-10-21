@@ -755,10 +755,17 @@ def create_professional_service_draft():
     if price is None or regular is None or price > regular:
         return api_error("invalid_price", "Informe preços válidos; o preço regular não pode ser menor que o preço atual.", 400)
 
-    # Service starts in draft, without establishment, slots, or automatic availability.
+    establishment_id = payload.get("establishmentId")
+    if establishment_id is not None:
+        if isinstance(establishment_id, bool) or not isinstance(establishment_id, int) or establishment_id <= 0:
+            return api_error("invalid_establishment", "Estabelecimento inválido.", 400)
+        if establishment_id not in _owned_active_establishments(profile):
+            return api_error("establishment_not_allowed", "Vínculo ativo com o estabelecimento necessário.", 403)
+
+    # Service starts as draft with no slots or automatic availability.
     item = Experience(
         professional_id=profile.id,
-        establishment_id=None,
+        establishment_id=establishment_id,
         title=title.strip(),
         slug=unique_slug(Experience, title.strip()),
         category=category,
