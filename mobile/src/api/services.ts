@@ -349,3 +349,27 @@ export function getManagedServices() {
     ),
   );
 }
+
+export type ServiceDraftInput = {
+  name: string;
+  category: string;
+  shortDescription: string;
+  description?: string;
+  price: number;
+  regularPrice: number;
+  durationMinutes: number;
+};
+
+export type ServiceDraftResult = {
+  service: ManagedService;
+};
+
+export function createProfessionalServiceDraft(payload: ServiceDraftInput) {
+  return withAuthenticatedRequest((token) =>
+    api.post<ServiceDraftResult>(
+      "/api/v1/onboarding/professional/services",
+      payload,
+      { token },
+    ),
+  );
+}
