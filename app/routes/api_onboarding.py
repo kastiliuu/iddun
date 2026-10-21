@@ -1146,9 +1146,10 @@ def professional_weekly_schedule():
         return api_error("invalid_schedule", "Envie os sete dias da semana.", 400)
     form_data = {}
     seen = set()
-    allowed = {"weekday", "enabled", "start", "end", "break_enabled", "break_start", "break_end", "label"}
+    required = {"weekday", "enabled", "start", "end", "break_enabled", "break_start", "break_end"}
+    allowed = required | {"label"}
     for day in days:
-        if not isinstance(day, dict) or set(day) != allowed:
+        if not isinstance(day, dict) or not required <= set(day) or not set(day) <= allowed:
             return api_error("invalid_schedule", "Dia com campos inválidos.", 400)
         weekday = day["weekday"]
         if "label" in day and (not isinstance(day["label"], str) or len(day["label"]) > 60):
