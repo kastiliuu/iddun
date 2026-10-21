@@ -726,3 +726,72 @@ def test_mobile_service_status_owner_and_transition_guards(app, client):
         admin_catalog_service.validate_experience_publication = original
     with app.app_context():
         assert db.session.get(Experience, service_id).status == ExperienceStatus.PAUSED
+
+
+def test_service_establishment_requires_active_membership_and_prevents_slot_reassignment(app, client):
+    _, owner = _authenticated_client(app, email="association-owner-140@example.com")
+    _, stranger = _authenticated_client(app, email="association-stranger-140@example.com")
+    for headers in (owner, stranger):
+        response = client.post(
+            f"{BASE}/professional", headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert response.status_code in (200, 201)
+
+    draft_data = {
+        "name": "Tratamento facial", "category": "estetica",
+        "shortDescription": "Tratamento básico", "price": 80,
+        "regularPrice": 80, "durationMinutes": 60,
+    }
+    with app.app_context():
+        from app.models.user import User
+        profiles = db.session.scalars(
+            select(ProfessionalProfile).join(User).where(
+                User.email.in_(["association-owner-140@example.com", "association-stranger-140@example.com"])
+            )
+        ).all()
+        owner_profile = next(p for p in profiles if p.user.email == "association-owner-140@example.com")
+        establishment = Establishment(
+            name="Estúdio Teste 140", slug="estudio-teste-140",
+            category="estetica", is_active=True,
+        )
+        db.session.add(establishment)
+        db.session.flush()
+        establishment_id = establishment.id
+        db.session.add(ProfessionalEstablishmentMembership(
+            professional_id=owner_profile.id,
+            establishment_id=establishment_id,
+            status=MembershipStatus.PENDING,
+        ))
+        db.session.commit()
+
+    options_url = f"{BASE}/professional/service-establishments"
+    assert client.get(options_url).status_code == 401
+    assert client.get(options_url, headers=stranger).get_json()["items"] == []
+    assert client.get(options_url, headers=owner).get_json()["items"] == []
+    assert client.post(
+        f"{BASE}/professional/services", headers=owner,
+        json={**draft_data, "establishmentId": establishment_id},
+    ).status_code == 403
+
+    with app.app_context():
+        membership = db.session.scalar(select(ProfessionalEstablishmentMembership).where(
+            ProfessionalEstablishmentMembership.establishment_id == establishment_id,
+        ))
+        membership.status = MembershipStatus.ACTIVE
+        db.session.commit()
+
+    options = client.get(options_url, headers=owner)
+    assert options.status_code == 200
+    assert options.get_json()["items"][0]["id"] == establishment_id
+    created = client.post(
+        f"{BASE}/professional/services", headers=owner,
+        json={**draft_data, "establishmentId": establishment_id},
+    )
+    assert created.status_code == 201
+    service_id = created.get_json()["service"]["id"]
+    detail_url = f"{BASE}/professional/services/{service_id}"
+    assert client.get(detail_url, headers=owner).get_json()["service"]["establishmentId"] == establishment_id
+    assert client.patch(detail_url, headers=stranger, json={"establishmentId": None}).status_code == 404
+    assert client.patch(detail_url, headers=owner, json={"establishmentId": None}).status_code == 200
+    assert client.get(detail_url, headers=owner).get_json()["service"]["establishmentId"] is None
