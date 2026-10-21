@@ -114,6 +114,7 @@ export default function ServiceAvailabilityScreen() {
         <Text style={styles.link}>Voltar</Text>
       </Pressable>
       <Text style={styles.heading}>Horários do serviço</Text>
+      <Button title="Configurar jornada semanal" variant="secondary" onPress={() => router.push("/weekly-schedule")} />
       <Text style={styles.subtle}>Horários são criados no fuso do perfil profissional e passam pelas validações de agenda do IDDUN.</Text>
       <Text style={styles.label}>Data (AAAA-MM-DD)</Text>
       <TextInput style={styles.input} value={date} onChangeText={setDate}
