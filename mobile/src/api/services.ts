@@ -351,6 +351,7 @@ export function getManagedServices() {
 }
 
 export type ServiceDraftInput = {
+  establishmentId?: number | null;
   name: string;
   category: string;
   shortDescription: string;
@@ -377,6 +378,7 @@ export function createProfessionalServiceDraft(payload: ServiceDraftInput) {
 export type ProfessionalServiceDetail = ServiceDraftInput & {
   id: number;
   status: ManagedService["status"];
+  establishmentId: number | null;
 };
 
 export function getProfessionalServiceDetail(id: number) {
@@ -402,6 +404,17 @@ export function changeProfessionalServiceStatus(id: number, action: "publish" | 
     api.post<{ service: ManagedService }>(
       `/api/v1/onboarding/professional/services/${id}/status`,
       { action },
+      { token },
+    ),
+  );
+}
+
+export type ServiceEstablishment = { id: number; name: string };
+
+export function getProfessionalServiceEstablishments() {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ items: ServiceEstablishment[] }>(
+      "/api/v1/onboarding/professional/service-establishments",
       { token },
     ),
   );
