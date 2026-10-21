@@ -226,6 +226,8 @@ export default function BookingScreen() {
       null,
     );
 
+  const [loadRetry, setLoadRetry] = useState(0);
+
   const [step, setStep] =
     useState<BookingStep>(
       "date",
@@ -266,6 +268,8 @@ export default function BookingScreen() {
 
     const load =
       async () => {
+        setLoading(true);
+        setLoadError(null);
         if (!experienceSlug) {
           setLoadError(
             "Experiência não encontrada.",
@@ -396,7 +400,7 @@ export default function BookingScreen() {
     return () => {
       controller.abort();
     };
-  }, [experienceSlug, resumeBookingId]);
+  }, [experienceSlug, resumeBookingId, loadRetry]);
 
   const selectedDay =
     useMemo<
@@ -862,12 +866,14 @@ export default function BookingScreen() {
             loadError ??
             "Essa experiência não pode ser reservada agora."
           }
-          actionLabel={resumeBookingId ? "Meus agendamentos" : "Descobrir experiências"}
-          onActionPress={() =>
-            router.replace(
-              resumeBookingId ? "/bookings" : "/(tabs)/discover",
-            )
-          }
+          actionLabel={loadError ? "Tentar novamente" : (resumeBookingId ? "Meus agendamentos" : "Descobrir experiências")}
+          onActionPress={() => {
+            if (loadError && loadError !== "Experiência não encontrada.") {
+              setLoadRetry((value) => value + 1);
+            } else {
+              router.replace(resumeBookingId ? "/bookings" : "/(tabs)/discover");
+            }
+          }}
         />
       </View>
     );
