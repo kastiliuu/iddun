@@ -5,7 +5,8 @@ from flask import Blueprint, request
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.experience import Experience, ExperienceCategory, ExperienceStatus, ExperienceSlot
+from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
+from app.models.booking import ExperienceSlot
 from app.models.establishment import ProfessionalEstablishmentMembership, MembershipStatus
 from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
