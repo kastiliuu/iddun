@@ -1,10 +1,12 @@
 from datetime import date
+from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, request
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.experience import Experience
+from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
+from app.services.slug_service import unique_slug
 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
@@ -696,3 +698,91 @@ def list_professional_services():
         ]},
         cache_control="private, no-store",
     )
+
+
+@api_onboarding_bp.post("/professional/services")
+@limiter.limit("20 per hour")
+def create_professional_service_draft():
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+
+    profile = user.professional_profile
+    if profile is None:
+        return api_error(
+            "professional_profile_required",
+            "Crie seu perfil profissional antes de cadastrar serviços.",
+            409,
+        )
+
+    payload, error = _json_body()
+    if error is not None:
+        return error
+
+    title = payload.get("name")
+    category = payload.get("category")
+    description = payload.get("description")
+    short_description = payload.get("shortDescription") or description
+    duration = payload.get("durationMinutes")
+    if not isinstance(title, str) or not 1 <= len(title.strip()) <= 160:
+        return api_error("invalid_title", "Informe um nome de serviço válido (até 160 caracteres).", 400)
+    if category not in ExperienceCategory.LABELS:
+        return api_error("invalid_category", "Selecione uma categoria válida.", 400)
+    if not isinstance(short_description, str) or not 1 <= len(short_description.strip()) <= 220:
+        return api_error("invalid_description", "Informe uma descrição resumida (até 220 caracteres).", 400)
+    if description is not None and (not isinstance(description, str) or len(description) > 4000):
+        return api_error("invalid_description", "A descrição completa deve ter até 4000 caracteres.", 400)
+    if isinstance(duration, bool) or not isinstance(duration, int) or not 10 <= duration <= 720:
+        return api_error("invalid_duration", "A duração deve estar entre 10 e 720 minutos.", 400)
+
+    def parse_money(value):
+        if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+            return None
+        try:
+            number = Decimal(str(value))
+        except (InvalidOperation, ValueError):
+            return None
+        if not number.is_finite() or number < 0 or number > Decimal("99999999.99"):
+            return None
+        if number != number.quantize(Decimal("0.01")):
+            return None
+        return number
+
+    price = parse_money(payload.get("price"))
+    regular = parse_money(payload.get("regularPrice", payload.get("price")))
+    if price is None or regular is None or price > regular:
+        return api_error("invalid_price", "Informe preços válidos; o preço regular não pode ser menor que o preço atual.", 400)
+
+    # Service starts in draft, without establishment, slots, or automatic availability.
+    item = Experience(
+        professional_id=profile.id,
+        establishment_id=None,
+        title=title.strip(),
+        slug=unique_slug(Experience, title.strip()),
+        category=category,
+        short_description=short_description.strip(),
+        description=description.strip() or None if isinstance(description, str) else None,
+        regular_price=regular,
+        price=price,
+        duration_minutes=duration,
+        status=ExperienceStatus.DRAFT,
+    )
+    try:
+        db.session.add(item)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        from flask import current_app
+        current_app.logger.exception("Erro ao salvar rascunho de serviço")
+        return api_error("service_save_failed", "Não foi possível salvar o rascunho.", 500)
+
+    return api_json({
+        "service": {
+            "id": item.id,
+            "title": item.title,
+            "status": item.status,
+            "category": item.category,
+            "price": float(item.price),
+            "durationMinutes": item.duration_minutes,
+        }
+    }, status=201, cache_control="private, no-store")
