@@ -829,3 +829,25 @@ def test_mobile_service_availability_is_private_and_uses_validation(app, client)
     })
     assert blocked.status_code == 409
     assert blocked.get_json()["error"]["code"] == "availability_invalid"
+
+
+def test_mobile_slot_status_requires_owner_and_available_state(app, client):
+    _, owner = _authenticated_client(app, email="slot-status-owner-142@example.com")
+    _, outsider = _authenticated_client(app, email="slot-status-other-142@example.com")
+    for headers in (owner, outsider):
+        response = client.post(
+            f"{BASE}/professional", headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert response.status_code in (200, 201)
+    draft = client.post(f"{BASE}/professional/services", headers=owner, json={
+        "name": "Slot privado", "category": "unhas",
+        "shortDescription": "Atendimento", "price": 90,
+        "regularPrice": 90, "durationMinutes": 60,
+    })
+    assert draft.status_code == 201
+    service_id = draft.get_json()["service"]["id"]
+    url = f"{BASE}/professional/services/{service_id}/availability/99999/status"
+    assert client.post(url, json={"action": "block"}).status_code == 401
+    assert client.post(url, headers=outsider, json={"action": "block"}).status_code == 404
+    assert client.post(url, headers=owner, json={"action": "block"}).status_code == 404
