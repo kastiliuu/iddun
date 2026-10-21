@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { createProfessionalServiceDraft, getProfessionalServiceDetail, updateProfessionalServiceDraft } from "@/api/services";
+import { createProfessionalServiceDraft, getProfessionalServiceDetail, getProfessionalServiceEstablishments, updateProfessionalServiceDraft, type ServiceEstablishment } from "@/api/services";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { makeStyles, spacing, touch, useTheme } from "@/theme";
@@ -31,6 +31,18 @@ export default function CreateServiceScreen() {
   const [fetching, setFetching] = useState(Boolean(editId));
   const [editable, setEditable] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [establishments, setEstablishments] = useState<ServiceEstablishment[]>([]);
+  const [establishmentId, setEstablishmentId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getProfessionalServiceEstablishments().then(({ items }) => {
+      if (active) setEstablishments(items);
+    }).catch(() => {
+      if (active) setError("Não foi possível carregar os estabelecimentos vinculados.");
+    });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     if (!editId) return;
@@ -45,6 +57,7 @@ export default function CreateServiceScreen() {
       if (!active) return;
       setName(service.name);
       setCategory(service.category);
+      setEstablishmentId(service.establishmentId);
       setShortDescription(service.shortDescription);
       setPrice(String(service.price));
       setDuration(String(service.durationMinutes));
@@ -81,6 +94,7 @@ export default function CreateServiceScreen() {
         price: value,
         regularPrice: value,
         durationMinutes: minutes,
+        establishmentId,
       };
       if (serviceId) await updateProfessionalServiceDraft(serviceId, payload);
       else await createProfessionalServiceDraft(payload);
@@ -112,6 +126,22 @@ export default function CreateServiceScreen() {
             accessibilityState={{ selected: category === key }}
             onPress={() => setCategory(key)} style={[styles.chip, category === key && styles.chipSelected]}>
             <Text style={styles.chipText}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Text style={styles.label}>Local do atendimento</Text>
+      <View style={styles.categories}>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: establishmentId === null }}
+          onPress={() => setEstablishmentId(null)}
+          style={[styles.chip, establishmentId === null && styles.chipSelected]}>
+          <Text style={styles.chipText}>Independente</Text>
+        </Pressable>
+        {establishments.map((establishment) => (
+          <Pressable key={establishment.id} accessibilityRole="button"
+            accessibilityState={{ selected: establishmentId === establishment.id }}
+            onPress={() => setEstablishmentId(establishment.id)}
+            style={[styles.chip, establishmentId === establishment.id && styles.chipSelected]}>
+            <Text style={styles.chipText}>{establishment.name}</Text>
           </Pressable>
         ))}
       </View>
