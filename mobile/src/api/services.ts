@@ -448,3 +448,14 @@ export function createProfessionalServiceAvailability(
     ),
   );
 }
+
+export function changeProfessionalSlotStatus(
+  serviceId: number, slotId: number, action: "block" | "reopen",
+) {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ slot: ManagedAvailabilitySlot }>(
+      `/api/v1/onboarding/professional/services/${serviceId}/availability/${slotId}/status`,
+      { action }, { token },
+    ),
+  );
+}
