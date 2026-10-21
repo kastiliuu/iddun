@@ -161,6 +161,12 @@ export default function ManageServicesScreen() {
                   </Text>
                 </Pressable>
               ) : null}
+              <Pressable accessibilityRole="button"
+                accessibilityLabel={`Gerenciar horários de ${item.title}`}
+                onPress={() => router.push({ pathname: "/service-availability", params: { serviceId: String(item.id) } })}
+                style={{ paddingVertical: spacing.sm }}>
+                <Text style={{ color: colors.onSurface, fontWeight: "600" }}>Ver horários</Text>
+              </Pressable>
               <Text style={{ color: colors.plum }}>
                 {item.status === "published" ? "Publicado" : item.status === "draft" ? "Rascunho" : item.status === "paused" ? "Pausado" : "Arquivado"}
               </Text>
