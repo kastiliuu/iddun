@@ -24,6 +24,11 @@ def test_shared_cropper_assets_expose_accessible_drag_contract():
         "event.shiftKey",
         "aria-valuetext",
         "URL.revokeObjectURL",
+        "DataTransfer",
+        "canvas.toBlob",
+        "data-crop-zoom",
+        "pointerId",
+        "pinchState",
     ):
         assert contract in javascript
 
@@ -35,6 +40,10 @@ def test_shared_cropper_assets_expose_accessible_drag_contract():
         ".media-cropper--dark",
         "@media (max-width: 760px)",
         "prefers-reduced-motion: reduce",
+        ".media-cropper__viewport--avatar",
+        ".media-cropper__viewport--cover",
+        ".media-cropper__zoom",
+        "accent-color: var(--color-plum)",
     ):
         assert contract in stylesheet
 
@@ -73,6 +82,10 @@ def test_platform_media_upload_macro_wires_focus_and_accessibility():
         'aria-label="Ajustar enquadramento de {{ field.label.text }}"',
         "data-crop-reset",
         "data-crop-output",
+        "data-crop-zoom",
+        'data-crop-kind="{{ kind }}"',
+        'data-crop-aspect="{{ crop_aspect }}"',
+        "media-cropper__viewport--{{ kind }}",
         'aria-live="polite"',
         'draggable="false"',
     ):
@@ -155,3 +168,27 @@ def test_mobile_post_upload_reuses_real_blob_multipart_builder():
     assert "as unknown as Blob" not in feed
     assert '"/api/v1/posts"' in feed
     assert "/image" in feed
+
+
+def test_ds06_cropper_generates_real_profile_derivative_before_submit():
+    javascript = _read("app/static/js/media-cropper.js")
+    template = _read("app/templates/components/media-upload.html")
+
+    for contract in (
+        "cropRect",
+        "replaceInputWithCrop",
+        "drawImage(",
+        "new File(",
+        "transfer.items.add(file)",
+        "input.files = transfer.files",
+        "'image/jpeg', 0.9",
+        "focusX.value = '50'",
+        "focusY.value = '50'",
+    ):
+        assert contract in javascript
+
+    assert "A área visível é exatamente o que será usado" in template
+    assert "gesto de pinça" in template
+    assert "type=\"range\"" in template
+    assert "min=\"1\"" in template
+    assert "max=\"3\"" in template
