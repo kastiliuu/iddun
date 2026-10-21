@@ -19,7 +19,7 @@ const categories = [
 export default function CreateServiceScreen() {
   const router = useRouter();
   const { editId } = useLocalSearchParams<{ editId?: string }>();
-  const serviceId = editId && /^\\d+$/.test(editId) ? Number(editId) : null;
+  const serviceId = editId && /^\d+$/.test(editId) ? Number(editId) : null;
   const { colors } = useTheme();
   const styles = useStyles();
   const [name, setName] = useState("");
