@@ -12,6 +12,7 @@ from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
 from app.services.availability_service import AvailabilityError, create_availability, create_availability_from_working_hours
 from app.services.time_service import utcnow, to_local
+from app.services.professional_schedule_service import schedule_rows, save_weekly_schedule, ScheduleValidationError
 from app.models.booking import SlotStatus
 from app.services.booking_service import block_slot_manual, reopen_manual_slot, BookingStateError
 
@@ -1123,3 +1124,51 @@ def create_professional_slots_from_schedule(service_id):
         db.session.rollback()
         return api_error("availability_invalid", str(exc), 409)
     return api_json({"createdCount": len(created)}, status=201, cache_control="private, no-store")
+
+
+@api_onboarding_bp.route("/professional/weekly-schedule", methods=["GET", "PUT"])
+@limiter.limit("20 per hour")
+def professional_weekly_schedule():
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    if request.method == "GET":
+        return api_json({"days": schedule_rows(profile)}, cache_control="private, no-store")
+
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    days = payload.get("days")
+    if set(payload) != {"days"} or not isinstance(days, list) or len(days) != 7:
+        return api_error("invalid_schedule", "Envie os sete dias da semana.", 400)
+    form_data = {}
+    seen = set()
+    allowed = {"weekday", "enabled", "start", "end", "break_enabled", "break_start", "break_end"}
+    for day in days:
+        if not isinstance(day, dict) or set(day) != allowed:
+            return api_error("invalid_schedule", "Dia com campos inválidos.", 400)
+        weekday = day["weekday"]
+        if isinstance(weekday, bool) or not isinstance(weekday, int) or weekday not in range(7) or weekday in seen:
+            return api_error("invalid_schedule", "Dias da semana inválidos ou duplicados.", 400)
+        seen.add(weekday)
+        if not isinstance(day["enabled"], bool) or not isinstance(day["break_enabled"], bool):
+            return api_error("invalid_schedule", "Marcadores de jornada inválidos.", 400)
+        for field in ("start", "end", "break_start", "break_end"):
+            if not isinstance(day[field], str) or len(day[field]) > 5:
+                return api_error("invalid_schedule", "Formato de horário inválido.", 400)
+        prefix = f"day_{weekday}"
+        form_data[f"{prefix}_enabled"] = "1" if day["enabled"] else "0"
+        form_data[f"{prefix}_start"] = day["start"]
+        form_data[f"{prefix}_end"] = day["end"]
+        form_data[f"{prefix}_break_enabled"] = "1" if day["break_enabled"] else "0"
+        form_data[f"{prefix}_break_start"] = day["break_start"]
+        form_data[f"{prefix}_break_end"] = day["break_end"]
+    try:
+        save_weekly_schedule(profile, form_data)
+    except ScheduleValidationError as exc:
+        db.session.rollback()
+        return api_error("invalid_schedule", str(exc), 400)
+    return api_json({"days": schedule_rows(profile)}, cache_control="private, no-store")
