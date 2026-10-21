@@ -152,6 +152,12 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      # npm audit treats findings below the chosen threshold as non-blocking.
+      # Fail closed for critical runtime vulnerabilities without hiding the
+      # remaining high/moderate findings collected in the full audit artifact.
+      - name: Bloquear novas vulnerabilidades npm críticas
+        run: npm audit --omit=dev --audit-level=critical
+
       - name: Conferir versão oficial do Expo SDK
         run: npx expo install --check
 
