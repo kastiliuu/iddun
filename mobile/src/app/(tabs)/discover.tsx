@@ -181,20 +181,17 @@ export default function DiscoverScreen() {
       search.trim();
 
     if (!normalizedSearch) {
-      setGlobalResults([]);
-      setGlobalSearchError(false);
-      setGlobalSearchLoading(false);
       return;
     }
-
-    // Clear previous filter results immediately, even during debounce.
-    setGlobalResults([]);
-    setGlobalSearchError(false);
-    setGlobalSearchLoading(true);
 
     const controller =
       new AbortController();
     const timer = setTimeout(() => {
+      // State updates belong to the scheduled asynchronous search,
+      // not synchronously to the effect setup.
+      setGlobalResults([]);
+      setGlobalSearchError(false);
+      setGlobalSearchLoading(true);
       globalSearch(
         {
           query: normalizedSearch,
