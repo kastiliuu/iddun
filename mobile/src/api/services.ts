@@ -459,3 +459,12 @@ export function changeProfessionalSlotStatus(
     ),
   );
 }
+
+export function createProfessionalSlotsFromSchedule(serviceId: number, date: string) {
+  return withAuthenticatedRequest((token) =>
+    api.post<{ createdCount: number }>(
+      `/api/v1/onboarding/professional/services/${serviceId}/availability/from-schedule`,
+      { date }, { token },
+    ),
+  );
+}
