@@ -851,3 +851,29 @@ def test_mobile_slot_status_requires_owner_and_available_state(app, client):
     assert client.post(url, json={"action": "block"}).status_code == 401
     assert client.post(url, headers=outsider, json={"action": "block"}).status_code == 404
     assert client.post(url, headers=owner, json={"action": "block"}).status_code == 404
+
+
+def test_mobile_weekly_schedule_creation_requires_owner_and_valid_date(app, client):
+    _, owner = _authenticated_client(app, email="weekly-slots-owner-143@example.com")
+    _, outsider = _authenticated_client(app, email="weekly-slots-outsider-143@example.com")
+    for headers in (owner, outsider):
+        response = client.post(
+            f"{BASE}/professional", headers=headers,
+            json=_professional_payload(attendanceModalities=["own_space"]),
+        )
+        assert response.status_code in (200, 201)
+    created = client.post(f"{BASE}/professional/services", headers=owner, json={
+        "name": "Serviço semanal", "category": "unhas",
+        "shortDescription": "Procedimento de teste", "price": 80,
+        "regularPrice": 80, "durationMinutes": 60,
+    })
+    assert created.status_code == 201
+    service_id = created.get_json()["service"]["id"]
+    endpoint = f"{BASE}/professional/services/{service_id}/availability/from-schedule"
+    assert client.post(endpoint, json={"date": "2026-11-05"}).status_code == 401
+    assert client.post(endpoint, headers=outsider, json={"date": "2026-11-05"}).status_code == 404
+    assert client.post(endpoint, headers=owner, json={"date": 123}).status_code == 400
+    assert client.post(endpoint, headers=owner, json={"date": "2026-11-05", "time": "10:00"}).status_code == 400
+    result = client.post(endpoint, headers=owner, json={"date": "2026-11-05"})
+    assert result.status_code == 409
+    assert result.get_json()["error"]["code"] == "availability_invalid"
