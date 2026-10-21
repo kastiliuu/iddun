@@ -749,6 +749,14 @@ export default function BookingScreen() {
             Haptics.notificationAsync(
               Haptics.NotificationFeedbackType.Success,
             ).catch(() => {});
+          } else if (latestStatus === "pending") {
+            // The hold still exists on the server; do not discard it
+            // or offer another slot while confirmation remains unresolved.
+            setStep("confirm");
+            Alert.alert(
+              "Confirmação ainda pendente",
+              "Seu horário continua reservado temporariamente. Confira o prazo e tente confirmar novamente.",
+            );
           } else if (latestStatus === null) {
             Alert.alert(
               "Não foi possível verificar sua reserva",
