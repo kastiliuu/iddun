@@ -229,14 +229,12 @@ jobs:
       - name: Instalar ferramentas de segurança
         run: python -m pip install 'bandit>=1.8,<2' 'pip-audit>=2.9,<3'
 
-      # Advisory during QA-01 baseline: do not silently suppress findings.
-      # Fail-on-findings is enabled after triage and explicit exceptions.
+      # The initial QA baseline was advisory. Findings are now triaged,
+      # so Python security regressions must fail the pull request.
       - name: Analisar riscos estáticos com Bandit
-        continue-on-error: true
         run: bandit -r app -ll -ii -f txt -o bandit-report.txt
 
       - name: Auditar dependências com pip-audit
-        continue-on-error: true
         run: pip-audit -r requirements.txt --progress-spinner off --format json --output pip-audit-report.json
 
       - name: Publicar relatórios de segurança
