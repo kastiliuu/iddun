@@ -207,6 +207,12 @@ jobs:
           if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary + "\n");
           NODE
 
+      # Keep 2026-10-21 high/moderate advisories visible, but block any
+      # NEW root GHSA >= moderate or an inconclusive audit JSON.
+      - name: Impedir novos advisories npm (moderate+)
+        if: always()
+        run: node scripts/check-npm-advisory-baseline.cjs npm-audit-production.json
+
       - name: Publicar auditoria npm
         if: always()
         uses: actions/upload-artifact@v4
