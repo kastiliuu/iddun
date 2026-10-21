@@ -463,6 +463,9 @@ export default function BookingScreen() {
           experienceSlug,
         );
 
+      // Any previously selected slot may have been booked or
+      // removed since the last availability snapshot.
+      setSelectedSlotId(null);
       setAvailability(
         response,
       );
