@@ -24,7 +24,7 @@
   max-width: 680px;
   margin: 0;
   color: #6D6E77;
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.55;
 }
 
@@ -107,12 +107,12 @@
 }
 
 .pro-crm-kpis strong {
-  font-size: .95rem;
+  font-size: var(--ds-type-body);
 }
 
 .pro-crm-kpis small {
   color: #7B7C85;
-  font-size: .55rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-clients-grid {
@@ -135,7 +135,7 @@
 
 .pro-client-count {
   color: #8A8B94;
-  font-size: .54rem;
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
@@ -167,7 +167,7 @@
     linear-gradient(145deg, #6B2EFF, #1A0F2E)
     center / cover no-repeat;
   color: #fff;
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
 }
 
@@ -191,7 +191,7 @@
 }
 
 .pro-client-row__identity strong {
-  font-size: .67rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-client-row__identity > span,
@@ -201,18 +201,18 @@
   color: #81828B;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: .51rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-client-row__metric small {
   color: #9899A1;
-  font-size: .47rem;
+  font-size: var(--ds-type-caption);
   text-transform: uppercase;
   letter-spacing: .06em;
 }
 
 .pro-client-row__metric strong {
-  font-size: .63rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-client-badge,
@@ -225,7 +225,7 @@
   border-radius: 99px;
   background: rgba(107,46,255,.08);
   color: #5C28D9;
-  font-size: .46rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
 }
 
@@ -267,7 +267,7 @@
   background: rgba(22,163,74,.06);
   color: #19723A;
   text-decoration: none;
-  font-size: .5rem;
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
@@ -291,7 +291,7 @@
   color: #5D5E67;
   cursor: pointer;
   list-style: none;
-  font-size: .5rem;
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
@@ -326,13 +326,13 @@
 }
 
 .pro-client-history__popover strong {
-  font-size: .58rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-client-history__popover span,
 .pro-client-history__popover small {
   color: #777881;
-  font-size: .49rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-crm-action-list {
@@ -357,7 +357,7 @@
 }
 
 .pro-crm-action-list strong {
-  font-size: .6rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-crm-action-list span,
@@ -366,7 +366,7 @@
   color: #80818A;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: .49rem;
+  font-size: var(--ds-type-caption);
 }
 
 .pro-crm-action-list a {
