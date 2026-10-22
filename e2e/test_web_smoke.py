@@ -11,9 +11,16 @@ from playwright.sync_api import Page, expect
 def test_public_home_links_to_discovery(page: Page):
     page.goto("/")
     expect(page.locator("body")).to_be_visible()
-    expect(page.get_by_role("link", name="Descobrir", exact=True).first).to_be_visible()
-    page.get_by_role("link", name="Descobrir", exact=True).first.click()
-    expect(page).to_have_url(re.compile(r"/experiencias(?:\?.*)?$"))
+    expect(page.get_by_role("link", name="Cadastre-se")).to_be_visible()
+    expect(page.get_by_role("link", name="Entrar", exact=True).first).to_be_visible()
+    expect(page.get_by_role("link", name="Política de privacidade")).to_be_visible()
+    expect(page.get_by_role("link", name="Termos de uso")).to_be_visible()
+    page.get_by_role("link", name="Cadastre-se").click()
+    expect(page).to_have_url(re.compile(r"/cadastro(?:\?.*)?$"))
+
+    # Discovery remains available at its existing public route.
+    page.goto("/experiencias")
+    expect(page.locator("body")).to_be_visible()
 
 
 def test_login_invalid_credentials_stay_unauthenticated(page: Page):

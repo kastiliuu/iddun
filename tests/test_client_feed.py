@@ -358,9 +358,18 @@ def test_authenticated_mobile_navigation_has_five_client_destinations(app, clien
 
 
 def test_anonymous_mobile_navigation_keeps_public_destinations(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    nav_class, links = _mobile_nav_links(response.get_data(as_text=True))
+    landing = client.get("/")
+    assert landing.status_code == 200
+    html = landing.get_data(as_text=True)
+    assert 'class="landing-header"' in html
+    assert 'href="/login"' in html
+    assert 'href="/cadastro"' in html
+    # The promotional landing deliberately has no application bottom nav.
+    assert "mobile-bottom-nav" not in html
+
+    directory = client.get("/profissionais")
+    assert directory.status_code == 200
+    nav_class, links = _mobile_nav_links(directory.get_data(as_text=True))
     assert "mobile-bottom-nav--client" not in nav_class
     assert len(links) == 4
     for item, label in zip(
