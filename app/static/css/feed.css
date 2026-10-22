@@ -38,7 +38,7 @@
     minmax(280px, 520px)
     minmax(520px, 1fr);
   align-items: center;
-  gap: 24px;
+  gap: var(--ds-space-6);
 }
 
 .feed-header__brand {
@@ -58,7 +58,7 @@
   display: flex;
   align-items: center;
   border: 1px solid rgba(255, 255, 255, .12);
-  border-radius: 14px;
+  border-radius: var(--ds-radius-md);
   background: rgba(255, 255, 255, .065);
   transition:
     border-color var(--motion-fast) ease,
@@ -88,7 +88,7 @@
   background: transparent;
   padding: 0 14px 0 10px;
   color: var(--color-off-white);
-  font: 500 .78rem/1 var(--font-body);
+  font: 500 var(--ds-type-secondary)/1 var(--font-body);
 }
 
 .feed-search input::placeholder {
@@ -184,6 +184,7 @@
 .feed-header__nav-item {
   position: relative;
   min-width: 70px;
+  min-height: var(--ds-control-min-target);
   height: 100%;
   padding: 8px 10px 7px;
   display: grid;
@@ -355,8 +356,8 @@
 .feed-account-menu > a,
 .feed-account-menu form button {
   width: 100%;
-  min-height: 43px;
-  padding: 0 14px;
+  min-height: var(--ds-control-min-target);
+  padding: 0 var(--ds-space-3);
   display: grid;
   grid-template-columns: 19px 1fr;
   align-items: center;
