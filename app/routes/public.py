@@ -241,15 +241,17 @@ def _home_establishments(limit=4):
 
 
 def _home_data():
-    professionals = (
-        list_professionals()[:4]
-    )
+    # The public landing only showcases real, published records.
+    # Development catalog prototypes must not appear as members.
+    professionals = [
+        item for item in list_professionals()
+        if item.get("source") != "mock"
+    ][:4]
 
-    establishments = (
-        _home_establishments(
-            limit=4
-        )
-    )
+    establishments = [
+        _establishment_home_card(item)
+        for item in list_establishments()[:4]
+    ]
 
     return (
         HOME_CATEGORIES,
