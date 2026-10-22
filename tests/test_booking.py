@@ -26,7 +26,7 @@ from app.services.booking_service import (
     mark_external_conflict,
     refresh_slot,
 )
-from app.services.time_service import utcnow, to_local
+from app.services.time_service import as_utc, utcnow, to_local
 
 
 def _catalog(
@@ -274,7 +274,7 @@ def test_expired_hold_after_booking_cutoff_never_reopens_slot(app):
         slot = db.session.get(ExperienceSlot, slot_ids[0])
         expired_at = booking_deadline(slot) + timedelta(seconds=1)
 
-        assert booking.hold_expires_at <= expired_at
+        assert as_utc(booking.hold_expires_at) <= expired_at
         assert release_expired_holds(now=expired_at) is True
 
         db.session.refresh(slot)
@@ -293,7 +293,7 @@ def test_expired_hold_before_booking_cutoff_reopens_slot(app):
         profile = db.session.get(ClientProfile, profile_id)
         booking = hold_slot(slot_ids[0], profile)
         slot = db.session.get(ExperienceSlot, slot_ids[0])
-        expired_at = booking.hold_expires_at + timedelta(seconds=1)
+        expired_at = as_utc(booking.hold_expires_at) + timedelta(seconds=1)
 
         assert expired_at < booking_deadline(slot)
         assert release_expired_holds(now=expired_at) is True
