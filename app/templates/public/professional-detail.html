@@ -13,7 +13,7 @@
   </div>
   <div class="container public-profile-hero__inner">
     <div class="public-profile-identity">
-      <div class="public-profile-avatar"><img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position:{{ professional.avatar_position or '50% 50%' }}"></div>
+      <div class="public-profile-avatar">{% if professional.image %}<img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position:{{ professional.avatar_position or '50% 50%' }}">{% else %}<span class="public-profile-avatar-fallback" role="img" aria-label="Avatar de {{ professional.name }}">{{ professional.name.split()[0][0]|upper }}{{ professional.name.split()[-1][0]|upper if professional.name.split()|length > 1 else "" }}</span>{% endif %}</div>
       <div class="public-profile-identity__copy">
         <span class="public-profile-kicker">{{ professional.role }}</span>
         <h1>{{ professional.name }}</h1>
