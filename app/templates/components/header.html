@@ -154,6 +154,7 @@
         <a
           href="{{ url_for('feed.home') }}"
           class="nav-link{% if current_page == 'feed' %} is-active{% endif %}"
+          {% if current_page == 'feed' %}aria-current="page"{% endif %}
         >
           Feed
         </a>
