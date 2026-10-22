@@ -2,7 +2,7 @@
 {% from 'components/icon.html' import icon %}
 
 {% block title %}Profissionais | IDDUN{% endblock %}
-{% block body_class %}professionals-page{% endblock %}
+{% block body_class %}professionals-page{% if current_user.is_authenticated %} authenticated-discovery-page{% endif %}{% endblock %}
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/professionals.css') }}">
