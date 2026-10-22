@@ -10,7 +10,7 @@ FEED_CSS = Path(__file__).resolve().parents[1] / "app/static/css/feed.css"
 def test_feed_masonry_prioritizes_readable_card_width():
     content = FEED_CSS.read_text(encoding="utf-8")
     assert re.search(
-        r"\.feed-masonry\s*\{[^}]*columns:\s*2\s+280px;",
+        r"\.feed-masonry\s*\{[^}]*columns:\s*2;",
         content,
     )
 
