@@ -156,7 +156,36 @@ jobs:
       # Fail closed for critical runtime vulnerabilities without hiding the
       # remaining high/moderate findings collected in the full audit artifact.
       - name: Bloquear novas vulnerabilidades npm críticas
-        run: npm audit --omit=dev --audit-level=critical
+        shell: bash
+        run: |
+          # A falha HTTP 5xx do registry não é um resultado de segurança.
+          # Limitar duração e tentar novamente sem ignorar auditoria inconclusiva.
+          for attempt in 1 2 3; do
+            echo "Audit de produção: tentativa ${attempt}/3"
+            timeout 90s npm audit --omit=dev --json > npm-audit-critical.json || true
+            if node -e '
+              const fs = require("node:fs");
+              let data;
+              try { data = JSON.parse(fs.readFileSync("npm-audit-critical.json", "utf8")); }
+              catch { process.exit(2); }
+              if (data.error || !data.metadata?.vulnerabilities) process.exit(2);
+              if (data.metadata.vulnerabilities.critical > 0) process.exit(1);
+              process.exit(0);
+            '; then
+              echo "Audit concluído: nenhuma vulnerabilidade crítica reportada."
+              exit 0
+            else
+              code=$?
+              if [ "$code" -eq 1 ]; then
+                echo "::error::Auditoria detectou vulnerabilidades críticas de produção."
+                exit 1
+              fi
+              echo "::warning::Registry indisponível ou auditoria inconclusiva (tentativa ${attempt})."
+              if [ "$attempt" -lt 3 ]; then sleep 5; fi
+            fi
+          done
+          echo "::error::Auditoria npm inconclusiva após três tentativas: bloqueando merge."
+          exit 1
 
       - name: Conferir versão oficial do Expo SDK
         run: npx expo install --check
