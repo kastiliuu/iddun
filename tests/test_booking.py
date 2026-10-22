@@ -26,7 +26,7 @@ from app.services.booking_service import (
     mark_external_conflict,
     refresh_slot,
 )
-from app.services.time_service import utcnow, to_local
+from app.services.time_service import as_utc, utcnow, to_local
 
 
 def _catalog(
@@ -260,6 +260,48 @@ def test_cutoff_expires_slot_on_backend(
             slot.status
             == SlotStatus.EXPIRED
         )
+
+
+def test_expired_hold_after_booking_cutoff_never_reopens_slot(app):
+    from app.services.booking_service import release_expired_holds
+
+    _, slot_ids = _catalog(app, slot_count=1, cutoff=60)
+    _, profile_id = _client_user(app, "expired-hold-cutoff@example.com")
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = hold_slot(slot_ids[0], profile)
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        expired_at = booking_deadline(slot) + timedelta(seconds=1)
+
+        assert as_utc(booking.hold_expires_at) <= expired_at
+        assert release_expired_holds(now=expired_at) is True
+
+        db.session.refresh(slot)
+        db.session.refresh(booking)
+        assert booking.status == BookingStatus.CANCELLED
+        assert slot.status == SlotStatus.EXPIRED
+
+
+def test_expired_hold_before_booking_cutoff_reopens_slot(app):
+    from app.services.booking_service import release_expired_holds
+
+    _, slot_ids = _catalog(app, slot_count=1)
+    _, profile_id = _client_user(app, "expired-hold-before-cutoff@example.com")
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking = hold_slot(slot_ids[0], profile)
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        expired_at = as_utc(booking.hold_expires_at) + timedelta(seconds=1)
+
+        assert expired_at < booking_deadline(slot)
+        assert release_expired_holds(now=expired_at) is True
+
+        db.session.refresh(slot)
+        db.session.refresh(booking)
+        assert booking.status == BookingStatus.CANCELLED
+        assert slot.status == SlotStatus.AVAILABLE
 
 
 def test_hold_prevents_second_client_from_taking_same_slot(

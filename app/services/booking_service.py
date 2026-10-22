@@ -62,7 +62,11 @@ def release_expired_holds(now=None, commit=True):
     ).all()
     changed = False
     for slot in held_slots:
-        slot.status = SlotStatus.AVAILABLE
+        slot.status = (
+            SlotStatus.EXPIRED
+            if now >= booking_deadline(slot)
+            else SlotStatus.AVAILABLE
+        )
         slot.hold_expires_at = None
         for booking in slot.bookings:
             if booking.status == BookingStatus.PENDING:
