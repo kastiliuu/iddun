@@ -103,7 +103,7 @@ def test_home_counts_real_active_records_without_prototype_cards(app, client):
         (1, "Estabelecimentos ativos"),
     ):
         assert re.search(
-            rf"<strong>\\s*{value}\\s*</strong>\\s*<span>{label}</span>",
+            rf"<strong>\s*{value}\s*</strong>\s*<span>{label}</span>",
             html,
         )
     assert "Profissional publicado" in html
