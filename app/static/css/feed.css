@@ -979,7 +979,7 @@
 }
 
 .feed-masonry {
-  columns: 2 280px;
+  columns: 2;
   column-gap: var(--ds-space-4);
 }
 
