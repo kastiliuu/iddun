@@ -191,3 +191,23 @@
   .establishment-directory-card__logo { left:8px;bottom:8px;width:48px;height:48px;border-width:3px; }
   .establishment-directory-card__body { padding:14px;align-content:center; }
 }
+
+/* Authenticated discovery keeps the existing directory and search,
+   without repeating the visitor acquisition hero. */
+.authenticated-discovery-page .professionals-hero__inner {
+  min-height: 0;
+  gap: var(--ds-space-6);
+  padding-block: var(--ds-space-8);
+}
+
+.authenticated-discovery-page .professionals-hero h1 {
+  font-size: clamp(var(--ds-type-heading-md), 3vw, 3rem);
+}
+
+.authenticated-discovery-page .professionals-content {
+  padding-top: var(--ds-space-6);
+}
+
+.authenticated-discovery-page .establishments-hero__network {
+  display: none;
+}
