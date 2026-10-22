@@ -57,6 +57,10 @@
            class="nav-link{% if current_page == 'establishments' %} is-active{% endif %}"
            {% if current_page == 'establishments' %}aria-current="page"{% endif %}>Estabelecimentos</a>
         <a href="{{ url_for('bookings.mine') }}" class="nav-link">Reservas</a>
+        <a href="{{ url_for('account.dashboard') }}" class="nav-link">Minha conta</a>
+        {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('admin.dashboard') }}" class="nav-link nav-admin-link">Admin</a>
+        {% endif %}
 
       {% elif current_page == 'home' %}
 
