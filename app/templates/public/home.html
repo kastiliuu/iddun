@@ -13,9 +13,9 @@
       <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="136" height="46">
     </a>
     <nav class="landing-header__nav" aria-label="Navegação da página inicial">
-      <a href="#comunidade">Comunidade</a>
       <a href="#como-funciona">Como funciona</a>
       <a href="#para-quem">Para quem é</a>
+      <a href="#comunidade">Comunidade</a>
     </nav>
     <details class="landing-mobile-menu"><summary aria-label="Abrir navegação">{{ icon('menu') }}</summary><nav aria-label="Menu mobile"><a href="#como-funciona">Como funciona</a><a href="#para-quem">Para quem é</a><a href="#comunidade">Comunidade</a><a href="{{ url_for('auth.login') }}">Entrar</a></nav></details>
     <div class="landing-header__actions">
@@ -28,63 +28,98 @@
 
 {% block content %}
 <section class="landing-hero" id="inicio" aria-labelledby="landing-title">
+  <div class="landing-hero__aurora" aria-hidden="true"></div>
   <div class="container landing-hero__grid">
     <div class="landing-hero__copy">
-      <span class="landing-eyebrow">✦ A comunidade da beleza</span>
-      <h1 id="landing-title">Beleza abre portas. <em>Conexões criam histórias.</em></h1>
-      <p>Encontre profissionais, conheça estabelecimentos e construa sua rede de beleza em um único lugar.</p>
-      <nav class="landing-category-chips" aria-label="Explorar por categoria">{% for category in categories[:5] %}<a href="{{ url_for('public.experiences', categoria=category.value) }}">{{ category.name }}</a>{% endfor %}<a href="{{ url_for('public.experiences') }}">Explorar todos {{ icon('arrow-right') }}</a></nav>
-      <div class="landing-hero__actions">
+      <span class="landing-eyebrow landing-rise landing-rise--1">✦ A comunidade da beleza</span>
+      <h1 id="landing-title" class="landing-rise landing-rise--2">Beleza abre portas. <em>Conexões criam histórias.</em></h1>
+      <p class="landing-lead landing-rise landing-rise--3">Encontre profissionais, conheça estabelecimentos e construa sua rede de beleza em um único lugar.</p>
+      <nav class="landing-category-chips landing-rise landing-rise--4" aria-label="Explorar por categoria">{% for category in categories[:5] %}<a href="{{ url_for('public.experiences', categoria=category.value) }}">{{ category.name }}</a>{% endfor %}<a href="{{ url_for('public.experiences') }}">Explorar todos {{ icon('arrow-right') }}</a></nav>
+      <div class="landing-hero__actions landing-rise landing-rise--5">
         <a href="{{ url_for('auth.register') }}" class="landing-button landing-button--primary">Faça parte do IDDUN {{ icon('arrow-up-right') }}</a>
-        <a href="{{ url_for('auth.login') }}" class="landing-button landing-button--outline">Já tenho uma conta {{ icon('arrow-right') }}</a>
+        <a class="landing-text-link" href="#para-quem">Sou profissional ou tenho um espaço <span aria-hidden="true">→</span></a>
       </div>
-      <a class="landing-discover" href="#comunidade">Conheça a comunidade <span aria-hidden="true">↓</span></a>
     </div>
-    <div class="landing-hero__art" aria-hidden="true">
-      <img src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}" alt="" fetchpriority="high">
+    <div class="landing-hero__art landing-rise landing-rise--3" aria-hidden="true">
+      <div class="landing-hero__photo"><img src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}" alt="" fetchpriority="high"></div>
+      <div class="landing-glass landing-glass--agenda"><span class="landing-glass__icon">{{ icon('calendar') }}</span><span><small>Agenda</small><strong>Horários de quem atende</strong></span></div>
+      <div class="landing-glass landing-glass--profile"><span class="landing-glass__icon">{{ icon('users') }}</span><span><small>Perfis</small><strong>Portfólio e serviços</strong></span></div>
       <span class="landing-art-label">BEAUTY LIVES FURTHER ✦</span>
-      <span class="landing-art-note">Arte de apresentação · não representa disponibilidade</span>
-      <div class="landing-orbit" data-landing-orbit aria-hidden="true"><span class="landing-orbit__core">✦</span><span class="landing-orbit__node landing-orbit__node--one"></span><span class="landing-orbit__node landing-orbit__node--two"></span><span class="landing-orbit__node landing-orbit__node--three"></span></div>
     </div>
   </div>
 </section>
 
-<div class="landing-category-band" aria-label="Áreas de beleza"><div class="container landing-category-band__items">{% for category in categories %}<span>{{ category.name }}</span>{% endfor %}</div></div>
+<div class="landing-category-band" aria-label="Áreas de beleza">
+  <div class="landing-marquee" aria-hidden="true">
+    <ul>{% for category in categories %}<li>{{ category.name }}</li>{% endfor %}</ul>
+    <ul>{% for category in categories %}<li>{{ category.name }}</li>{% endfor %}</ul>
+  </div>
+  <span class="landing-sr">{% for category in categories %}{{ category.name }}{% if not loop.last %}, {% endif %}{% endfor %}</span>
+</div>
 
-<section class="landing-story" id="como-funciona" aria-labelledby="landing-story-title">
+<section class="landing-section" id="como-funciona" aria-labelledby="landing-story-title">
   <div class="container">
-    <span class="landing-eyebrow">COMO FUNCIONA</span>
-    <h2 id="landing-story-title">Do olhar à reserva, <em>sem sair daqui.</em></h2>
-    <div class="landing-story__grid">
-      <article class="landing-story-card landing-story-card--lead">
-        <span>01 / DESCOBRIR</span><h3>Descubra trabalhos reais</h3>
+    <div class="landing-section-head landing-reveal">
+      <div><span class="landing-eyebrow">Como funciona</span>
+      <h2 id="landing-story-title">Do olhar à reserva, <em>sem sair daqui.</em></h2></div>
+      <p>Descobrir, confiar e agendar acontecem no mesmo lugar, com quem faz a beleza acontecer.</p>
+    </div>
+    <div class="landing-bento">
+      <article class="landing-card landing-card--lead landing-reveal">
+        <span class="landing-step">01</span><h3>Descubra trabalhos reais</h3>
         <p>Explore publicações, profissionais e estabelecimentos do IDDUN.</p>
-        <div class="landing-story-tiles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="landing-tiles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       </article>
-      <article class="landing-story-card"><span>02 / CONECTAR</span><h3>Siga e salve quem inspira</h3><p>Construa sua rede e volte aos perfis que combinam com você.</p><div class="landing-story-symbol" aria-hidden="true">✦ <span>Seguir</span></div></article>
-      <article class="landing-story-card"><span>03 / RESERVAR</span><h3>Reserve com horários reais</h3><p>Escolha um serviço e consulte a disponibilidade antes de agendar.</p><div class="landing-story-days" aria-hidden="true"><i>SEG</i><i>TER</i><i>QUA</i><i>QUI</i></div></article>
+      <article class="landing-card landing-reveal">
+        <span class="landing-step">02</span><h3>Siga e salve quem inspira</h3>
+        <p>Construa sua rede e volte aos perfis que combinam com você.</p>
+        <div class="landing-mini" aria-hidden="true"><span class="landing-mini__avatar">ID</span><span class="landing-mini__bars"><i></i><i></i></span><span class="landing-mini__button">Seguir</span></div>
+      </article>
+      <article class="landing-card landing-reveal">
+        <span class="landing-step">03</span><h3>Reserve com horários reais</h3>
+        <p>Escolha um serviço e consulte a disponibilidade antes de agendar.</p>
+        <div class="landing-mini landing-mini--days" aria-hidden="true"><i>SEG</i><i class="is-on">TER</i><i>QUA</i><i>QUI</i></div>
+      </article>
     </div>
   </div>
 </section>
 
-<section class="landing-audiences" id="para-quem" aria-labelledby="landing-audiences-title">
+<section class="landing-section landing-section--soft" id="para-quem" aria-labelledby="landing-audiences-title">
   <div class="container">
-    <span class="landing-eyebrow">PARA QUEM É</span>
-    <h2 id="landing-audiences-title">Um lugar para cada <em>lado da beleza.</em></h2>
-    <div class="landing-audiences__grid">
-      <article><span>CLIENTES</span><h3>Para você</h3><p>Descubra, siga e encontre profissionais do seu estilo.</p><a href="{{ url_for('auth.register') }}">Criar minha conta {{ icon('arrow-right') }}</a></article>
-      <article><span>PROFISSIONAIS</span><h3>Para quem faz</h3><p>Apresente seu portfólio e organize seus atendimentos.</p><a href="{{ url_for('auth.register') }}">Criar perfil profissional {{ icon('arrow-right') }}</a></article>
-      <article><span>ESTABELECIMENTOS</span><h3>Para o seu espaço</h3><p>Apresente sua equipe e conecte seus serviços à comunidade.</p><a href="{{ url_for('auth.register') }}">Cadastrar estabelecimento {{ icon('arrow-right') }}</a></article>
+    <div class="landing-section-head landing-reveal">
+      <div><span class="landing-eyebrow">Para quem é</span>
+      <h2 id="landing-audiences-title">Um lugar para cada <em>lado da beleza.</em></h2></div>
+      <p>Cada perfil tem seu caminho, suas ferramentas e o mesmo padrão de qualidade.</p>
+    </div>
+    <div class="landing-audiences">
+      <article class="landing-card landing-reveal">
+        <span class="landing-eyebrow">Clientes</span><h3>Para você</h3>
+        <p>Descubra, siga e encontre profissionais do seu estilo.</p>
+        <div class="landing-more"><ul><li>Busca por serviço e categoria</li><li>Perfis com portfólio e avaliações de atendimentos concluídos</li><li>Suas reservas e favoritos em um só lugar</li></ul></div>
+        <a class="landing-button landing-button--primary" href="{{ url_for('auth.register') }}">Criar minha conta</a>
+      </article>
+      <article class="landing-card landing-reveal">
+        <span class="landing-eyebrow">Profissionais</span><h3>Para quem faz</h3>
+        <p>Apresente seu portfólio e organize seus atendimentos.</p>
+        <div class="landing-more"><ul><li>Identidade profissional que vai com você</li><li>Agenda com disponibilidade e Google Calendar</li><li>Reputação construída por atendimentos concluídos</li></ul></div>
+        <a class="landing-button landing-button--outline" href="{{ url_for('auth.register') }}">Criar perfil profissional</a>
+      </article>
+      <article class="landing-card landing-reveal">
+        <span class="landing-eyebrow">Estabelecimentos</span><h3>Para o seu espaço</h3>
+        <p>Apresente sua equipe e conecte seus serviços à comunidade.</p>
+        <div class="landing-more"><ul><li>Convites e vínculos com profissionais</li><li>Serviços e agenda por executor</li><li>Vagas e recrutamento</li></ul></div>
+        <a class="landing-button landing-button--outline" href="{{ url_for('auth.register') }}">Cadastrar estabelecimento</a>
+      </article>
     </div>
   </div>
 </section>
 
-<section class="landing-community" id="comunidade" aria-labelledby="community-title">
-  <div class="container">
-    <div class="landing-section-head">
-      <div><span class="landing-eyebrow">A comunidade está crescendo</span>
-      <h2 id="community-title">Pessoas reais.<br><em>Novas possibilidades.</em></h2></div>
-      <p>O IDDUN conecta quem busca experiências de beleza com quem faz a beleza acontecer.</p>
+<section class="landing-section" id="comunidade" aria-labelledby="community-title">
+  <div class="container landing-community">
+    <div class="landing-community__copy landing-reveal">
+      <span class="landing-eyebrow">Comunidade</span>
+      <h2 id="community-title">Estamos começando. <em>Venha desde o início.</em></h2>
+      <p>O IDDUN conecta quem busca experiências de beleza com quem faz a beleza acontecer. Os números abaixo são reais e atualizados automaticamente.</p>
     </div>
     <ul class="landing-stats" aria-label="Números reais da comunidade IDDUN">
       <li><strong>{{ home_stats.members }}</strong><span>Pessoas cadastradas</span></li>
@@ -94,16 +129,15 @@
   </div>
 </section>
 
-<section class="landing-directory" id="profissionais" aria-labelledby="landing-pro-title">
+<section class="landing-section landing-section--soft" id="profissionais" aria-labelledby="landing-pro-title">
   <div class="container">
-    <div class="landing-section-head">
+    <div class="landing-section-head landing-reveal">
       <div><span class="landing-eyebrow">Profissionais no IDDUN</span><h2 id="landing-pro-title">Descubra quem <em>inspira.</em></h2></div>
       <p>Conheça os profissionais que já fazem parte da comunidade.</p>
     </div>
-    {% if professionals %}
     <div class="landing-card-grid">
       {% for professional in professionals[:3] %}
-      <article class="landing-profile-card">
+      <article class="landing-profile-card landing-reveal">
         <div class="landing-profile-card__image">
           {% if professional.image %}<img src="{{ professional.image|media_url }}" alt="Foto de {{ professional.name }}" loading="lazy">{% else %}<span class="landing-avatar-fallback" role="img" aria-label="Avatar de {{ professional.name }}">{{ professional.name.split()[0][0]|upper }}{{ professional.name.split()[-1][0]|upper if professional.name.split()|length > 1 else "" }}</span>{% endif %}
         </div>
@@ -115,24 +149,26 @@
         </div>
       </article>
       {% endfor %}
+      <article class="landing-profile-card landing-profile-card--invite landing-reveal">
+        <span class="landing-invite__icon" aria-hidden="true">{{ icon('plus') }}</span>
+        <h3>Seu perfil pode estar aqui</h3>
+        <p>Crie seu perfil e apareça para quem busca beleza.</p>
+        <a class="landing-button landing-button--primary" href="{{ url_for('auth.register') }}">Participe da comunidade</a>
+      </article>
     </div>
-    {% else %}
-    <p class="landing-empty">Novos profissionais poderão aparecer aqui quando seus perfis estiverem publicados.</p>
-    {% endif %}
-    <div class="landing-section-action"><a href="{{ url_for('auth.register') }}" class="landing-button landing-button--outline">Participe da comunidade {{ icon('arrow-right') }}</a></div>
   </div>
 </section>
 
-<section class="landing-directory landing-directory--business" id="estabelecimentos" aria-labelledby="landing-business-title">
+<section class="landing-section" id="estabelecimentos" aria-labelledby="landing-business-title">
   <div class="container">
-    <div class="landing-section-head">
+    <div class="landing-section-head landing-reveal">
       <div><span class="landing-eyebrow">Estabelecimentos no IDDUN</span><h2 id="landing-business-title">Lugares para <em>se conectar.</em></h2></div>
       <p>Conheça os espaços que já estão construindo sua presença no IDDUN.</p>
     </div>
     {% if studios %}
     <div class="landing-card-grid">
       {% for studio in studios[:3] %}
-      <article class="landing-profile-card">
+      <article class="landing-profile-card landing-reveal">
         <div class="landing-profile-card__image"><img src="{{ studio.image|media_url }}" alt="Imagem de {{ studio.name }}" loading="lazy"></div>
         <div class="landing-profile-card__body">
           <span>Estabelecimento</span><h3>{{ studio.name }}</h3><p>{{ studio.location }}</p>
@@ -142,18 +178,20 @@
       {% endfor %}
     </div>
     {% else %}
-    <div class="landing-empty"><p>Ainda não há estabelecimentos publicados. Seu espaço pode fazer parte desta comunidade.</p><a class="landing-button landing-button--outline" href="{{ url_for('auth.register') }}">Cadastrar meu estabelecimento</a></div>
+    <div class="landing-empty landing-reveal"><span class="landing-invite__icon" aria-hidden="true">{{ icon('store') }}</span><div><h3>Seu espaço pode abrir portas aqui</h3><p>Ainda não há estabelecimentos publicados. Seu espaço pode fazer parte desta comunidade.</p></div><a class="landing-button landing-button--outline" href="{{ url_for('auth.register') }}">Cadastrar meu estabelecimento</a></div>
     {% endif %}
   </div>
 </section>
 
-<section class="landing-final" aria-labelledby="landing-join-title">
-  <div class="container landing-final__inner">
-    <span class="landing-eyebrow">Mais que beleza. Conexões reais.</span>
-    <h2 id="landing-join-title">Seu próximo capítulo <em>começa aqui.</em></h2>
-    <div class="landing-hero__actions">
-      <a href="{{ url_for('auth.register') }}" class="landing-button landing-button--primary">Criar minha conta {{ icon('arrow-up-right') }}</a>
-      <a href="{{ url_for('auth.login') }}" class="landing-button landing-button--outline">Entrar</a>
+<section class="landing-section landing-section--flush" aria-labelledby="landing-join-title">
+  <div class="container">
+    <div class="landing-final landing-reveal">
+      <span class="landing-eyebrow">Mais que beleza. Conexões reais.</span>
+      <h2 id="landing-join-title">Seu próximo capítulo <em>começa aqui.</em></h2>
+      <div class="landing-hero__actions landing-hero__actions--center">
+        <a href="{{ url_for('auth.register') }}" class="landing-button landing-button--primary">Criar minha conta {{ icon('arrow-up-right') }}</a>
+        <a class="landing-text-link" href="{{ url_for('auth.login') }}">Já tenho conta <span aria-hidden="true">→</span></a>
+      </div>
     </div>
   </div>
 </section>
@@ -166,11 +204,17 @@
       <img src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}" alt="IDDUN" width="136" height="46">
       <p>Mais que beleza. Conexões reais.</p>
     </div>
+    <nav aria-label="Produto">
+      <strong>Produto</strong>
+      <a href="{{ url_for('public.how_it_works') }}">Como funciona</a>
+      <a href="{{ url_for('public.experiences') }}">Explorar</a>
+      <a href="{{ url_for('public.professionals') }}">Profissionais</a>
+      <a href="{{ url_for('public.establishments') }}">Estabelecimentos</a>
+    </nav>
     <nav aria-label="Links institucionais">
       <strong>Institucional</strong>
       <a href="{{ url_for('public.privacy_policy') }}">Política de privacidade</a>
       <a href="{{ url_for('public.terms_of_use') }}">Termos de uso</a>
-      <a href="{{ url_for('public.how_it_works') }}">Como funciona</a>
     </nav>
     <div class="landing-footer__column">
       <strong>Contato e suporte</strong>
@@ -181,4 +225,3 @@
 </footer>
 {% endblock %}
 {% block mobile_bottom_nav %}{% endblock %}
-{% block scripts %}<script src="{{ url_for('static', filename='js/landing-motion.js') }}" defer></script>{% endblock %}
