@@ -493,3 +493,21 @@
     --ds-motion-layout: 0ms;
   }
 }
+
+
+/* ==========================================================
+   CONV-07 — PUBLIC LANDING TOKENS (PROPOSED, pending approval)
+   Values outside the 4/8/12/16/24/32/48 scale used only by the
+   public landing. Promote or replace once the DS owner decides.
+   ========================================================== */
+
+:root {
+  --landing-section-space: clamp(3rem, 8vw, 6rem);
+  --landing-display-xl: clamp(2.5rem, 5.2vw, 4.5rem);
+  --landing-display-lg: clamp(2.125rem, 4.6vw, 3.5rem);
+  --landing-glass-bg: color-mix(in srgb, var(--color-surface-dark) 72%, transparent);
+  --landing-glass-blur: 16px;
+  --landing-aurora-strong: color-mix(in srgb, var(--color-plum) 32%, transparent);
+  --landing-aurora-soft: color-mix(in srgb, var(--color-plum-bright) 18%, transparent);
+  --landing-shadow-float: 0 20px 50px color-mix(in srgb, var(--color-ink) 55%, transparent);
+}
