@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Alert } from "react-native";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   Text,
