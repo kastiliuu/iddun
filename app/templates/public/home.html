@@ -14,9 +14,10 @@
     </a>
     <nav class="landing-header__nav" aria-label="Navegação da página inicial">
       <a href="#comunidade">Comunidade</a>
-      <a href="#profissionais">Profissionais</a>
-      <a href="#estabelecimentos">Estabelecimentos</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#para-quem">Para quem é</a>
     </nav>
+    <details class="landing-mobile-menu"><summary aria-label="Abrir navegação">{{ icon('menu') }}</summary><nav aria-label="Menu mobile"><a href="#como-funciona">Como funciona</a><a href="#para-quem">Para quem é</a><a href="#comunidade">Comunidade</a><a href="{{ url_for('auth.login') }}">Entrar</a></nav></details>
     <div class="landing-header__actions">
       <a class="landing-link" href="{{ url_for('auth.login') }}">Entrar</a>
       <a class="landing-button landing-button--primary" href="{{ url_for('auth.register') }}">Cadastre-se {{ icon('arrow-up-right') }}</a>
@@ -32,6 +33,7 @@
       <span class="landing-eyebrow">✦ A comunidade da beleza</span>
       <h1 id="landing-title">Beleza abre portas. <em>Conexões criam histórias.</em></h1>
       <p>Encontre profissionais, conheça estabelecimentos e construa sua rede de beleza em um único lugar.</p>
+      <nav class="landing-category-chips" aria-label="Explorar por categoria">{% for category in categories[:5] %}<a href="{{ url_for('public.experiences', categoria=category.value) }}">{{ category.name }}</a>{% endfor %}<a href="{{ url_for('public.experiences') }}">Explorar todos {{ icon('arrow-right') }}</a></nav>
       <div class="landing-hero__actions">
         <a href="{{ url_for('auth.register') }}" class="landing-button landing-button--primary">Faça parte do IDDUN {{ icon('arrow-up-right') }}</a>
         <a href="{{ url_for('auth.login') }}" class="landing-button landing-button--outline">Já tenho uma conta {{ icon('arrow-right') }}</a>
@@ -41,6 +43,38 @@
     <div class="landing-hero__art" aria-hidden="true">
       <img src="{{ url_for('static', filename='img/hero-woman-v3.webp') }}" alt="" fetchpriority="high">
       <span class="landing-art-label">BEAUTY LIVES FURTHER ✦</span>
+      <span class="landing-art-note">Arte de apresentação · não representa disponibilidade</span>
+      <div class="landing-orbit" data-landing-orbit aria-hidden="true"><span class="landing-orbit__core">✦</span><span class="landing-orbit__node landing-orbit__node--one"></span><span class="landing-orbit__node landing-orbit__node--two"></span><span class="landing-orbit__node landing-orbit__node--three"></span></div>
+    </div>
+  </div>
+</section>
+
+<div class="landing-category-band" aria-label="Áreas de beleza"><div class="container landing-category-band__items">{% for category in categories %}<span>{{ category.name }}</span>{% endfor %}</div></div>
+
+<section class="landing-story" id="como-funciona" aria-labelledby="landing-story-title">
+  <div class="container">
+    <span class="landing-eyebrow">COMO FUNCIONA</span>
+    <h2 id="landing-story-title">Do olhar à reserva, <em>sem sair daqui.</em></h2>
+    <div class="landing-story__grid">
+      <article class="landing-story-card landing-story-card--lead">
+        <span>01 / DESCOBRIR</span><h3>Descubra trabalhos reais</h3>
+        <p>Explore publicações, profissionais e estabelecimentos do IDDUN.</p>
+        <div class="landing-story-tiles" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </article>
+      <article class="landing-story-card"><span>02 / CONECTAR</span><h3>Siga e salve quem inspira</h3><p>Construa sua rede e volte aos perfis que combinam com você.</p><div class="landing-story-symbol" aria-hidden="true">✦ <span>Seguir</span></div></article>
+      <article class="landing-story-card"><span>03 / RESERVAR</span><h3>Reserve com horários reais</h3><p>Escolha um serviço e consulte a disponibilidade antes de agendar.</p><div class="landing-story-days" aria-hidden="true"><i>SEG</i><i>TER</i><i>QUA</i><i>QUI</i></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="landing-audiences" id="para-quem" aria-labelledby="landing-audiences-title">
+  <div class="container">
+    <span class="landing-eyebrow">PARA QUEM É</span>
+    <h2 id="landing-audiences-title">Um lugar para cada <em>lado da beleza.</em></h2>
+    <div class="landing-audiences__grid">
+      <article><span>CLIENTES</span><h3>Para você</h3><p>Descubra, siga e encontre profissionais do seu estilo.</p><a href="{{ url_for('auth.register') }}">Criar minha conta {{ icon('arrow-right') }}</a></article>
+      <article><span>PROFISSIONAIS</span><h3>Para quem faz</h3><p>Apresente seu portfólio e organize seus atendimentos.</p><a href="{{ url_for('auth.register') }}">Criar perfil profissional {{ icon('arrow-right') }}</a></article>
+      <article><span>ESTABELECIMENTOS</span><h3>Para o seu espaço</h3><p>Apresente sua equipe e conecte seus serviços à comunidade.</p><a href="{{ url_for('auth.register') }}">Cadastrar estabelecimento {{ icon('arrow-right') }}</a></article>
     </div>
   </div>
 </section>
@@ -147,3 +181,4 @@
 </footer>
 {% endblock %}
 {% block mobile_bottom_nav %}{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/landing-motion.js') }}" defer></script>{% endblock %}
