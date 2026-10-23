@@ -42,7 +42,7 @@
       {% for professional in professionals %}
       <article class="professional-profile-card">
         <div class="professional-profile-card__photo">
-          <img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position: {{ professional.get('image_position', '50% 50%') }};">
+          {% if professional.image %}<img src="{{ professional.image|media_url }}" alt="{{ professional.name }}" style="object-position: {{ professional.get('image_position', '50% 50%') }};">{% else %}<span class="professional-avatar-fallback" role="img" aria-label="Avatar de {{ professional.name }}">{{ professional.name.split()[0][0]|upper }}{{ professional.name.split()[-1][0]|upper if professional.name.split()|length > 1 else "" }}</span>{% endif %}
           <span class="professional-profile-card__verified">{{ icon('shield-check') }} Curadoria IDDUN</span>
         </div>
         <div class="professional-profile-card__body">

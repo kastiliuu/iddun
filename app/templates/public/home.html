@@ -71,7 +71,7 @@
       {% for professional in professionals[:3] %}
       <article class="landing-profile-card">
         <div class="landing-profile-card__image">
-          <img src="{{ professional.image|media_url }}" alt="Foto de {{ professional.name }}" loading="lazy">
+          {% if professional.image %}<img src="{{ professional.image|media_url }}" alt="Foto de {{ professional.name }}" loading="lazy">{% else %}<span class="landing-avatar-fallback" role="img" aria-label="Avatar de {{ professional.name }}">{{ professional.name.split()[0][0]|upper }}{{ professional.name.split()[-1][0]|upper if professional.name.split()|length > 1 else "" }}</span>{% endif %}
         </div>
         <div class="landing-profile-card__body">
           <span>{{ professional.role }}</span>
@@ -108,7 +108,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="landing-empty">Ainda não há estabelecimentos publicados. A comunidade está crescendo.</p>
+    <div class="landing-empty"><p>Ainda não há estabelecimentos publicados. Seu espaço pode fazer parte desta comunidade.</p><a class="landing-button landing-button--outline" href="{{ url_for('auth.register') }}">Cadastrar meu estabelecimento</a></div>
     {% endif %}
   </div>
 </section>
@@ -141,7 +141,7 @@
     <div class="landing-footer__column">
       <strong>Contato e suporte</strong>
       <a href="mailto:contato@iddun.com.br">contato@iddun.com.br</a>
-      <span>Redes sociais oficiais: em breve</span>
+      <span>Aplicativos para iOS e Android em breve</span>
     </div>
   </div>
 </footer>

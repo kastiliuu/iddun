@@ -28,7 +28,8 @@ def test_home_is_public_landing_with_account_entry_and_legal_links(client):
     assert 'href="/como-funciona"' in html
     assert "mailto:contato@iddun.com.br" in html
     assert 'href="#"' not in html
-    assert "Redes sociais oficiais: em breve" in html
+    assert "Aplicativos para iOS e Android em breve" in html
+    assert "Redes sociais oficiais: em breve" not in html
     assert "Beauty for a brighter you" not in html
 
 
