@@ -341,7 +341,7 @@ def iddun_now():
             ]
         },
         cache_control=(
-            "public, max-age=30"
+            "no-store"
         ),
     )
 
