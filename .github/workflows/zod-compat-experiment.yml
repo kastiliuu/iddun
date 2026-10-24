@@ -1,0 +1,49 @@
+name: Zod 4 compatibility experiment
+
+on:
+  push:
+    branches:
+      - experiment/secure-zod-expo57-20261024
+
+permissions:
+  contents: read
+
+jobs:
+  expo-zod-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Regenerate lockfile in ephemeral runner
+        run: npm install --package-lock-only --ignore-scripts --no-audit
+      - name: Verify clean install
+        run: npm ci
+      - name: Verify dependency tree
+        run: npm ls expo @expo/cli zod --all
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Expo doctor
+        run: npx --yes expo-doctor
+      - name: Expo CLI launch validation
+        run: timeout 35s npx expo start --non-interactive --offline || test "$?" -eq 124
+      - name: Audit patched dependency tree
+        run: |
+          npm audit --omit=dev --json > npm-audit-production.json || true
+          node scripts/check-npm-advisory-baseline.cjs npm-audit-production.json
+      - name: Export regenerated lockfile
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: experimental-zod4-lockfile
+          path: mobile/package-lock.json
+          retention-days: 1
