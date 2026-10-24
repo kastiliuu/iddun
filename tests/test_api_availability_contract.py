@@ -62,7 +62,7 @@ def test_iddun_now_forwards_normalized_arguments(
     assert response.status_code == 200
     assert response.get_json()["items"] == []
     assert calls == [(expected_limit, expected_mode)]
-    assert "public" in response.headers["Cache-Control"]
+    assert "no-store" in response.headers["Cache-Control"]
 
 
 def test_iddun_now_maps_availability_error_to_bad_request(client, monkeypatch):
