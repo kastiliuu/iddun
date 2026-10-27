@@ -2,7 +2,7 @@
 {% from 'components/icon.html' import icon %}
 
 {% block title %}{{ professional.name }} | IDDUN{% endblock %}
-{% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% endblock %}
+{% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% if selected_service %} has-service-bar{% endif %}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-profile.css') }}">{% endblock %}
 
 {% block content %}
@@ -133,5 +133,22 @@
     </aside>
   </div>
 </section>
+{% if selected_service %}
+{# D-VIS-05: serviço escolhido no Explorar, fixo enquanto a cliente vê os trabalhos. #}
+<aside class="profile-service-bar" aria-label="Serviço escolhido">
+  <div class="container profile-service-bar__inner">
+    <div class="profile-service-bar__copy">
+      <span class="profile-service-bar__eyebrow">Serviço escolhido</span>
+      <strong>{{ selected_service.title }}</strong>
+      <span>{{ selected_service.duration_label }} · R$ {{ '%.2f'|format(selected_service.price)|replace('.', ',') }}</span>
+    </div>
+    {% if selected_service.has_slots %}
+    <a class="btn btn-primary profile-service-bar__cta" href="{{ url_for('public.experience_detail', slug=selected_service.slug, _anchor='horarios') }}">Ver horários {{ icon('chevron-right') }}</a>
+    {% else %}
+    <a class="btn btn-outline profile-service-bar__cta" href="{{ url_for('public.experience_detail', slug=selected_service.slug) }}">Ver serviço {{ icon('chevron-right') }}</a>
+    {% endif %}
+  </div>
+</aside>
+{% endif %}
 {% endblock %}
 {% block scripts %}<script src="{{ url_for('static', filename='js/professionals.js') }}" defer></script>{% endblock %}

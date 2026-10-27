@@ -20,6 +20,7 @@ from app.services.feed_service import (
     serialize_work_post,
 )
 from app.services.experience_service import (
+    legacy_category_image,
     list_database_experiences_page,
 )
 from app.services.media_storage import (
@@ -247,11 +248,14 @@ def _global_experience_payload(
                 "category_label"
             )
         ),
+        # Same image the app received before D-VIS-05 (see api.py).
         "image": _media(
             item.get(
                 "image"
             )
-            or "img/exp-hair.jpg"
+            or legacy_category_image(
+                item.get("category")
+            )
         ),
         "location": (
             item.get(

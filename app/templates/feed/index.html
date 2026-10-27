@@ -564,10 +564,15 @@
           class="feed-now-item"
           href="{{ url_for('public.experience_detail', slug=item.experienceSlug) }}"
         >
+          {% if item.image %}
           <span
             class="feed-now-item__image"
             style="background-image:url('{{ item.image }}')"
           ></span>
+          {% else %}
+          {# D-VIS-05: sem foto do serviço nem trabalho publicado, iniciais do serviço. #}
+          <span class="feed-now-item__image ds-media-initials" aria-hidden="true">{{ item.experienceTitle|initials }}</span>
+          {% endif %}
           <span>
             <small class="{% if item.urgent %}is-urgent{% endif %}">
               {{ item.timeLabel }}

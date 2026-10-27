@@ -20,6 +20,7 @@ from app.services.entitlements import (
 )
 from app.services.experience_service import (
     get_database_experience_by_slug,
+    legacy_category_image,
     get_experience_by_slug,
     list_database_experiences_page,
 )
@@ -171,7 +172,12 @@ def _experience_payload(item):
         "establishmentRating": item["establishment_rating"],
         "establishmentReviews": item["establishment_reviews"],
         "availableSlotsCount": item["available_slots_count"],
-        "imageUrl": _public_image_url(item["image"]),
+        # The app still expects an image; the Web shows real work instead
+        # (D-VIS-05). Removed when the mobile client renders it too.
+        "imageUrl": _public_image_url(
+            item["image"]
+            or legacy_category_image(item["category"])
+        ),
         "webUrl": url_for(
             "public.experience_detail",
             slug=item["slug"],

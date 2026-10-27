@@ -1,4 +1,5 @@
 {% from 'components/icon.html' import icon %}
+{% from 'components/real-work-media.html' import service_href, service_media %}
 
 
 {# ============================================================
@@ -171,23 +172,11 @@
 
     <a
       class="catalog-card__media-link"
-      href="{{ url_for(
-        'public.experience_detail',
-        slug=item.slug
-      ) }}"
-      aria-label="Ver experiência {{ item.title }}"
+      href="{{ service_href(item) }}"
+      aria-label="{{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }} de {{ item.professional }} e {{ item.title }}"
     >
 
-      <img
-        src="{{ item.image|media_url }}"
-        alt="{{ item.title }} com {{ item.professional }}"
-        style="object-position: {{ item.get(
-          'image_position',
-          '50% 50%'
-        ) }};"
-        loading="lazy"
-        decoding="async"
-      >
+      {{ service_media(item) }}
 
     </a>
 
@@ -230,10 +219,7 @@
 
     <!-- Title -->
     <a
-      href="{{ url_for(
-        'public.experience_detail',
-        slug=item.slug
-      ) }}"
+      href="{{ service_href(item) }}"
       class="catalog-card__title"
       aria-label="Abrir {{ item.title }}"
     >
@@ -348,13 +334,10 @@
 
       <a
         class="btn catalog-card__cta"
-        href="{{ url_for(
-          'public.experience_detail',
-          slug=item.slug
-        ) }}"
-        aria-label="Ver experiência {{ item.title }}"
+        href="{{ service_href(item) }}"
+        aria-label="{{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }} de {{ item.professional }} e {{ item.title }}"
       >
-        Ver experiência
+        {{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }}
 
         {{ icon(
           'chevron-right'
@@ -390,24 +373,11 @@
   <div class="catalog-featured__media">
 
     <a
-      href="{{ url_for(
-        'public.experience_detail',
-        slug=item.slug
-      ) }}"
-      aria-label="Ver experiência {{ item.title }}"
+      href="{{ service_href(item) }}"
+      aria-label="{{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }} de {{ item.professional }} e {{ item.title }}"
     >
 
-      <img
-        src="{{ item.image|media_url }}"
-        alt="{{ item.title }} com {{ item.professional }}"
-        style="object-position: {{ item.get(
-          'image_position',
-          '50% 50%'
-        ) }};"
-        loading="eager"
-        decoding="async"
-        fetchpriority="high"
-      >
+      {{ service_media(item, 'eager') }}
 
     </a>
 
@@ -468,10 +438,7 @@
 
     <!-- Title -->
     <a
-      href="{{ url_for(
-        'public.experience_detail',
-        slug=item.slug
-      ) }}"
+      href="{{ service_href(item) }}"
       class="catalog-featured__title"
       aria-label="Abrir {{ item.title }}"
     >
@@ -578,13 +545,10 @@
 
       <a
         class="btn catalog-featured__cta"
-        href="{{ url_for(
-          'public.experience_detail',
-          slug=item.slug
-        ) }}"
-        aria-label="Ver experiência {{ item.title }}"
+        href="{{ service_href(item) }}"
+        aria-label="{{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }} de {{ item.professional }} e {{ item.title }}"
       >
-        Ver experiência
+        {{ 'Ver trabalhos' if item.works_count else 'Ver perfil' }}
 
         {{ icon(
           'chevron-right'
