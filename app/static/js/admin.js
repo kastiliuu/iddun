@@ -120,7 +120,15 @@ document.addEventListener(
               input.files?.[0]
             );
 
-            if (!file) return;
+            // Only formats the server accepts are previewed (never SVG).
+            if (
+              !file
+              || ![
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+              ].includes(file.type)
+            ) return;
 
             if (objectUrl) {
               URL.revokeObjectURL(

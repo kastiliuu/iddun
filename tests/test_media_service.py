@@ -418,3 +418,24 @@ def test_image_normalization_removes_exif(
             saved_path
         ) as image:
             assert len(image.getexif()) == 0
+
+
+SVG_WITH_SCRIPT = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8">'
+    b"<script>alert(1)</script><rect width='8' height='8'/></svg>"
+)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["logo.svg", "logo.png", "logo.jpg", "logo.webp"],
+)
+def test_svg_is_never_accepted_as_an_image(app, filename):
+    # PR-1: blob: previews do not change what the server stores. SVG is
+    # refused by extension and, when disguised, by content inspection.
+    with app.app_context():
+        with pytest.raises(ValueError):
+            save_uploaded_image(
+                _file(filename, SVG_WITH_SCRIPT),
+                "establishments/logos",
+            )
