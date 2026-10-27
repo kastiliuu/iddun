@@ -233,3 +233,74 @@
 }
 
 .public-profile-avatar-fallback { display: grid; place-items: center; width: 100%; height: 100%; background: linear-gradient(145deg,var(--color-deep-violet),var(--ds-action-primary)); color: var(--color-white); font: 600 var(--ds-type-heading-md)/1 var(--font-body); }
+
+/* ============================================================
+   D-VIS-05 — serviço escolhido no Explorar, fixo no rodapé enquanto a
+   cliente vê os trabalhos. Só tokens do DS.
+   ============================================================ */
+
+.has-service-bar {
+  padding-bottom: calc(var(--ds-space-12) * 2);
+}
+
+.profile-service-bar {
+  position: fixed;
+  z-index: 100;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: var(--ds-space-3) 0;
+  border-top: thin solid var(--ds-border-subtle);
+  background: var(--ds-surface-default);
+  color: var(--ds-text-primary);
+}
+
+.profile-service-bar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+}
+
+.profile-service-bar__copy {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-1);
+}
+
+.profile-service-bar__copy strong {
+  overflow: hidden;
+  font-size: var(--ds-type-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-service-bar__copy > span {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-type-secondary);
+}
+
+.profile-service-bar__copy > .profile-service-bar__eyebrow {
+  color: var(--ds-text-muted);
+  font-size: var(--ds-type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.profile-service-bar__cta {
+  flex: none;
+}
+
+/* Mesmo corte do menu inferior do mobile (760 = 47.5em): a barra fica
+   logo acima dele. O menu mede --mobile-nav-height mais o respiro e a
+   borda superiores (8 = --ds-space-2), por isso a soma. */
+@media (max-width: 47.5em) {
+  .profile-service-bar {
+    bottom: calc(var(--mobile-nav-height) + var(--ds-space-2) + env(safe-area-inset-bottom));
+  }
+
+  .has-service-bar {
+    padding-bottom: calc(var(--mobile-nav-height) + var(--ds-space-2) + env(safe-area-inset-bottom) + var(--ds-space-12) * 2);
+  }
+}

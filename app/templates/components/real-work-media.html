@@ -1,0 +1,60 @@
+{# ============================================================
+   D-VIS-05 — TRABALHOS REAIS PRIMEIRO
+   Mídia de um serviço, em ordem: foto do próprio serviço; senão
+   trabalhos reais do portfólio do profissional; senão o bloco
+   tipográfico da D-VIS-04. Nunca foto de estoque.
+   ============================================================ #}
+
+
+{# Destino do card: o perfil do profissional aberto no portfólio, com o
+   serviço escolhido destacado na barra fixa. Itens sem perfil público
+   (protótipo local) continuam abrindo a página do serviço. #}
+{% macro service_href(item) -%}
+{%- if item.professional_slug -%}
+{{ url_for('public.professional_detail', slug=item.professional_slug, servico=item.slug, _anchor='portfolio') }}
+{%- else -%}
+{{ url_for('public.experience_detail', slug=item.slug) }}
+{%- endif -%}
+{%- endmacro %}
+
+
+{% macro works_label(count) -%}
+{{ count }} {{ 'trabalho' if count == 1 else 'trabalhos' }}
+{%- endmacro %}
+
+
+{% macro service_media(item, loading='lazy', hero=false) -%}
+{% if item.image %}
+<img
+  src="{{ item.image|media_url }}"
+  alt="{{ item.title }} com {{ item.professional }}"
+  style="object-position: {{ item.get('image_position', '50% 50%') }};"
+  loading="{{ loading }}"
+  decoding="async"{% if loading == 'eager' %}
+  fetchpriority="high"{% endif %}
+>
+{% elif item.works %}
+<span class="ds-work-mosaic ds-work-mosaic--{{ item.works|length }}">
+  {% for work in item.works %}
+  <img
+    src="{{ work.image|media_url }}"
+    alt="{{ work.caption or ('Trabalho de ' ~ item.professional) }}"
+    loading="{{ loading if loop.first else 'lazy' }}"
+    decoding="async"
+  >
+  {% endfor %}
+</span>
+{% if hero and item.professional_slug %}
+<a class="ds-work-count" href="{{ url_for('public.professional_detail', slug=item.professional_slug, _anchor='portfolio') }}">Ver {{ works_label(item.works_count) }} de {{ item.professional }}</a>
+{% else %}
+<span class="ds-work-count">{{ works_label(item.works_count) }}</span>
+{% endif %}
+{% else %}
+<span class="ds-media-type{% if hero %} ds-media-type--hero{% endif %}" aria-hidden="true">
+  <span class="ds-media-type__rule"></span>
+  <span class="ds-media-type__eyebrow">{{ item.professional }}</span>
+  <span class="ds-media-type__name">{{ item.category_label }}</span>
+  <span class="ds-media-type__note">Ainda sem trabalhos publicados</span>
+</span>
+{% endif %}
+{%- endmacro %}

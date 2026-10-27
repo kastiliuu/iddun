@@ -3566,3 +3566,16 @@
   }
 
 }
+/* D-VIS-05 — hero do detalhe sem foto do serviço: mosaico de trabalhos
+   reais ocupa a área inteira; o atalho para o portfólio fica no topo,
+   longe do selo do canto inferior. */
+.experience-detail-media > .ds-work-mosaic {
+  position: absolute;
+  inset: 0;
+}
+
+.experience-detail-media > .ds-work-count {
+  top: var(--ds-space-6);
+  bottom: auto;
+  left: var(--ds-space-6);
+}

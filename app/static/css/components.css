@@ -2330,3 +2330,126 @@ input[type="search"]
   color: var(--color-off-white);
   font-size: var(--ds-type-caption);
 }
+
+
+/* ============================================================
+   D-VIS-05 — TRABALHOS REAIS PRIMEIRO
+   Mídia de serviço sem foto própria: mosaico com até três trabalhos
+   reais do portfólio; sem portfólio, bloco tipográfico (D-VIS-04).
+   Só tokens; o contêiner (card, destaque, hero) define o tamanho.
+   ============================================================ */
+
+.ds-work-mosaic {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: var(--ds-space-1);
+  background: var(--ds-surface-canvas);
+}
+
+.ds-work-mosaic--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.ds-work-mosaic--3 {
+  grid-template-columns: 2fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.ds-work-mosaic--3 > :first-child {
+  grid-row: span 2;
+}
+
+.ds-work-mosaic > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: cover;
+}
+
+.ds-work-count {
+  position: absolute;
+  z-index: 2;
+  left: var(--ds-space-4);
+  bottom: var(--ds-space-4);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ds-space-8);
+  padding: 0 var(--ds-space-3);
+  border-radius: var(--radius-pill);
+  background: var(--ds-surface-default);
+  color: var(--ds-text-primary);
+  font-size: var(--ds-type-caption);
+  font-weight: var(--weight-semibold);
+  text-decoration: none;
+}
+
+a.ds-work-count:hover {
+  text-decoration: underline;
+}
+
+.ds-media-type {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: var(--ds-space-2);
+  width: 100%;
+  height: 100%;
+  padding: var(--ds-space-6);
+  background: var(--ds-surface-raised);
+  color: var(--ds-text-primary);
+}
+
+.ds-media-type__rule {
+  inline-size: var(--ds-space-8);
+  margin-block-end: var(--ds-space-2);
+  border-block-start: thin solid var(--ds-text-muted);
+}
+
+.ds-media-type__eyebrow {
+  color: var(--ds-text-muted);
+  font-size: var(--ds-type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ds-media-type__name {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.ds-media-type__note {
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-type-secondary);
+}
+
+/* Hero do detalhe: o selo ocupa o canto inferior, o texto sobe. */
+.ds-media-type--hero {
+  position: absolute;
+  inset: 0;
+  justify-content: flex-start;
+  padding: var(--ds-space-12);
+}
+
+.ds-media-type--hero .ds-media-type__name {
+  font-size: var(--landing-display-lg);
+}
+
+/* Miniatura (feed): iniciais do serviço, forma quadrada para não se
+   confundir com o avatar redondo de uma pessoa. */
+.ds-media-initials {
+  display: grid;
+  place-items: center;
+  background: var(--color-deep-violet);
+  color: var(--color-off-white);
+  font-size: var(--ds-type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+}

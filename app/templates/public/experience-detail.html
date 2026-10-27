@@ -1,5 +1,6 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
+{% from 'components/real-work-media.html' import service_media %}
 
 
 {% block title %}
@@ -74,21 +75,15 @@ experience-detail-page visual-v2-page
 
     <div class="experience-detail-media">
 
-      <img
-        src="{{ experience.image|media_url }}"
-        alt="{{ experience.title }}"
-        style="object-position: {{ experience.get(
-          'image_position',
-          '50% 50%'
-        ) }};"
-        fetchpriority="high"
-      >
+      {{ service_media(experience, 'eager', true) }}
 
 
+      {% if experience.image or experience.works %}
       <div
         class="experience-detail-media__overlay"
         aria-hidden="true"
       ></div>
+      {% endif %}
 
 
       {% if experience.badge %}

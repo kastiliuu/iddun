@@ -13,6 +13,7 @@ from app.services.experience_service import (
     get_experience_by_slug,
     list_experiences,
     list_locations,
+    selected_service_summary,
 )
 from app.services.google_calendar_service import sync_professional_if_stale
 from app.services.home_stats_service import get_home_stats
@@ -530,9 +531,21 @@ def professional_detail(slug):
     if professional is None:
         abort(404)
 
+    # D-VIS-05: Explorar opens the profile on the portfolio with the
+    # chosen service in a fixed bar, so the client sees real work first.
+    selected_service = (
+        selected_service_summary(
+            professional["experiences"],
+            request.args.get("servico"),
+        )
+        if professional.get("source") == "database"
+        else None
+    )
+
     return render_template(
         "public/professional-detail.html",
         professional=professional,
+        selected_service=selected_service,
         current_page="professionals",
     )
 

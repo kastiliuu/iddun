@@ -313,6 +313,21 @@ def _recommendations(
     }
 
 
+def _real_work_image(slot):
+    """
+    D-VIS-05: the service photo, else the professional's first real work.
+
+    A portrait of the professional is not a picture of the service, and a
+    stock picture is not real work; without either the template shows the
+    service initials.
+    """
+    portfolio = slot.professional.portfolio_items
+    source = slot.experience.image_url or (
+        portfolio[0].image_url if portfolio else None
+    )
+    return resolve_image_url(source) if source else None
+
+
 def _iddun_now_payload(slot):
     establishment = (
         slot.establishment
@@ -332,11 +347,7 @@ def _iddun_now_payload(slot):
         "professionalSlug": (
             slot.professional.slug
         ),
-        "image": resolve_image_url(
-            slot.experience.image_url
-            or slot.professional.avatar_url
-            or "img/exp-hair.jpg"
-        ),
+        "image": _real_work_image(slot),
         "timeLabel": slot_time_label(
             slot
         ),

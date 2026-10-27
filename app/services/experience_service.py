@@ -45,8 +45,9 @@ from app.services.time_service import to_local, utcnow
 CATEGORY_LABELS = ExperienceCategory.LABELS
 
 
-# These assets are only fallbacks when a database experience
-# does not have its own image.
+# D-VIS-05: the Web never shows these stock pictures for a real service.
+# They survive only behind ``legacy_category_image`` for the mobile API,
+# which still expects an image URL until the app renders real work too.
 CATEGORY_IMAGES = {
     "cabelo": "img/exp-hair.jpg",
     "unhas": "img/exp-nails.jpg",
@@ -314,9 +315,51 @@ def _next_available_label(
 # DATABASE SERIALIZATION
 # ============================================================
 
-def _db_item(experience):
+def legacy_category_image(category):
+    """Stock fallback kept only for the app API (removed in the mobile PR)."""
+    return CATEGORY_IMAGES.get(category, "img/exp-hair.jpg")
+
+
+# How many real works a card shows next to (or instead of) the service photo.
+CARD_WORKS_LIMIT = 3
+
+
+def _real_works(portfolio_items, offset=0):
+    """
+    D-VIS-05: up to three real works of the professional.
+
+    ``offset`` rotates the portfolio so that two services of the same
+    professional, side by side in Explorar, open with different works.
+    """
+    items = list(portfolio_items)
+    if not items:
+        return []
+    start = offset % len(items)
+    rotated = items[start:] + items[:start]
+    return [
+        {"image": item.image_url, "caption": item.caption}
+        for item in rotated[:CARD_WORKS_LIMIT]
+    ]
+
+
+def _db_items_with_staggered_works(experiences):
+    """Serialize a page of experiences, one portfolio offset per service."""
+    seen = {}
+    items = []
+    for experience in experiences:
+        offset = seen.get(experience.professional_id, 0)
+        seen[experience.professional_id] = offset + 1
+        items.append(_db_item(experience, works_offset=offset))
+    return items
+
+
+def _db_item(experience, works_offset=0):
     professional = (
         experience.professional
+    )
+
+    portfolio_items = list(
+        professional.portfolio_items
     )
 
     establishment = (
@@ -472,13 +515,17 @@ def _db_item(experience):
             )
         ),
 
-        "image": (
-            experience.image_url
-            or CATEGORY_IMAGES.get(
-                category,
-                "img/exp-hair.jpg",
-            )
+        # D-VIS-05: the service's own photo when there is one. Otherwise
+        # the templates show the professional's real works and, without
+        # them, the typographic block (D-VIS-04) -- never a stock picture.
+        "image": experience.image_url or None,
+
+        "works": _real_works(
+            portfolio_items,
+            works_offset,
         ),
+
+        "works_count": len(portfolio_items),
 
         "image_position": (
             f"{50 if experience.image_focus_x is None else experience.image_focus_x}% "
@@ -700,6 +747,11 @@ def _catalog_loader_options(
             ProfessionalProfile.reviews_received
         ),
         selectinload(
+            Experience.professional
+        ).selectinload(
+            ProfessionalProfile.portfolio_items
+        ),
+        selectinload(
             Experience.establishment
         ).selectinload(
             Establishment.reviews_received
@@ -735,10 +787,9 @@ def _published_db_experiences():
         )
     ).unique().all()
 
-    return [
-        _db_item(item)
-        for item in items
-    ]
+    return _db_items_with_staggered_works(
+        items
+    )
 
 
 def catalog_has_experiences():
@@ -1266,10 +1317,9 @@ def list_database_experiences_page(
     ).unique().all()
 
     return (
-        [
-            _db_item(item)
-            for item in rows
-        ],
+        _db_items_with_staggered_works(
+            rows
+        ),
         total,
     )
 
@@ -1347,6 +1397,43 @@ def get_experience_by_slug(
         if item
         else None
     )
+
+
+def selected_service_summary(
+    experiences,
+    slug,
+):
+    """
+    D-VIS-05: the service a client picked in Explorar, highlighted in the
+    professional's profile. Only a published service of this very
+    professional is accepted; anything else is ignored.
+    """
+    slug = (slug or "").strip()
+    if not slug:
+        return None
+
+    experience = next(
+        (
+            item
+            for item in experiences
+            if getattr(item, "slug", None) == slug
+        ),
+        None,
+    )
+    if experience is None:
+        return None
+
+    return {
+        "slug": experience.slug,
+        "title": experience.title,
+        "price": _money_number(experience.price),
+        "duration_label": _duration_label(
+            experience.duration_minutes
+        ),
+        "has_slots": bool(
+            available_slots_for_experience(experience)
+        ),
+    }
 
 
 # ============================================================
