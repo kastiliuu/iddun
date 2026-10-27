@@ -10,7 +10,7 @@
 <section class="platform-dashboard-hero platform-dashboard-hero--business">
   <div class="container platform-dashboard-hero__inner">
     <div class="platform-dashboard-identity">
-      <div class="platform-dashboard-avatar platform-dashboard-avatar--business {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{{ establishment.name[:1]|upper }}</div>
+      <div class="platform-dashboard-avatar platform-dashboard-avatar--business {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{% if not establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill" aria-hidden="true">{{ establishment.name|initials }}</span>{% endif %}</div>
       <div>
         <span class="platform-kicker">IDDUN BUSINESS · {{ establishment.plan_tier|upper }}</span>
         <h1>{{ establishment.name }}</h1>

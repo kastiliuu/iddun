@@ -1,4 +1,4 @@
-from flask_wtf import FlaskForm
+from app.forms.base import IddunForm
 from wtforms import RadioField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Length, Optional
 
@@ -7,7 +7,7 @@ RATING_CHOICES = [(str(value), f"{value} estrela" if value == 1 else f"{value} e
 RECOMMEND_CHOICES = [("yes", "Sim, recomendo"), ("no", "Não recomendo")]
 
 
-class BookingReviewForm(FlaskForm):
+class BookingReviewForm(IddunForm):
     professional_rating = RadioField(
         "Como você avalia o atendimento profissional?",
         choices=RATING_CHOICES,

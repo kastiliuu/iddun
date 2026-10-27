@@ -51,7 +51,7 @@
       {% if booking.establishment %}
       <section class="booking-review-card booking-review-card--optional">
         <header>
-          <span class="booking-review-avatar booking-review-avatar--business {% if booking.establishment.logo_url %}has-image{% endif %}" {% if booking.establishment.logo_url %}style="background-image:url('{{ booking.establishment.logo_url|media_url }}')"{% endif %}>{{ booking.establishment.name[:1] }}</span>
+          <span class="booking-review-avatar booking-review-avatar--business {% if booking.establishment.logo_url %}has-image{% endif %}" {% if booking.establishment.logo_url %}style="background-image:url('{{ booking.establishment.logo_url|media_url }}')"{% endif %}>{% if not booking.establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill" aria-hidden="true">{{ booking.establishment.name|initials }}</span>{% endif %}</span>
           <div><small>ESTABELECIMENTO · OPCIONAL</small><h2>{{ booking.establishment.name }}</h2><p>Avalie separadamente o local da experiência.</p></div>
         </header>
         <div class="booking-review-field">

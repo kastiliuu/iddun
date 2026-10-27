@@ -506,7 +506,20 @@
 
   let current = 1;
 
+  // An element that must receive focus after the next render (a field
+  // with an error, or the server error summary) instead of the first field.
+  let pendingFocus = null;
+
   const focusFirst = (step) => {
+    if (pendingFocus) {
+      const target = pendingFocus;
+      pendingFocus = null;
+      window.requestAnimationFrame(
+        () => target.focus({ preventScroll: true }),
+      );
+      return;
+    }
+
     const first = step.querySelector(
       (
         'input:not([type="hidden"])'
@@ -619,6 +632,101 @@
     });
   };
 
+  /* --------------------------------------------------------
+     BUG-015 / BUG-017: the same rules as the server, in
+     Portuguese, next to the field -- never the browser bubble
+     (which also fails on visually hidden inputs).
+     -------------------------------------------------------- */
+
+  const fieldProblem = (field) => {
+    if (
+      field.disabled
+      || field.type === 'hidden'
+      || field.type === 'file'
+    ) {
+      return null;
+    }
+
+    const value = (
+      field.value || ''
+    ).trim();
+
+    if (field.required && !value) {
+      return field.tagName === 'SELECT'
+        ? 'Escolha uma opção.'
+        : 'Preencha este campo.';
+    }
+
+    if (!value) return null;
+
+    const minimum = Number(
+      field.getAttribute('minlength'),
+    ) || 0;
+
+    const maximum = Number(
+      field.getAttribute('maxlength'),
+    ) || 0;
+
+    if (minimum && value.length < minimum) {
+      return (
+        `Use pelo menos ${minimum} caracteres `
+        + `(agora são ${value.length}).`
+      );
+    }
+
+    if (maximum && value.length > maximum) {
+      return `Use no máximo ${maximum} caracteres.`;
+    }
+
+    return null;
+  };
+
+  const stepProblem = (step) => {
+    for (
+      const field
+      of step.querySelectorAll(
+        'input, select, textarea',
+      )
+    ) {
+      const message = fieldProblem(field);
+
+      if (message) {
+        return { field, message };
+      }
+    }
+
+    return null;
+  };
+
+  const showStepProblem = ({ field, message }) => {
+    showFileError(field, message, true);
+    field.focus({ preventScroll: true });
+  };
+
+  const openStepAt = (step, focusTarget) => {
+    current = (
+      Number(step.dataset.wizardStep)
+      || current
+    );
+    pendingFocus = focusTarget;
+    render();
+  };
+
+  form.addEventListener(
+    'input',
+    (event) => {
+      const field = event.target;
+
+      if (
+        field.type !== 'file'
+        && field.getAttribute('aria-invalid') === 'true'
+        && !fieldProblem(field)
+      ) {
+        clearFileError(field);
+      }
+    },
+  );
+
   const validateStep = () => {
     const activeStep = steps.find(
       (step) => (
@@ -631,17 +739,11 @@
 
     if (!activeStep) return true;
 
-    const required = [
-      ...activeStep.querySelectorAll(
-        '[required]',
-      ),
-    ];
+    const problem = stepProblem(activeStep);
 
-    for (const field of required) {
-      if (!field.checkValidity()) {
-        field.reportValidity();
-        return false;
-      }
+    if (problem) {
+      showStepProblem(problem);
+      return false;
     }
 
     const imageInputs = (
@@ -769,6 +871,19 @@
         return;
       }
 
+      // Every step is checked before sending: the final button is only
+      // shown at the last step, but Enter in a field can still submit.
+      for (const step of steps) {
+        const problem = stepProblem(step);
+
+        if (!problem) continue;
+
+        event.preventDefault();
+        openStepAt(step, problem.field);
+        showStepProblem(problem);
+        return;
+      }
+
       const imageInputs = (
         form.querySelectorAll(
           (
@@ -880,6 +995,37 @@
       );
     }
   }
+
+  // Links of the server error summary open the step of the field.
+  document
+    .querySelectorAll('[data-summary-field]')
+    .forEach((link) => {
+      link.addEventListener(
+        'click',
+        (event) => {
+          const field = document.getElementById(
+            link.dataset.summaryField,
+          );
+          const fieldStep = field?.closest(
+            '[data-wizard-step]',
+          );
+
+          if (!field || !fieldStep) return;
+
+          event.preventDefault();
+          openStepAt(fieldStep, field);
+          field.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        },
+      );
+    });
+
+  // After a server error, the summary is announced and focused first.
+  pendingFocus = document.querySelector(
+    '[data-form-summary]',
+  );
 
   resetSubmittingState();
   render();

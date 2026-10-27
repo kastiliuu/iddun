@@ -114,6 +114,43 @@
       >
         {{ form.hidden_tag() }}
 
+        {# BUG-015 / FE-DEC-044: resumo navegável dos erros do servidor. Os
+           textos digitados voltam preenchidos; arquivos não (o navegador não
+           permite), então o aviso pede para escolhê-los de novo. #}
+        {% if form.errors %}
+        {% set sent_files = request.files.values()|selectattr('filename')|list %}
+        <div
+          class="platform-form-summary"
+          role="alert"
+          tabindex="-1"
+          data-form-summary
+        >
+          <strong>Ainda não foi possível criar a página.</strong>
+          <p>Confira {{ 'o item abaixo' if form.errors|length == 1 else 'os itens abaixo' }}:</p>
+          <ul>
+            {% for field_name, messages in form.errors.items() %}
+              {% for message in messages %}
+                {% if field_name == 'csrf_token' %}
+                <li>O formulário expirou. Revise os dados e envie novamente.</li>
+                {% elif field_name in form %}
+                <li>
+                  <a href="#{{ form[field_name].id }}" data-summary-field="{{ form[field_name].id }}">
+                    {{ form[field_name].label.text }}: {{ message }}
+                  </a>
+                </li>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </ul>
+          {% if sent_files %}
+          <p>
+            Por segurança, o navegador não guarda arquivos depois de um erro.
+            Selecione de novo o logo, a capa e as fotos que você tinha escolhido.
+          </p>
+          {% endif %}
+        </div>
+        {% endif %}
+
         <section
           class="platform-step is-active"
           data-wizard-step="1"
@@ -149,7 +186,7 @@
                   'logo',
                   none,
                   'Selecionar logo',
-                  'Obrigatório · até 5 MB'
+                  'Opcional · até 5 MB'
                 )
               }}
 

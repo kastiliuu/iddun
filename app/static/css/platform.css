@@ -2217,3 +2217,49 @@ article > div {
 .business-catalog__value a:focus-visible { outline: 2px solid #6B2EFF; outline-offset: 3px; }
 .business-catalog__footnote { margin: 1rem 0 0; font-size: .8rem; color: #DADDE1; }
 @media (max-width: 620px) { .business-catalog__item { align-items: flex-start; flex-direction: column; } .business-catalog__value { width: 100%; text-align: left; } }
+
+/* ==========================================================
+   PR-2 (BUG-015) — assistente de cadastro
+   ========================================================== */
+
+/* O botão final só aparece na última etapa: o display do .btn não pode
+   anular o atributo hidden controlado pelo assistente. */
+.platform-wizard-actions [hidden] {
+  display: none;
+}
+
+/* Resumo dos erros devolvidos pelo servidor, no topo do formulário. */
+.platform-form-summary {
+  display: grid;
+  gap: var(--ds-space-2);
+  margin-bottom: var(--ds-space-6);
+  padding: var(--ds-space-4);
+  border: thin solid var(--color-border-light);
+  border-left: var(--ds-space-1) solid var(--ds-feedback-danger);
+  border-radius: var(--ds-radius-md);
+  background: var(--color-surface-light-2);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+}
+
+.platform-form-summary:focus-visible {
+  outline: var(--ds-space-1) solid var(--ds-focus-ring);
+  outline-offset: var(--ds-space-1);
+}
+
+.platform-form-summary p,
+.platform-form-summary ul {
+  margin: 0;
+}
+
+.platform-form-summary ul {
+  display: grid;
+  gap: var(--ds-space-1);
+  padding-left: var(--ds-space-4);
+}
+
+.platform-form-summary a {
+  color: var(--color-plum);
+  text-decoration: underline;
+  text-underline-offset: var(--ds-space-1);
+}

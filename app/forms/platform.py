@@ -1,5 +1,5 @@
-from flask_wtf import FlaskForm
-from flask_wtf.file import FileAllowed, FileField, FileRequired, FileSize, MultipleFileField
+from app.forms.base import IddunForm
+from flask_wtf.file import FileAllowed, FileField, FileSize, MultipleFileField
 from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, URL
 from wtforms.widgets import HiddenInput
@@ -18,7 +18,7 @@ def focus_field(default=50):
     return IntegerField(default=default, validators=[Optional(), NumberRange(min=0, max=100)], widget=HiddenInput())
 
 
-class WorkModeChoiceForm(FlaskForm):
+class WorkModeChoiceForm(IddunForm):
     mode = RadioField(
         "Como você trabalha hoje?",
         choices=[
@@ -30,7 +30,7 @@ class WorkModeChoiceForm(FlaskForm):
     submit = SubmitField("Continuar")
 
 
-class ProfessionalOnboardingForm(FlaskForm):
+class ProfessionalOnboardingForm(IddunForm):
     avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     avatar_focus_x = focus_field()
@@ -70,7 +70,7 @@ class ProfessionalOnboardingForm(FlaskForm):
     submit = SubmitField("Criar meu perfil")
 
 
-class ProfessionalEditForm(FlaskForm):
+class ProfessionalEditForm(IddunForm):
     avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     avatar_focus_x = focus_field()
@@ -102,7 +102,7 @@ class ProfessionalEditForm(FlaskForm):
 
 
 
-class ProfessionalWorkExperienceForm(FlaskForm):
+class ProfessionalWorkExperienceForm(IddunForm):
     company_name = StringField(
         "Estabelecimento ou empresa",
         validators=[DataRequired(), Length(max=160)],
@@ -125,7 +125,7 @@ class ProfessionalWorkExperienceForm(FlaskForm):
 
 
 
-class ProfessionalServiceDraftForm(FlaskForm):
+class ProfessionalServiceDraftForm(IddunForm):
     establishment_id = SelectField("Local do atendimento", coerce=int, choices=[(0, "Sem estabelecimento vinculado")], validators=[Optional()])
     image_file = FileField("Imagem de capa do serviço", validators=[Optional(), *IMAGE_VALIDATORS])
     title = StringField(
@@ -181,8 +181,9 @@ BUSINESS_CATEGORY_CHOICES = [
 ]
 
 
-class BusinessOnboardingForm(FlaskForm):
-    logo_file = FileField("Logo", validators=[FileRequired(), *IMAGE_VALIDATORS])
+class BusinessOnboardingForm(IddunForm):
+    # DEC-ID-101 / D-QA-01: logo, capa e fotos são opcionais para publicar.
+    logo_file = FileField("Logo", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     logo_focus_x = focus_field()
     logo_focus_y = focus_field()
@@ -210,7 +211,7 @@ class BusinessEditForm(BusinessOnboardingForm):
     submit = SubmitField("Salvar empresa")
 
 
-class TeamMemberForm(FlaskForm):
+class TeamMemberForm(IddunForm):
     email = StringField("E-mail da conta IDDUN do profissional", validators=[DataRequired(), Email(), Length(max=255)])
     role_name = StringField("Função no estabelecimento", validators=[Optional(), Length(max=120)])
     submit = SubmitField("Enviar convite")
@@ -222,7 +223,7 @@ CERTIFICATE_FILE_VALIDATORS = [
 ]
 
 
-class ProfessionalCertificationForm(FlaskForm):
+class ProfessionalCertificationForm(IddunForm):
     title = StringField("Certificação", validators=[DataRequired(), Length(min=2, max=180)])
     issuer = StringField("Instituição emissora", validators=[DataRequired(), Length(min=2, max=180)])
     issued_at = DateField("Data de emissão", validators=[Optional()])

@@ -37,7 +37,7 @@
       <a class="establishment-directory-card" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">
         <div class="establishment-directory-card__media">
           {% if establishment.cover_url %}<img src="{{ establishment.cover_url|media_url }}" alt="{{ establishment.name }}" loading="lazy">{% else %}<div class="establishment-directory-card__fallback"></div>{% endif %}
-          <span class="establishment-directory-card__logo {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{{ establishment.name[:1] }}</span>
+          <span class="establishment-directory-card__logo {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{% if not establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill" aria-hidden="true">{{ establishment.name|initials }}</span>{% endif %}</span>
         </div>
         <div class="establishment-directory-card__body">
           <span class="professionals-section-kicker">{{ establishment.category|replace('-', ' ')|upper if establishment.category else 'ESTABELECIMENTO' }}</span>

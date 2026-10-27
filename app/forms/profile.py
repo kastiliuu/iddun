@@ -1,10 +1,10 @@
-from flask_wtf import FlaskForm
+from app.forms.base import IddunForm
 from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import DateField, StringField, SubmitField
 from wtforms.validators import Length, Optional
 
 
-class ClientProfileForm(FlaskForm):
+class ClientProfileForm(IddunForm):
     avatar_file = FileField(
         "Foto de perfil",
         validators=[

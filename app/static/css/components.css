@@ -2453,3 +2453,12 @@ a.ds-work-count:hover {
   font-weight: var(--weight-semibold);
   letter-spacing: 0.04em;
 }
+
+/* PR-2 (D-QA-01): iniciais ocupando um contêiner que já tem tamanho e
+   forma próprios (logo de estabelecimento sem imagem). */
+.ds-avatar-initials--fill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  font-size: inherit;
+}
