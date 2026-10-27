@@ -1,9 +1,9 @@
-from flask_wtf import FlaskForm
+from app.forms.base import IddunForm
 from wtforms import BooleanField, PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 
 
-class RegisterForm(FlaskForm):
+class RegisterForm(IddunForm):
     name = StringField(
         "Nome",
         validators=[DataRequired(), Length(min=2, max=120)],
@@ -26,7 +26,7 @@ class RegisterForm(FlaskForm):
     submit = SubmitField("Criar minha conta")
 
 
-class LoginForm(FlaskForm):
+class LoginForm(IddunForm):
     email = StringField(
         "E-mail",
         validators=[DataRequired(), Email()],
@@ -40,7 +40,7 @@ class LoginForm(FlaskForm):
 
 
 
-class PasswordResetRequestForm(FlaskForm):
+class PasswordResetRequestForm(IddunForm):
     email = StringField(
         "E-mail",
         validators=[
@@ -54,7 +54,7 @@ class PasswordResetRequestForm(FlaskForm):
     )
 
 
-class PasswordResetForm(FlaskForm):
+class PasswordResetForm(IddunForm):
     password = PasswordField(
         "Nova senha",
         validators=[
@@ -83,7 +83,7 @@ class PasswordResetForm(FlaskForm):
 
 
 
-class DeleteAccountForm(FlaskForm):
+class DeleteAccountForm(IddunForm):
     password = PasswordField(
         "Senha atual",
         validators=[

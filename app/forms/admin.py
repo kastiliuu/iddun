@@ -1,4 +1,4 @@
-from flask_wtf import FlaskForm
+from app.forms.base import IddunForm
 from flask_wtf.file import FileAllowed, FileField, FileSize
 from wtforms import (
     BooleanField,
@@ -26,7 +26,7 @@ IMAGE_VALIDATORS = [
 ]
 
 
-class EstablishmentForm(FlaskForm):
+class EstablishmentForm(IddunForm):
     name = StringField("Nome do estabelecimento", validators=[DataRequired(), Length(max=160)])
     slug = StringField("Seu endereço no IDDUN", validators=[Optional(), Length(max=190)])
     description = TextAreaField("Descrição", validators=[Optional(), Length(max=2000)])
@@ -46,7 +46,7 @@ class EstablishmentForm(FlaskForm):
     submit = SubmitField("Salvar estabelecimento")
 
 
-class ProfessionalForm(FlaskForm):
+class ProfessionalForm(IddunForm):
     display_name = StringField("Nome profissional", validators=[DataRequired(), Length(max=140)])
     slug = StringField("Seu endereço no IDDUN", validators=[Optional(), Length(max=180)])
     primary_specialty = StringField("Especialidade principal", validators=[Optional(), Length(max=120)])
@@ -69,7 +69,7 @@ class ProfessionalForm(FlaskForm):
     submit = SubmitField("Salvar profissional")
 
 
-class MembershipForm(FlaskForm):
+class MembershipForm(IddunForm):
     professional_id = SelectField("Profissional", coerce=int, validators=[DataRequired()])
     establishment_id = SelectField("Estabelecimento", coerce=int, validators=[DataRequired()])
     role_name = StringField("Função no local", validators=[Optional(), Length(max=120)])
@@ -108,7 +108,7 @@ class MembershipForm(FlaskForm):
         return valid
 
 
-class ExperienceForm(FlaskForm):
+class ExperienceForm(IddunForm):
     title = StringField("Nome da experiência", validators=[DataRequired(), Length(max=160)])
     slug = StringField("Identificador da experiência", validators=[Optional(), Length(max=190)])
     professional_id = SelectField("Profissional", coerce=int, validators=[DataRequired()])
@@ -146,7 +146,7 @@ class ExperienceForm(FlaskForm):
         return valid
 
 
-class OpportunityBatchForm(FlaskForm):
+class OpportunityBatchForm(IddunForm):
     experience_id = SelectField("Experiência", coerce=int, validators=[DataRequired()])
     slot_date = DateField("Data", validators=[DataRequired()], format="%Y-%m-%d")
     times = TextAreaField(
