@@ -602,10 +602,14 @@
             class="feed-recommendation__identity"
             href="{{ url_for('public.professional_detail', slug=item.slug) }}"
           >
+            {% if item.avatar %}
             <span
               class="feed-recommendation__avatar"
               style="background-image:url('{{ item.avatar }}')"
             ></span>
+            {% else %}
+            <span class="feed-recommendation__avatar ds-avatar-initials" role="img" aria-label="Avatar de {{ item.name }}">{{ item.name|initials }}</span>
+            {% endif %}
             <span>
               <strong>{{ item.name }}</strong>
               <small>{{ item.specialty }}</small>
@@ -646,10 +650,14 @@
             class="feed-recommendation__identity"
             href="{{ url_for('public.establishment_detail', slug=item.slug) }}"
           >
+            {% if item.avatar %}
             <span
               class="feed-recommendation__avatar feed-recommendation__avatar--business"
               style="background-image:url('{{ item.avatar }}')"
             ></span>
+            {% else %}
+            <span class="feed-recommendation__avatar feed-recommendation__avatar--business ds-avatar-initials" role="img" aria-label="Avatar de {{ item.name }}">{{ item.name|initials }}</span>
+            {% endif %}
             <span>
               <strong>{{ item.name }}</strong>
               <small>{{ item.specialty }}</small>

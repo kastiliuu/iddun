@@ -158,6 +158,7 @@ experience-detail-page visual-v2-page
 
         <div class="experience-detail-provider__avatar">
 
+          {% if experience.avatar %}
           <img
             src="{{ experience.avatar|media_url }}"
             alt="Retrato de {{ experience.professional }}"
@@ -166,6 +167,9 @@ experience-detail-page visual-v2-page
               '50% 50%'
             ) }};"
           >
+          {% else %}
+          <span class="ds-avatar-initials" role="img" aria-label="Avatar de {{ experience.professional }}">{{ experience.professional|initials }}</span>
+          {% endif %}
 
         </div>
 

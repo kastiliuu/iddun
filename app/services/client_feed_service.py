@@ -125,9 +125,11 @@ def _profile_recommendation(
                 city=item.city,
                 state=item.state,
             ),
-            "avatar": resolve_image_url(
-                item.avatar_url
-                or "img/category-hair.jpg"
+            # D11 / D-VIS-04: no stock image as a real person's avatar.
+            "avatar": (
+                resolve_image_url(item.avatar_url)
+                if item.avatar_url
+                else None
             ),
             "rating": reputation[
                 "average_label"
@@ -152,9 +154,10 @@ def _profile_recommendation(
             city=item.city,
             state=item.state,
         ),
-        "avatar": resolve_image_url(
-            item.logo_url
-            or "img/category-hair.jpg"
+        "avatar": (
+            resolve_image_url(item.logo_url)
+            if item.logo_url
+            else None
         ),
         "rating": reputation[
             "average_label"

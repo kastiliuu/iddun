@@ -1289,7 +1289,8 @@ input:focus-visible {
   gap: 8px;
 }
 
-.experience-card__professional img {
+.experience-card__professional img,
+.experience-card__professional .ds-avatar-initials {
   width: 31px;
   height: 31px;
 
@@ -2303,4 +2304,29 @@ input[type="search"]
 .professional-card.ds-card .professional-card__rating small,
 .professional-card.ds-card .professional-card__location {
   color: var(--ds-text-secondary, var(--color-mist));
+}
+
+/* D-VIS-04 — avatar sem foto: iniciais em superfície editorial, nunca foto
+   de estoque. Tamanho e raio vêm do contexto que o usa. */
+.ds-avatar-initials {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: var(--color-deep-violet);
+  color: var(--color-off-white);
+  font-size: var(--ds-type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* As regras genéricas de span do bloco do profissional não podem desfazer o
+   avatar de iniciais (mesma especificidade, por isso vêm depois). */
+.experience-card__professional .ds-avatar-initials {
+  background: var(--color-deep-violet);
+  color: var(--color-off-white);
+  font-size: var(--ds-type-caption);
 }

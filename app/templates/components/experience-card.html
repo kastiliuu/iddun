@@ -14,7 +14,7 @@
     </div>
 
     <div class="experience-card__professional">
-      <img src="{{ item.avatar|media_url }}" alt="{{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">
+      {% if item.avatar %}<img src="{{ item.avatar|media_url }}" alt="{{ item.professional }}" style="object-position: {{ item.get('avatar_position', '50% 50%') }};">{% else %}<span class="ds-avatar-initials" role="img" aria-label="Avatar de {{ item.professional }}">{{ item.professional|initials }}</span>{% endif %}
       <div>
         <strong>{{ item.professional }}</strong>
         {% if item.reviews %}
