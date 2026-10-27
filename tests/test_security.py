@@ -122,3 +122,50 @@ def test_unsafe_request_id_is_replaced(
         response.headers["X-Request-ID"]
         != "bad request id with spaces"
     )
+
+
+# PR-1 (BUG-016): the policy is pinned directive by directive. The only
+# change allowed was ``blob:`` in ``img-src`` -- for the browser preview and
+# crop of a file the user picked. Nothing else may widen.
+EXPECTED_CSP = {
+    "default-src": ["'self'"],
+    "base-uri": ["'self'"],
+    "form-action": ["'self'"],
+    "frame-ancestors": ["'none'"],
+    "img-src": ["'self'", "data:", "blob:", "https:"],
+    "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
+    "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+    "script-src": ["'self'", "'unsafe-inline'"],
+    "connect-src": ["'self'"],
+}
+
+
+def _csp_directives(header):
+    directives = {}
+    for part in header.split(";"):
+        tokens = part.split()
+        if tokens:
+            directives[tokens[0]] = tokens[1:]
+    return directives
+
+
+def test_content_security_policy_is_pinned(client):
+    for path in ("/", "/login", "/api/v1/experiences"):
+        header = client.get(path).headers["Content-Security-Policy"]
+        assert _csp_directives(header) == EXPECTED_CSP, path
+
+
+def test_blob_is_allowed_only_for_images(client):
+    directives = _csp_directives(client.get("/").headers["Content-Security-Policy"])
+
+    for name, sources in directives.items():
+        if name == "img-src":
+            assert "blob:" in sources
+        else:
+            assert "blob:" not in sources, name
+
+    # No directive that would let blob:/workers/objects run code is declared,
+    # so they all fall back to default-src 'self'.
+    for name in ("worker-src", "child-src", "object-src", "frame-src", "media-src"):
+        assert name not in directives
+    assert "'unsafe-eval'" not in " ".join(sum(directives.values(), []))

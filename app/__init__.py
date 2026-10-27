@@ -289,7 +289,10 @@ def create_app(test_config=None):
                 "base-uri 'self'; "
                 "form-action 'self'; "
                 "frame-ancestors 'none'; "
-                "img-src 'self' data: https:; "
+                # blob: only for images: the browser preview and crop of
+                # a file the user picked (media-cropper.js / platform.js).
+                # Scripts, workers, frames and connections stay 'self'.
+                "img-src 'self' data: blob: https:; "
                 "font-src 'self' data: "
                 "https://fonts.gstatic.com; "
                 "style-src 'self' 'unsafe-inline' "

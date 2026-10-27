@@ -13,6 +13,12 @@
     return Number.isFinite(parsed) ? clamp(parsed, 1, 3) : 1;
   };
 
+  // Only the formats the server accepts are previewed. SVG and anything
+  // else never becomes a blob: URL here; the server rejects it on submit.
+  const previewableType = (file) => (
+    ['image/jpeg', 'image/png', 'image/webp'].includes(file?.type)
+  );
+
   const distance = (a, b) => (
     Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
   );
@@ -410,7 +416,7 @@
 
     input?.addEventListener('change', () => {
       const file = input.files?.[0];
-      if (!file) return;
+      if (!file || !previewableType(file)) return;
 
       if (objectUrl) URL.revokeObjectURL(objectUrl);
 

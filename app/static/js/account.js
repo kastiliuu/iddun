@@ -6,8 +6,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const editButton = document.querySelector("[data-account-avatar-edit]");
   const progress = document.querySelector("[data-account-progress]");
 
+  // Only formats the server accepts are previewed; SVG never becomes a blob: URL.
+  const previewableTypes = ["image/jpeg", "image/png", "image/webp"];
+
   const updateAvatarPreviews = (file) => {
-    if (!file) return;
+    if (!file || !previewableTypes.includes(file.type)) return;
 
     const objectUrl = URL.createObjectURL(file);
 
