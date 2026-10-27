@@ -1588,6 +1588,10 @@
     center / cover no-repeat;
 }
 
+.feed-recommendation__avatar.ds-avatar-initials {
+  background: var(--color-deep-violet);
+}
+
 .feed-recommendation__avatar--business {
   border-radius: 11px;
 }

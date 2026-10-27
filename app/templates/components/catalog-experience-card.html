@@ -294,6 +294,7 @@
 
     <div class="catalog-card__professional">
 
+      {% if item.avatar %}
       <img
         src="{{ item.avatar|media_url }}"
         alt="Foto de {{ item.professional }}"
@@ -304,6 +305,9 @@
         loading="lazy"
         decoding="async"
       >
+      {% else %}
+      <span class="ds-avatar-initials" role="img" aria-label="Avatar de {{ item.professional }}">{{ item.professional|initials }}</span>
+      {% endif %}
 
 
       <div class="catalog-card__professional-copy">
@@ -528,6 +532,7 @@
 
     <div class="catalog-featured__professional">
 
+      {% if item.avatar %}
       <img
         src="{{ item.avatar|media_url }}"
         alt="Foto de {{ item.professional }}"
@@ -538,6 +543,9 @@
         loading="lazy"
         decoding="async"
       >
+      {% else %}
+      <span class="ds-avatar-initials" role="img" aria-label="Avatar de {{ item.professional }}">{{ item.professional|initials }}</span>
+      {% endif %}
 
 
       <div class="catalog-featured__professional-copy">

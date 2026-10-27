@@ -1391,7 +1391,8 @@ input::placeholder {
 }
 
 
-.catalog-featured__professional img {
+.catalog-featured__professional img,
+.catalog-featured__professional .ds-avatar-initials {
   width: 46px;
   height: 46px;
 
@@ -1979,7 +1980,8 @@ span {
 }
 
 
-.catalog-card__professional img {
+.catalog-card__professional img,
+.catalog-card__professional .ds-avatar-initials {
   width: 40px;
   height: 40px;
 
@@ -3733,4 +3735,16 @@ select option {
 
 @media (prefers-reduced-motion: reduce) {
   .catalog-card.ds-card:hover { transform: none; }
+}
+
+/* D-VIS-04 — as regras genéricas de span do bloco do profissional
+   (display: block, cor e corpo de legenda) não podem desfazer o avatar de
+   iniciais. */
+.catalog-featured__professional .ds-avatar-initials,
+.catalog-card__professional .ds-avatar-initials {
+  display: inline-grid;
+  margin-top: 0;
+  background: var(--color-deep-violet);
+  color: var(--color-off-white);
+  font-size: var(--ds-type-caption);
 }

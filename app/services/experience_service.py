@@ -57,13 +57,6 @@ CATEGORY_IMAGES = {
 }
 
 
-CATEGORY_AVATARS = {
-    "cabelo": "img/prof-camila.jpg",
-    "unhas": "img/prof-juliana.jpg",
-    "barbearia": "img/prof-rafael.jpg",
-}
-
-
 CATEGORY_DEFAULT_DURATIONS = {
     "cabelo": 120,
     "unhas": 90,
@@ -492,13 +485,9 @@ def _db_item(experience):
             f"{50 if experience.image_focus_y is None else experience.image_focus_y}%"
         ),
 
-        "avatar": (
-            professional.avatar_url
-            or CATEGORY_AVATARS.get(
-                category,
-                "img/prof-camila.jpg",
-            )
-        ),
+        # D11 / D-VIS-04: a real professional without a photo is shown
+        # with initials, never with someone else's stock portrait.
+        "avatar": professional.avatar_url or None,
 
         "avatar_position": (
             f"{50 if professional.avatar_focus_x is None else professional.avatar_focus_x}% "

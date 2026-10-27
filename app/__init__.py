@@ -353,6 +353,16 @@ def create_app(test_config=None):
             value
         )
 
+    @app.template_filter("initials")
+    def initials(value):
+        """Up to two initials for an avatar fallback ("Camila Rocha" -> "CR")."""
+        words = [word for word in str(value or "").split() if word[:1].isalnum()]
+        if not words:
+            return ""
+        if len(words) == 1:
+            return words[0][0].upper()
+        return (words[0][0] + words[-1][0]).upper()
+
     @app.template_filter("media_file_url")
     def media_file_url(value):
         return resolve_media_url(
