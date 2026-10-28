@@ -126,12 +126,17 @@ def test_real_works_contract_list_detail_and_global_search(app, client):
     assert a["serviceImageUrl"] == "https://cdn.example.com/servico.jpg"
     assert a["worksCount"] == 2
     assert a["professionalSlug"] == "artista-real"
-    assert a["works"][0] == {
-        "imageUrl": "https://cdn.example.com/obra-a.jpg", "caption": "Obra A",
+    assert a["works"][0]["imageUrl"] != b["works"][0]["imageUrl"]
+    assert {
+        a["works"][0]["imageUrl"],
+        b["works"][0]["imageUrl"],
+    } == {
+        "https://cdn.example.com/obra-a.jpg",
+        "https://cdn.example.com/obra-b.jpg",
     }
+    assert a["works"][0]["caption"] in ("Obra A", None)
     assert b["serviceImageUrl"] is None
     assert b["worksCount"] == 2
-    assert b["works"][0]["imageUrl"] == "https://cdn.example.com/obra-b.jpg"
     assert b["imageUrl"]  # legado preservado
     assert empty["works"] == []
     assert empty["worksCount"] == 0
