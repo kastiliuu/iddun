@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 
 from sqlalchemy import func, select
 
@@ -1021,9 +1021,7 @@ def test_business_readiness_payload_is_additive_and_preserves_published_legacy(a
             phone="41999999999",
             address_line1="Rua Comercial, 100",
             onboarding_completed=True,
-            published_at=__import__("datetime").datetime(
-                2026, 10, 1, tzinfo=__import__("datetime").timezone.utc
-            ),
+            published_at=datetime(2026, 10, 1, tzinfo=timezone.utc),
             is_active=True,
         )
         db.session.add(legacy)
