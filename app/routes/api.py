@@ -23,6 +23,7 @@ from app.services.experience_service import (
     legacy_category_image,
     get_experience_by_slug,
     list_database_experiences_page,
+    real_works_api_fields,
 )
 from app.services.media_storage import resolve_image_url
 
@@ -178,6 +179,7 @@ def _experience_payload(item):
             item["image"]
             or legacy_category_image(item["category"])
         ),
+        **real_works_api_fields(item),
         "webUrl": url_for(
             "public.experience_detail",
             slug=item["slug"],

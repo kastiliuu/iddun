@@ -70,3 +70,87 @@ def test_catalog_api_only_exposes_published_real_experiences_and_slots(app, clie
     assert client.get("/api/v1/experiences/hair-experience-camila-rocha").status_code == 404
     assert client.get("/api/v1/experiences/hair-experience-camila-rocha/availability").status_code == 404
 
+
+
+def test_real_works_contract_list_detail_and_global_search(app, client):
+    from app.models.professional import ProfessionalPortfolioItem
+
+    with app.app_context():
+        pro = ProfessionalProfile(
+            display_name="Artista Real",
+            slug="artista-real",
+            city="Curitiba",
+        )
+        other = ProfessionalProfile(
+            display_name="Sem Portfólio",
+            slug="sem-portfolio",
+            city="Curitiba",
+        )
+        services = [
+            Experience(
+                professional=pro, title="Corte A", short_description="Serviço real", slug="corte-a",
+                category="cabelo", image_url="https://cdn.example.com/servico.jpg",
+                regular_price="120.00", price="100.00",
+                duration_minutes=60, status=ExperienceStatus.PUBLISHED,
+            ),
+            Experience(
+                professional=pro, title="Corte B", short_description="Serviço real", slug="corte-b",
+                category="cabelo", regular_price="120.00", price="100.00",
+                duration_minutes=60, status=ExperienceStatus.PUBLISHED,
+            ),
+            Experience(
+                professional=other, title="Corte Vazio", short_description="Serviço real", slug="corte-vazio",
+                category="cabelo", regular_price="120.00", price="100.00",
+                duration_minutes=60, status=ExperienceStatus.PUBLISHED,
+            ),
+        ]
+        works = [
+            ProfessionalPortfolioItem(
+                professional=pro, image_url="https://cdn.example.com/obra-a.jpg",
+                caption="Obra A", sort_order=0,
+            ),
+            ProfessionalPortfolioItem(
+                professional=pro, image_url="https://cdn.example.com/obra-b.jpg",
+                caption=None, sort_order=1,
+            ),
+        ]
+        db.session.add_all([pro, other, *services, *works])
+        db.session.commit()
+
+    response = client.get("/api/v1/experiences?category=cabelo")
+    assert response.status_code == 200
+    items = {item["slug"]: item for item in response.get_json()["items"]}
+    assert len(items) == 3
+    a, b, empty = items["corte-a"], items["corte-b"], items["corte-vazio"]
+
+    assert a["serviceImageUrl"] == "https://cdn.example.com/servico.jpg"
+    assert a["worksCount"] == 2
+    assert a["professionalSlug"] == "artista-real"
+    assert a["works"][0]["imageUrl"] != b["works"][0]["imageUrl"]
+    assert {
+        a["works"][0]["imageUrl"],
+        b["works"][0]["imageUrl"],
+    } == {
+        "https://cdn.example.com/obra-a.jpg",
+        "https://cdn.example.com/obra-b.jpg",
+    }
+    assert a["works"][0]["caption"] in ("Obra A", None)
+    assert b["serviceImageUrl"] is None
+    assert b["worksCount"] == 2
+    assert b["imageUrl"]  # legado preservado
+    assert empty["works"] == []
+    assert empty["worksCount"] == 0
+    assert empty["serviceImageUrl"] is None
+    assert empty["imageUrl"]  # legado preservado
+
+    detail = client.get("/api/v1/experiences/corte-b")
+    assert detail.status_code == 200
+    assert detail.get_json()["worksCount"] == 2
+    assert detail.get_json()["works"][0]["imageUrl"].startswith("https://")
+
+    search = client.get("/api/v1/search?q=Corte")
+    assert search.status_code == 200
+    results = search.get_json()["sections"]["experiences"]
+    assert results
+    assert all("works" in item and "serviceImageUrl" in item for item in results)
+    assert all("image" in item for item in results)
