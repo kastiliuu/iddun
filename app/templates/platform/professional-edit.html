@@ -462,7 +462,7 @@
           {% if item.description %}<p>{{ item.description }}</p>{% endif %}
           <div class="platform-editor-actions">
             <a class="btn btn-outline" href="{{ url_for('professional.edit_profile', experiencia=item.id) }}#experiencia-profissional">Editar experiência</a>
-            <form method="post" action="{{ url_for('professional.remove_work_experience', experience_id=item.id) }}" onsubmit="return confirm('Remover esta experiência profissional?');">
+            <form method="post" action="{{ url_for('professional.remove_work_experience', experience_id=item.id) }}" data-confirm-submit="Remover esta experiência profissional?">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-outline" type="submit">Remover</button>
             </form>
