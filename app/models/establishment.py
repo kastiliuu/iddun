@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from sqlalchemy.dialects.postgresql import JSONB
+
 from app.extensions import db
 
 
@@ -32,6 +34,10 @@ class Establishment(db.Model):
     slug = db.Column(db.String(190), nullable=False, unique=True, index=True)
     description = db.Column(db.Text, nullable=True)
     category = db.Column(db.String(64), nullable=True)
+    # NV-07A1-M: nullable, additive schema only; publishing rules are unchanged.
+    operation_mode = db.Column(db.String(16), nullable=True)
+    business_hours_mode = db.Column(db.String(16), nullable=True)
+    business_hours = db.Column(db.JSON().with_variant(JSONB(), "postgresql"), nullable=True)
     visual_theme = db.Column(db.String(24), nullable=False, default="beauty")
     plan_tier = db.Column(db.String(24), nullable=False, default="free")
     onboarding_completed = db.Column(db.Boolean, nullable=False, default=False)
