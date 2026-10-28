@@ -301,9 +301,46 @@ def cleanup_api_sessions(
     )
 
 
+@click.group("media")
+def media():
+    """Diagnósticos não destrutivos de mídia."""
+
+
+@media.command("audit-missing")
+@click.option("--strict", is_flag=True, help="Falha se houver uploads ausentes.")
+@with_appcontext
+def audit_missing(strict):
+    """Lista referências de mídia cujo arquivo não existe no armazenamento."""
+    from collections import Counter
+    from app.services.media_maintenance import missing_media_references
+
+    try:
+        missing = missing_media_references()
+    except Exception as exc:
+        raise click.ClickException(
+            f"Não foi possível consultar o armazenamento: {exc}"
+        ) from exc
+
+    for table, record_id, column, key in missing:
+        click.echo(f"{table} | id={record_id} | {column} | {key}")
+
+    counts = Counter(table for table, *_ in missing)
+    for table, count in sorted(counts.items()):
+        click.echo(f"Resumo {table}: {count}")
+    click.echo(f"Total de mídias ausentes: {len(missing)}")
+
+    if not missing:
+        click.echo("Nenhuma mídia ausente encontrada.")
+    elif strict:
+        raise click.ClickException(
+            f"Auditoria encontrou {len(missing)} mídia(s) ausente(s)."
+        )
+
+
 def register_cli(app):
     app.cli.add_command(make_admin)
     app.cli.add_command(sync_calendars)
     app.cli.add_command(reset_data)
     app.cli.add_command(cleanup_media)
     app.cli.add_command(cleanup_api_sessions)
+    app.cli.add_command(media)
