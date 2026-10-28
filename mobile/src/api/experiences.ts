@@ -22,6 +22,9 @@ export type CatalogExperience = {
   establishmentReviews: number;
   availableSlotsCount: number;
   imageUrl: string;
+  works?: Array<{ imageUrl: string; caption: string | null }>;
+  worksCount?: number;
+  serviceImageUrl?: string | null;
   webUrl: string;
 };
 
