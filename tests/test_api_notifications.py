@@ -35,6 +35,10 @@ def _login(client, user_id):
     with client.session_transaction() as session:
         session["_user_id"] = str(user_id)
         session["_fresh"] = True
+    # The app fixture keeps an application context across requests.
+    # Clear Flask-Login's cached account when simulating another user.
+    from flask import g
+    g.pop("_login_user", None)
 
 
 def test_notifications_require_auth_for_read_and_write(client):
