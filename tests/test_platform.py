@@ -2,6 +2,7 @@ from io import BytesIO
 
 from flask import request
 from PIL import Image
+import pytest
 from sqlalchemy import select
 
 from app.extensions import csrf, db
@@ -386,6 +387,9 @@ def test_business_onboarding_creates_owner_access_and_public_page(
     assert "Profissionais deste lugar" in public_html
 
 
+@pytest.mark.filterwarnings(
+    "error:Object of type <ExperienceSlot> not in session:sqlalchemy.exc.SAWarning"
+)
 def test_same_account_can_be_client_professional_and_business_owner(
     app,
     client,
@@ -924,6 +928,9 @@ def test_pro_can_add_work_experience_and_view_in_edit_form(app, client):
     assert b"Studio Batel" in edit.data
 
 
+@pytest.mark.filterwarnings(
+    "error:Object of type <ProfessionalExperience> not in session:sqlalchemy.exc.SAWarning"
+)
 def test_pro_work_experience_rejects_invalid_dates(app, client):
     from app.models.professional_experience import ProfessionalExperience
 
