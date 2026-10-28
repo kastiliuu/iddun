@@ -1399,7 +1399,6 @@ def add_work_experience():
         return _invalid_work_experience_response(profile, form)
 
     experience = ProfessionalExperience(
-        professional=profile,
         company_name=form.company_name.data.strip(),
         role_title=form.role_title.data.strip(),
         started_at=form.started_at.data,
@@ -1414,6 +1413,9 @@ def add_work_experience():
         flash(str(exc), "error")
         return _invalid_work_experience_response(profile, form)
 
+    # Bind the relationship only after validating; an invalid transient
+    # object would otherwise remain in profile.professional_experiences.
+    experience.professional = profile
     db.session.add(experience)
     db.session.commit()
     flash("Experiência profissional adicionada.", "success")
