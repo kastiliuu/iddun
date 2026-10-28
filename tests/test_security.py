@@ -135,7 +135,7 @@ EXPECTED_CSP = {
     "img-src": ["'self'", "data:", "blob:", "https:"],
     "font-src": ["'self'", "data:", "https://fonts.gstatic.com"],
     "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-    "script-src": ["'self'", "'unsafe-inline'"],
+    "script-src": ["'self'"],
     "connect-src": ["'self'"],
 }
 
@@ -169,3 +169,32 @@ def test_blob_is_allowed_only_for_images(client):
     for name in ("worker-src", "child-src", "object-src", "frame-src", "media-src"):
         assert name not in directives
     assert "'unsafe-eval'" not in " ".join(sum(directives.values(), []))
+
+
+def test_scripts_reject_unsafe_inline(client):
+    """NV-06: executable inline handlers and source schemes must be prohibited."""
+    for path in ("/", "/login", "/api/v1/experiences"):
+        policy = _csp_directives(client.get(path).headers["Content-Security-Policy"])
+        assert policy["script-src"] == ["'self'"]
+        assert all(
+            source not in policy["script-src"]
+            for source in ("'unsafe-inline'", "'unsafe-eval'", "data:", "blob:")
+        )
+
+
+def test_inline_event_handlers_are_not_in_app_templates():
+    """Regression guard: all template event attributes would bypass strict CSP."""
+    from pathlib import Path
+    import re
+
+    templates = Path(__file__).resolve().parents[1] / "app" / "templates"
+    offenders = [
+        f"{path.relative_to(templates)}: {match.group(0)}"
+        for path in templates.rglob("*.html")
+        for match in re.finditer(
+            r"\\son(?:click|change|submit|input|error|load|keydown|keyup|focus|blur)\\s*=",
+            path.read_text(encoding="utf-8"),
+            flags=re.IGNORECASE,
+        )
+    ]
+    assert offenders == []
