@@ -8,6 +8,15 @@ from flask import current_app, request, url_for
 
 
 MEDIA_UPLOAD_PREFIX = "uploads/"
+_MISSING_MEDIA_WARNED = set()
+_MISSING_MEDIA_WARN_LIMIT = 1024
+
+
+def _warn_missing_media(key):
+    if key in _MISSING_MEDIA_WARNED or len(_MISSING_MEDIA_WARNED) >= _MISSING_MEDIA_WARN_LIMIT:
+        return
+    _MISSING_MEDIA_WARNED.add(key)
+    current_app.logger.warning("Upload de mídia ausente: %s", key)
 
 
 class MediaStorageFileTooLargeError(ValueError):
@@ -673,6 +682,7 @@ def resolve_image_url(
                 normalized
             )
         ):
+            _warn_missing_media(normalized)
             return fallback_url
 
         return storage.public_url(
