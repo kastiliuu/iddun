@@ -22,6 +22,7 @@ from app.services.feed_service import (
 from app.services.experience_service import (
     legacy_category_image,
     list_database_experiences_page,
+    real_works_api_fields,
 )
 from app.services.media_storage import (
     resolve_image_url,
@@ -257,6 +258,7 @@ def _global_experience_payload(
                 item.get("category")
             )
         ),
+        **real_works_api_fields(item),
         "location": (
             item.get(
                 "location"
