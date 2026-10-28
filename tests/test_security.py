@@ -192,7 +192,7 @@ def test_inline_event_handlers_are_not_in_app_templates():
         f"{path.relative_to(templates)}: {match.group(0)}"
         for path in templates.rglob("*.html")
         for match in re.finditer(
-            r"\\son(?:click|change|submit|input|error|load|keydown|keyup|focus|blur)\\s*=",
+            r"\son(?:click|change|submit|input|error|load|keydown|keyup|focus|blur)\s*=",
             path.read_text(encoding="utf-8"),
             flags=re.IGNORECASE,
         )
