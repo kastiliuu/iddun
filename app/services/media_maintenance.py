@@ -14,6 +14,7 @@ from app.models.professional import (
     ProfessionalProfile,
 )
 from app.models.profile import ClientProfile
+from app.models.work_post import WorkPost
 from app.services.media_storage import (
     get_media_storage,
     normalize_media_key,
@@ -30,6 +31,7 @@ MEDIA_COLUMNS = (
     EstablishmentGalleryItem.image_url,
     Experience.image_url,
     ProfessionalCertification.document_url,
+    WorkPost.image_url,
 )
 
 
@@ -77,3 +79,30 @@ def delete_orphaned_media():
             removed.append(stored_path)
 
     return removed
+
+
+def missing_media_references():
+    """Relaciona uploads apontados pelo banco que faltam no storage ativo.
+
+    Não altera registros nem objetos. Falhas de acesso ao backend são propagadas
+    para não serem confundidas com arquivos efetivamente ausentes.
+    """
+    storage = get_media_storage()
+    results = []
+    existence = {}
+
+    for column in MEDIA_COLUMNS:
+        model = column.class_
+        rows = db.session.execute(
+            select(model.id, column).where(column.is_not(None))
+        )
+        for record_id, value in rows:
+            key = normalize_media_key(value)
+            if key is None:
+                continue
+            if key not in existence:
+                existence[key] = storage.exists(key)
+            if not existence[key]:
+                results.append((model.__tablename__, record_id, column.key, key))
+
+    return sorted(results, key=lambda item: (item[0], item[1], item[2]))
