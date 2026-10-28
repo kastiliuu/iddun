@@ -88,18 +88,18 @@ def test_real_works_contract_list_detail_and_global_search(app, client):
         )
         services = [
             Experience(
-                professional=pro, title="Corte A", slug="corte-a",
+                professional=pro, title="Corte A", short_description="Serviço real", slug="corte-a",
                 category="cabelo", image_url="https://cdn.example.com/servico.jpg",
                 regular_price="120.00", price="100.00",
                 duration_minutes=60, status=ExperienceStatus.PUBLISHED,
             ),
             Experience(
-                professional=pro, title="Corte B", slug="corte-b",
+                professional=pro, title="Corte B", short_description="Serviço real", slug="corte-b",
                 category="cabelo", regular_price="120.00", price="100.00",
                 duration_minutes=60, status=ExperienceStatus.PUBLISHED,
             ),
             Experience(
-                professional=other, title="Corte Vazio", slug="corte-vazio",
+                professional=other, title="Corte Vazio", short_description="Serviço real", slug="corte-vazio",
                 category="cabelo", regular_price="120.00", price="100.00",
                 duration_minutes=60, status=ExperienceStatus.PUBLISHED,
             ),
