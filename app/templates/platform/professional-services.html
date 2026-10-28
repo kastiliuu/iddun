@@ -122,7 +122,7 @@
             </form>
           {% endif %}
           {% if item.status == ExperienceStatus.PUBLISHED %}
-            <form method="post" action="{{ url_for('professional.pause_service', service_id=item.id) }}" onsubmit="return confirm('Pausar este serviço? Novas reservas ficarão indisponíveis, mas reservas confirmadas serão mantidas.');">
+            <form method="post" action="{{ url_for('professional.pause_service', service_id=item.id) }}" data-confirm-submit="Pausar este serviço? Novas reservas ficarão indisponíveis, mas reservas confirmadas serão mantidas.">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-outline" type="submit">Pausar serviço</button>
             </form>
