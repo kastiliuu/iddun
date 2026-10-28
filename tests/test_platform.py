@@ -520,6 +520,8 @@ def test_same_account_can_be_client_professional_and_business_owner(
             ends_at=datetime(2027, 2, 15, 13, 45, tzinfo=timezone.utc),
             status=SlotStatus.BOOKED,
         )
+        # Persist the slot before an autoflush-triggering relationship lookup.
+        db.session.add(slot)
         booking = Booking(
             client=db.session.get(User, user_id).client_profile,
             professional=professional,
