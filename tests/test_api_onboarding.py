@@ -435,6 +435,23 @@ def test_establishment_draft_updates_mobile_auth_context(
     )
 
     assert created.status_code == 201
+    establishment_payload = created.get_json()["establishment"]
+    # Existing contract remains untouched for previously installed clients.
+    assert establishment_payload["onboardingCompleted"] is False
+    assert establishment_payload["isActive"] is False
+    assert isinstance(establishment_payload["profileCompletion"], int)
+    assert establishment_payload["readiness"] == {
+        "percentage": 71,
+        "readyToPublish": False,
+        "missingRequirements": ["operation_mode", "business_hours_mode"],
+    }
+    with app.app_context():
+        draft = db.session.get(Establishment, int(establishment_payload["id"]))
+        assert draft.published_at is None
+        assert draft.is_active is False
+        assert draft.onboarding_completed is False
+        assert draft.operation_mode is None
+        assert draft.business_hours_mode is None
 
     current = client.get(
         "/api/v1/auth/me",
@@ -988,3 +1005,72 @@ def test_mobile_schedule_to_slots_block_reopen_and_overlap(app, client):
                 ExperienceSlot.experience_id == service_id,
             )
         ) == 2
+
+
+def test_business_readiness_payload_is_additive_and_preserves_published_legacy(app):
+    from app.routes.api_onboarding import _establishment_payload
+
+    with app.app_context():
+        legacy = Establishment(
+            name="Empresa histórica",
+            slug="empresa-historica",
+            category="salao",
+            description="Salão já publicado antes da nova configuração.",
+            city="Curitiba",
+            state="PR",
+            phone="41999999999",
+            address_line1="Rua Comercial, 100",
+            onboarding_completed=True,
+            published_at=__import__("datetime").datetime(
+                2026, 10, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
+            is_active=True,
+        )
+        db.session.add(legacy)
+        db.session.commit()
+
+        original_state = (legacy.published_at, legacy.onboarding_completed, legacy.is_active)
+        payload = _establishment_payload(legacy)
+
+        # Legacy fields keep their original semantics and types.
+        assert payload["onboardingCompleted"] is True
+        assert payload["isActive"] is True
+        assert payload["profileCompletion"] == legacy.profile_completion
+        assert payload["readiness"]["readyToPublish"] is False
+        assert set(payload["readiness"]["missingRequirements"]) == {
+            "operation_mode", "business_hours_mode",
+        }
+        assert 0 <= payload["readiness"]["percentage"] < 100
+        assert (legacy.published_at, legacy.onboarding_completed, legacy.is_active) == original_state
+        assert not db.session.is_modified(legacy)
+
+
+def test_business_readiness_payload_can_be_complete_without_publication(app):
+    from app.routes.api_onboarding import _establishment_payload
+
+    with app.app_context():
+        draft = Establishment(
+            name="Studio domiciliar",
+            slug="studio-domiciliar",
+            description="Atendimento domiciliar a clientes em Curitiba.",
+            category="salao",
+            city="Curitiba",
+            state="PR",
+            phone="41999999999",
+            operation_mode="mobile",
+            business_hours_mode="scheduled",
+            address_line1=None,
+            published_at=None,
+            onboarding_completed=False,
+            is_active=False,
+        )
+        payload = _establishment_payload(draft)
+        assert payload["readiness"] == {
+            "percentage": 100,
+            "readyToPublish": True,
+            "missingRequirements": [],
+        }
+        assert payload["onboardingCompleted"] is False
+        assert payload["isActive"] is False
+        assert draft.published_at is None
+        assert draft.onboarding_completed is False
