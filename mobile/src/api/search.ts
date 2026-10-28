@@ -13,6 +13,10 @@ export type GlobalSearchItem = {
   title: string;
   subtitle?: string | null;
   image?: string | null;
+  works?: Array<{ imageUrl: string; caption: string | null }>;
+  worksCount?: number;
+  serviceImageUrl?: string | null;
+  professionalSlug?: string | null;
   location?: string | null;
   rating: number;
   reviewsCount: number;
