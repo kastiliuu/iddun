@@ -945,7 +945,11 @@ def test_pro_work_experience_rejects_invalid_dates(app, client):
             "ended_at": "2024-07-01",
         },
     )
-    assert response.status_code == 302
+    assert response.status_code == 422
+    assert b"Studio Teste" in response.data
+    assert b"Designer" in response.data
+    assert b"2025-07-01" in response.data
+    assert b"2024-07-01" in response.data
     with app.app_context():
         assert db.session.scalar(
             select(ProfessionalExperience).where(
@@ -1029,3 +1033,101 @@ def test_pro_can_edit_and_remove_only_own_work_experience(app, client):
     assert removed.status_code == 302
     with app.app_context():
         assert db.session.get(ProfessionalExperience, history_id) is None
+
+
+def test_pro_work_experience_invalid_required_fields_rerenders_422(app, client):
+    from app.models.professional_experience import ProfessionalExperience
+
+    user_id = _create_user(app, email="invalid-required-pro@example.com")
+    with app.app_context():
+        db.session.add(ProfessionalProfile(
+            user_id=user_id, display_name="Pro Required", slug="pro-required",
+        ))
+        db.session.commit()
+    _login_session(client, user_id)
+
+    response = client.post(
+        "/pro/experiencia-profissional/adicionar",
+        data={
+            "company_name": "Studio Salvo",
+            "role_title": "",
+            "started_at": "2024-01-05",
+            "description": "Descrição preservada da experiência",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 422
+    assert b"Studio Salvo" in response.data
+    assert b"Descri" in response.data
+    assert b"2024-01-05" in response.data
+    with app.app_context():
+        assert db.session.scalar(select(ProfessionalExperience).where(
+            ProfessionalExperience.company_name == "Studio Salvo"
+        )) is None
+
+
+def test_pro_work_experience_edit_invalid_preserves_post_and_database(app, client):
+    from datetime import date
+    from app.models.professional_experience import ProfessionalExperience
+
+    user_id = _create_user(app, email="invalid-update-pro@example.com")
+    with app.app_context():
+        profile = ProfessionalProfile(
+            user_id=user_id, display_name="Pro Update", slug="pro-update",
+        )
+        record = ProfessionalExperience(
+            professional=profile, company_name="Antiga Empresa",
+            role_title="Designer", started_at=date(2022, 1, 1),
+            is_current=True,
+        )
+        db.session.add_all([profile, record])
+        db.session.commit()
+        record_id = record.id
+    _login_session(client, user_id)
+
+    response = client.post(
+        f"/pro/experiencia-profissional/{record_id}/editar",
+        data={
+            "company_name": "Nova Empresa",
+            "role_title": "Gestora",
+            "started_at": "2025-05-01",
+            "ended_at": "2024-05-01",
+            "description": "Novo texto não gravado",
+        },
+        follow_redirects=False,
+    )
+    assert response.status_code == 422
+    assert b"Nova Empresa" in response.data
+    assert b"Gestora" in response.data
+    assert b"Novo texto" in response.data
+    assert b"2025-05-01" in response.data
+    assert b"2024-05-01" in response.data
+    assert b"Salvar altera" in response.data
+
+    with app.app_context():
+        unchanged = db.session.get(ProfessionalExperience, record_id)
+        assert unchanged.company_name == "Antiga Empresa"
+        assert unchanged.role_title == "Designer"
+        assert unchanged.started_at == date(2022, 1, 1)
+
+
+def test_pro_portfolio_removal_returns_to_portfolio_anchor(app, client):
+    user_id = _create_user(app, email="pro-anchor@example.com")
+    with app.app_context():
+        profile = ProfessionalProfile(
+            user_id=user_id, display_name="Pro Portfolio", slug="pro-portfolio",
+        )
+        db.session.add(profile)
+        db.session.flush()
+        item = ProfessionalPortfolioItem(
+            professional=profile, image_url="https://cdn.example.com/work.jpg"
+        )
+        db.session.add(item)
+        db.session.commit()
+        item_id = item.id
+    _login_session(client, user_id)
+    response = client.post(f"/pro/portfolio/{item_id}/remover")
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/pro/perfil/editar#portfolio")
+    with app.app_context():
+        assert db.session.get(ProfessionalPortfolioItem, item_id) is None

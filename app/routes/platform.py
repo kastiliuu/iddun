@@ -1369,6 +1369,23 @@ def edit_profile():
     )
 
 
+def _invalid_work_experience_response(profile, experience_form, editing_experience=None):
+    """Reexibe os valores enviados sem alterar o contrato visual do editor."""
+    profile_form = ProfessionalEditForm(obj=profile)
+    profile_form.attendance_modalities.data = (
+        (profile.attendance_modalities or "").split(",")
+        if profile.attendance_modalities else []
+    )
+    return render_template(
+        "platform/professional-edit.html",
+        form=profile_form,
+        experience_form=experience_form,
+        editing_experience=editing_experience,
+        profile=profile,
+        current_page="professional-dashboard",
+    ), 422
+
+
 @professional_bp.post("/experiencia-profissional/adicionar")
 @login_required
 def add_work_experience():
@@ -1379,7 +1396,7 @@ def add_work_experience():
     form = ProfessionalWorkExperienceForm()
     if not form.validate_on_submit():
         flash("Confira os dados da experiência profissional.", "error")
-        return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+        return _invalid_work_experience_response(profile, form)
 
     experience = ProfessionalExperience(
         professional=profile,
@@ -1393,8 +1410,9 @@ def add_work_experience():
     try:
         experience.normalize_dates()
     except ValueError as exc:
+        form.ended_at.errors.append(str(exc))
         flash(str(exc), "error")
-        return redirect(url_for("professional.edit_profile") + "#experiencia-profissional")
+        return _invalid_work_experience_response(profile, form)
 
     db.session.add(experience)
     db.session.commit()
@@ -1420,10 +1438,7 @@ def update_work_experience(experience_id):
     form = ProfessionalWorkExperienceForm()
     if not form.validate_on_submit():
         flash("Confira os dados da experiência profissional.", "error")
-        return redirect(
-            url_for("professional.edit_profile", experiencia=experience.id)
-            + "#experiencia-profissional"
-        )
+        return _invalid_work_experience_response(profile, form, experience)
 
     # Validate a candidate before updating the existing record.
     candidate = ProfessionalExperience(
@@ -1437,11 +1452,9 @@ def update_work_experience(experience_id):
     try:
         candidate.normalize_dates()
     except ValueError as exc:
+        form.ended_at.errors.append(str(exc))
         flash(str(exc), "error")
-        return redirect(
-            url_for("professional.edit_profile", experiencia=experience.id)
-            + "#experiencia-profissional"
-        )
+        return _invalid_work_experience_response(profile, form, experience)
 
     experience.company_name = candidate.company_name
     experience.role_title = candidate.role_title
@@ -1516,7 +1529,7 @@ def remove_portfolio_item(item_id):
         "success",
     )
     return redirect(
-        url_for("professional.edit_profile")
+        url_for("professional.edit_profile") + "#portfolio"
     )
 
 
