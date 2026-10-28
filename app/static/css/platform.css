@@ -2263,3 +2263,58 @@ article > div {
   text-decoration: underline;
   text-underline-offset: var(--ds-space-1);
 }
+
+/* ==========================================================
+   PR-3 (BUG-014, BUG-003) — legibilidade Pro/Business
+   A normalização do Sprint 15 deixou o texto em cor de tema claro
+   sobre superfícies que continuaram escuras (e o inverso no catálogo).
+   Direção C: só tokens oficiais, sem dourado legado.
+   ========================================================== */
+
+/* Página de entrada no mesmo fundo dos onboardings. */
+.platform-entry {
+  background:
+    linear-gradient(
+      145deg,
+      var(--color-ink),
+      var(--color-deep-violet)
+    );
+}
+
+/* Texto claro sobre as superfícies escuras. */
+.platform-entry,
+.platform-onboarding__aside,
+.platform-mode-card {
+  color: var(--ds-text-primary);
+}
+
+.platform-mode-card__content small {
+  color: var(--color-violet-light);
+}
+
+/* Catálogo empresarial: painel claro pede texto escuro. */
+.business-catalog__details span,
+.business-catalog__value a {
+  color: var(--color-text-dark-muted);
+}
+
+.platform-panel:not(.platform-panel--dark) .btn-outline {
+  color: var(--color-plum);
+  border-color: var(--color-border-light);
+  background: var(--color-surface-light-2);
+}
+
+/* "Voltar" em linha própria, acima do rótulo da página (10 telas). */
+.platform-back-link {
+  display: flex;
+  width: fit-content;
+  margin-bottom: var(--ds-space-4);
+}
+
+/* No celular, a entrada encostava na borda: o width do __inner anulava o
+   respiro lateral do .container. */
+@media (max-width: 47.5em) {
+  .platform-entry__inner {
+    padding-inline: var(--page-gutter);
+  }
+}
