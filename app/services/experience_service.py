@@ -342,6 +342,28 @@ def _real_works(portfolio_items, offset=0):
     ]
 
 
+def real_works_api_fields(item):
+    """Expose Web's actual work order without touching legacy API images."""
+    from app.services.media_storage import resolve_media_url
+
+    works = item.get("works") or []
+    return {
+        "works": [
+            {
+                "imageUrl": resolve_media_url(work["image"], external=True),
+                "caption": work.get("caption"),
+            }
+            for work in works[:CARD_WORKS_LIMIT]
+        ],
+        "worksCount": int(item.get("works_count") or 0),
+        "serviceImageUrl": (
+            resolve_media_url(item["image"], external=True)
+            if item.get("image") else None
+        ),
+        "professionalSlug": item.get("professional_slug"),
+    }
+
+
 def _db_items_with_staggered_works(experiences):
     """Serialize a page of experiences, one portfolio offset per service."""
     seen = {}
