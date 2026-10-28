@@ -578,3 +578,23 @@ def test_resolve_image_url_does_not_head_remote_storage(
         "https://media.example.com/"
         "uploads/posts/photo.jpg"
     )
+
+
+def test_missing_local_image_logs_warning_once_without_changing_url(app, caplog):
+    from app.services.media_storage import _MISSING_MEDIA_WARNED
+
+    key = "uploads/tests/nv01-missing-image.jpg"
+    _MISSING_MEDIA_WARNED.discard(key)
+    try:
+        with app.test_request_context("/"):
+            first = resolve_image_url(key)
+            second = resolve_image_url(key)
+        assert first == second
+        assert first.endswith("/static/img/category-hair.jpg")
+        warnings = [
+            record for record in caplog.records
+            if "Upload de mídia ausente" in record.message and key in record.message
+        ]
+        assert len(warnings) == 1
+    finally:
+        _MISSING_MEDIA_WARNED.discard(key)
