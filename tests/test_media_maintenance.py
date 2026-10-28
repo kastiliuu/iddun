@@ -141,3 +141,53 @@ def test_cleanup_media_requires_explicit_production_override(
     assert result.exit_code != 0
     assert "Ambiente de produção bloqueado" in result.output
     assert orphan_file.exists()
+
+
+def test_audit_missing_finds_upload_and_strict_fails(app):
+    missing = "uploads/clients/lost.jpg"
+    _create_referenced_avatar(app, missing)
+    result = app.test_cli_runner().invoke(args=["media", "audit-missing"])
+    assert result.exit_code == 0
+    assert "client_profiles" in result.output
+    assert "avatar_url" in result.output
+    assert missing in result.output
+    strict = app.test_cli_runner().invoke(args=["media", "audit-missing", "--strict"])
+    assert strict.exit_code != 0
+    assert missing in strict.output
+
+
+def test_audit_missing_skips_static_and_external_urls(app):
+    from sqlalchemy import select
+
+    with app.app_context():
+        user = User(name="Cliente estático", email="static@example.com", role=UserRole.CLIENT)
+        user.set_password("senha-forte-123")
+        db.session.add_all([
+            user,
+            ClientProfile(user=user, avatar_url="/static/img/default.jpg"),
+        ])
+        db.session.commit()
+        profile = db.session.scalar(select(ClientProfile).where(ClientProfile.user_id == user.id))
+        profile.avatar_url = "https://cdn.example.com/avatar.jpg"
+        db.session.commit()
+    result = app.test_cli_runner().invoke(args=["media", "audit-missing", "--strict"])
+    assert result.exit_code == 0
+    assert "Nenhuma mídia ausente" in result.output
+
+
+def test_audit_missing_uses_s3_exists(app, monkeypatch):
+    from app.services import media_maintenance
+
+    missing = "uploads/clients/remote-lost.jpg"
+    _create_referenced_avatar(app, missing)
+
+    class FakeS3:
+        backend_name = "s3"
+        def exists(self, path):
+            assert path == missing
+            return False
+
+    monkeypatch.setattr(media_maintenance, "get_media_storage", lambda: FakeS3())
+    result = app.test_cli_runner().invoke(args=["media", "audit-missing", "--strict"])
+    assert result.exit_code != 0
+    assert missing in result.output
