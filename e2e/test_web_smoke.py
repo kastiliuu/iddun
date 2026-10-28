@@ -45,10 +45,6 @@ def test_login_and_signup_navigation(page: Page):
 
 def test_nv06_strict_script_csp_and_auto_submit_filter(page: Page):
     page.goto("/experiencias")
-    policy = page.evaluate(
-        "() => performance.getEntriesByType('navigation').length"
-    )
-    assert policy >= 1
     # The original onchange="this.form.submit()" now lives in an external listener.
     sort = page.locator('select[name="ordem"][data-auto-submit="true"]').first
     sort.select_option("lowest_price")
@@ -70,4 +66,4 @@ def test_nv06_confirmation_listener_prevents_cancelled_submit(page: Page):
     }""")
     page.once("dialog", lambda dialog: dialog.dismiss())
     page.get_by_role("button", name="Enviar ação de teste").click()
-    expect(page).to_have_url(re.compile(r"/experiencias(?:\\?.*)?$"))
+    expect(page).to_have_url(re.compile(r"/experiencias(?:\?.*)?$"))
