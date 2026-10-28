@@ -297,7 +297,7 @@ def create_app(test_config=None):
                 "https://fonts.gstatic.com; "
                 "style-src 'self' 'unsafe-inline' "
                 "https://fonts.googleapis.com; "
-                "script-src 'self' 'unsafe-inline'; "
+                "script-src 'self'; "
                 "connect-src 'self';"
             ),
         )
