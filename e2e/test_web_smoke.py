@@ -41,3 +41,33 @@ def test_login_and_signup_navigation(page: Page):
     expect(page.get_by_role("heading", name="Crie sua conta")).to_be_visible()
     page.get_by_role("link", name="Entrar", exact=True).last.click()
     expect(page).to_have_url(re.compile(r"/login(?:\?.*)?$"))
+
+
+def test_nv06_strict_script_csp_and_auto_submit_filter(page: Page):
+    page.goto("/experiencias")
+    policy = page.evaluate(
+        "() => performance.getEntriesByType('navigation').length"
+    )
+    assert policy >= 1
+    # The original onchange="this.form.submit()" now lives in an external listener.
+    sort = page.locator('select[name="ordem"][data-auto-submit="true"]').first
+    sort.select_option("lowest_price")
+    expect(page).to_have_url(re.compile(r"ordem=lowest_price"))
+
+
+def test_nv06_confirmation_listener_prevents_cancelled_submit(page: Page):
+    page.goto("/experiencias")
+    page.evaluate("""() => {
+      const form = document.createElement('form');
+      form.action = '/nv06-unreachable-form-target';
+      form.method = 'post';
+      form.setAttribute('data-confirm-submit', 'Confirmar alteração?');
+      const button = document.createElement('button');
+      button.textContent = 'Enviar ação de teste';
+      button.type = 'submit';
+      form.appendChild(button);
+      document.body.appendChild(form);
+    }""")
+    page.once("dialog", lambda dialog: dialog.dismiss())
+    page.get_by_role("button", name="Enviar ação de teste").click()
+    expect(page).to_have_url(re.compile(r"/experiencias(?:\\?.*)?$"))
