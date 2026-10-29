@@ -33,12 +33,21 @@ def test_home_is_public_landing_with_account_entry_and_legal_links(client):
     assert "Beauty for a brighter you" not in html
 
 
-def test_home_restricts_product_search_to_discovery(client):
+def test_home_search_opens_discovery_with_existing_filters(client):
+    # D-HOME-04 (29/10/2026) revoga a D-HOME-01: a busca da Home abre o
+    # Explorar com os filtros que ele já aceita (q e bairro).
     landing = client.get("/").get_data(as_text=True)
-    discovery = client.get("/experiencias").get_data(as_text=True)
-    assert 'name="q"' not in landing
-    assert 'name="q"' in discovery
+    form = re.search(r'<form class="landing-search"[^>]*>(.*?)</form>', landing, re.S)
+    assert form, "busca da Home ausente"
+    opening = re.search(r'<form class="landing-search"[^>]*>', landing).group(0)
+    assert 'action="/experiencias"' in opening
+    assert 'method="get"' in opening
+    assert 'name="q"' in form.group(1)
+    assert 'name="bairro"' in form.group(1)
     assert 'href="/cadastro"' in landing
+
+    discovery = client.get("/experiencias?q=Corte&bairro=Batel")
+    assert discovery.status_code == 200
 
 
 def test_how_it_works_page_explains_current_and_planned_features(

@@ -2,15 +2,15 @@
 
 
 def test_editorial_landing_links_to_real_categories_and_signup(client):
+    # D-HOME-04 a 07: as seções "Como funciona" e "Para quem é" saíram da
+    # Home (aprovado em 29/10/2026); a explicação continua em /como-funciona.
     html = client.get("/").get_data(as_text=True)
-    assert 'id="como-funciona"' in html
-    assert 'id="para-quem"' in html
-    assert "Descubra trabalhos reais" in html
-    assert "Siga e salve quem inspira" in html
-    assert "Reserve com horários reais" in html
+    assert 'id="como-funciona"' not in html
+    assert 'id="para-quem"' not in html
+    assert 'href="/como-funciona"' in html
     assert 'href="/cadastro"' in html
     assert 'href="/login"' in html
-    assert 'name="q"' not in html
+    assert 'action="/experiencias"' in html
     assert "/experiencias?categoria=" in html
 
 
@@ -34,7 +34,8 @@ def test_landing_does_not_invent_availability_or_verification(client):
 def test_landing_nav_order_matches_page_order(client):
     html = client.get("/").get_data(as_text=True)
     nav = html.split('aria-label="Navegação da página inicial"')[1].split("</nav>")[0]
-    assert nav.index("#como-funciona") < nav.index("#para-quem") < nav.index("#comunidade")
+    assert nav.index("#profissionais") < nav.index("#estabelecimentos") < nav.index("#comunidade")
+    assert html.index('id="profissionais"') < html.index('id="estabelecimentos"') < html.index('id="comunidade"')
 
 
 def test_landing_invites_new_profiles_even_without_directory_data(client):
