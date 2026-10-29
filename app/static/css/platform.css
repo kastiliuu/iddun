@@ -473,14 +473,6 @@
   line-height: 1.4;
 }
 
-.platform-field .field-errors {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: #aa4545;
-  font-size: .62rem;
-}
-
 .platform-media-pair {
   display: grid;
   grid-template-columns: .8fr 1.2fr;
@@ -2290,6 +2282,11 @@ article > div {
 
 .platform-mode-card__content small {
   color: var(--color-violet-light);
+}
+
+/* V-02a: erro de campo sobre a entrada escura usa o vermelho on-dark. */
+.platform-entry {
+  --ds-field-error-color: var(--ds-feedback-danger-on-dark);
 }
 
 /* Catálogo empresarial: painel claro pede texto escuro. */

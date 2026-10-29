@@ -41,3 +41,16 @@ class IddunForm(FlaskForm):
     class Meta:
         def get_translations(self, form):
             return PORTUGUESE_MESSAGES
+
+        def render_field(self, field, render_kw):
+            # V-02a: um campo com erro é anunciado como inválido e aponta
+            # para a mensagem do macro field_errors (id "<campo>-errors").
+            if field.errors:
+                render_kw = dict(render_kw)
+                render_kw["aria-invalid"] = "true"
+                described = render_kw.get("aria-describedby", "").split()
+                error_id = f"{field.id}-errors"
+                if error_id not in described:
+                    described.append(error_id)
+                render_kw["aria-describedby"] = " ".join(described)
+            return super().render_field(field, render_kw)

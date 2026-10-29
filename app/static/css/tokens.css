@@ -432,6 +432,9 @@
   --ds-feedback-warning: var(--color-warning);
   --ds-feedback-danger: var(--color-danger);
   --ds-feedback-info: var(--color-info);
+  /* D-VIS-06: texto de erro com contraste AA (4,5:1) por superfície. */
+  --ds-feedback-danger-on-light: #A33149;
+  --ds-feedback-danger-on-dark: #FF6B6B;
 
   --ds-type-caption: 0.75rem;
   --ds-type-secondary: 0.875rem;

@@ -704,30 +704,6 @@
   font-size: .58rem;
 }
 
-.auth-field-errors {
-  display: grid;
-  gap: 5px;
-  color: #a33149;
-  font-size: .62rem;
-}
-
-.auth-field-errors span {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.auth-field-errors strong {
-  width: 16px;
-  height: 16px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #a33149;
-  color: var(--color-white);
-  font-size: .52rem;
-}
-
 .account-form__actions {
   display: flex;
   justify-content: flex-end;
