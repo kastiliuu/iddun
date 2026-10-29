@@ -288,6 +288,11 @@ def _establishment_payload(item):
             item.description or ""
         ),
         "phone": item.phone or "",
+        "operationMode": item.operation_mode,
+        "businessHoursMode": item.business_hours_mode,
+        "businessHours": item.business_hours,
+        "addressLine1": item.address_line1,
+        "commercialEmail": item.email or "",
         "neighborhood": (
             item.neighborhood or ""
         ),
@@ -428,6 +433,17 @@ def save_establishment_onboarding():
     try:
         establishment = (
             create_establishment_draft(
+                **{
+                    key: payload[field]
+                    for field, key in (
+                        ("operationMode", "operation_mode"),
+                        ("businessHoursMode", "business_hours_mode"),
+                        ("businessHours", "business_hours"),
+                        ("addressLine1", "address_line1"),
+                        ("commercialEmail", "commercial_email"),
+                    )
+                    if field in payload
+                },
                 user=user,
                 name=payload.get(
                     "name",
