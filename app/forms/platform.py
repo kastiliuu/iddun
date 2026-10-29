@@ -2,7 +2,7 @@ from app.forms.base import IddunForm
 from flask_wtf.file import FileAllowed, FileField, FileSize, MultipleFileField
 from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, SubmitField, TextAreaField
 from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, URL
-from wtforms.widgets import HiddenInput
+from wtforms.widgets import CheckboxInput, HiddenInput, ListWidget
 
 from app.models.professional import ProfileTheme
 from app.models.experience import ExperienceCategory
@@ -30,6 +30,17 @@ class WorkModeChoiceForm(IddunForm):
     submit = SubmitField("Continuar")
 
 
+class CheckboxGroupField(SelectMultipleField):
+    """V-02b (BUG-001): escolha múltipla como caixas de seleção.
+
+    Mesmos dados e validação do SelectMultipleField; só muda o widget, então
+    o valor enviado (uma lista com o mesmo nome) continua igual.
+    """
+
+    widget = ListWidget(prefix_label=False)
+    option_widget = CheckboxInput()
+
+
 class ProfessionalOnboardingForm(IddunForm):
     avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
@@ -51,7 +62,7 @@ class ProfessionalOnboardingForm(IddunForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
-    attendance_modalities = SelectMultipleField(
+    attendance_modalities = CheckboxGroupField(
         "Onde você atende?",
         choices=[
             ("establishment", "Em estabelecimento"),
@@ -87,7 +98,7 @@ class ProfessionalEditForm(IddunForm):
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
     city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
     state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
-    attendance_modalities = SelectMultipleField(
+    attendance_modalities = CheckboxGroupField(
         "Onde você atende?",
         choices=[
             ("establishment", "Em estabelecimento"),

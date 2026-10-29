@@ -673,6 +673,17 @@
      (which also fails on visually hidden inputs).
      -------------------------------------------------------- */
 
+  // V-02b: grupo de caixas de seleção obrigatório (fieldset
+  // data-required-group). A mensagem fica no primeiro item do grupo.
+  const groupLeader = (field) => {
+    const group = field.type === 'checkbox'
+      && field.closest('[data-required-group]');
+
+    return group
+      ? group.querySelector('input[type="checkbox"]')
+      : null;
+  };
+
   const fieldProblem = (field) => {
     if (
       field.disabled
@@ -680,6 +691,24 @@
       || field.type === 'file'
     ) {
       return null;
+    }
+
+    const leader = groupLeader(field);
+
+    if (leader) {
+      const group = leader.closest('[data-required-group]');
+
+      if (
+        field !== leader
+        || group.querySelector('input[type="checkbox"]:checked')
+      ) {
+        return null;
+      }
+
+      return (
+        group.dataset.requiredGroup
+        || 'Selecione pelo menos uma opção.'
+      );
     }
 
     const value = (
@@ -750,7 +779,10 @@
   form.addEventListener(
     'input',
     (event) => {
-      const field = event.target;
+      const field = (
+        groupLeader(event.target)
+        || event.target
+      );
 
       if (
         field.type !== 'file'

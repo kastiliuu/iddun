@@ -2315,3 +2315,53 @@ article > div {
     padding-inline: var(--page-gutter);
   }
 }
+
+/* V-02b (BUG-001) — "Onde você atende?" como caixas de seleção. */
+.platform-choice-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.platform-choice-group > legend {
+  padding: 0;
+}
+
+.platform-choice-group__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-2);
+}
+
+.platform-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-3);
+  min-height: 2.75rem;
+  padding: var(--ds-space-2) var(--ds-space-4);
+  border: thin solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+  background: var(--color-surface-light-2);
+  font-size: var(--ds-type-secondary);
+  cursor: pointer;
+}
+
+.platform-choice__input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+  flex: 0 0 auto;
+  accent-color: var(--color-plum);
+}
+
+.platform-choice:has(.platform-choice__input:checked) {
+  border-color: var(--color-plum);
+  background: var(--color-plum-soft);
+}
+
+.platform-choice:has(.platform-choice__input:focus-visible) {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
