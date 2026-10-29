@@ -35,6 +35,7 @@ PAGES = [
     (E2E_EMAIL, "/business/onboarding"),
     (None, "/estabelecimentos"),
     (None, "/profissionais"),
+    (None, "/"),
 ]
 
 
