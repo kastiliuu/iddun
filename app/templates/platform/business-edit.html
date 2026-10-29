@@ -373,20 +373,27 @@
         </div>
       </section>
 
-      <section class="platform-panel">
+      {% set images = establishment.gallery_items|length %}
+      <section
+        class="platform-panel"
+        id="galeria"
+        tabindex="-1"
+        data-focus-on-hash
+        aria-labelledby="galeria-title"
+      >
         <header class="platform-panel__head">
           <div>
             <span class="platform-kicker">
               GALERIA
             </span>
 
-            <h2>
-              {{ establishment.gallery_items|length }}
-              imagens
+            <h2 id="galeria-title">
+              {{ images }} {{ 'imagem' if images == 1 else 'imagens' }}
             </h2>
           </div>
         </header>
 
+        {% if images %}
         <div class="platform-manage-gallery">
           {% for item in establishment.gallery_items %}
             <div
@@ -394,19 +401,24 @@
             >
               <img
                 src="{{ item.image_url|media_url }}"
-                alt="Imagem da galeria"
+                alt="Imagem {{ loop.index }} da galeria"
               >
 
               <button
                 type="submit"
                 form="remove-gallery-{{ item.id }}"
-                aria-label="Remover imagem"
+                aria-label="Remover imagem {{ loop.index }} de {{ images }}"
               >
-                ×
+                {{ icon('x') }}
               </button>
             </div>
           {% endfor %}
         </div>
+        {% else %}
+        <p class="platform-manage-gallery__empty">
+          Nenhuma imagem na galeria ainda. Mostre o espaço, a equipe e o atendimento.
+        </p>
+        {% endif %}
 
         <div class="platform-field">
           {{
@@ -455,6 +467,7 @@
         id="remove-gallery-{{ item.id }}"
         method="post"
         action="{{ url_for('business.remove_gallery_item', slug=establishment.slug, item_id=item.id) }}"
+        data-confirm-submit="Remover esta imagem? Ela será apagada da galeria."
         hidden
       >
         <input

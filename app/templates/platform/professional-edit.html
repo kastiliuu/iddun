@@ -378,20 +378,27 @@
         </div>
       </section>
 
-      <section class="platform-panel">
+      {% set works = profile.portfolio_items|length %}
+      <section
+        class="platform-panel"
+        id="portfolio"
+        tabindex="-1"
+        data-focus-on-hash
+        aria-labelledby="portfolio-title"
+      >
         <header class="platform-panel__head">
           <div>
             <span class="platform-kicker">
               PORTFÓLIO
             </span>
 
-            <h2>
-              {{ profile.portfolio_items|length }}
-              trabalhos
+            <h2 id="portfolio-title">
+              {{ works }} {{ 'trabalho' if works == 1 else 'trabalhos' }}
             </h2>
           </div>
         </header>
 
+        {% if works %}
         <div class="platform-manage-gallery">
           {% for item in profile.portfolio_items %}
             <div
@@ -399,19 +406,24 @@
             >
               <img
                 src="{{ item.image_url|media_url }}"
-                alt="Trabalho do portfólio"
+                alt="Trabalho {{ loop.index }} do portfólio"
               >
 
               <button
                 type="submit"
                 form="remove-portfolio-{{ item.id }}"
-                aria-label="Remover imagem"
+                aria-label="Remover trabalho {{ loop.index }} de {{ works }}"
               >
-                ×
+                {{ icon('x') }}
               </button>
             </div>
           {% endfor %}
         </div>
+        {% else %}
+        <p class="platform-manage-gallery__empty">
+          Nenhum trabalho publicado ainda. Fotos reais dos seus atendimentos ajudam a cliente a decidir.
+        </p>
+        {% endif %}
 
         <div
           class="platform-field platform-field--wide"
@@ -426,7 +438,7 @@
             multi_upload(
               form.portfolio_files,
               'Adicionar novos trabalhos',
-              'Selecione até 8 imagens por envio · mantenha ao menos 3 publicadas',
+              'Até 8 imagens por envio · 3 ou mais trabalhos deixam o perfil mais completo',
               profile.portfolio_items|length
             )
           }}
@@ -530,6 +542,7 @@
         id="remove-portfolio-{{ item.id }}"
         method="post"
         action="{{ url_for('professional.remove_portfolio_item', item_id=item.id) }}"
+        data-confirm-submit="Remover este trabalho? A imagem será apagada."
         hidden
       >
         <input
