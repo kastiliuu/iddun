@@ -197,9 +197,22 @@
           </div>
 
             <div class="platform-field platform-field--wide">
-              <label class="platform-label" for="attendance_modalities">Onde você atende? *</label>
-              <p class="platform-help">Selecione uma ou mais modalidades de atendimento.</p>
-              {{ form.attendance_modalities(class_='platform-select', size=3) }}
+              <fieldset
+                class="platform-choice-group"
+                data-required-group="Selecione pelo menos uma modalidade de atendimento."
+                {% if form.attendance_modalities.errors %}aria-describedby="attendance_modalities-errors"{% endif %}
+              >
+                <legend class="platform-label">Onde você atende? *</legend>
+                <p class="platform-help">Selecione uma ou mais modalidades de atendimento.</p>
+                <div class="platform-choice-group__options">
+                  {% for option in form.attendance_modalities %}
+                  <label class="platform-choice">
+                    {{ option(class_='platform-choice__input') }}
+                    <span>{{ option.label.text }}</span>
+                  </label>
+                  {% endfor %}
+                </div>
+              </fieldset>
               {{ field_errors(form.attendance_modalities) }}
             </div>
 
