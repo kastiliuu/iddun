@@ -30,6 +30,24 @@
     || input.parentElement
   );
 
+  // Mesmo desenho do ícone 'alert-circle' de components/icon.html.
+  const errorIcon = () => {
+    const svgNs = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNs, 'svg');
+    svg.setAttribute('class', 'icon ds-field-errors__icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    const circle = document.createElementNS(svgNs, 'circle');
+    circle.setAttribute('cx', '12');
+    circle.setAttribute('cy', '12');
+    circle.setAttribute('r', '9');
+    const mark = document.createElementNS(svgNs, 'path');
+    mark.setAttribute('d', 'M12 7.5v5.5M12 16.5h.01');
+    svg.append(circle, mark);
+    return svg;
+  };
+
   const clearFileError = (input) => {
     const errorId = errorIdFor(input);
 
@@ -81,16 +99,20 @@
     if (!errorHost) return false;
 
     const errorId = errorIdFor(input);
+    // V-02a: o mesmo componente de erro do servidor (macro field_errors).
     const errorList = (
-      document.createElement('ul')
+      document.createElement('div')
     );
     const errorItem = (
-      document.createElement('li')
+      document.createElement('p')
+    );
+    const errorText = (
+      document.createElement('span')
     );
 
     errorList.id = errorId;
     errorList.className = (
-      'field-errors '
+      'ds-field-errors '
       + 'platform-client-errors'
     );
     errorList.dataset.clientFileError = '';
@@ -100,7 +122,9 @@
       'alert',
     );
 
-    errorItem.textContent = message;
+    errorItem.className = 'ds-field-errors__item';
+    errorText.textContent = message;
+    errorItem.append(errorIcon(), errorText);
     errorList.appendChild(errorItem);
     errorHost.appendChild(errorList);
 
@@ -454,6 +478,17 @@
         },
       );
     });
+
+  // V-02a: fora dos assistentes, depois de um erro do servidor, o foco
+  // vai para o primeiro campo inválido (os assistentes abrem a etapa certa).
+  const firstServerError = document.querySelector(
+    'form:not([data-wizard-form]) [aria-invalid="true"]',
+  );
+
+  if (firstServerError) {
+    firstServerError.scrollIntoView({ block: 'center' });
+    firstServerError.focus({ preventScroll: true });
+  }
 
   const form = (
     document.querySelector(
@@ -969,8 +1004,7 @@
   const hasServerErrors = (
     form.querySelector(
       (
-        '.auth-field-errors, '
-        + '.field-errors, '
+        '.ds-field-errors, '
         + '.form-error, '
         + '[aria-invalid="true"]'
       ),

@@ -1,8 +1,11 @@
+{% from 'components/icon.html' import icon %}
+{# V-02a: erro de campo do Design System. O campo correspondente recebe
+   aria-invalid e aria-describedby="<id>-errors" no servidor (IddunForm). #}
 {% macro field_errors(field) %}
   {% if field.errors %}
-    <div class="auth-field-errors" id="{{ field.id }}-errors" aria-live="polite">
+    <div class="ds-field-errors" id="{{ field.id }}-errors">
       {% for error in field.errors %}
-        <span><strong aria-hidden="true">!</strong>{{ error }}</span>
+        <p class="ds-field-errors__item">{{ icon('alert-circle', 'ds-field-errors__icon') }}<span>{{ error }}</span></p>
       {% endfor %}
     </div>
   {% endif %}

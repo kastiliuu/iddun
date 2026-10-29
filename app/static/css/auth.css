@@ -18,7 +18,8 @@
   --auth-border: rgba(255, 255, 255, .14);
   --auth-border-hover: rgba(218, 221, 225, .29);
   --auth-plum-soft: #9b78ff;
-  --auth-error: #ff6b6b;
+  --auth-error: var(--ds-feedback-danger-on-dark);
+  --ds-field-error-color: var(--auth-error);
   --auth-radius-sm: 10px;
   --auth-radius-md: 14px;
   --auth-radius-lg: 22px;
@@ -445,23 +446,18 @@
   background: rgba(107, 46, 255, .14);
 }
 
-.auth-field-errors,
 .auth-client-error {
   color: var(--auth-error);
   font-size: .75rem;
   line-height: 1.45;
 }
 
-.auth-field-errors { display: grid; gap: 4px; }
-
-.auth-field-errors span,
 .auth-client-error:not(:empty) {
   display: flex;
   align-items: flex-start;
   gap: 7px;
 }
 
-.auth-field-errors strong,
 .auth-client-error:not(:empty)::before {
   width: 16px;
   height: 16px;
