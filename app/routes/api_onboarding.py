@@ -19,6 +19,7 @@ from app.services.booking_service import block_slot_manual, reopen_manual_slot, 
 from app.extensions import csrf, limiter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import api_error, api_json
+from app.services.establishment_readiness_service import evaluate_establishment_readiness
 from app.services.media_storage import resolve_image_url
 from app.services.mobile_onboarding_service import (
     MobileOnboardingError,
@@ -270,7 +271,15 @@ def _professional_payload(profile):
 
 
 def _establishment_payload(item):
+    # Additive contract: old fields retain their values and semantics.
+    # Readiness is advisory until publication flows migrate in a later PR.
+    readiness = evaluate_establishment_readiness(item)
     return {
+        "readiness": {
+            "percentage": readiness.percentage,
+            "readyToPublish": readiness.ready_to_publish,
+            "missingRequirements": list(readiness.missing_requirements),
+        },
         "id": str(item.id),
         "slug": item.slug,
         "name": item.name,
