@@ -307,13 +307,6 @@
 
 .auth-field { display: grid; gap: var(--auth-space-1); }
 
-.auth-label-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--auth-space-2);
-}
-
 .auth-label {
   color: #e8e8ec;
   font-size: .8125rem;
@@ -322,6 +315,12 @@
 }
 
 .auth-forgot-link {
+  /* V-05: abaixo do campo, à direita, com área de toque de 44 px. */
+  justify-self: end;
+  min-height: 2.75rem;
+  margin-block: calc(var(--ds-space-2) * -1);
+  display: inline-flex;
+  align-items: center;
   color: var(--auth-plum-soft);
   font-size: .75rem;
   font-weight: 700;
