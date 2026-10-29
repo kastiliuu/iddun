@@ -6,6 +6,7 @@ centrais do perfil estiverem completos.
 """
 
 from datetime import date
+import re
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +27,9 @@ from app.models.professional_experience import (
     ProfessionalExperienceVerification,
 )
 from app.services.slug_service import unique_public_handle
+from app.services.establishment_readiness_service import (
+    HOURS_MODES, OPERATION_MODES, valid_business_hours,
+)
 
 
 class MobileOnboardingError(ValueError):
@@ -236,6 +240,62 @@ def create_professional_draft(
     return profile
 
 
+# The absence of an optional field on retry must not erase a previously
+# recorded business setting (particularly for historically published firms).
+_BUSINESS_UNSET = object()
+
+
+def _optional_business_choice(value, allowed, label):
+    if value is None or value == "":
+        return None
+    if not isinstance(value, str) or value not in allowed:
+        raise MobileOnboardingError(f"{label}: opção inválida.")
+    return value
+
+
+def _optional_business_hours(value):
+    if value is None:
+        return None
+    if not isinstance(value, dict) or len(value) > 7:
+        raise MobileOnboardingError("Horários de funcionamento inválidos.")
+    if any(not isinstance(periods, list) or len(periods) > 4 for periods in value.values()):
+        raise MobileOnboardingError("Informe no máximo quatro períodos por dia.")
+    if not valid_business_hours(value):
+        raise MobileOnboardingError("Horários de funcionamento inválidos.")
+    return value
+
+
+def _business_optional_values(*, operation_mode, business_hours_mode,
+                              business_hours, address_line1, commercial_email):
+    values = {}
+    if operation_mode is not _BUSINESS_UNSET:
+        values["operation_mode"] = _optional_business_choice(
+            operation_mode, OPERATION_MODES, "Modalidade de atendimento"
+        )
+    if business_hours_mode is not _BUSINESS_UNSET:
+        values["business_hours_mode"] = _optional_business_choice(
+            business_hours_mode, HOURS_MODES, "Tipo de funcionamento"
+        )
+    if business_hours is not _BUSINESS_UNSET:
+        values["business_hours"] = _optional_business_hours(business_hours)
+    if address_line1 is not _BUSINESS_UNSET:
+        if address_line1 is None:
+            values["address_line1"] = None
+        else:
+            values["address_line1"] = _text(
+                address_line1, "Endereço comercial", maximum=180
+            ) or None
+    if commercial_email is not _BUSINESS_UNSET:
+        if commercial_email is None or commercial_email == "":
+            values["email"] = None
+        else:
+            email = _text(commercial_email, "E-mail comercial", maximum=255).lower()
+            if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", email):
+                raise MobileOnboardingError("E-mail comercial inválido.")
+            values["email"] = email
+    return values
+
+
 def create_establishment_draft(
     *,
     user,
@@ -246,8 +306,13 @@ def create_establishment_draft(
     description="",
     phone="",
     neighborhood="",
+    operation_mode=_BUSINESS_UNSET,
+    business_hours_mode=_BUSINESS_UNSET,
+    business_hours=_BUSINESS_UNSET,
+    address_line1=_BUSINESS_UNSET,
+    commercial_email=_BUSINESS_UNSET,
 ):
-    """Cria estabelecimento privado com o solicitante como proprietário."""
+    """Cria ou atualiza rascunho sem publicar ou inferir dados opcionais."""
     _active_user(user)
 
     clean_name = _text(
@@ -286,6 +351,14 @@ def create_establishment_draft(
         maximum=100,
     )
 
+    extra = _business_optional_values(
+        operation_mode=operation_mode,
+        business_hours_mode=business_hours_mode,
+        business_hours=business_hours,
+        address_line1=address_line1,
+        commercial_email=commercial_email,
+    )
+
     existing = db.session.scalar(
         select(Establishment)
         .join(EstablishmentUserAccess)
@@ -293,6 +366,8 @@ def create_establishment_draft(
             EstablishmentUserAccess.user_id == user.id,
             EstablishmentUserAccess.role
             == EstablishmentAccessRole.OWNER,
+            EstablishmentUserAccess.status
+            == EstablishmentAccessStatus.ACTIVE,
             func.lower(Establishment.name)
             == clean_name.lower(),
             func.lower(Establishment.city)
@@ -308,6 +383,8 @@ def create_establishment_draft(
         existing.whatsapp_enabled = bool(clean_phone)
         existing.neighborhood = clean_neighborhood or None
         existing.category = clean_category
+        for field, value in extra.items():
+            setattr(existing, field, value)
         db.session.commit()
         return existing
 
@@ -336,6 +413,7 @@ def create_establishment_draft(
         neighborhood=clean_neighborhood or None,
         city=clean_city,
         state=clean_state,
+        **extra,
     )
 
     db.session.add(establishment)
