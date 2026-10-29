@@ -1340,3 +1340,16 @@ def test_pro_does_not_change_service_location_with_existing_slots(app, client):
         original = db.session.get(Experience, service_id)
         assert original.establishment_id is None
         assert original.title == "Manutenção em gel"
+
+
+def test_pro_dashboard_links_to_existing_business_onboarding(app, client):
+    user_id = _catalog(app)
+    _login(client, user_id)
+
+    dashboard = client.get("/pro/painel")
+    assert dashboard.status_code == 200
+    assert b"Criar estabelecimento" in dashboard.data
+    assert b'href="/business/onboarding"' in dashboard.data
+
+    onboarding = client.get("/business/onboarding")
+    assert onboarding.status_code == 200
