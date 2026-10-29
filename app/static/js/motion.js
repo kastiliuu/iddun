@@ -70,13 +70,25 @@
   if (reducedMotion || !hasIntersectionObserver) {
     revealTargets.forEach(revealElement);
   } else {
+    // Revela quando 12% do bloco aparece. Um bloco alto (a grade do
+    // Explorar no celular) nunca mostra 12% de si de uma vez, então ele é
+    // revelado assim que entra, sem esperar um limiar inalcançável.
+    // O que já está na tela ao carregar continua aparecendo de imediato.
+    const revealRatio = 0.12;
+    const tallShareOfScreen = 0.5;
+    const measured = new WeakSet();
     const observer = new IntersectionObserver((entries, instance) => {
       entries.forEach((entry) => {
+        const firstMeasure = !measured.has(entry.target);
+        measured.add(entry.target);
         if (!entry.isIntersecting) return;
+        const screenHeight = entry.rootBounds ? entry.rootBounds.height : window.innerHeight;
+        const isTall = entry.boundingClientRect.height * revealRatio > screenHeight * tallShareOfScreen;
+        if (!firstMeasure && entry.intersectionRatio < revealRatio && !isTall) return;
         revealElement(entry.target);
         instance.unobserve(entry.target);
       });
-    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    }, { threshold: [0, revealRatio], rootMargin: '0px 0px -6% 0px' });
 
     revealTargets.forEach((el) => observer.observe(el));
   }
