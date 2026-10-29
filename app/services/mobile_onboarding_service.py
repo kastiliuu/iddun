@@ -290,7 +290,7 @@ def _business_optional_values(*, operation_mode, business_hours_mode,
             values["email"] = None
         else:
             email = _text(commercial_email, "E-mail comercial", maximum=255).lower()
-            if not re.fullmatch(r"[^\\s@]+@[^\\s@]+\\.[^\\s@]+", email):
+            if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
                 raise MobileOnboardingError("E-mail comercial inválido.")
             values["email"] = email
     return values
@@ -409,11 +409,11 @@ def create_establishment_draft(
         is_active=False,
         phone=clean_phone or None,
         whatsapp_enabled=bool(clean_phone),
-        email=user.email,
+        email=extra.get("email", user.email),
         neighborhood=clean_neighborhood or None,
         city=clean_city,
         state=clean_state,
-        **extra,
+        **{key: val for key, val in extra.items() if key != "email"},
     )
 
     db.session.add(establishment)
