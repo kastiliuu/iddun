@@ -2497,4 +2497,5 @@ def remove_gallery_item(
             "business.edit",
             slug=slug,
         )
+        + "#galeria"
     )

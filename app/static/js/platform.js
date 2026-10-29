@@ -490,6 +490,23 @@
     firstServerError.focus({ preventScroll: true });
   }
 
+  // V-03: ao voltar de uma remoção (#portfolio, #galeria), o foco vai
+  // para a seção, para o leitor de tela anunciar onde a pessoa está.
+  const hashTarget = (
+    window.location.hash
+    && document.getElementById(
+      decodeURIComponent(window.location.hash.slice(1)),
+    )
+  );
+
+  if (
+    !firstServerError
+    && hashTarget
+    && hashTarget.matches('[data-focus-on-hash]')
+  ) {
+    hashTarget.focus({ preventScroll: true });
+  }
+
   const form = (
     document.querySelector(
       '[data-wizard-form]',

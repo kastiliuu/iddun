@@ -12,10 +12,11 @@ from app.models.establishment import (
     Establishment,
     EstablishmentAccessRole,
     EstablishmentAccessStatus,
+    EstablishmentGalleryItem,
     EstablishmentUserAccess,
 )
 from app.models.experience import Experience, ExperienceStatus
-from app.models.professional import ProfessionalProfile
+from app.models.professional import ProfessionalPortfolioItem, ProfessionalProfile
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
 
@@ -69,6 +70,16 @@ def main():
             state="PR",
         )
         db.session.add(profile)
+        # Remoção no portfólio e na galeria (V-03). Endereços externos de
+        # exemplo: nenhum arquivo local é apagado pelos testes.
+        for index in range(2):
+            db.session.add(
+                ProfessionalPortfolioItem(
+                    professional=profile,
+                    image_url=f"https://example.com/qa-portfolio-{index}.jpg",
+                    sort_order=index,
+                )
+            )
 
         business = Establishment(
             name="Espaço QA Navegador",
@@ -89,6 +100,13 @@ def main():
                 establishment=business,
                 role=EstablishmentAccessRole.OWNER,
                 status=EstablishmentAccessStatus.ACTIVE,
+            )
+        )
+        db.session.add(
+            EstablishmentGalleryItem(
+                establishment=business,
+                image_url="https://example.com/qa-galeria-0.jpg",
+                sort_order=0,
             )
         )
         db.session.add(
