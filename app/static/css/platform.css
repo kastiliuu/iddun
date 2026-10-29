@@ -14,7 +14,7 @@
 .platform-kicker {
   display: inline-block;
   color: var(--color-primary);
-  font-size: .64rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .18em;
   text-transform: uppercase;
@@ -26,7 +26,7 @@
   align-items: center;
   gap: 8px;
   color: rgba(245,241,232,.7);
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
@@ -190,7 +190,7 @@
 
 .platform-mode-card__content small {
   color: #cdb48b;
-  font-size: .61rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -285,7 +285,7 @@
   justify-content: space-between;
   gap: 12px;
   color: rgba(245,241,232,.62);
-  font-size: .67rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-progress__top strong {
@@ -327,14 +327,14 @@
   align-items: center;
   gap: 12px;
   min-height: 38px;
-  color: rgba(245,241,232,.35);
-  font-size: .69rem;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
 .platform-steps li span {
-  color: rgba(226,193,129,.45);
-  font-size: .56rem;
+  color: var(--ds-text-muted);
+  font-size: var(--ds-type-caption);
   letter-spacing: .12em;
 }
 
@@ -381,8 +381,8 @@
 }
 
 .platform-step__head > span {
-  color: #9b723b;
-  font-size: .63rem;
+  color: var(--color-plum);
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .14em;
   text-transform: uppercase;
@@ -400,7 +400,7 @@
 .platform-step__head p {
   max-width: 650px;
   margin: 0;
-  color: #756d63;
+  color: var(--color-text-on-light-secondary);
   font-size: .78rem;
   line-height: 1.65;
 }
@@ -425,7 +425,7 @@
 
 .platform-label {
   color: #463f37;
-  font-size: .66rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .03em;
 }
@@ -468,8 +468,8 @@
 }
 
 .platform-help {
-  color: #8b8278;
-  font-size: .6rem;
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
   line-height: 1.4;
 }
 
@@ -565,12 +565,12 @@
 }
 
 .platform-image-upload strong {
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-image-upload small {
-  color: #8d8379;
-  font-size: .58rem;
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
 }
 
 .platform-dropzone {
@@ -611,8 +611,8 @@
 
 .platform-dropzone
 > span:last-child {
-  color: #8d8379;
-  font-size: .62rem;
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
 }
 
 .platform-upload-grid {
@@ -649,7 +649,7 @@
   border-radius: 99px;
   background: #231d16;
   color: #e6c88e;
-  font-size: .55rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .11em;
 }
@@ -671,7 +671,7 @@
   align-items: center;
   gap: 9px;
   color: #625a50;
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-benefit-list .icon {
@@ -708,7 +708,7 @@
 
 .platform-tree-preview em {
   font-style: normal;
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-wizard-actions {
@@ -879,7 +879,7 @@
 .platform-completion-card p {
   margin: 0;
   color: #7a7268;
-  font-size: .69rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.55;
 }
 
@@ -926,8 +926,8 @@
 }
 
 .platform-metric-grid small {
-  color: #82796e;
-  font-size: .58rem;
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
   line-height: 1.4;
 }
 
@@ -953,12 +953,12 @@
 .platform-panel__head p {
   margin: 5px 0 0;
   color: #7b7369;
-  font-size: .64rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-panel__head > a {
   color: #77572e;
-  font-size: .66rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
 }
 
@@ -972,7 +972,7 @@
 .platform-panel > p {
   margin: 0;
   color: #786f64;
-  font-size: .68rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.55;
 }
 
@@ -1001,7 +1001,7 @@
   border-bottom:
     1px solid rgba(255,255,255,.08);
   color: rgba(255,255,255,.77);
-  font-size: .68rem;
+  font-size: var(--ds-type-caption);
   font-weight: 700;
 }
 
@@ -1042,7 +1042,7 @@
   border-radius: 14px;
   background: #f8f3eb;
   color: #81786d;
-  font-size: .67rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.5;
 }
 
@@ -1099,13 +1099,13 @@
 
 .platform-workplace-item strong,
 .platform-team-member strong {
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-workplace-item small,
 .platform-team-member small {
   color: #7e756a;
-  font-size: .58rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-workplace-item > .icon {
@@ -1131,7 +1131,7 @@
   border: 0;
   background: transparent;
   color: #a14e4e;
-  font-size: .58rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   cursor: pointer;
 }
@@ -1166,7 +1166,7 @@
   border-radius: 999px;
   background: #efe1c7;
   color: #765429;
-  font-size: .52rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   letter-spacing: .05em;
   text-transform: uppercase;
@@ -1202,7 +1202,7 @@
 
 .platform-invitation-card small {
   color: #786e61;
-  font-size: .6rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.45;
 }
 
@@ -1214,7 +1214,7 @@
 .platform-invitation-actions .btn {
   min-height: 38px;
   padding-inline: 14px;
-  font-size: .66rem;
+  font-size: var(--ds-type-caption);
 }
 
 /* Editors */
@@ -1461,7 +1461,7 @@
   }
 
   .platform-onboarding__aside > p {
-    font-size: .73rem;
+    font-size: var(--ds-type-caption);
   }
 
   .platform-progress {
@@ -1690,7 +1690,7 @@
     align-content: center;
     gap: 3px;
     color: #9c9489;
-    font-size: .52rem;
+    font-size: var(--ds-type-caption);
     font-weight: 700;
   }
 
@@ -1806,20 +1806,20 @@ article > div {
 }
 
 .platform-review-list strong {
-  font-size: .7rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-review-list
 article > div span {
   color: #9a6e34;
-  font-size: .66rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
 }
 
 .platform-review-list p {
   margin: 9px 0;
   color: #655d54;
-  font-size: .67rem;
+  font-size: var(--ds-type-caption);
   line-height: 1.55;
 }
 
@@ -1828,7 +1828,7 @@ article > div span {
   align-items: center;
   gap: 5px;
   color: #7d7469;
-  font-size: .54rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-review-list small .icon {
@@ -1880,12 +1880,12 @@ article > div {
 }
 
 .platform-certification-preview strong {
-  font-size: .67rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-certification-preview small {
   color: #7e756b;
-  font-size: .56rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-certification-list {
@@ -1928,13 +1928,13 @@ article > div {
 }
 
 .platform-certification-item strong {
-  font-size: .72rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-certification-item span,
 .platform-certification-item small {
   color: #766d62;
-  font-size: .57rem;
+  font-size: var(--ds-type-caption);
 }
 
 .platform-certification-actions {
@@ -1948,7 +1948,7 @@ article > div {
   border: 0;
   background: transparent;
   color: #73562f;
-  font-size: .58rem;
+  font-size: var(--ds-type-caption);
   font-weight: 800;
   cursor: pointer;
 }
@@ -2395,4 +2395,38 @@ article > div {
   border-radius: var(--ds-radius-md);
   color: var(--color-text-dark-muted);
   font-size: var(--ds-type-secondary);
+}
+
+/* V-04 (PR-3b) — contraste AA nas superfícies escuras. */
+.platform-onboarding__aside .platform-kicker,
+.platform-entry .platform-kicker,
+.platform-panel--dark .platform-kicker,
+.platform-dashboard-hero .platform-kicker,
+.platform-progress__top strong,
+.platform-steps li.is-active span,
+.platform-mobile-nav a.is-active {
+  color: var(--color-violet-light);
+}
+
+.platform-dashboard-hero p {
+  color: var(--ds-text-secondary);
+}
+
+/* V-04: no celular, o assistente cabe na largura da tela. As etapas,
+   agora com 12 px, rolam na própria faixa em vez de alargar a página. */
+@media (max-width: 61.25em) {
+  .platform-onboarding__shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .platform-steps {
+    display: flex;
+    gap: var(--ds-space-4);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .platform-steps li {
+    flex: 0 0 auto;
+  }
 }
