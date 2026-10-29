@@ -1,5 +1,7 @@
 from datetime import date, datetime, timezone
 
+import pytest
+
 from sqlalchemy import func, select
 
 from app.models.experience import Experience, ExperienceStatus
@@ -1072,3 +1074,151 @@ def test_business_readiness_payload_can_be_complete_without_publication(app):
         assert payload["isActive"] is False
         assert draft.published_at is None
         assert draft.onboarding_completed is False
+
+
+
+BUSINESS_DRAFT_INPUT = {
+    "name": "Studio Contrato",
+    "category": "unhas",
+    "city": "Curitiba",
+    "state": "PR",
+    "description": "Serviços de beleza em atendimento personalizado.",
+    "phone": "41999999999",
+}
+
+
+def test_business_draft_accepts_valid_optional_fields_and_stays_private(app, client):
+    _, headers = _authenticated_client(app, email="business-contract@example.com")
+    data = {
+        **BUSINESS_DRAFT_INPUT,
+        "operationMode": "physical",
+        "businessHoursMode": "fixed_hours",
+        "businessHours": {"monday": [{"start": "09:00", "end": "18:00"}]},
+        "addressLine1": "Rua Comercial, 100",
+        "commercialEmail": "Contato@Studio.Example",
+    }
+    response = client.post(f"{BASE}/establishment", headers=headers, json=data)
+    assert response.status_code == 201
+    obj = response.get_json()["establishment"]
+    assert obj["operationMode"] == "physical"
+    assert obj["businessHoursMode"] == "fixed_hours"
+    assert obj["businessHours"] == data["businessHours"]
+    assert obj["addressLine1"] == "Rua Comercial, 100"
+    assert obj["commercialEmail"] == "contato@studio.example"
+    assert obj["readiness"]["readyToPublish"] is True
+    assert obj["onboardingCompleted"] is False
+    assert obj["isActive"] is False
+    with app.app_context():
+        stored = db.session.get(Establishment, int(obj["id"]))
+        assert stored.published_at is None
+        assert stored.onboarding_completed is False
+        assert stored.is_active is False
+
+    # A retry using an older mobile client must not erase the new fields.
+    retry = client.post(
+        f"{BASE}/establishment", headers=headers, json=BUSINESS_DRAFT_INPUT
+    )
+    assert retry.status_code == 201
+    previous = retry.get_json()["establishment"]
+    assert previous["id"] == obj["id"]
+    assert previous["operationMode"] == "physical"
+    assert previous["businessHoursMode"] == "fixed_hours"
+    assert previous["businessHours"] == data["businessHours"]
+    assert previous["commercialEmail"] == "contato@studio.example"
+    assert previous["addressLine1"] == "Rua Comercial, 100"
+
+
+@pytest.mark.parametrize("changes", [
+    {"operationMode": "invalid"},
+    {"operationMode": ["mobile"]},
+    {"businessHoursMode": "always"},
+    {"businessHours": [{"monday": []}]},
+    {"businessHours": {"monday": [{"start": "12:00", "end": "09:00"}]}},
+    {"businessHours": {"monday": [{"start": "09:00", "end": "12:00"},
+                                  {"start": "11:00", "end": "14:00"}]}},
+    {"businessHours": {"monday": [{"start": "09:00", "end": "10:00"}] * 5}},
+    {"businessHours": {"unknown": [{"start": "09:00", "end": "10:00"}]}},
+    {"addressLine1": ["endereco"]},
+    {"commercialEmail": "not-an-email"},
+    {"commercialEmail": ["not-an-email"]},
+])
+def test_business_draft_rejects_invalid_optional_input_without_inserting(
+    app, client, changes
+):
+    _, headers = _authenticated_client(app, email="business-invalid@example.com")
+    response = client.post(
+        f"{BASE}/establishment",
+        headers=headers,
+        json={**BUSINESS_DRAFT_INPUT, **changes},
+    )
+    assert response.status_code == 400
+    assert response.get_json()["error"]["code"] == "invalid_onboarding_data"
+    with app.app_context():
+        assert db.session.scalar(
+            select(func.count(Establishment.id))
+        ) == 0
+
+
+def test_business_draft_allows_partial_details_without_publication(app, client):
+    _, headers = _authenticated_client(app, email="business-partial@example.com")
+    response = client.post(
+        f"{BASE}/establishment",
+        headers=headers,
+        json={
+            **BUSINESS_DRAFT_INPUT,
+            "operationMode": "hybrid",
+            "businessHoursMode": "fixed_hours",
+        },
+    )
+    assert response.status_code == 201
+    business = response.get_json()["establishment"]
+    assert business["businessHours"] is None
+    assert set(business["readiness"]["missingRequirements"]) == {
+        "business_address", "business_hours",
+    }
+    assert business["isActive"] is False
+
+
+def test_business_draft_update_keeps_legacy_publication_flags(app, client):
+    _, headers = _authenticated_client(app, email="business-legacy@example.com")
+    first = client.post(
+        f"{BASE}/establishment", headers=headers, json=BUSINESS_DRAFT_INPUT
+    )
+    assert first.status_code == 201
+    establishment_id = int(first.get_json()["establishment"]["id"])
+    from datetime import datetime, timezone
+    when = datetime(2026, 10, 1, tzinfo=timezone.utc)
+    with app.app_context():
+        business = db.session.get(Establishment, establishment_id)
+        business.published_at = when
+        business.onboarding_completed = True
+        business.is_active = True
+        db.session.commit()
+
+    updated = client.post(
+        f"{BASE}/establishment",
+        headers=headers,
+        json={**BUSINESS_DRAFT_INPUT, "operationMode": "mobile"},
+    )
+    assert updated.status_code == 201
+    data = updated.get_json()["establishment"]
+    assert data["id"] == str(establishment_id)
+    assert data["operationMode"] == "mobile"
+    assert data["onboardingCompleted"] is True
+    assert data["isActive"] is True
+    with app.app_context():
+        business = db.session.get(Establishment, establishment_id)
+        # SQLite drops timezone information when reading DateTime columns.
+        assert business.published_at.replace(tzinfo=None) == when.replace(tzinfo=None)
+        assert business.onboarding_completed is True
+        assert business.is_active is True
+
+
+def test_business_draft_rejects_unauthenticated_write(app, client):
+    response = client.post(
+        f"{BASE}/establishment",
+        json={**BUSINESS_DRAFT_INPUT, "operationMode": "physical"},
+    )
+    assert response.status_code == 401
+    with app.app_context():
+        assert db.session.scalar(select(func.count(Establishment.id))) == 0
