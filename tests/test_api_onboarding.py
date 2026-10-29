@@ -1208,7 +1208,8 @@ def test_business_draft_update_keeps_legacy_publication_flags(app, client):
     assert data["isActive"] is True
     with app.app_context():
         business = db.session.get(Establishment, establishment_id)
-        assert business.published_at == when
+        # SQLite drops timezone information when reading DateTime columns.
+        assert business.published_at.replace(tzinfo=None) == when.replace(tzinfo=None)
         assert business.onboarding_completed is True
         assert business.is_active is True
 
