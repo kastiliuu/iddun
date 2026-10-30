@@ -65,6 +65,40 @@
   </div>
 </section>
 
+<section class="landing-section" id="trabalhos" aria-labelledby="landing-works-title">
+  <div class="container">
+    <div class="landing-section-head">
+      <div><span class="landing-eyebrow">Trabalhos reais</span><h2 id="landing-works-title">O talento de quem <em>faz.</em></h2></div>
+      <a class="landing-text-link" href="{{ url_for('public.experiences') }}">Explorar todos {{ icon('arrow-right') }}</a>
+    </div>
+    {% if real_works %}
+    <div class="landing-work-scroll" aria-label="Serviços publicados no IDDUN" tabindex="0">
+      {% for work in real_works %}
+      <article class="landing-profile-card landing-work-card" id="landing-work-{{ loop.index }}">
+        <a class="landing-work-card__visual" href="{{ url_for('public.professional_detail', slug=work.professional_slug, servico=work.slug) }}#portfolio" aria-label="Ver {{ work.title }} no perfil de {{ work.professional }}">
+          {% if work.image %}
+          <img src="{{ work.image|media_url }}" alt="Trabalho de {{ work.professional }}" loading="lazy">
+          {% elif work.works %}
+          <img src="{{ work.works[0].image|media_url }}" alt="Portfólio de {{ work.professional }}" loading="lazy">
+          {% else %}
+          <span class="landing-work-card__empty">Trabalho ainda sem foto publicada</span>
+          {% endif %}
+        </a>
+        <div class="landing-profile-card__body">
+          <span>{{ work.category_label }}</span>
+          <h3>{{ work.title }}</h3>
+          <p>{{ work.professional }} · {{ work.location }}</p>
+          <a href="{{ url_for('public.professional_detail', slug=work.professional_slug, servico=work.slug) }}#portfolio">Ver trabalho e perfil {{ icon('arrow-right') }}</a>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="landing-empty"><div><h3>Os primeiros trabalhos estão a caminho</h3><p>Quando profissionais publicarem serviços, eles aparecerão aqui.</p></div><a class="landing-button landing-button--primary" href="{{ url_for('public.experiences') }}">Explorar serviços</a></div>
+    {% endif %}
+  </div>
+</section>
+
 <section class="landing-section landing-section--soft" id="profissionais" aria-labelledby="landing-pro-title">
   <div class="container">
     <div class="landing-section-head landing-reveal">
