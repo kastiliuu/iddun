@@ -254,10 +254,17 @@ def _home_data():
         for item in list_establishments()[:4]
     ]
 
+    # H-2: real published services only; prototypes never become testimonials.
+    real_works = [
+        item for item in list_experiences()
+        if item.get("source") == "database"
+    ][:8]
+
     return (
         HOME_CATEGORIES,
         professionals,
         establishments,
+        real_works,
     )
 
 
@@ -271,6 +278,7 @@ def home():
         categories,
         professionals,
         studios,
+        real_works,
     ) = _home_data()
 
     return render_template(
@@ -278,6 +286,7 @@ def home():
         categories=categories,
         professionals=professionals,
         studios=studios,
+        real_works=real_works,
         home_stats=get_home_stats(),
         current_page="home",
     )
