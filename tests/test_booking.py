@@ -2238,3 +2238,31 @@ def test_stabilization_rebook_checks_valid_slot_beyond_first_forty(app):
         valid.status = SlotStatus.BLOCKED_MANUAL
         db.session.commit()
         assert rebook_offer(booking) is None
+
+
+def test_book_state_01_cutoff_boundary_is_exact(app):
+    """At deadline an available slot expires; one second earlier it remains available."""
+    _, slot_ids = _catalog(app, slot_count=1, cutoff=60)
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        deadline = booking_deadline(slot)
+
+        refresh_slot(slot, now=deadline - timedelta(seconds=1))
+        assert slot.status == SlotStatus.AVAILABLE
+
+        refresh_slot(slot, now=deadline)
+        assert slot.status == SlotStatus.EXPIRED
+
+
+def test_book_state_01_future_slot_does_not_expire_early(app):
+    """A published future slot remains bookable prior to its cutoff."""
+    _, slot_ids = _catalog(app, slot_count=1, cutoff=60)
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        now = booking_deadline(slot) - timedelta(minutes=15)
+
+        refresh_slot(slot, now=now)
+        assert slot.status == SlotStatus.AVAILABLE
+        assert as_utc(slot.starts_at) > now
