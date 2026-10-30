@@ -2266,3 +2266,29 @@ def test_book_state_01_future_slot_does_not_expire_early(app):
         refresh_slot(slot, now=now)
         assert slot.status == SlotStatus.AVAILABLE
         assert as_utc(slot.starts_at) > now
+
+
+def test_book_state_01_published_service_remains_discoverable_after_cutoff(app):
+    """Slot expiry must not change a published service into an expired offer."""
+    from app.services.experience_service import list_experiences
+
+    experience_id, slot_ids = _catalog(app, slot_count=1, cutoff=60)
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        slot.starts_at = utcnow() + timedelta(minutes=30)
+        slot.ends_at = slot.starts_at + timedelta(hours=1)
+        db.session.commit()
+
+        items = list_experiences()
+        matching = [
+            item for item in items
+            if item.get("source") == "database"
+            and item.get("database_id") == experience_id
+        ]
+
+        assert len(matching) == 1
+        assert matching[0]["available_slots_count"] == 0
+        assert matching[0]["next_available_label"] == "Novos horários em breve"
+        assert db.session.get(Experience, experience_id).status == ExperienceStatus.PUBLISHED
+        assert db.session.get(ExperienceSlot, slot_ids[0]).status == SlotStatus.EXPIRED
