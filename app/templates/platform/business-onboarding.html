@@ -421,6 +421,19 @@
           </div>
 
           <div class="platform-form-grid">
+            <div class="platform-field">
+              {{ form.operation_mode.label(class_="platform-label") }}
+              {{ form.operation_mode(class_="platform-select") }}
+              {{ field_errors(form.operation_mode) }}
+            </div>
+            <div class="platform-field">
+              {{ form.business_hours_mode.label(class_="platform-label") }}
+              {{ form.business_hours_mode(class_="platform-select") }}
+              {{ field_errors(form.business_hours_mode) }}
+            </div>
+            <p class="platform-field platform-field--wide">Horários fixos poderão ser configurados depois. Esta etapa não altera a publicação atual.</p>
+          </div>
+          <div class="platform-form-grid">
             <div
               class="platform-field platform-field--wide"
             >
