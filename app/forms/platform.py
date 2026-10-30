@@ -207,6 +207,8 @@ class BusinessOnboardingForm(IddunForm):
     whatsapp_enabled = BooleanField("Mostrar botão do WhatsApp na página da empresa", default=True)
     email = StringField("E-mail comercial", validators=[Optional(), Email(), Length(max=255)])
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
+    operation_mode = SelectField("Modalidade de atendimento", choices=[("", "Definir depois"), ("physical", "No estabelecimento"), ("mobile", "No endereço do cliente"), ("hybrid", "Híbrido")], validators=[Optional()])
+    business_hours_mode = SelectField("Funcionamento", choices=[("", "Definir depois"), ("scheduled", "Sob agendamento")], validators=[Optional()])
     address_line1 = StringField("Endereço", validators=[DataRequired(), Length(max=180)])
     address_line2 = StringField("Complemento", validators=[Optional(), Length(max=120)])
     neighborhood = StringField("Bairro", validators=[Optional(), Length(max=100)])

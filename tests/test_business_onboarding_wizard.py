@@ -186,3 +186,42 @@ def test_all_web_forms_answer_in_portuguese(app):
             assert english not in message
     assert "Informe um e-mail válido." in register.errors["email"]
     assert "logo_file" not in onboarding.errors
+
+
+def test_nv07_business_optional_operation_fields_persist_without_changing_publication(app, client):
+    _login(client, _owner(app, "nv07-business@example.com"))
+
+    response = client.post(
+        "/business/onboarding",
+        data={
+            **VALID,
+            "name": "Studio NV07",
+            "operation_mode": "hybrid",
+            "business_hours_mode": "scheduled",
+            "email": "contato@nv07.example",
+        },
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.name == "Studio NV07")
+        )
+        assert establishment is not None
+        assert establishment.operation_mode == "hybrid"
+        assert establishment.business_hours_mode == "scheduled"
+        assert establishment.email == "contato@nv07.example"
+        # Current Web publishing behavior is intentionally unchanged.
+        assert establishment.published_at is not None
+
+
+def test_nv07_business_invalid_operation_mode_does_not_persist(app, client):
+    _login(client, _owner(app, "nv07-invalid@example.com"))
+    response = client.post(
+        "/business/onboarding",
+        data={**VALID, "operation_mode": "outside_contract"},
+    )
+    assert response.status_code == 200
+    assert _count(app) == 0
+    assert "operation_mode" in response.get_data(as_text=True)

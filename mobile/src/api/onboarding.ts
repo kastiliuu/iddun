@@ -105,6 +105,9 @@ export type ProfessionalDraftPayload = {
 };
 
 export type EstablishmentDraftPayload = {
+  operationMode?: "physical" | "mobile" | "hybrid";
+  businessHoursMode?: "scheduled";
+  commercialEmail?: string;
   name: string;
   category: string;
   city: string;

@@ -1834,6 +1834,8 @@ def onboarding():
                         form.description.data.strip()
                     ),
                     category=form.category.data,
+                    operation_mode=form.operation_mode.data or None,
+                    business_hours_mode=form.business_hours_mode.data or None,
                     visual_theme=_theme_for_business(
                         form.category.data
                     ),
