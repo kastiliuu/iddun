@@ -234,3 +234,36 @@ def test_public_legal_pages_are_available(
         "Versão pré-lançamento"
         in terms_text
     )
+
+
+def test_home_h2_shows_only_published_database_works(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.routes.public.list_experiences",
+        lambda: [
+            {
+                "source": "prototype", "title": "Serviço demonstrativo",
+                "slug": "demo",
+            },
+            {
+                "source": "database", "title": "Trabalho real H2",
+                "slug": "trabalho-h2", "professional": "Profissional H2",
+                "professional_slug": "profissional-h2",
+                "category_label": "Cabelo", "location": "Curitiba",
+                "image": None, "works": [],
+            },
+        ],
+    )
+    response = client.get("/")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "Trabalho real H2" in html
+    assert "Serviço demonstrativo" not in html
+    assert "/profissionais/profissional-h2?servico=trabalho-h2#portfolio" in html
+    assert "Trabalho ainda sem foto publicada" in html
+
+
+def test_home_h2_has_honest_empty_state(client, monkeypatch):
+    monkeypatch.setattr("app.routes.public.list_experiences", lambda: [])
+    html = client.get("/").get_data(as_text=True)
+    assert "Os primeiros trabalhos estão a caminho" in html
+    assert "landing-work-card" not in html
