@@ -123,6 +123,10 @@ export default function SignupProfessionalScreen() {
   const [phone, setPhone] =
     useState("");
 
+  const [businessOperationMode, setBusinessOperationMode] = useState<"" | "physical" | "mobile" | "hybrid">("");
+  const [businessHoursMode, setBusinessHoursMode] = useState<"" | "scheduled">("");
+  const [commercialEmail, setCommercialEmail] = useState("");
+
   const [city, setCity] =
     useState(
       "Curitiba",
@@ -361,6 +365,9 @@ export default function SignupProfessionalScreen() {
             };
 
           await saveEstablishmentDraft({
+            ...(businessOperationMode ? { operationMode: businessOperationMode } : {}),
+            ...(businessHoursMode ? { businessHoursMode } : {}),
+            ...(commercialEmail.trim() ? { commercialEmail: commercialEmail.trim() } : {}),
             name:
               businessName.trim(),
             category:
@@ -796,6 +803,47 @@ export default function SignupProfessionalScreen() {
               }
             />
           </View>
+
+          {isEstablishment ? (
+            <View style={styles.field}>
+              <Text style={styles.fieldLabel}>Modalidade de atendimento</Text>
+              {([
+                ["physical", "No estabelecimento"],
+                ["mobile", "No endereço do cliente"],
+                ["hybrid", "Híbrido"],
+              ] as const).map(([value, label]) => (
+                <Pressable
+                  key={value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: businessOperationMode === value }}
+                  onPress={() => setBusinessOperationMode(value)}
+                  style={[styles.categoryChip, businessOperationMode === value && styles.categoryChipSelected]}
+                >
+                  <Text style={[styles.categoryText, businessOperationMode === value && styles.categoryTextSelected]}>{label}</Text>
+                </Pressable>
+              ))}
+              <Text style={styles.fieldLabel}>Funcionamento</Text>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: businessHoursMode === "scheduled" }}
+                onPress={() => setBusinessHoursMode(businessHoursMode === "scheduled" ? "" : "scheduled")}
+                style={[styles.categoryChip, businessHoursMode === "scheduled" && styles.categoryChipSelected]}
+              >
+                <Text style={[styles.categoryText, businessHoursMode === "scheduled" && styles.categoryTextSelected]}>Atendimento sob agendamento</Text>
+              </Pressable>
+              <Text style={styles.fieldLabel}>E-mail comercial</Text>
+              <TextInput
+                value={commercialEmail}
+                onChangeText={setCommercialEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="contato@empresa.com.br (opcional)"
+                placeholderTextColor={colors.muted}
+                style={styles.input}
+              />
+            </View>
+          ) : null}
 
           <View
             style={
