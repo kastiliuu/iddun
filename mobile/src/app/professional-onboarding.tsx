@@ -795,8 +795,15 @@ export default function ProfessionalOnboardingScreen() {
           error.code ===
             "profile_incomplete"
         ) {
+          const details = error.details as
+            | { missingRequirements?: { message: string }[] }
+            | undefined;
+          const pending = (details?.missingRequirements ?? [])
+            .map((item) => item.message)
+            .join(" ");
           body =
-            "Seu rascunho está salvo. Complete os itens pendentes antes de publicar.";
+            "Seu rascunho está salvo. " +
+            (pending || "Complete os itens pendentes antes de publicar.");
         }
 
         toast.show({
@@ -810,6 +817,11 @@ export default function ProfessionalOnboardingScreen() {
         setPublishing(false);
       }
     };
+
+  const readyToPublish =
+    profile?.journey?.readyToPublish ??
+    profile?.completion.readyToPublish ??
+    false;
 
   if (loading) {
     return (
@@ -2191,7 +2203,7 @@ export default function ProfessionalOnboardingScreen() {
               styles.sectionTitle
             }
           >
-            {profile.completion.readyToPublish
+            {readyToPublish
               ? "Tudo pronto para entrar no ar."
               : "Seu rascunho está seguro."}
           </Text>
@@ -2201,10 +2213,22 @@ export default function ProfessionalOnboardingScreen() {
               styles.sectionDescription
             }
           >
-            {profile.completion.readyToPublish
+            {readyToPublish
               ? "Revise a prévia e publique quando estiver confortável."
-              : "Complete os itens pendentes acima. Tudo fica salvo para você continuar depois sem perder seus dados."}
+              : "Tudo fica salvo para você continuar depois sem perder seus dados. Para publicar, falta:"}
           </Text>
+
+          {/* Mesmas pendências do Web, vindas da API (onboarding PR 2). */}
+          {!profile.isActive
+            ? (profile.journey?.missingRequirements ?? []).map((item) => (
+                <Text
+                  key={item.key}
+                  style={styles.sectionDescription}
+                >
+                  • {item.message}
+                </Text>
+              ))
+            : null}
 
           <Button
             title={
@@ -2215,8 +2239,7 @@ export default function ProfessionalOnboardingScreen() {
             fullWidth
             disabled={
               profile.isActive ||
-              !profile.completion
-                .readyToPublish
+              !readyToPublish
             }
             loading={
               publishing

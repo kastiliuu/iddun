@@ -28,7 +28,6 @@ import {
 import {
   getProfessionalOnboarding,
   saveEstablishmentDraft,
-  saveProfessionalDraft,
 } from "@/api/onboarding";
 
 import {
@@ -160,6 +159,9 @@ export default function SignupProfessionalScreen() {
   const [loading, setLoading] =
     useState(false);
 
+  const [professionalDraft, setProfessionalDraft] =
+    useState<"none" | "draft" | "published">("none");
+
   useEffect(
     () => {
       let mounted = true;
@@ -198,6 +200,10 @@ export default function SignupProfessionalScreen() {
 
             const profile =
               response.profile;
+
+            setProfessionalDraft(
+              profile.isActive ? "published" : "draft",
+            );
 
             setAccountType(
               "professional",
@@ -416,39 +422,6 @@ export default function SignupProfessionalScreen() {
 
           router.replace(
             "/(tabs)/profile",
-          );
-        } else {
-          await saveProfessionalDraft({
-            displayName:
-              name.trim(),
-            primarySpecialty:
-              specialty.trim(),
-            categories:
-              selectedCategories,
-            attendanceModalities,
-            city:
-              city.trim(),
-            state:
-              state.trim().toUpperCase(),
-            bio:
-              bio.trim(),
-            phone:
-              phone.trim(),
-          });
-
-          await getCurrentUser();
-
-          toast.show({
-            title:
-              "Perfil salvo",
-            body:
-              "Seu rascunho profissional agora é real e fica salvo na sua conta.",
-            icon:
-              "check",
-          });
-
-          router.replace(
-            "/professional-onboarding",
           );
         }
       } finally {
@@ -693,6 +666,8 @@ export default function SignupProfessionalScreen() {
           </View>
         </View>
 
+        {isEstablishment ? (
+          <>
         <View
           style={
             styles.form
@@ -1339,6 +1314,43 @@ export default function SignupProfessionalScreen() {
           />
         </View>
 
+          </>
+        ) : (
+          // Onboarding PR 2: o cadastro profissional acontece por etapas,
+          // salvas no servidor, na tela /pro-onboarding (igual ao Web).
+          <View style={styles.proEntry}>
+            <Text style={styles.infoTitle}>
+              {professionalDraft === "published"
+                ? "Seu perfil profissional já está no ar."
+                : professionalDraft === "draft"
+                  ? "Você tem um cadastro profissional em andamento."
+                  : "Cadastro em 7 etapas curtas."}
+            </Text>
+            <Text style={styles.infoText}>
+              {professionalDraft === "published"
+                ? "Para mudar fotos, portfólio ou apresentação, use o editor do seu perfil."
+                : "Uma pergunta por vez. Cada etapa fica salva e você publica quando estiver tudo pronto."}
+            </Text>
+            <Button
+              title={
+                professionalDraft === "published"
+                  ? "Editar meu perfil"
+                  : professionalDraft === "draft"
+                    ? "Continuar cadastro"
+                    : "Começar cadastro profissional"
+              }
+              fullWidth
+              onPress={() =>
+                router.push(
+                  professionalDraft === "published"
+                    ? "/professional-onboarding"
+                    : "/pro-onboarding",
+                )
+              }
+            />
+          </View>
+        )}
+
         <View
           style={
             styles.bottomSpace
@@ -1351,6 +1363,14 @@ export default function SignupProfessionalScreen() {
 
 const useStyles = makeStyles(
   (colors) => ({
+    proEntry: {
+      marginTop:
+        spacing.xxl,
+
+      gap:
+        spacing.md,
+    },
+
     container: {
       flex: 1,
 

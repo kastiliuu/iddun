@@ -101,6 +101,7 @@ export type ProfessionalOnboardingProfile = {
   headline?: string;
   instagram?: string;
   whatsappEnabled?: boolean;
+  visualTheme?: "beauty" | "barber" | "tattoo";
   city: string;
   state: string;
   avatarUrl?: string | null;
@@ -149,6 +150,7 @@ export type ProfessionalDraftPatch = Partial<{
   whatsappEnabled: boolean;
   instagram: string | null;
   attendanceModalities: string[] | null;
+  visualTheme: "beauty" | "barber" | "tattoo" | null;
 }>;
 
 export type BusinessHours = Partial<Record<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday", { start: string; end: string }[]>>;
