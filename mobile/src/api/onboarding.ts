@@ -187,6 +187,7 @@ export type EstablishmentDraftPatch = Partial<{
   operationMode: "physical" | "mobile" | "hybrid" | null;
   businessHoursMode: "scheduled" | "fixed_hours" | null;
   businessHours: BusinessHours | null;
+  whatsappEnabled: boolean;
 }>;
 
 export type EstablishmentDraft = {
@@ -196,6 +197,7 @@ export type EstablishmentDraft = {
   category?: string | null;
   description: string;
   phone: string;
+  whatsappEnabled?: boolean;
   neighborhood: string;
   city: string;
   state: string;
