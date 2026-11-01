@@ -23,13 +23,26 @@ from app.services.establishment_readiness_service import evaluate_establishment_
 from app.services.media_storage import resolve_image_url
 from app.services.mobile_onboarding_service import (
     MobileOnboardingError,
+    OnboardingConflict,
+    OnboardingNotFound,
     PROFESSIONAL_CATEGORIES,
     add_professional_experience,
     create_establishment_draft,
     create_professional_draft,
     delete_professional_experience,
+    owned_establishment,
+    owned_establishments,
     professional_completion,
+    publish_establishment,
     publish_professional_profile,
+    update_establishment_draft,
+    update_professional_draft,
+)
+from app.services.onboarding_steps import (
+    BUSINESS_REQUIREMENT_LABELS,
+    PROFESSIONAL_REQUIREMENT_LABELS,
+    business_journey,
+    professional_journey,
 )
 
 
@@ -208,6 +221,9 @@ def _professional_payload(profile):
         ),
         "bio": profile.bio or "",
         "phone": profile.phone or "",
+        "headline": profile.headline or "",
+        "instagram": profile.instagram or "",
+        "whatsappEnabled": bool(profile.whatsapp_enabled),
         "city": profile.city or "",
         "state": profile.state or "",
         "attendanceModalities": (profile.attendance_modalities or "").split(",") if profile.attendance_modalities else [],
@@ -258,6 +274,8 @@ def _professional_payload(profile):
         "completion": professional_completion(
             profile
         ),
+        # Etapas, pendências e os quatro estados separados (onboarding PR 1).
+        "journey": professional_journey(profile),
         "experiences": [
             _experience_payload(item)
             for item
@@ -292,6 +310,8 @@ def _establishment_payload(item):
         "businessHoursMode": item.business_hours_mode,
         "businessHours": item.business_hours,
         "addressLine1": item.address_line1,
+        "addressLine2": item.address_line2,
+        "postalCode": item.postal_code,
         "commercialEmail": item.email or "",
         "neighborhood": (
             item.neighborhood or ""
@@ -302,10 +322,85 @@ def _establishment_payload(item):
         "onboardingCompleted": (
             item.onboarding_completed
         ),
+        "publishedAt": (
+            item.published_at.isoformat()
+            if item.published_at
+            else None
+        ),
         "profileCompletion": (
             item.profile_completion
         ),
+        "journey": business_journey(item),
     }
+
+
+ESTABLISHMENT_FIELDS = (
+    ("name", "name"),
+    ("category", "category"),
+    ("city", "city"),
+    ("state", "state"),
+    ("description", "description"),
+    ("phone", "phone"),
+    ("neighborhood", "neighborhood"),
+    ("addressLine1", "address_line1"),
+    ("addressLine2", "address_line2"),
+    ("postalCode", "postal_code"),
+    ("commercialEmail", "commercial_email"),
+    ("operationMode", "operation_mode"),
+    ("businessHoursMode", "business_hours_mode"),
+    ("businessHours", "business_hours"),
+)
+
+PROFESSIONAL_FIELDS = (
+    ("displayName", "display_name"),
+    ("headline", "headline"),
+    ("primarySpecialty", "primary_specialty"),
+    ("categories", "categories"),
+    ("city", "city"),
+    ("state", "state"),
+    ("bio", "bio"),
+    ("phone", "phone"),
+    ("whatsappEnabled", "whatsapp_enabled"),
+    ("instagram", "instagram"),
+    ("attendanceModalities", "attendance_modalities"),
+)
+
+
+def _partial_changes(payload, fields):
+    """Traduz só as chaves enviadas; chave desconhecida é rejeitada."""
+    known = dict(fields)
+    unknown = set(payload) - set(known)
+    if unknown:
+        raise MobileOnboardingError(
+            "Campo não permitido: " + ", ".join(sorted(unknown)) + "."
+        )
+    return {known[key]: value for key, value in payload.items()}
+
+
+def _establishment_id(value):
+    if isinstance(value, bool):
+        raise MobileOnboardingError("Identificador do estabelecimento inválido.")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value.strip())
+    raise MobileOnboardingError("Identificador do estabelecimento inválido.")
+
+
+def _onboarding_error(exc, *, labels):
+    if isinstance(exc, OnboardingNotFound):
+        return api_error("establishment_not_found", str(exc), 404)
+    if isinstance(exc, OnboardingConflict):
+        details = None
+        if exc.missing:
+            details = {
+                "missingRequirements": [
+                    {"key": key, "message": labels.get(key, key)}
+                    for key in exc.missing
+                ]
+            }
+        return api_error(exc.code, str(exc), 409, details=details)
+    return api_error("invalid_onboarding_data", str(exc), 400)
 
 
 @api_onboarding_bp.get(
@@ -378,22 +473,20 @@ def save_professional_onboarding():
                     "state",
                     "",
                 ),
-                bio=payload.get(
-                    "bio",
-                    "",
-                ),
-                phone=payload.get(
-                    "phone",
-                    "",
-                ),
+                **{
+                    key: payload[field]
+                    for field, key in (
+                        ("bio", "bio"),
+                        ("phone", "phone"),
+                    )
+                    if field in payload
+                },
                 attendance_modalities=payload.get("attendanceModalities"),
             )
         )
     except MobileOnboardingError as exc:
-        return api_error(
-            "invalid_onboarding_data",
-            str(exc),
-            400,
+        return _onboarding_error(
+            exc, labels=PROFESSIONAL_REQUIREMENT_LABELS,
         )
 
     return api_json(
@@ -431,57 +524,30 @@ def save_establishment_onboarding():
         return error
 
     try:
-        establishment = (
-            create_establishment_draft(
-                **{
-                    key: payload[field]
-                    for field, key in (
-                        ("operationMode", "operation_mode"),
-                        ("businessHoursMode", "business_hours_mode"),
-                        ("businessHours", "business_hours"),
-                        ("addressLine1", "address_line1"),
-                        ("commercialEmail", "commercial_email"),
-                    )
-                    if field in payload
-                },
-                user=user,
-                name=payload.get(
-                    "name",
-                    "",
-                ),
-                category=payload.get(
-                    "category",
-                    "",
-                ),
-                city=payload.get(
-                    "city",
-                    "",
-                ),
-                state=payload.get(
-                    "state",
-                    "",
-                ),
-                description=payload.get(
-                    "description",
-                    "",
-                ),
-                phone=payload.get(
-                    "phone",
-                    "",
-                ),
-                neighborhood=payload.get(
-                    "neighborhood",
-                    "",
-                ),
-            )
+        establishment_id = (
+            _establishment_id(payload["establishmentId"])
+            if payload.get("establishmentId") not in (None, "")
+            else None
+        )
+        establishment = create_establishment_draft(
+            **{
+                key: payload[field]
+                for field, key in ESTABLISHMENT_FIELDS[4:]
+                if field in payload
+            },
+            user=user,
+            name=payload.get("name", ""),
+            category=payload.get("category", ""),
+            city=payload.get("city", ""),
+            state=payload.get("state", ""),
+            establishment_id=establishment_id,
         )
     except MobileOnboardingError as exc:
-        return api_error(
-            "invalid_onboarding_data",
-            str(exc),
-            400,
+        return _onboarding_error(
+            exc, labels=BUSINESS_REQUIREMENT_LABELS,
         )
 
+    # 201 mantido também na atualização: contrato do app desde a V0.
     return api_json(
         {
             "establishment": (
@@ -491,6 +557,109 @@ def save_establishment_onboarding():
             )
         },
         201,
+        cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.patch("/professional")
+@csrf.exempt
+@limiter.limit("60 per hour")
+def patch_professional_onboarding():
+    """Salva uma etapa do perfil: só as chaves enviadas mudam."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    try:
+        profile = update_professional_draft(
+            user=user,
+            changes=_partial_changes(payload, PROFESSIONAL_FIELDS),
+        )
+    except MobileOnboardingError as exc:
+        return _onboarding_error(exc, labels=PROFESSIONAL_REQUIREMENT_LABELS)
+    return api_json(
+        {"profile": _professional_payload(profile)},
+        cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.get("/establishments")
+def list_establishment_onboarding():
+    """Estabelecimentos do dono, com etapa atual, para retomar o cadastro."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    try:
+        items = owned_establishments(user)
+    except MobileOnboardingError as exc:
+        return _onboarding_error(exc, labels=BUSINESS_REQUIREMENT_LABELS)
+    return api_json(
+        {"establishments": [_establishment_payload(item) for item in items]},
+        cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.get("/establishments/<int:establishment_id>")
+def get_establishment_onboarding(establishment_id):
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    try:
+        establishment = owned_establishment(user, establishment_id)
+    except MobileOnboardingError as exc:
+        return _onboarding_error(exc, labels=BUSINESS_REQUIREMENT_LABELS)
+    return api_json(
+        {"establishment": _establishment_payload(establishment)},
+        cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.patch("/establishments/<int:establishment_id>")
+@csrf.exempt
+@limiter.limit("60 per hour")
+def patch_establishment_onboarding(establishment_id):
+    """Salva uma etapa pelo id estável; só o proprietário ativo altera."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    try:
+        establishment = update_establishment_draft(
+            user=user,
+            establishment_id=establishment_id,
+            changes=_partial_changes(payload, ESTABLISHMENT_FIELDS),
+        )
+    except MobileOnboardingError as exc:
+        return _onboarding_error(exc, labels=BUSINESS_REQUIREMENT_LABELS)
+    return api_json(
+        {"establishment": _establishment_payload(establishment)},
+        cache_control="no-store",
+    )
+
+
+@api_onboarding_bp.post("/establishments/<int:establishment_id>/publish")
+@csrf.exempt
+@limiter.limit("10 per hour")
+def publish_establishment_onboarding(establishment_id):
+    """Publicação explícita. Publicado não significa reservável (DEC-ID-108)."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    try:
+        establishment, already = publish_establishment(
+            user=user, establishment_id=establishment_id,
+        )
+    except MobileOnboardingError as exc:
+        return _onboarding_error(exc, labels=BUSINESS_REQUIREMENT_LABELS)
+    return api_json(
+        {
+            "establishment": _establishment_payload(establishment),
+            "alreadyPublished": already,
+        },
         cache_control="no-store",
     )
 
@@ -662,13 +831,17 @@ def publish_professional():
             409,
         )
 
+    already = bool(profile.is_active)
+
     try:
-        publish_professional_profile(
+        profile = publish_professional_profile(
             profile
         )
-    except MobileOnboardingError as exc:
+    except OnboardingConflict as exc:
+        # Contrato anterior mantido (`completion`) + pendências com mensagem.
+        profile = user.professional_profile
         return api_error(
-            "profile_incomplete",
+            exc.code,
             str(exc),
             409,
             details={
@@ -676,7 +849,14 @@ def publish_professional():
                     professional_completion(
                         profile
                     )
-                )
+                ),
+                "missingRequirements": [
+                    {
+                        "key": key,
+                        "message": PROFESSIONAL_REQUIREMENT_LABELS[key],
+                    }
+                    for key in exc.missing
+                ],
             },
         )
 
@@ -686,7 +866,8 @@ def publish_professional():
                 _professional_payload(
                     profile
                 )
-            )
+            ),
+            "alreadyPublished": already,
         },
         cache_control="no-store",
     )

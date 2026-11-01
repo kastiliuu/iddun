@@ -1,13 +1,24 @@
-"""Identidade profissional e rascunhos usados pelo aplicativo móvel.
+"""Identidade profissional e rascunhos do onboarding (Expo e, a partir da
+PR 2, Web).
 
-O serviço reaproveita os mesmos modelos do web. O app pode criar e atualizar
-um rascunho privado, retomá-lo depois e só publicar quando os requisitos
-centrais do perfil estiverem completos.
+O serviço reaproveita os mesmos modelos do web. Um rascunho é privado, pode
+ser salvo por etapa e retomado depois; só vai ao ar por publicação explícita,
+quando o servidor confirma os requisitos.
+
+Contrato de salvamento parcial (PR 1 do onboarding, 01/11/2026):
+
+- campo ausente no envio: o valor salvo é preservado;
+- ``null`` ou texto vazio em campo opcional: limpeza explícita, validada;
+- campo obrigatório (nome, tipo, cidade, UF) não pode ser limpo;
+- num registro publicado, nenhuma edição pode remover um requisito de
+  publicação que hoje está cumprido (resposta 409); legados incompletos
+  continuam publicados e editáveis nos demais campos.
 """
 
 from datetime import date
 import re
 
+from flask import current_app
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
@@ -28,12 +39,35 @@ from app.models.professional_experience import (
 )
 from app.services.slug_service import unique_public_handle
 from app.services.establishment_readiness_service import (
-    HOURS_MODES, OPERATION_MODES, valid_business_hours,
+    HOURS_MODES, OPERATION_MODES, evaluate_establishment_readiness,
+    valid_business_hours,
+)
+from app.services.onboarding_steps import (
+    BUSINESS_REQUIREMENT_LABELS,
+    PROFESSIONAL_REQUIREMENT_LABELS,
+    professional_missing_requirements,
 )
 
 
 class MobileOnboardingError(ValueError):
     """Dados inválidos ou operação de onboarding não permitida."""
+
+
+class OnboardingNotFound(MobileOnboardingError):
+    """Registro inexistente ou de outra conta (mesma resposta, sem enumerar)."""
+
+
+class OnboardingConflict(MobileOnboardingError):
+    """Operação válida no formato, mas incompatível com o estado atual."""
+
+    def __init__(self, code, message, *, missing=()):
+        super().__init__(message)
+        self.code = code
+        self.missing = tuple(missing)
+
+
+# Ausência de um campo no envio: preservar o valor salvo.
+UNSET = object()
 
 
 PROFESSIONAL_CATEGORIES = {
@@ -92,6 +126,20 @@ def _text(value, label, *, minimum=0, maximum, required=False):
             f"{label}: use no máximo {maximum} caracteres."
         )
 
+    return clean
+
+
+def _optional_text(value, label, *, minimum=0, maximum):
+    """Campo opcional: ``None`` ou vazio limpam; outro tipo é inválido."""
+    if value is None:
+        return None
+    return _text(value, label, minimum=minimum, maximum=maximum) or None
+
+
+def _state(value):
+    clean = _text(value, "UF", minimum=2, maximum=2, required=True).upper()
+    if len(clean) != 2 or not clean.isalpha():
+        raise MobileOnboardingError("UF: informe duas letras.")
     return clean
 
 
@@ -159,11 +207,16 @@ def create_professional_draft(
     categories,
     city,
     state,
-    bio="",
-    phone="",
+    bio=UNSET,
+    phone=UNSET,
     attendance_modalities=None,
 ):
-    """Cria ou atualiza o único perfil profissional da conta."""
+    """Cria ou atualiza o único perfil profissional da conta.
+
+    Contrato completo usado pelo app desde a V0: nome, especialidade,
+    áreas, cidade e UF são sempre enviados. Bio e telefone ausentes são
+    preservados (antes eram apagados).
+    """
     _active_user(user)
 
     clean_name = _text(
@@ -181,8 +234,8 @@ def create_professional_draft(
         required=True,
     )
     clean_city, clean_state = _location(city, state)
-    clean_bio = _text(bio, "Apresentação", maximum=2000)
-    clean_phone = _text(phone, "Telefone", maximum=32)
+    clean_bio = UNSET if bio is UNSET else _optional_text(bio, "Apresentação", maximum=2000)
+    clean_phone = UNSET if phone is UNSET else _optional_text(phone, "Telefone", maximum=32)
     specialties = _professional_categories(categories)
 
     profile = db.session.scalar(
@@ -191,6 +244,7 @@ def create_professional_draft(
         )
     )
     is_new = profile is None
+    before = None if is_new else set(professional_missing_requirements(profile))
 
     if is_new:
         profile = ProfessionalProfile(
@@ -211,13 +265,18 @@ def create_professional_draft(
     profile.display_name = clean_name
     profile.primary_specialty = clean_specialty
     profile.specialties_text = specialties
-    profile.bio = clean_bio or None
-    profile.phone = clean_phone or None
-    profile.whatsapp_enabled = bool(clean_phone)
+    if clean_bio is not UNSET:
+        profile.bio = clean_bio
+    if clean_phone is not UNSET:
+        profile.phone = clean_phone
+        profile.whatsapp_enabled = bool(clean_phone)
     profile.city = clean_city
     profile.state = clean_state
     if attendance_modalities is not None:
         profile.attendance_modalities = _attendance_modalities(attendance_modalities)
+
+    if before is not None:
+        _guard_professional_publication(profile, before)
 
     try:
         db.session.commit()
@@ -240,9 +299,127 @@ def create_professional_draft(
     return profile
 
 
+def _guard_professional_publication(profile, before_missing):
+    """Perfil no ar não pode perder um requisito que hoje cumpre."""
+    if not profile.is_active:
+        return
+    removed = [key for key in professional_missing_requirements(profile)
+               if key not in before_missing]
+    if removed:
+        db.session.rollback()
+        raise OnboardingConflict(
+            "publication_requirement_removed",
+            "Seu perfil está publicado. Para manter a página no ar, "
+            "estes dados não podem ficar vazios: "
+            + " ".join(PROFESSIONAL_REQUIREMENT_LABELS[key] for key in removed),
+            missing=removed,
+        )
+
+
+def update_professional_draft(*, user, changes):
+    """Salva uma etapa do perfil profissional (atualização parcial).
+
+    Só as chaves presentes em ``changes`` mudam. Sem perfil, cria um
+    rascunho privado a partir do nome profissional (única coluna exigida
+    pelo banco); as demais etapas completam depois.
+    """
+    _active_user(user)
+    allowed = {
+        "display_name", "headline", "primary_specialty", "categories", "city",
+        "state", "bio", "phone", "whatsapp_enabled", "instagram",
+        "attendance_modalities",
+    }
+    unknown = set(changes) - allowed
+    if unknown:
+        raise MobileOnboardingError("Campo não permitido nesta etapa.")
+
+    values = {}
+    if "display_name" in changes:
+        values["display_name"] = _text(
+            changes["display_name"], "Nome profissional",
+            minimum=2, maximum=140, required=True,
+        )
+    if "headline" in changes:
+        values["headline"] = _optional_text(changes["headline"], "Chamada", maximum=180)
+    if "primary_specialty" in changes:
+        values["primary_specialty"] = _optional_text(
+            changes["primary_specialty"], "Especialidade", minimum=2, maximum=120,
+        )
+    if "categories" in changes:
+        categories = changes["categories"]
+        values["specialties_text"] = (
+            None if categories in (None, []) else _professional_categories(categories)
+        )
+    if "city" in changes:
+        values["city"] = _optional_text(changes["city"], "Cidade", minimum=2, maximum=100)
+    if "state" in changes:
+        values["state"] = None if changes["state"] in (None, "") else _state(changes["state"])
+    if "bio" in changes:
+        values["bio"] = _optional_text(changes["bio"], "Apresentação", maximum=2000)
+    if "phone" in changes:
+        values["phone"] = _optional_text(changes["phone"], "Telefone", maximum=32)
+    if "instagram" in changes:
+        values["instagram"] = _optional_text(changes["instagram"], "Instagram", maximum=120)
+    if "whatsapp_enabled" in changes:
+        if not isinstance(changes["whatsapp_enabled"], bool):
+            raise MobileOnboardingError("WhatsApp: informe sim ou não.")
+        values["whatsapp_enabled"] = changes["whatsapp_enabled"]
+    if "attendance_modalities" in changes:
+        modalities = changes["attendance_modalities"]
+        values["attendance_modalities"] = (
+            None if modalities in (None, []) else _attendance_modalities(modalities)
+        )
+
+    profile = db.session.scalar(
+        select(ProfessionalProfile).where(ProfessionalProfile.user_id == user.id)
+    )
+    if profile is None:
+        if "display_name" not in values:
+            raise MobileOnboardingError(
+                "Nome profissional: preenchimento obrigatório."
+            )
+        profile = ProfessionalProfile(
+            user_id=user.id,
+            display_name=values["display_name"],
+            slug=unique_public_handle(values["display_name"], resource_type="professional"),
+            plan_tier="free",
+            onboarding_completed=False,
+            published_at=None,
+            is_active=False,
+            claimed_at=utcnow(),
+        )
+        db.session.add(profile)
+        before = None
+    else:
+        before = set(professional_missing_requirements(profile))
+
+    for field, value in values.items():
+        setattr(profile, field, value)
+    if "phone" in values and not values["phone"]:
+        profile.whatsapp_enabled = False
+
+    if before is not None:
+        _guard_professional_publication(profile, before)
+
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        existing = db.session.scalar(
+            select(ProfessionalProfile).where(ProfessionalProfile.user_id == user.id)
+        )
+        if before is None and existing is not None:
+            # Duas abas criando ao mesmo tempo: aplica a etapa no perfil vencedor.
+            return update_professional_draft(user=user, changes=changes)
+        raise MobileOnboardingError(
+            "Não foi possível salvar o perfil. Tente novamente."
+        ) from exc
+    return profile
+
+
 # The absence of an optional field on retry must not erase a previously
 # recorded business setting (particularly for historically published firms).
-_BUSINESS_UNSET = object()
+_BUSINESS_UNSET = UNSET
 
 
 def _optional_business_choice(value, allowed, label):
@@ -296,6 +473,137 @@ def _business_optional_values(*, operation_mode, business_hours_mode,
     return values
 
 
+_BUSINESS_FIELDS = {
+    "name", "category", "city", "state", "description", "phone",
+    "neighborhood", "address_line1", "address_line2", "postal_code",
+    "commercial_email", "operation_mode", "business_hours_mode",
+    "business_hours",
+}
+
+
+def _business_values(changes):
+    """Valida só as chaves presentes. Ausência preserva; vazio limpa."""
+    unknown = set(changes) - _BUSINESS_FIELDS
+    if unknown:
+        raise MobileOnboardingError("Campo não permitido nesta etapa.")
+
+    values = {}
+    if "name" in changes:
+        values["name"] = _text(
+            changes["name"], "Nome do estabelecimento",
+            minimum=2, maximum=160, required=True,
+        )
+    if "category" in changes:
+        category = _text(changes["category"], "Categoria", maximum=64, required=True)
+        if category not in BUSINESS_CATEGORIES:
+            raise MobileOnboardingError("Categoria do estabelecimento inválida.")
+        values["category"] = category
+    if "city" in changes:
+        values["city"] = _text(
+            changes["city"], "Cidade", minimum=2, maximum=100, required=True,
+        )
+    if "state" in changes:
+        values["state"] = _state(changes["state"])
+    for key, label, maximum in (
+        ("description", "Apresentação", 2000),
+        ("phone", "Telefone", 32),
+        ("neighborhood", "Bairro", 100),
+        ("address_line2", "Complemento", 120),
+        ("postal_code", "CEP", 16),
+    ):
+        if key in changes:
+            values[key] = _optional_text(changes[key], label, maximum=maximum)
+    if "phone" in values:
+        values["whatsapp_enabled"] = bool(values["phone"])
+    values.update(_business_optional_values(
+        operation_mode=changes.get("operation_mode", UNSET),
+        business_hours_mode=changes.get("business_hours_mode", UNSET),
+        business_hours=changes.get("business_hours", UNSET),
+        address_line1=changes.get("address_line1", UNSET),
+        commercial_email=changes.get("commercial_email", UNSET),
+    ))
+    return values
+
+
+def _owned_establishment_query(user):
+    return (
+        select(Establishment)
+        .join(EstablishmentUserAccess)
+        .where(
+            EstablishmentUserAccess.user_id == user.id,
+            EstablishmentUserAccess.role == EstablishmentAccessRole.OWNER,
+            EstablishmentUserAccess.status == EstablishmentAccessStatus.ACTIVE,
+        )
+    )
+
+
+def owned_establishments(user):
+    """Estabelecimentos em que a conta é proprietária ativa (retomada)."""
+    _active_user(user)
+    return db.session.scalars(
+        _owned_establishment_query(user).order_by(Establishment.id)
+    ).all()
+
+
+def owned_establishment(user, establishment_id, *, lock=False):
+    """Busca por id estável com autorização de proprietário ativo.
+
+    Inexistente e de outra conta têm a mesma resposta, para não revelar ids.
+    """
+    _active_user(user)
+    if (
+        isinstance(establishment_id, bool)
+        or not isinstance(establishment_id, int)
+        or not 0 < establishment_id <= 2_147_483_647  # limite de INTEGER
+    ):
+        raise OnboardingNotFound("Estabelecimento não encontrado.")
+    query = _owned_establishment_query(user).where(Establishment.id == establishment_id)
+    if lock:
+        query = query.with_for_update(of=Establishment).execution_options(
+            populate_existing=True,
+        )
+    establishment = db.session.scalar(query)
+    if establishment is None:
+        raise OnboardingNotFound("Estabelecimento não encontrado.")
+    return establishment
+
+
+def _guard_business_publication(establishment, before_missing):
+    if not establishment.is_active:
+        return
+    after = evaluate_establishment_readiness(establishment).missing_requirements
+    removed = [key for key in after if key not in before_missing]
+    if removed:
+        db.session.rollback()
+        raise OnboardingConflict(
+            "publication_requirement_removed",
+            "Este estabelecimento está publicado. Para manter a página no ar, "
+            "estes dados não podem ficar vazios: "
+            + " ".join(BUSINESS_REQUIREMENT_LABELS[key] for key in removed),
+            missing=removed,
+        )
+
+
+def _apply_business_values(establishment, values):
+    before = set(evaluate_establishment_readiness(establishment).missing_requirements)
+    for field, value in values.items():
+        setattr(establishment, field, value)
+    _guard_business_publication(establishment, before)
+    db.session.commit()
+    return establishment
+
+
+def update_establishment_draft(*, user, establishment_id, changes):
+    """Salva uma etapa de um estabelecimento do dono, pelo id estável.
+
+    Não altera ``is_active``, ``published_at`` nem ``onboarding_completed``.
+    O slug público não muda ao renomear.
+    """
+    establishment = owned_establishment(user, establishment_id)
+    values = _business_values(changes)
+    return _apply_business_values(establishment, values)
+
+
 def create_establishment_draft(
     *,
     user,
@@ -303,118 +611,104 @@ def create_establishment_draft(
     category,
     city,
     state,
-    description="",
-    phone="",
-    neighborhood="",
-    operation_mode=_BUSINESS_UNSET,
-    business_hours_mode=_BUSINESS_UNSET,
-    business_hours=_BUSINESS_UNSET,
-    address_line1=_BUSINESS_UNSET,
-    commercial_email=_BUSINESS_UNSET,
+    description=UNSET,
+    phone=UNSET,
+    neighborhood=UNSET,
+    operation_mode=UNSET,
+    business_hours_mode=UNSET,
+    business_hours=UNSET,
+    address_line1=UNSET,
+    address_line2=UNSET,
+    postal_code=UNSET,
+    commercial_email=UNSET,
+    establishment_id=None,
 ):
-    """Cria ou atualiza rascunho sem publicar ou inferir dados opcionais."""
+    """Cria rascunho (nome, tipo, cidade e UF válidos) ou atualiza o do dono.
+
+    Com ``establishment_id``: atualiza aquele estabelecimento, se a conta for
+    proprietária ativa. Sem id (clientes antigos): só reaproveita um rascunho
+    nunca publicado do próprio dono com o mesmo nome, cidade e UF; nunca
+    altera estabelecimento publicado por essa compatibilidade.
+    """
     _active_user(user)
 
-    clean_name = _text(
-        name,
-        "Nome do estabelecimento",
-        minimum=2,
-        maximum=160,
-        required=True,
-    )
-    clean_city, clean_state = _location(city, state)
-    clean_category = _text(
-        category,
-        "Categoria",
-        maximum=64,
-        required=True,
-    )
+    changes = {
+        "name": name,
+        "category": category,
+        "city": city,
+        "state": state,
+    }
+    for key, value in (
+        ("description", description),
+        ("phone", phone),
+        ("neighborhood", neighborhood),
+        ("operation_mode", operation_mode),
+        ("business_hours_mode", business_hours_mode),
+        ("business_hours", business_hours),
+        ("address_line1", address_line1),
+        ("address_line2", address_line2),
+        ("postal_code", postal_code),
+        ("commercial_email", commercial_email),
+    ):
+        if value is not UNSET:
+            changes[key] = value
 
-    if clean_category not in BUSINESS_CATEGORIES:
-        raise MobileOnboardingError(
-            "Categoria do estabelecimento inválida."
+    if establishment_id is not None:
+        return update_establishment_draft(
+            user=user, establishment_id=establishment_id, changes=changes,
         )
 
-    clean_description = _text(
-        description,
-        "Apresentação",
-        maximum=2000,
-    )
-    clean_phone = _text(
-        phone,
-        "Telefone",
-        maximum=32,
-    )
-    clean_neighborhood = _text(
-        neighborhood,
-        "Bairro",
-        maximum=100,
-    )
+    values = _business_values(changes)
 
-    extra = _business_optional_values(
-        operation_mode=operation_mode,
-        business_hours_mode=business_hours_mode,
-        business_hours=business_hours,
-        address_line1=address_line1,
-        commercial_email=commercial_email,
-    )
-
-    existing = db.session.scalar(
-        select(Establishment)
-        .join(EstablishmentUserAccess)
+    same_name = (
+        _owned_establishment_query(user)
         .where(
-            EstablishmentUserAccess.user_id == user.id,
-            EstablishmentUserAccess.role
-            == EstablishmentAccessRole.OWNER,
-            EstablishmentUserAccess.status
-            == EstablishmentAccessStatus.ACTIVE,
-            func.lower(Establishment.name)
-            == clean_name.lower(),
-            func.lower(Establishment.city)
-            == clean_city.lower(),
-            Establishment.state == clean_state,
+            func.lower(Establishment.name) == values["name"].lower(),
+            func.lower(Establishment.city) == values["city"].lower(),
+            Establishment.state == values["state"],
         )
         .order_by(Establishment.id)
     )
-
-    if existing is not None:
-        existing.description = clean_description or None
-        existing.phone = clean_phone or None
-        existing.whatsapp_enabled = bool(clean_phone)
-        existing.neighborhood = clean_neighborhood or None
-        existing.category = clean_category
-        for field, value in extra.items():
-            setattr(existing, field, value)
-        db.session.commit()
-        return existing
+    matches = db.session.scalars(same_name).all()
+    draft = next(
+        (item for item in matches
+         if not item.is_active and item.published_at is None),
+        None,
+    )
+    if draft is not None:
+        return _apply_business_values(draft, values)
+    if matches:
+        raise OnboardingConflict(
+            "establishment_exists",
+            "Você já tem um estabelecimento com este nome nesta cidade. "
+            "Edite-o pelo painel da empresa.",
+        )
 
     establishment = Establishment(
-        name=clean_name,
+        name=values["name"],
         slug=unique_public_handle(
-            clean_name,
+            values["name"],
             resource_type="establishment",
         ),
-        description=clean_description or None,
-        category=clean_category,
+        category=values["category"],
         visual_theme=(
             "barber"
-            if clean_category == "barbearia"
+            if values["category"] == "barbearia"
             else "tattoo"
-            if clean_category == "tatuagem"
+            if values["category"] == "tatuagem"
             else "beauty"
         ),
         plan_tier="free",
         onboarding_completed=False,
         published_at=None,
         is_active=False,
-        phone=clean_phone or None,
-        whatsapp_enabled=bool(clean_phone),
-        email=extra.get("email", user.email),
-        neighborhood=clean_neighborhood or None,
-        city=clean_city,
-        state=clean_state,
-        **{key: val for key, val in extra.items() if key != "email"},
+        whatsapp_enabled=False,
+        email=user.email,
+        city=values["city"],
+        state=values["state"],
     )
+    for field, value in values.items():
+        setattr(establishment, field, value)
 
     db.session.add(establishment)
 
@@ -436,6 +730,47 @@ def create_establishment_draft(
         ) from exc
 
     return establishment
+
+
+def publish_establishment(*, user, establishment_id):
+    """Publicação explícita, transacional e idempotente (DEC-ID-100/108).
+
+    Retorna ``(estabelecimento, ja_publicado)``. Um segundo clique não muda
+    nada. Página desativada pela moderação (``published_at`` preenchido e
+    ``is_active`` falso) não é reativada pelo dono. Publicar não torna nada
+    reservável: isso depende de serviço, executor e horário reais.
+    """
+    establishment = owned_establishment(user, establishment_id, lock=True)
+
+    if establishment.is_active:
+        db.session.rollback()
+        return establishment, True
+    if establishment.published_at is not None:
+        db.session.rollback()
+        raise OnboardingConflict(
+            "publication_locked",
+            "Esta página foi desativada e não pode ser publicada por aqui. "
+            "Fale com o suporte do IDDUN.",
+        )
+
+    readiness = evaluate_establishment_readiness(establishment)
+    if not readiness.ready_to_publish:
+        db.session.rollback()
+        raise OnboardingConflict(
+            "establishment_incomplete",
+            "Complete os requisitos obrigatórios antes de publicar.",
+            missing=readiness.missing_requirements,
+        )
+
+    establishment.is_active = True
+    establishment.onboarding_completed = True
+    establishment.published_at = utcnow()
+    db.session.commit()
+    current_app.logger.info(
+        "onboarding.establishment_published id=%s user=%s",
+        establishment.id, user.id,
+    )
+    return establishment, False
 
 
 def professional_completion(profile):
@@ -631,17 +966,46 @@ def publish_professional_profile(profile):
             "Crie seu perfil profissional antes de publicar."
         )
 
-    if not profile.ready_to_publish:
-        raise MobileOnboardingError(
-            "Complete os requisitos obrigatórios antes de publicar."
+    # Publicação explícita, transacional e idempotente: a linha fica travada
+    # até o commit (PostgreSQL) e um segundo clique não altera nada.
+    profile = db.session.scalar(
+        select(ProfessionalProfile)
+        .where(ProfessionalProfile.id == profile.id)
+        .with_for_update()
+        # Relê a linha travada mesmo que o objeto já esteja na sessão.
+        .execution_options(populate_existing=True)
+    )
+
+    if profile.is_active:
+        db.session.rollback()
+        return profile
+
+    if profile.published_at is not None:
+        # Desativado pela moderação: o dono não reativa por aqui.
+        db.session.rollback()
+        raise OnboardingConflict(
+            "publication_locked",
+            "Este perfil foi desativado e não pode ser publicado por aqui. "
+            "Fale com o suporte do IDDUN.",
+        )
+
+    missing = professional_missing_requirements(profile)
+    if missing:
+        db.session.rollback()
+        raise OnboardingConflict(
+            "profile_incomplete",
+            "Complete os requisitos obrigatórios antes de publicar.",
+            missing=missing,
         )
 
     profile.onboarding_completed = True
     profile.is_active = True
-
-    if profile.published_at is None:
-        profile.published_at = utcnow()
+    profile.published_at = utcnow()
 
     db.session.commit()
+    current_app.logger.info(
+        "onboarding.professional_published id=%s user=%s",
+        profile.id, profile.user_id,
+    )
 
     return profile
