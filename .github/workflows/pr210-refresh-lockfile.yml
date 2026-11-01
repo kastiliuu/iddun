@@ -1,5 +1,8 @@
 name: Refresh npm lockfile for PR 210
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - be/nv07-business-weekly-hours
