@@ -431,59 +431,27 @@
               {{ form.business_hours_mode(class_="platform-select") }}
               {{ field_errors(form.business_hours_mode) }}
             </div>
-            <div class="platform-field platform-field--wide">
-              <p>Se selecionar horários fixos, preencha início e fim de pelo menos um dia (HH:MM).</p>
-                            <div class="platform-field platform-field--wide">
-                <span class="platform-label">Segunda (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.monday_start.label(class_="platform-label") }}{{ form.monday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.monday_end.label(class_="platform-label") }}{{ form.monday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
+            {# Horários fixos: uma linha por dia. Sem JavaScript o bloco fica
+               sempre visível; com JavaScript aparece só para "Horários fixos". #}
+            <fieldset class="platform-field platform-field--wide platform-hours" data-hours-panel>
+              <legend class="platform-label">Horários de funcionamento</legend>
+              <p class="platform-help">Preencha abertura e fechamento dos dias em que atende. Deixe em branco os dias fechados.</p>
+              {% for day, name in [('monday', 'Segunda'), ('tuesday', 'Terça'), ('wednesday', 'Quarta'), ('thursday', 'Quinta'), ('friday', 'Sexta'), ('saturday', 'Sábado'), ('sunday', 'Domingo')] %}
+              {% set opens = form[day ~ '_start'] %}
+              {% set closes = form[day ~ '_end'] %}
+              <div class="platform-hours__row" role="group" aria-labelledby="hours-{{ day }}">
+                <span class="platform-hours__day" id="hours-{{ day }}">{{ name }}</span>
+                <label class="platform-hours__time">
+                  <span class="platform-hours__caption">Abertura</span>
+                  {{ opens(class_="platform-input", type="time", step="60", **{"aria-label": opens.label.text}) }}
+                </label>
+                <label class="platform-hours__time">
+                  <span class="platform-hours__caption">Fechamento</span>
+                  {{ closes(class_="platform-input", type="time", step="60", **{"aria-label": closes.label.text}) }}
+                </label>
               </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Terça (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.tuesday_start.label(class_="platform-label") }}{{ form.tuesday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.tuesday_end.label(class_="platform-label") }}{{ form.tuesday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Quarta (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.wednesday_start.label(class_="platform-label") }}{{ form.wednesday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.wednesday_end.label(class_="platform-label") }}{{ form.wednesday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Quinta (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.thursday_start.label(class_="platform-label") }}{{ form.thursday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.thursday_end.label(class_="platform-label") }}{{ form.thursday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Sexta (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.friday_start.label(class_="platform-label") }}{{ form.friday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.friday_end.label(class_="platform-label") }}{{ form.friday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Sábado (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.saturday_start.label(class_="platform-label") }}{{ form.saturday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.saturday_end.label(class_="platform-label") }}{{ form.saturday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              <div class="platform-field platform-field--wide">
-                <span class="platform-label">Domingo (opcional; deixe vazio se fechado)</span>
-                <div class="platform-form-grid">
-                  <div class="platform-field">{{ form.sunday_start.label(class_="platform-label") }}{{ form.sunday_start(class_="platform-input", placeholder="09:00", inputmode="numeric", maxlength="5") }}</div>
-                  <div class="platform-field">{{ form.sunday_end.label(class_="platform-label") }}{{ form.sunday_end(class_="platform-input", placeholder="18:00", inputmode="numeric", maxlength="5") }}</div>
-                </div>
-              </div>
-              {{ field_errors(form.business_hours_mode) }}
-            </div>
+              {% endfor %}
+            </fieldset>
           </div>
           <div class="platform-form-grid">
             <div

@@ -507,6 +507,22 @@
     hashTarget.focus({ preventScroll: true });
   }
 
+  // NV-07: o bloco de horários aparece só quando o funcionamento é
+  // "Horários fixos". Sem JavaScript ele continua visível.
+  const hoursMode = document.querySelector(
+    'select[name="business_hours_mode"]',
+  );
+  const hoursPanel = document.querySelector('[data-hours-panel]');
+
+  if (hoursMode && hoursPanel) {
+    const syncHoursPanel = () => {
+      hoursPanel.hidden = hoursMode.value !== 'fixed_hours';
+    };
+
+    hoursMode.addEventListener('change', syncHoursPanel);
+    syncHoursPanel();
+  }
+
   const form = (
     document.querySelector(
       '[data-wizard-form]',
