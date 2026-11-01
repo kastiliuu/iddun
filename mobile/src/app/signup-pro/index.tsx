@@ -124,8 +124,10 @@ export default function SignupProfessionalScreen() {
     useState("");
 
   const [businessOperationMode, setBusinessOperationMode] = useState<"" | "physical" | "mobile" | "hybrid">("");
-  const [businessHoursMode, setBusinessHoursMode] = useState<"" | "scheduled">("");
+  const [businessHoursMode, setBusinessHoursMode] = useState<"" | "scheduled" | "fixed_hours">("");
   const [commercialEmail, setCommercialEmail] = useState("");
+  const [weeklyHours, setWeeklyHours] = useState<Record<string, { start: string; end: string }>>({});
+  const [hoursError, setHoursError] = useState("");
 
   const [city, setCity] =
     useState(
@@ -364,9 +366,22 @@ export default function SignupProfessionalScreen() {
               massagem: "bem-estar",
             };
 
+          const weeklyEntries = Object.entries(weeklyHours).filter(([, range]) => range.start.trim() || range.end.trim());
+          if (businessHoursMode === "fixed_hours" && (
+            weeklyEntries.length === 0 || weeklyEntries.some(([, range]) =>
+              !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(range.start) ||
+              !/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(range.end) ||
+              range.start >= range.end
+            )
+          )) {
+            setHoursError("Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia.");
+            return;
+          }
+          setHoursError("");
           await saveEstablishmentDraft({
             ...(businessOperationMode ? { operationMode: businessOperationMode } : {}),
             ...(businessHoursMode ? { businessHoursMode } : {}),
+            ...(businessHoursMode === "fixed_hours" ? { businessHours: Object.fromEntries(Object.entries(weeklyHours).filter(([, range]) => range.start.trim() && range.end.trim()).map(([day, range]) => [day, [{ start: range.start, end: range.end }]])) } : {}),
             ...(commercialEmail.trim() ? { commercialEmail: commercialEmail.trim() } : {}),
             name:
               businessName.trim(),
@@ -831,6 +846,25 @@ export default function SignupProfessionalScreen() {
               >
                 <Text style={[styles.categoryText, businessHoursMode === "scheduled" && styles.categoryTextSelected]}>Atendimento sob agendamento</Text>
               </Pressable>
+              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: businessHoursMode === "fixed_hours" }}
+                onPress={() => setBusinessHoursMode(businessHoursMode === "fixed_hours" ? "" : "fixed_hours")}
+                style={[styles.categoryChip, businessHoursMode === "fixed_hours" && styles.categoryChipSelected]}>
+                <Text style={[styles.categoryText, businessHoursMode === "fixed_hours" && styles.categoryTextSelected]}>Horários fixos</Text>
+              </Pressable>
+              {businessHoursMode === "fixed_hours" ? (
+                <>
+                  {([["monday","Segunda"],["tuesday","Terça"],["wednesday","Quarta"],["thursday","Quinta"],["friday","Sexta"],["saturday","Sábado"],["sunday","Domingo"]] as [string, string][]).map(([day, label]) => (
+                    <View key={day} style={styles.field}>
+                      <Text style={styles.fieldLabel}>{label} (deixe vazio se fechado)</Text>
+                      <TextInput value={weeklyHours[day]?.start || ""} onChangeText={value => setWeeklyHours(previous => ({ ...previous, [day]: { start: value, end: previous[day]?.end || "" } }))}
+                        placeholder="Abertura 09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" style={styles.input} />
+                      <TextInput value={weeklyHours[day]?.end || ""} onChangeText={value => setWeeklyHours(previous => ({ ...previous, [day]: { start: previous[day]?.start || "", end: value } }))}
+                        placeholder="Fechamento 18:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" style={styles.input} />
+                    </View>
+                  ))}
+                  {hoursError ? <Text style={styles.fieldLabel} accessibilityRole="alert">{hoursError}</Text> : null}
+                </>
+              ) : null}
               <Text style={styles.fieldLabel}>E-mail comercial</Text>
               <TextInput
                 value={commercialEmail}
