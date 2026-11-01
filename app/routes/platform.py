@@ -1818,11 +1818,14 @@ def onboarding():
                 weekly_hours[day] = [{"start": start, "end": end}]
         if not valid_business_hours(weekly_hours):
             hours_valid = False
-            form.business_hours_mode.errors.append(
-                "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
-            )
 
-    if form.validate_on_submit() and hours_valid:
+    form_is_valid = form.validate_on_submit()
+    if request.method == "POST" and not hours_valid:
+        form.business_hours_mode.errors.append(
+            "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
+        )
+
+    if form_is_valid and hours_valid:
         try:
             with UploadBatch() as uploads:
                 logo_url = uploads.save_image(
