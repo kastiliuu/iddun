@@ -32,7 +32,7 @@ from app.models.establishment import (
     MembershipStatus,
     ProfessionalEstablishmentMembership,
 )
-from app.models.professional import ProfessionalProfile, utcnow
+from app.models.professional import ProfessionalProfile, ProfileTheme, utcnow
 from app.models.professional_experience import (
     ProfessionalExperience,
     ProfessionalExperienceVerification,
@@ -43,7 +43,9 @@ from app.services.establishment_readiness_service import (
     valid_business_hours,
 )
 from app.services.onboarding_steps import (
+    BIO_MIN_LENGTH,
     BUSINESS_REQUIREMENT_LABELS,
+    PROFESSIONAL_CATEGORIES,
     PROFESSIONAL_REQUIREMENT_LABELS,
     professional_missing_requirements,
 )
@@ -69,17 +71,6 @@ class OnboardingConflict(MobileOnboardingError):
 # Ausência de um campo no envio: preservar o valor salvo.
 UNSET = object()
 
-
-PROFESSIONAL_CATEGORIES = {
-    "cabelo": "Cabelo",
-    "unhas": "Unhas",
-    "barbearia": "Barbearia",
-    "estetica": "Estética",
-    "maquiagem": "Maquiagem",
-    "sobrancelhas": "Sobrancelhas",
-    "tatuagem": "Tatuagem",
-    "massagem": "Massagem",
-}
 
 PROFESSIONAL_ATTENDANCE_MODALITIES = {
     "establishment",
@@ -316,7 +307,7 @@ def _guard_professional_publication(profile, before_missing):
         )
 
 
-def update_professional_draft(*, user, changes):
+def update_professional_draft(*, user, changes, commit=True):
     """Salva uma etapa do perfil profissional (atualização parcial).
 
     Só as chaves presentes em ``changes`` mudam. Sem perfil, cria um
@@ -327,7 +318,7 @@ def update_professional_draft(*, user, changes):
     allowed = {
         "display_name", "headline", "primary_specialty", "categories", "city",
         "state", "bio", "phone", "whatsapp_enabled", "instagram",
-        "attendance_modalities",
+        "attendance_modalities", "visual_theme",
     }
     unknown = set(changes) - allowed
     if unknown:
@@ -355,7 +346,9 @@ def update_professional_draft(*, user, changes):
     if "state" in changes:
         values["state"] = None if changes["state"] in (None, "") else _state(changes["state"])
     if "bio" in changes:
-        values["bio"] = _optional_text(changes["bio"], "Apresentação", maximum=2000)
+        values["bio"] = _optional_text(
+            changes["bio"], "Apresentação", minimum=BIO_MIN_LENGTH, maximum=2000,
+        )
     if "phone" in changes:
         values["phone"] = _optional_text(changes["phone"], "Telefone", maximum=32)
     if "instagram" in changes:
@@ -364,6 +357,14 @@ def update_professional_draft(*, user, changes):
         if not isinstance(changes["whatsapp_enabled"], bool):
             raise MobileOnboardingError("WhatsApp: informe sim ou não.")
         values["whatsapp_enabled"] = changes["whatsapp_enabled"]
+    if "visual_theme" in changes:
+        # D-ONB-03: opcional; vazio volta ao padrão Beleza.
+        theme = changes["visual_theme"]
+        if theme in (None, ""):
+            theme = ProfileTheme.BEAUTY
+        if theme not in {value for value, _ in ProfileTheme.CHOICES}:
+            raise MobileOnboardingError("Universo visual inválido.")
+        values["visual_theme"] = theme
     if "attendance_modalities" in changes:
         modalities = changes["attendance_modalities"]
         values["attendance_modalities"] = (
@@ -400,6 +401,11 @@ def update_professional_draft(*, user, changes):
 
     if before is not None:
         _guard_professional_publication(profile, before)
+
+    if not commit:
+        # Etapa com arquivos: quem chama confirma banco e uploads juntos.
+        db.session.flush()
+        return profile
 
     try:
         db.session.commit()
@@ -827,7 +833,10 @@ def professional_completion(profile):
 
     return {
         "percentage": profile.profile_completion,
-        "readyToPublish": profile.ready_to_publish,
+        # Mesma regra da publicação (onboarding_steps), inclusive os 40
+        # caracteres da apresentação (D-ONB-02); quem já está no ar segue apto.
+        "readyToPublish": bool(profile.is_active)
+        or not professional_missing_requirements(profile),
         "steps": steps,
         "recommendedActions": recommended,
     }

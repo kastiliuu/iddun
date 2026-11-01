@@ -224,6 +224,7 @@ def _professional_payload(profile):
         "headline": profile.headline or "",
         "instagram": profile.instagram or "",
         "whatsappEnabled": bool(profile.whatsapp_enabled),
+        "visualTheme": profile.visual_theme,
         "city": profile.city or "",
         "state": profile.state or "",
         "attendanceModalities": (profile.attendance_modalities or "").split(",") if profile.attendance_modalities else [],
@@ -363,6 +364,7 @@ PROFESSIONAL_FIELDS = (
     ("whatsappEnabled", "whatsapp_enabled"),
     ("instagram", "instagram"),
     ("attendanceModalities", "attendance_modalities"),
+    ("visualTheme", "visual_theme"),
 )
 
 
