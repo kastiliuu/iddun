@@ -298,6 +298,10 @@ jobs:
       - name: Aplicar migrations PostgreSQL
         run: python -m flask --app run:app db upgrade
 
+      # Roda antes do teste de reservas, que apaga as tabelas ao terminar.
+      - name: Verificar publicação concorrente do onboarding
+        run: python -m pytest -q tests/test_postgres_onboarding_publish.py
+
       - name: Verificar restrição com duas transações concorrentes
         run: python -m pytest -q tests/test_postgres_booking_concurrency.py
 
