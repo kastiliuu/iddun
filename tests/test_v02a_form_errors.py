@@ -93,12 +93,17 @@ def test_experience_errors_sit_next_to_each_field(app, client):
 
 
 def test_server_error_uses_design_system_component(app, client):
+    """Cadastro de Estabelecimento por etapas (PR 3): etapa de contato."""
     _login(client, _user(app, "dono-erros@example.com"))
+    created = client.post(
+        "/business/onboarding/novo",
+        data={"name": "Studio Pressa", "category": "salao", "city": "Curitiba", "state": "PR"},
+    )
+    establishment_id = created.headers["Location"].split("/")[-2]
 
     html = client.post(
-        "/business/onboarding",
-        data={"name": "Studio Pressa", "category": "salao"},
-        content_type="multipart/form-data",
+        f"/business/onboarding/{establishment_id}/contato",
+        data={"phone": "41999990000"},
     ).get_data(as_text=True)
 
     assert '<strong aria-hidden="true">!</strong>' not in html
@@ -107,7 +112,7 @@ def test_server_error_uses_design_system_component(app, client):
     )
     assert block, "mensagem do campo descrição fora do componente do DS"
     assert '<svg class="icon ds-field-errors__icon"' in block.group(1)
-    assert "Preencha este campo." in block.group(1)
+    assert "Escreva a apresentação do estabelecimento." in block.group(1)
     assert 'aria-invalid="true"' in _tag(html, "description")
 
 

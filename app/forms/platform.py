@@ -6,7 +6,8 @@ from wtforms.widgets import CheckboxInput, HiddenInput, ListWidget
 
 from app.models.professional import ProfileTheme
 from app.models.experience import ExperienceCategory
-from app.services.onboarding_steps import BIO_MIN_LENGTH, PROFESSIONAL_CATEGORIES
+from app.services.establishment_readiness_service import DESCRIPTION_MIN_LENGTH
+from app.services.onboarding_steps import BIO_MIN_LENGTH, BUSINESS_CATEGORIES, PROFESSIONAL_CATEGORIES
 
 
 IMAGE_VALIDATORS = [
@@ -243,15 +244,150 @@ class ProfessionalServiceDraftForm(IddunForm):
         return valid
 
 
-BUSINESS_CATEGORY_CHOICES = [
-    ("salao", "Salão de beleza"),
-    ("barbearia", "Barbearia"),
-    ("tatuagem", "Estúdio de tatuagem"),
-    ("unhas", "Studio de unhas"),
-    ("estetica", "Estética"),
-    ("bem-estar", "Bem-estar / Spa"),
-    ("multisservicos", "Multi-serviços"),
+BUSINESS_CATEGORY_CHOICES = list(BUSINESS_CATEGORIES.items())
+
+
+OPERATION_MODE_CHOICES = [
+    ("physical", "No estabelecimento"),
+    ("mobile", "No endereço do cliente"),
+    ("hybrid", "Nos dois (híbrido)"),
 ]
+
+HOURS_MODE_CHOICES = [
+    ("scheduled", "Sob agendamento"),
+    ("fixed_hours", "Horários fixos"),
+]
+
+WEEKDAY_FIELDS = (
+    ("monday", "segunda"), ("tuesday", "terça"), ("wednesday", "quarta"),
+    ("thursday", "quinta"), ("friday", "sexta"), ("saturday", "sábado"),
+    ("sunday", "domingo"),
+)
+
+
+class RadioCardField(RadioField):
+    """Escolha única como cartões: a mesma lista, com input nativo."""
+
+
+# Cadastro de Estabelecimento por etapas (PR 3). Regras de negócio no
+# serviço compartilhado com a API do app; aqui só formato e obrigatório.
+
+
+class BizStepBasicsForm(IddunForm):
+    name = StringField(
+        "Nome do estabelecimento",
+        validators=[DataRequired(message="Informe o nome do estabelecimento."), Length(min=2, max=160)],
+    )
+    category = RadioCardField(
+        "Tipo de estabelecimento",
+        choices=BUSINESS_CATEGORY_CHOICES,
+        validators=[DataRequired(message="Escolha o tipo de estabelecimento.")],
+    )
+    city = StringField(
+        "Cidade",
+        validators=[DataRequired(message="Informe cidade e UF."), Length(min=2, max=100)],
+    )
+    state = StringField(
+        "UF",
+        validators=[
+            DataRequired(message="Informe cidade e UF."),
+            Length(min=2, max=2, message="Use as duas letras da UF."),
+            Regexp(r"^[A-Za-z]{2}$", message="Use as duas letras da UF."),
+        ],
+    )
+    submit = SubmitField("Continuar")
+
+
+class BizStepOperationForm(IddunForm):
+    operation_mode = RadioCardField(
+        "Como o estabelecimento atende?",
+        choices=OPERATION_MODE_CHOICES,
+        validators=[DataRequired(message="Diga como o estabelecimento atende.")],
+    )
+    submit = SubmitField("Continuar")
+
+
+class BizStepAddressForm(IddunForm):
+    address_line1 = StringField(
+        "Endereço comercial",
+        validators=[DataRequired(message="Informe o endereço comercial."), Length(max=180)],
+    )
+    address_line2 = StringField("Complemento (opcional)", validators=[Optional(), Length(max=120)])
+    neighborhood = StringField("Bairro (opcional)", validators=[Optional(), Length(max=100)])
+    postal_code = StringField(
+        "CEP (opcional)",
+        # Só tamanho, como a API: o critério de endereço válido ainda não foi
+        # aprovado (FLOW-EST-001, pendências de granularidade).
+        validators=[Optional(), Length(max=16)],
+    )
+    submit = SubmitField("Continuar")
+
+
+class BizStepHoursForm(IddunForm):
+    business_hours_mode = RadioCardField(
+        "Funcionamento",
+        choices=HOURS_MODE_CHOICES,
+        validators=[DataRequired(message="Defina o funcionamento: sob agendamento ou horários fixos.")],
+    )
+    monday_start = StringField("Abertura na segunda", validators=[Optional()])
+    monday_end = StringField("Fechamento na segunda", validators=[Optional()])
+    tuesday_start = StringField("Abertura na terça", validators=[Optional()])
+    tuesday_end = StringField("Fechamento na terça", validators=[Optional()])
+    wednesday_start = StringField("Abertura na quarta", validators=[Optional()])
+    wednesday_end = StringField("Fechamento na quarta", validators=[Optional()])
+    thursday_start = StringField("Abertura na quinta", validators=[Optional()])
+    thursday_end = StringField("Fechamento na quinta", validators=[Optional()])
+    friday_start = StringField("Abertura na sexta", validators=[Optional()])
+    friday_end = StringField("Fechamento na sexta", validators=[Optional()])
+    saturday_start = StringField("Abertura no sábado", validators=[Optional()])
+    saturday_end = StringField("Fechamento no sábado", validators=[Optional()])
+    sunday_start = StringField("Abertura no domingo", validators=[Optional()])
+    sunday_end = StringField("Fechamento no domingo", validators=[Optional()])
+    submit = SubmitField("Continuar")
+
+
+class BizStepContactForm(IddunForm):
+    description = TextAreaField(
+        "Apresentação",
+        validators=[
+            DataRequired(message="Escreva a apresentação do estabelecimento."),
+            Length(
+                min=DESCRIPTION_MIN_LENGTH,
+                max=2000,
+                message=f"Use entre {DESCRIPTION_MIN_LENGTH} e 2000 caracteres.",
+            ),
+        ],
+    )
+    phone = StringField("Telefone / WhatsApp", validators=[Optional(), Length(max=32)])
+    whatsapp_enabled = BooleanField("Mostrar botão do WhatsApp na página", default=True)
+    email = StringField(
+        "E-mail comercial",
+        validators=[Optional(), Email(message="Informe um e-mail válido."), Length(max=255)],
+    )
+    instagram = StringField("Instagram (opcional)", validators=[Optional(), Length(max=120)])
+    submit = SubmitField("Continuar")
+
+    def validate(self, extra_validators=None):
+        valid = super().validate(extra_validators)
+        if not (self.phone.data or "").strip() and not (self.email.data or "").strip():
+            self.phone.errors.append("Informe telefone ou e-mail comercial.")
+            return False
+        return valid
+
+
+class BizStepMediaForm(IddunForm):
+    logo_file = FileField("Logo", validators=[Optional(), *IMAGE_VALIDATORS])
+    cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
+    logo_focus_x = focus_field()
+    logo_focus_y = focus_field()
+    cover_focus_x = focus_field()
+    cover_focus_y = focus_field()
+    gallery_files = MultipleFileField("Fotos do espaço")
+    submit = SubmitField("Salvar e continuar")
+
+
+class BizPublishForm(IddunForm):
+    submit = SubmitField("Publicar página")
 
 
 class BusinessOnboardingForm(IddunForm):

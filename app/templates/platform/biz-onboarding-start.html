@@ -1,0 +1,39 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Cadastro do estabelecimento | IDDUN Business{% endblock %}
+{% block body_class %}platform-page onb-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="onb" data-iddun-surface="light" aria-labelledby="onb-start-title">
+  <div class="container onb__shell">
+    <div class="onb__card">
+      <p class="onb__kicker">Cadastro do estabelecimento</p>
+      <h1 class="onb__title" id="onb-start-title">Continue de onde parou</h1>
+      <p class="onb__lead">Estes rascunhos ainda não estão no ar. Escolha um para continuar ou comece outro estabelecimento.</p>
+
+      <ul class="onb__next">
+        {% for item, journey in drafts %}
+          <li>
+            <a href="{{ url_for('business.onboarding_step', establishment_id=item.id, step=slug_by_key[journey.currentStep]) }}">
+              <strong>Continuar {{ item.name }}</strong>
+              <small>{{ item.city }}/{{ item.state }} · rascunho · {{ journey.missingRequirements | length }} {{ 'pendência' if journey.missingRequirements | length == 1 else 'pendências' }} para publicar</small>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+
+      <div class="onb__actions onb__actions--done">
+        <a class="onb__secondary" href="{{ url_for('account.dashboard') }}">Voltar para minha conta</a>
+        <a class="btn btn-primary onb__submit" href="{{ url_for('business.onboarding_new') }}">Criar outro estabelecimento</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'platform/onboarding-base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+{% from 'components/media-upload.html' import media_upload, multi_upload %}
+{% from 'platform/_onboarding_review.html' import review_list %}
+
+{% macro radio_cards(field, list_class='onb__choice-list') %}
+  <fieldset class="onb__choices" {% if field.errors %}aria-describedby="{{ field.id }}-errors"{% endif %}>
+    <legend class="platform-label">{{ field.label.text }}</legend>
+    <div class="{{ list_class }}">
+      {% for option in field %}
+        <label class="onb__choice{% if list_class == 'onb__choice-list' %} onb__choice--row{% endif %}">
+          {{ option(class_='onb__choice-input') }}
+          <span class="onb__choice-label">{{ option.label.text }}</span>
+          <span class="onb__choice-check onb__choice-check--radio" aria-hidden="true">{{ icon('check') }}</span>
+        </label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  {{ field_errors(field) }}
+{% endmacro %}
+
+{% block onb_fields %}
+  {% if step.slug == 'dados' %}
+    <div class="platform-field">
+      {{ form.name.label(class_='platform-label') }}
+      {{ form.name(class_='platform-input', autocomplete='organization', placeholder='Ex.: Atelier Lumi') }}
+      {{ field_errors(form.name) }}
+    </div>
+    {{ radio_cards(form.category, 'onb__choice-grid') }}
+    <div class="onb__row">
+      <div class="platform-field">
+        {{ form.city.label(class_='platform-label') }}
+        {{ form.city(class_='platform-input', autocomplete='address-level2', placeholder='Ex.: Curitiba') }}
+        {{ field_errors(form.city) }}
+      </div>
+      <div class="platform-field onb__field--short">
+        {{ form.state.label(class_='platform-label') }}
+        {{ form.state(class_='platform-input', autocomplete='address-level1', maxlength='2', placeholder='PR') }}
+        {{ field_errors(form.state) }}
+      </div>
+    </div>
+
+  {% elif step.slug == 'atendimento' %}
+    {{ radio_cards(form.operation_mode) }}
+    <p class="platform-help">O endereço comercial só é pedido para quem recebe clientes no próprio espaço.</p>
+
+  {% elif step.slug == 'endereco' %}
+    <div class="platform-field">
+      {{ form.address_line1.label(class_='platform-label') }}
+      {{ form.address_line1(class_='platform-input', autocomplete='address-line1', placeholder='Rua, número') }}
+      {{ field_errors(form.address_line1) }}
+    </div>
+    <div class="onb__row">
+      <div class="platform-field">
+        {{ form.address_line2.label(class_='platform-label') }}
+        {{ form.address_line2(class_='platform-input', autocomplete='address-line2', placeholder='Sala, andar') }}
+        {{ field_errors(form.address_line2) }}
+      </div>
+      <div class="platform-field">
+        {{ form.neighborhood.label(class_='platform-label') }}
+        {{ form.neighborhood(class_='platform-input') }}
+        {{ field_errors(form.neighborhood) }}
+      </div>
+    </div>
+    <div class="platform-field onb__field--short">
+      {{ form.postal_code.label(class_='platform-label') }}
+      {{ form.postal_code(class_='platform-input', autocomplete='postal-code', inputmode='numeric', placeholder='80000-000') }}
+      {{ field_errors(form.postal_code) }}
+    </div>
+    <p class="platform-help">Cidade e UF: {{ establishment.city }}/{{ establishment.state }}. Para mudar, volte à primeira etapa.</p>
+
+  {% elif step.slug == 'funcionamento' %}
+    {{ radio_cards(form.business_hours_mode) }}
+    {# Sem JavaScript a grade fica sempre visível; com JavaScript aparece só
+       para "Horários fixos". #}
+    <fieldset class="platform-field platform-hours" data-hours-panel>
+      <legend class="platform-label">Horários de funcionamento</legend>
+      <p class="platform-help">Para horários fixos: preencha abertura e fechamento dos dias em que atende e deixe em branco os dias fechados.</p>
+      {% for day, name in [('monday', 'Segunda'), ('tuesday', 'Terça'), ('wednesday', 'Quarta'), ('thursday', 'Quinta'), ('friday', 'Sexta'), ('saturday', 'Sábado'), ('sunday', 'Domingo')] %}
+      {% set opens = form[day ~ '_start'] %}
+      {% set closes = form[day ~ '_end'] %}
+      <div class="platform-hours__row" role="group" aria-labelledby="hours-{{ day }}">
+        <span class="platform-hours__day" id="hours-{{ day }}">{{ name }}</span>
+        <label class="platform-hours__time">
+          <span class="platform-hours__caption">Abertura</span>
+          {{ opens(class_="platform-input", type="time", step="60", **{"aria-label": opens.label.text}) }}
+        </label>
+        <label class="platform-hours__time">
+          <span class="platform-hours__caption">Fechamento</span>
+          {{ closes(class_="platform-input", type="time", step="60", **{"aria-label": closes.label.text}) }}
+        </label>
+      </div>
+      {% endfor %}
+    </fieldset>
+
+  {% elif step.slug == 'contato' %}
+    <div class="platform-field">
+      {{ form.description.label(class_='platform-label') }}
+      {{ form.description(class_='platform-textarea', rows='6', maxlength='2000', data_onb_counter='description',
+                          placeholder='Ex.: Studio de unhas no Batel com atendimento com hora marcada, foco em saúde da unha e acabamento.',
+                          **{'aria-describedby': 'description-hint'}) }}
+      <p class="platform-help" id="description-hint">Pelo menos 40 caracteres. <span data-onb-count="description" aria-live="polite"></span></p>
+      {{ field_errors(form.description) }}
+    </div>
+    <div class="onb__row">
+      <div class="platform-field">
+        {{ form.phone.label(class_='platform-label') }}
+        {{ form.phone(class_='platform-input', inputmode='tel', autocomplete='tel', placeholder='(41) 99999-9999') }}
+        {{ field_errors(form.phone) }}
+      </div>
+      <div class="platform-field">
+        {{ form.email.label(class_='platform-label') }}
+        {{ form.email(class_='platform-input', type='email', autocomplete='email', **{'aria-describedby': 'email-hint'}) }}
+        <p class="platform-help" id="email-hint">Aparece na sua página. Sugerimos o e-mail da sua conta; troque se preferir.</p>
+        {{ field_errors(form.email) }}
+      </div>
+    </div>
+    <div class="platform-field platform-checkbox-field">
+      {{ form.whatsapp_enabled() }}
+      {{ form.whatsapp_enabled.label(class_='platform-label') }}
+    </div>
+    <div class="platform-field">
+      {{ form.instagram.label(class_='platform-label') }}
+      {{ form.instagram(class_='platform-input', placeholder='@seuespaco') }}
+      {{ field_errors(form.instagram) }}
+    </div>
+
+  {% elif step.slug == 'fotos' %}
+    <div class="platform-media-pair">
+      <div class="platform-field">
+        {{ form.logo_file.label(class_='platform-label') }}
+        {{ media_upload(form.logo_file, form.logo_focus_x, form.logo_focus_y, 'avatar', establishment.logo_url, 'Escolher logo', 'Quadrada · até 5 MB') }}
+        {{ field_errors(form.logo_file) }}
+      </div>
+      <div class="platform-field">
+        {{ form.cover_file.label(class_='platform-label') }}
+        {{ media_upload(form.cover_file, form.cover_focus_x, form.cover_focus_y, 'cover', establishment.cover_url, 'Foto de capa', 'Fachada ou ambiente · até 5 MB') }}
+        {{ field_errors(form.cover_file) }}
+      </div>
+    </div>
+    <div class="platform-field">
+      {{ form.gallery_files.label(class_='platform-label') }}
+      {{ multi_upload(form.gallery_files, 'Escolher fotos do espaço', 'Até 10 no total · até 5 MB cada') }}
+      {% if establishment.gallery_items %}
+        <p class="platform-help">Você já tem {{ establishment.gallery_items | length }} {{ 'foto' if establishment.gallery_items | length == 1 else 'fotos' }} na galeria.</p>
+      {% endif %}
+      {{ field_errors(form.gallery_files) }}
+    </div>
+
+  {% elif step.slug == 'revisar' %}
+    {{ review_list(journey, steps, step_url, 'Tudo pronto. Logo, capa, fotos, equipe e serviços podem ser organizados depois, no painel da empresa.') }}
+  {% endif %}
+{% endblock %}

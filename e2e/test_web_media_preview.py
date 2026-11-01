@@ -153,8 +153,11 @@ def test_pro_profile_edit_preview_and_crop(page: Page, jpeg_file):
 
 
 def test_business_onboarding_preview_and_crop(page: Page, jpeg_file):
+    from e2e.test_web_business_wizard import start_business_draft
+
     _login(page, E2E_EMAIL)
-    page.goto("/business/onboarding")
+    draft_id = start_business_draft(page, "Studio Fotos")
+    page.goto(f"/business/onboarding/{draft_id}/fotos")
 
     _assert_preview_and_crop(page, "logo_file", jpeg_file)
     _assert_preview_and_crop(page, "cover_file", jpeg_file)

@@ -52,12 +52,15 @@ def test_platform_profile_templates_load_shared_cropper_once():
     template_paths = (
         "app/templates/platform/pro-onboarding-step.html",
         "app/templates/platform/professional-edit.html",
-        "app/templates/platform/business-onboarding.html",
+        "app/templates/platform/biz-onboarding-step.html",
         "app/templates/platform/business-edit.html",
     )
 
     for template_path in template_paths:
         template = _read(template_path)
+        if "{% extends 'platform/onboarding-base.html' %}" in template:
+            # Cadastro por etapas: a moldura comum carrega o recorte.
+            template += _read("app/templates/platform/onboarding-base.html")
 
         assert (
             "{% from 'components/media-upload.html' import "

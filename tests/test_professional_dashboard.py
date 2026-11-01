@@ -1351,5 +1351,7 @@ def test_pro_dashboard_links_to_existing_business_onboarding(app, client):
     assert b"Criar estabelecimento" in dashboard.data
     assert b'href="/business/onboarding"' in dashboard.data
 
-    onboarding = client.get("/business/onboarding")
+    # Cadastro por etapas (PR 3): sem rascunho, começa na primeira etapa.
+    onboarding = client.get("/business/onboarding", follow_redirects=True)
     assert onboarding.status_code == 200
+    assert "Qual é o seu espaço e onde ele fica?" in onboarding.get_data(as_text=True)

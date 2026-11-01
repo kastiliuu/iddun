@@ -42,7 +42,13 @@
 <section class="platform-dashboard-content" id="business-overview">
   <div class="container platform-dashboard-grid">
     <main class="platform-dashboard-main">
-      {% if establishment.profile_completion < 100 %}
+      {% if not establishment.is_active and establishment.published_at is none %}
+      {# Onboarding PR 3: rascunho só vai ao ar pela publicação explícita. #}
+      <section class="platform-completion-card platform-completion-card--draft">
+        <div><span class="platform-kicker">RASCUNHO</span><h2>Esta página ainda não está no ar.</h2><p>Termine o cadastro e publique quando estiver pronto.</p></div>
+        <a class="btn btn-primary" href="{{ url_for('business.onboarding') }}">Continuar cadastro</a>
+      </section>
+      {% elif establishment.profile_completion < 100 %}
       <section class="platform-completion-card" data-reveal>
         <div><span class="platform-kicker">PRESENÇA DA MARCA</span><h2>Página {{ establishment.profile_completion }}% completa.</h2><p>A empresa conecta a marca ao quadro de profissionais, sem misturar identidades.</p></div>
         <strong>{{ establishment.profile_completion }}%</strong>

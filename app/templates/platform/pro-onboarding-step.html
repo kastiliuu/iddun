@@ -1,51 +1,10 @@
-{% extends 'layouts/base.html' %}
+{% extends 'platform/onboarding-base.html' %}
 {% from 'components/icon.html' import icon %}
 {% from 'auth/_macros.html' import field_errors %}
 {% from 'components/media-upload.html' import media_upload, multi_upload %}
+{% from 'platform/_onboarding_review.html' import review_list %}
 
-{% block title %}{{ step.title }} | Cadastro profissional IDDUN{% endblock %}
-{% block body_class %}platform-page onb-page{% endblock %}
-
-{% block styles %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/media-cropper.css') }}">
-{% endblock %}
-
-{% block content %}
-{% set current_number = step_index + 1 %}
-<section class="onb" data-iddun-surface="light" aria-labelledby="onb-title">
-  <div class="container onb__shell">
-    <header class="onb__top">
-      <a class="onb__back" href="{{ previous_url }}">{{ icon('arrow-left') }}<span>Voltar</span></a>
-      <p class="onb__count" id="onb-count">Etapa {{ current_number }} de {{ step_total }}</p>
-      <a class="onb__exit" href="{{ url_for('account.dashboard') }}">Sair e continuar depois</a>
-    </header>
-
-    <ol class="onb__progress" aria-labelledby="onb-count">
-      {% for item in steps %}
-        {% set done = journey and (journey.steps | selectattr('key', 'equalto', item.key) | map(attribute='complete') | first) %}
-        <li class="onb__segment{% if loop.index0 == step_index %} is-current{% elif done %} is-done{% endif %}"
-            {% if loop.index0 == step_index %}aria-current="step"{% endif %}>
-          <span class="sr-only">{{ item.title }}{% if loop.index0 == step_index %} (etapa atual){% elif done %} (concluída){% endif %}</span>
-        </li>
-      {% endfor %}
-    </ol>
-
-    <div class="onb__card">
-      <p class="onb__kicker">Cadastro profissional</p>
-      <h1 class="onb__title" id="onb-title">{{ step.title }}</h1>
-      <p class="onb__lead">{{ step.lead }}</p>
-
-      {% if step_error %}
-        <div class="onb__alert" role="alert" tabindex="-1" data-onb-alert>
-          {{ icon('alert-circle') }}<p>{{ step_error }}</p>
-        </div>
-      {% endif %}
-
-      <form method="post" novalidate class="onb__form"
-            {% if step.slug == 'fotos' %}enctype="multipart/form-data"{% endif %}>
-        {{ form.hidden_tag() }}
-
+{% block onb_fields %}
         {% if step.slug == 'nome' %}
           <div class="platform-field">
             {{ form.display_name.label(class_='platform-label') }}
@@ -163,57 +122,6 @@
           </div>
 
         {% elif step.slug == 'revisar' %}
-          <ul class="onb__review" aria-label="Itens do cadastro">
-            {% for item in journey.steps if item.key not in ('personalize', 'review') and item.applicable %}
-              {% set target = (steps | selectattr('key', 'equalto', item.key) | first) %}
-              <li class="onb__review-item{% if item.complete %} is-done{% endif %}">
-                <span class="onb__review-icon" aria-hidden="true">{{ icon('check' if item.complete else 'alert-circle') }}</span>
-                <span class="onb__review-text">
-                  <strong>{{ item.label }}</strong>
-                  <small>{{ 'Pronto' if item.complete else 'Falta preencher' }}</small>
-                </span>
-                <a class="onb__review-link" href="{{ url_for('professional.onboarding_step', step=target.slug, retorno='revisar') }}">
-                  {{ 'Editar' if item.complete else 'Completar' }}<span class="sr-only"> {{ item.label }}</span>
-                </a>
-              </li>
-            {% endfor %}
-          </ul>
-
-          {% if journey.missingRequirements %}
-            <div class="onb__pending" id="onb-pending">
-              <p><strong>Para publicar, falta:</strong></p>
-              <ul>
-                {% for item in journey.missingRequirements %}<li>{{ item.message }}</li>{% endfor %}
-              </ul>
-            </div>
-          {% else %}
-            <p class="onb__note">Tudo pronto. Fotos, portfólio e contatos podem ser completados depois, em Editar perfil.</p>
-          {% endif %}
+          {{ review_list(journey, steps, step_url, 'Tudo pronto. Fotos, portfólio e contatos podem ser completados depois, em Editar perfil.') }}
         {% endif %}
-
-        <div class="onb__actions">
-          {% if back_to_review %}
-            <a class="onb__secondary" href="{{ url_for('professional.onboarding_step', step='revisar') }}">Voltar para a revisão</a>
-          {% elif step.slug == 'fotos' %}
-            <a class="onb__secondary" href="{{ url_for('professional.onboarding_step', step='revisar') }}">Fazer depois</a>
-          {% endif %}
-          {% if step.slug == 'revisar' and journey.missingRequirements %}
-            {{ form.submit(class_='btn btn-primary onb__submit', disabled=true, **{'aria-describedby': 'onb-pending'}) }}
-          {% else %}
-            {{ form.submit(class_='btn btn-primary onb__submit', data_onb_submit='') }}
-          {% endif %}
-        </div>
-      </form>
-    </div>
-  </div>
-</section>
-{% endblock %}
-
-{% block mobile_bottom_nav %}{% endblock %}
-
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/platform.js') }}" defer></script>
-{% if step.slug == 'fotos' %}
-<script src="{{ url_for('static', filename='js/media-cropper.js') }}" defer></script>
-{% endif %}
 {% endblock %}

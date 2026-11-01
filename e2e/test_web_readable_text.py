@@ -32,7 +32,7 @@ PAGES = [
     (E2E_PRO_EMAIL, f"/business/{E2E_BUSINESS_SLUG}/editar"),
     (E2E_EMAIL, "/pro/comecar"),
     (E2E_EMAIL, "/pro/onboarding"),
-    (E2E_EMAIL, "/business/onboarding"),
+    (E2E_EMAIL, "/business/onboarding/novo"),
     (None, "/estabelecimentos"),
     (None, "/profissionais"),
     (None, "/"),
