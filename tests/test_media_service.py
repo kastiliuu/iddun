@@ -317,8 +317,13 @@ def test_onboarding_database_failure_rolls_back_new_uploads(
     client,
     monkeypatch,
 ):
+    """Etapa de fotos do cadastro por etapas: banco falhou, arquivo sai."""
     user_id = _create_user(app)
     _login_session(client, user_id)
+    assert client.post(
+        "/pro/onboarding/nome",
+        data={"display_name": "Profissional de mídia"},
+    ).status_code == 302
 
     def fail_commit():
         raise SQLAlchemyError(
@@ -331,16 +336,21 @@ def test_onboarding_database_failure_rolls_back_new_uploads(
         fail_commit,
     )
 
+    payload = _onboarding_payload()
     response = client.post(
-        "/pro/onboarding",
-        data=_onboarding_payload(),
+        "/pro/onboarding/fotos",
+        data={
+            "avatar_file": payload["avatar_file"],
+            "portfolio_files": payload["portfolio_files"],
+            "visual_theme": "beauty",
+        },
         content_type="multipart/form-data",
         follow_redirects=False,
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 422
     assert (
-        "Não foi possível publicar seu perfil "
+        "Não foi possível salvar suas fotos "
         "agora. Tente novamente."
         in response.get_data(as_text=True)
     )

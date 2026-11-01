@@ -23,7 +23,13 @@ from app.forms.platform import (
     BusinessOnboardingForm,
     ProfessionalCertificationForm,
     ProfessionalEditForm,
-    ProfessionalOnboardingForm,
+    ProPublishForm,
+    ProStepIdentityForm,
+    ProStepLocationForm,
+    ProStepModalityForm,
+    ProStepPersonalizeForm,
+    ProStepPresentationForm,
+    ProStepSpecialtyForm,
     ProfessionalWorkExperienceForm,
     ProfessionalServiceDraftForm,
     TeamMemberForm,
@@ -49,7 +55,7 @@ from app.models.experience import Experience, ExperienceStatus
 from app.models.professional_experience import ProfessionalExperience
 from app.models.professional import (
     ProfessionalPortfolioItem,
-    ProfessionalProfile,
+    ProfileTheme,
 )
 from app.models.reputation import ContactClick
 from app.models.user import User
@@ -88,6 +94,16 @@ from app.services.professional_schedule_service import (
     ScheduleValidationError,
     save_weekly_schedule,
     schedule_rows,
+)
+from app.services.mobile_onboarding_service import (
+    MobileOnboardingError,
+    OnboardingConflict,
+    publish_professional_profile,
+    update_professional_draft,
+)
+from app.services.onboarding_steps import (
+    PROFESSIONAL_CATEGORIES,
+    professional_journey,
 )
 from app.services.reputation_service import reputation_summary
 from app.services.slug_service import unique_public_handle, unique_slug
@@ -187,11 +203,7 @@ def start():
                 url_for("business.onboarding")
             )
 
-        if current_user.professional_profile:
-            return redirect(
-                url_for("professional.dashboard")
-            )
-
+        # Publicado vai ao painel; rascunho retoma a etapa pendente.
         return redirect(
             url_for("professional.onboarding")
         )
@@ -203,160 +215,290 @@ def start():
     )
 
 
-@professional_bp.route(
-    "/onboarding",
-    methods=["GET", "POST"],
+# --- Onboarding Profissional por etapas (PR 2 do onboarding V0) ------------
+#
+# Cada etapa é um formulário comum (funciona sem JavaScript) que salva o
+# rascunho no servidor pelo mesmo serviço da API do app. Publicar é uma
+# ação explícita na etapa "Revisar e publicar" (F1). Perfis já publicados
+# não passam por aqui: seguem para o painel e para Editar perfil.
+
+PRO_ONBOARDING_STEPS = (
+    {
+        "slug": "nome",
+        "key": "identity",
+        "form": ProStepIdentityForm,
+        "title": "Como as pessoas vão te chamar?",
+        "lead": "Use o nome que seus clientes já conhecem. Ele aparece no seu perfil público.",
+    },
+    {
+        "slug": "cidade",
+        "key": "location",
+        "form": ProStepLocationForm,
+        "title": "Onde você atende?",
+        "lead": "Cidade e UF ajudam clientes da sua região a encontrar você.",
+    },
+    {
+        "slug": "especialidade",
+        "key": "specialty",
+        "form": ProStepSpecialtyForm,
+        "title": "Qual é a sua especialidade?",
+        "lead": "Diga o que você faz de melhor e escolha as áreas em que atua.",
+    },
+    {
+        "slug": "atendimento",
+        "key": "modality",
+        "form": ProStepModalityForm,
+        "title": "Como você atende?",
+        "lead": "Escolha uma ou mais formas. O endereço do cliente nunca aparece no seu perfil.",
+    },
+    {
+        "slug": "apresentacao",
+        "key": "presentation",
+        "form": ProStepPresentationForm,
+        "title": "Conte quem você é.",
+        "lead": "Fale da sua técnica, da sua experiência e do resultado que gosta de entregar.",
+    },
+    {
+        "slug": "fotos",
+        "key": "personalize",
+        "form": ProStepPersonalizeForm,
+        "title": "Deixe o perfil com a sua cara",
+        "lead": "Tudo nesta etapa é opcional. Dá para fazer agora ou depois, em Editar perfil.",
+    },
+    {
+        "slug": "revisar",
+        "key": "review",
+        "form": ProPublishForm,
+        "title": "Revise e publique seu perfil",
+        "lead": "Publicar coloca seu perfil no ar. Receber reservas depende de serviços e horários, que você cria depois.",
+    },
 )
+PRO_STEP_BY_SLUG = {item["slug"]: item for item in PRO_ONBOARDING_STEPS}
+PRO_SLUG_BY_KEY = {item["key"]: item["slug"] for item in PRO_ONBOARDING_STEPS}
+
+
+def _pro_step_url(slug, **params):
+    return url_for("professional.onboarding_step", step=slug, **params)
+
+
+def _pro_onboarding_prefill(form, profile, slug):
+    if slug == "nome":
+        form.display_name.data = (
+            profile.display_name if profile is not None else current_user.name
+        )
+    if profile is None:
+        return
+    if slug == "cidade":
+        form.city.data = profile.city
+        form.state.data = profile.state
+    elif slug == "especialidade":
+        form.primary_specialty.data = profile.primary_specialty
+        selected = {
+            item.strip().lower()
+            for item in (profile.specialties_text or "").split(",")
+            if item.strip()
+        }
+        form.categories.data = [
+            key for key, label in PROFESSIONAL_CATEGORIES.items()
+            if label.lower() in selected
+        ]
+    elif slug == "atendimento":
+        form.attendance_modalities.data = [
+            item for item in (profile.attendance_modalities or "").split(",") if item
+        ]
+    elif slug == "apresentacao":
+        form.headline.data = profile.headline
+        form.bio.data = profile.bio
+    elif slug == "fotos":
+        form.phone.data = profile.phone
+        form.whatsapp_enabled.data = bool(profile.whatsapp_enabled)
+        form.instagram.data = profile.instagram
+        form.visual_theme.data = profile.visual_theme or ProfileTheme.BEAUTY
+        form.avatar_focus_x.data = profile.avatar_focus_x
+        form.avatar_focus_y.data = profile.avatar_focus_y
+        form.cover_focus_x.data = profile.cover_focus_x
+        form.cover_focus_y.data = profile.cover_focus_y
+
+
+def _pro_onboarding_changes(form, slug):
+    if slug == "nome":
+        return {"display_name": form.display_name.data}
+    if slug == "cidade":
+        return {"city": form.city.data, "state": form.state.data}
+    if slug == "especialidade":
+        return {
+            "primary_specialty": form.primary_specialty.data,
+            "categories": list(form.categories.data or []),
+        }
+    if slug == "atendimento":
+        return {"attendance_modalities": list(form.attendance_modalities.data or [])}
+    if slug == "apresentacao":
+        return {"headline": form.headline.data or None, "bio": form.bio.data}
+    return {}
+
+
+def _save_pro_personalize_step(form, profile):
+    """Fotos, portfólio e contatos opcionais. Arquivos e banco andam juntos."""
+    portfolio_files = _files_with_names(form.portfolio_files.data)
+    room = max(0, 8 - len(profile.portfolio_items))
+    if len(portfolio_files) > room:
+        form.portfolio_files.errors.append(
+            f"Você pode adicionar mais {room} foto(s) ao portfólio agora."
+            if room
+            else "Seu portfólio já tem 8 fotos. Remova alguma em Editar perfil."
+        )
+        return False
+
+    replaced_media = []
+    try:
+        with UploadBatch() as uploads:
+            avatar_url = uploads.save_image(form.avatar_file.data, "professionals")
+            cover_url = uploads.save_image(form.cover_file.data, "professionals/covers")
+            new_portfolio = uploads.save_many_images(
+                portfolio_files, "professionals/portfolio", max_files=8,
+            )
+
+            update_professional_draft(
+                user=current_user,
+                changes={
+                    "phone": form.phone.data or None,
+                    "whatsapp_enabled": bool(form.whatsapp_enabled.data and form.phone.data),
+                    "instagram": form.instagram.data or None,
+                    "visual_theme": form.visual_theme.data or None,
+                },
+                commit=False,
+            )
+            profile.avatar_focus_x = _focus_value(form.avatar_focus_x.data)
+            profile.avatar_focus_y = _focus_value(form.avatar_focus_y.data)
+            profile.cover_focus_x = _focus_value(form.cover_focus_x.data)
+            profile.cover_focus_y = _focus_value(form.cover_focus_y.data)
+            if avatar_url:
+                replaced_media.append(profile.avatar_url)
+                profile.avatar_url = avatar_url
+            if cover_url:
+                replaced_media.append(profile.cover_url)
+                profile.cover_url = cover_url
+            start_order = len(profile.portfolio_items)
+            for offset, image_url in enumerate(new_portfolio):
+                db.session.add(ProfessionalPortfolioItem(
+                    professional=profile,
+                    image_url=image_url,
+                    sort_order=start_order + offset,
+                ))
+            db.session.commit()
+            uploads.commit()
+    except MobileOnboardingError as exc:
+        db.session.rollback()
+        form.phone.errors.append(str(exc))
+        return False
+    except ValueError as exc:
+        db.session.rollback()
+        form.portfolio_files.errors.append(str(exc))
+        return False
+    except (OSError, SQLAlchemyError):
+        _record_upload_failure(
+            form.portfolio_files,
+            "Não foi possível salvar suas fotos agora. Tente novamente.",
+            "Falha ao salvar fotos do onboarding profissional.",
+        )
+        return False
+
+    delete_uploaded_files(replaced_media)
+    return True
+
+
+@professional_bp.get("/onboarding")
 @login_required
 def onboarding():
-    if current_user.professional_profile:
-        return redirect(
-            url_for("professional.dashboard")
-        )
+    """Retoma o cadastro na primeira etapa pendente."""
+    profile = current_user.professional_profile
+    if profile is not None and profile.is_active:
+        return redirect(url_for("professional.dashboard"))
+    if profile is None:
+        return redirect(_pro_step_url("nome"))
+    journey = professional_journey(profile)
+    return redirect(_pro_step_url(PRO_SLUG_BY_KEY[journey["currentStep"]]))
 
-    form = ProfessionalOnboardingForm()
+
+@professional_bp.route("/onboarding/<step>", methods=["GET", "POST"])
+@login_required
+def onboarding_step(step):
+    definition = PRO_STEP_BY_SLUG.get(step)
+    if definition is None:
+        abort(404)
+
+    profile = current_user.professional_profile
+    if profile is not None and profile.is_active:
+        flash(
+            "Seu perfil já está publicado. Para mudar algo, use Editar perfil.",
+            "info",
+        )
+        return redirect(url_for("professional.dashboard"))
+    if profile is None and step != "nome":
+        return redirect(_pro_step_url("nome"))
+
+    index = PRO_ONBOARDING_STEPS.index(definition)
+    back_to_review = request.args.get("retorno") == "revisar" and step != "revisar"
+    form = definition["form"]()
+    step_error = None
 
     if request.method == "GET":
-        form.display_name.data = current_user.name
+        _pro_onboarding_prefill(form, profile, step)
 
     if form.validate_on_submit():
-        portfolio_files = _files_with_names(
-            form.portfolio_files.data
-        )
-
-        if len(portfolio_files) > 8:
-            form.portfolio_files.errors.append("Envie no máximo 8 fotos.")
+        if step == "revisar":
+            try:
+                publish_professional_profile(profile)
+            except OnboardingConflict as exc:
+                step_error = str(exc)
+            else:
+                return redirect(url_for("professional.onboarding_done"))
+        elif step == "fotos":
+            if _save_pro_personalize_step(form, profile):
+                return redirect(_pro_step_url("revisar"))
         else:
             try:
-                with UploadBatch() as uploads:
-                    avatar_url = (uploads.save_image(
-                        form.avatar_file.data,
-                        "professionals",
-                    ) if form.avatar_file.data and getattr(form.avatar_file.data, "filename", "") else None)
-                    cover_url = uploads.save_image(
-                        form.cover_file.data,
-                        "professionals/covers",
-                    )
-                    portfolio_urls = (
-                        uploads.save_many_images(
-                            portfolio_files,
-                            "professionals/portfolio",
-                            max_files=8,
-                        )
-                    )
-
-                    profile = ProfessionalProfile(
-                        user=current_user,
-                        display_name=(
-                            form.display_name.data.strip()
-                        ),
-                        slug=unique_public_handle(
-                            form.display_name.data,
-                            resource_type="professional",
-                        ),
-                        headline=(
-                            form.headline.data or ""
-                        ).strip()
-                        or None,
-                        primary_specialty=(
-                            form.primary_specialty.data.strip()
-                        ),
-                        specialties_text=(
-                            form.specialties_text.data or ""
-                        ).strip()
-                        or form.primary_specialty.data.strip(),
-                        attendance_modalities=",".join(form.attendance_modalities.data),
-                        bio=form.bio.data.strip(),
-                        phone=(
-                            form.phone.data or ""
-                        ).strip()
-                        or None,
-                        whatsapp_enabled=bool(
-                            form.whatsapp_enabled.data
-                            and form.phone.data
-                        ),
-                        instagram=(
-                            form.instagram.data or ""
-                        ).strip()
-                        or None,
-                        city=form.city.data.strip(),
-                        state=(
-                            form.state.data.strip().upper()
-                        ),
-                        avatar_url=avatar_url,
-                        cover_url=cover_url,
-                        avatar_focus_x=_focus_value(
-                            form.avatar_focus_x.data
-                        ),
-                        avatar_focus_y=_focus_value(
-                            form.avatar_focus_y.data
-                        ),
-                        cover_focus_x=_focus_value(
-                            form.cover_focus_x.data
-                        ),
-                        cover_focus_y=_focus_value(
-                            form.cover_focus_y.data
-                        ),
-                        visual_theme=(
-                            form.visual_theme.data
-                        ),
-                        plan_tier="free",
-                        onboarding_completed=True,
-                        published_at=utcnow(),
-                        claimed_at=utcnow(),
-                    )
-
-                    db.session.add(profile)
-                    db.session.flush()
-
-                    for index, image_url in enumerate(
-                        portfolio_urls
-                    ):
-                        db.session.add(
-                            ProfessionalPortfolioItem(
-                                professional=profile,
-                                image_url=image_url,
-                                sort_order=index,
-                            )
-                        )
-
-                    db.session.commit()
-                    uploads.commit()
-
-            except ValueError as exc:
-                db.session.rollback()
-                form.portfolio_files.errors.append(
-                    str(exc)
+                update_professional_draft(
+                    user=current_user,
+                    changes=_pro_onboarding_changes(form, step),
                 )
-
-            except (OSError, SQLAlchemyError):
-                _record_upload_failure(
-                    form.portfolio_files,
-                    (
-                        "Não foi possível publicar seu "
-                        "perfil agora. Tente novamente."
-                    ),
-                    (
-                        "Falha ao salvar o onboarding "
-                        "profissional."
-                    ),
-                )
-
+            except MobileOnboardingError as exc:
+                step_error = str(exc)
             else:
-                flash(
-                    (
-                        "Seu perfil profissional está no ar. "
-                        "Bem-vindo ao IDDUN Pro."
-                    ),
-                    "success",
-                )
-                return redirect(
-                    url_for("professional.dashboard")
-                )
+                if back_to_review:
+                    return redirect(_pro_step_url("revisar"))
+                return redirect(_pro_step_url(PRO_ONBOARDING_STEPS[index + 1]["slug"]))
 
+    profile = current_user.professional_profile
+    journey = professional_journey(profile) if profile is not None else None
+    previous = PRO_ONBOARDING_STEPS[index - 1]["slug"] if index > 0 else None
+    status = 422 if request.method == "POST" else 200
     return render_template(
-        "platform/professional-onboarding.html",
+        "platform/pro-onboarding-step.html",
         form=form,
+        step=definition,
+        steps=PRO_ONBOARDING_STEPS,
+        step_index=index,
+        step_total=len(PRO_ONBOARDING_STEPS),
+        previous_url=_pro_step_url(previous) if previous else url_for("professional.start"),
+        back_to_review=back_to_review,
+        profile=profile,
+        journey=journey,
+        step_error=step_error,
+        current_page="for-professionals",
+    ), status
+
+
+@professional_bp.get("/onboarding/concluido")
+@login_required
+def onboarding_done():
+    profile = current_user.professional_profile
+    if profile is None or not profile.is_active:
+        return redirect(url_for("professional.onboarding"))
+    return render_template(
+        "platform/pro-onboarding-done.html",
+        profile=profile,
+        journey=professional_journey(profile),
         current_page="for-professionals",
     )
 
@@ -1301,8 +1443,11 @@ def edit_profile():
                     profile.ready_to_publish
                 )
 
+                # Rascunho só vai ao ar por publicação explícita (F1);
+                # aqui só se completa a data de quem já está no ar.
                 if (
-                    profile.onboarding_completed
+                    profile.is_active
+                    and profile.onboarding_completed
                     and profile.published_at is None
                 ):
                     profile.published_at = utcnow()

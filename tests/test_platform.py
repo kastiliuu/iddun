@@ -19,6 +19,7 @@ from app.models.professional import (
 )
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
+from onboarding_flow import complete_professional_onboarding
 
 
 def _create_user(
@@ -85,36 +86,26 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     user_id = _create_user(app)
     _login_session(client, user_id)
 
-    response = client.post(
-        "/pro/onboarding",
-        data={
-            "attendance_modalities": ["own_space"],
-            "display_name": "Camila Teste",
-            "headline": "Especialista em transformações",
-            "primary_specialty": "Hair Stylist",
-            "specialties_text": "Loiros, Corte",
-            "bio": (
-                "Profissional com experiência em transformações, "
-                "corte e atendimento personalizado."
-            ),
-            "phone": "41999999999",
-            "instagram": "@camilateste",
-            "city": "Curitiba",
-            "state": "PR",
-            "visual_theme": "beauty",
-            "avatar_focus_x": "37",
-            "avatar_focus_y": "62",
-            "cover_focus_x": "44",
-            "cover_focus_y": "55",
-            "avatar_file": _image("avatar.jpg"),
-            "portfolio_files": [
-                _image("trabalho-1.jpg"),
-                _image("trabalho-2.jpg"),
-                _image("trabalho-3.jpg"),
-            ],
-        },
-        content_type="multipart/form-data",
-        follow_redirects=False,
+    response = complete_professional_onboarding(
+        client,
+        display_name="Camila Teste",
+        headline="Especialista em transformações",
+        primary_specialty="Hair Stylist",
+        categories=("cabelo",),
+        bio=(
+            "Profissional com experiência em transformações, "
+            "corte e atendimento personalizado."
+        ),
+        phone="41999999999",
+        instagram="@camilateste",
+        avatar_focus=(37, 62),
+        cover_focus=(44, 55),
+        avatar=_image("avatar.jpg"),
+        portfolio=(
+            _image("trabalho-1.jpg"),
+            _image("trabalho-2.jpg"),
+            _image("trabalho-3.jpg"),
+        ),
     )
 
     assert response.status_code == 302
@@ -167,20 +158,11 @@ def test_web_can_publish_professional_without_optional_media(app, client):
     user_id = _create_user(app, email="no-media-web@example.com")
     _login_session(client, user_id)
 
-    response = client.post(
-        "/pro/onboarding",
-        data={
-            "attendance_modalities": ["own_space"],
-            "display_name": "Profissional Sem Fotos",
-            "primary_specialty": "Nail Designer",
-            "specialties_text": "",
-            "bio": "Atendimento profissional dedicado com qualidade e cuidado.",
-            "city": "Curitiba",
-            "state": "PR",
-            "visual_theme": "beauty",
-        },
-        content_type="multipart/form-data",
-        follow_redirects=False,
+    response = complete_professional_onboarding(
+        client,
+        display_name="Profissional Sem Fotos",
+        primary_specialty="Nail Designer",
+        bio="Atendimento profissional dedicado com qualidade e cuidado.",
     )
     assert response.status_code == 302
 
@@ -215,33 +197,22 @@ def test_web_portfolio_removal_preserves_published_profile(
         user_id,
     )
 
-    created = client.post(
-        "/pro/onboarding",
-        data={
-            "attendance_modalities": ["own_space"],
-            "display_name": "Perfil Remoção",
-            "headline": "Perfil completo",
-            "primary_specialty": "Nail Designer",
-            "specialties_text": "Unhas",
-            "bio": (
-                "Perfil criado para validar "
-                "remoção de mídia obrigatória."
-            ),
-            "phone": "41999999999",
-            "city": "Curitiba",
-            "state": "PR",
-            "visual_theme": "beauty",
-            "avatar_file": _image(
-                "avatar-removal.jpg"
-            ),
-            "portfolio_files": [
-                _image("removal-1.jpg"),
-                _image("removal-2.jpg"),
-                _image("removal-3.jpg"),
-            ],
-        },
-        content_type="multipart/form-data",
-        follow_redirects=False,
+    created = complete_professional_onboarding(
+        client,
+        display_name="Perfil Remoção",
+        headline="Perfil completo",
+        primary_specialty="Nail Designer",
+        bio=(
+            "Perfil criado para validar "
+            "remoção de mídia obrigatória."
+        ),
+        phone="41999999999",
+        avatar=_image("avatar-removal.jpg"),
+        portfolio=(
+            _image("removal-1.jpg"),
+            _image("removal-2.jpg"),
+            _image("removal-3.jpg"),
+        ),
     )
 
     assert created.status_code == 302
@@ -402,28 +373,22 @@ def test_same_account_can_be_client_professional_and_business_owner(
 
     _login_session(client, user_id)
 
-    client.post(
-        "/pro/onboarding",
-        data={
-            "attendance_modalities": ["own_space"],
-            "display_name": "Conta Multi Pro",
-            "primary_specialty": "Barbeiro",
-            "bio": (
+    complete_professional_onboarding(
+        client,
+        display_name="Conta Multi Pro",
+        primary_specialty="Barbeiro",
+        bio=(
                 "Profissional independente com foco em "
                 "atendimento, identidade e experiência "
                 "personalizada."
             ),
-            "city": "Curitiba",
-            "state": "PR",
-            "visual_theme": "barber",
-            "avatar_file": _image("avatar.jpg"),
-            "portfolio_files": [
-                _image("1.jpg"),
-                _image("2.jpg"),
-                _image("3.jpg"),
-            ],
-        },
-        content_type="multipart/form-data",
+        visual_theme="barber",
+        avatar=_image("avatar.jpg"),
+        portfolio=(
+            _image("1.jpg"),
+            _image("2.jpg"),
+            _image("3.jpg"),
+        ),
     )
 
     client.post(
@@ -581,28 +546,22 @@ def test_business_invitation_requires_professional_acceptance(
         professional_user_id,
     )
 
-    client.post(
-        "/pro/onboarding",
-        data={
-            "attendance_modalities": ["own_space"],
-            "display_name": "Pro Convidada",
-            "primary_specialty": "Nail Designer",
-            "bio": (
+    complete_professional_onboarding(
+        client,
+        display_name="Pro Convidada",
+        primary_specialty="Nail Designer",
+        bio=(
                 "Profissional especializada em unhas, "
                 "acabamento cuidadoso e experiências "
                 "personalizadas."
             ),
-            "city": "Curitiba",
-            "state": "PR",
-            "visual_theme": "beauty",
-            "avatar_file": _image("avatar.jpg"),
-            "portfolio_files": [
-                _image("1.jpg"),
-                _image("2.jpg"),
-                _image("3.jpg"),
-            ],
-        },
-        content_type="multipart/form-data",
+        visual_theme="beauty",
+        avatar=_image("avatar.jpg"),
+        portfolio=(
+            _image("1.jpg"),
+            _image("2.jpg"),
+            _image("3.jpg"),
+        ),
     )
 
     owner_id = _create_user(
@@ -754,12 +713,17 @@ def test_oversized_onboarding_upload_returns_to_form_with_message(
 
     _login_session(client, user_id)
 
+    assert client.post(
+        "/pro/onboarding/nome",
+        data={"display_name": "Upload Grande"},
+    ).status_code == 302
+
     app.config["MAX_CONTENT_LENGTH"] = (
         1024 * 1024
     )
 
     response = client.post(
-        "/pro/onboarding",
+        "/pro/onboarding/fotos",
         data={
             "avatar_file": (
                 BytesIO(
@@ -771,7 +735,7 @@ def test_oversized_onboarding_upload_returns_to_form_with_message(
         content_type="multipart/form-data",
         headers={
             "Referer": (
-                "http://localhost/pro/onboarding"
+                "http://localhost/pro/onboarding/fotos"
             ),
         },
         follow_redirects=False,
@@ -780,7 +744,7 @@ def test_oversized_onboarding_upload_returns_to_form_with_message(
     assert response.status_code == 303
     assert (
         response.headers["Location"]
-        == "http://localhost/pro/onboarding"
+        == "http://localhost/pro/onboarding/fotos"
     )
 
     with client.session_transaction() as session:
@@ -803,7 +767,10 @@ def test_oversized_onboarding_upload_returns_to_form_with_message(
             )
         )
 
-    assert profile is None
+    # Só o rascunho da etapa 1 existe; nenhuma foto foi gravada.
+    assert profile is not None
+    assert profile.avatar_url is None
+    assert profile.is_active is False
 
 
 def test_oversized_auth_request_keeps_stricter_api_limit(

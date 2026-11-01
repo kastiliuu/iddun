@@ -499,7 +499,7 @@ def test_professional_patch_creates_private_draft_from_name_only(app, client):
         ({"city": "Curitiba", "state": "pr"}, "specialty"),
         ({"primarySpecialty": "Nail designer", "categories": ["unhas"]}, "modality"),
         ({"attendanceModalities": ["own_space"]}, "presentation"),
-        ({"bio": "Atendimento cuidadoso."}, "review"),
+        ({"bio": "Atendimento cuidadoso para unhas naturais e alongamento."}, "review"),
     ]:
         response = client.patch(f"{BASE}/professional", headers=headers, json=changes)
         assert response.status_code == 200, response.get_json()
@@ -546,7 +546,7 @@ def _ready_professional(client, headers):
     response = client.patch(f"{BASE}/professional", headers=headers, json={
         "displayName": "Marina Pronta", "city": "Curitiba", "state": "PR",
         "primarySpecialty": "Nail designer", "categories": ["unhas"],
-        "attendanceModalities": ["own_space"], "bio": "Atendimento cuidadoso.",
+        "attendanceModalities": ["own_space"], "bio": "Atendimento cuidadoso para unhas naturais e alongamento.",
     })
     assert response.status_code == 200
     return response.get_json()["profile"]
@@ -576,7 +576,7 @@ def test_professional_publish_is_idempotent_and_guards_requirements(app, client)
     assert blocked_post.status_code == 409
     with app.app_context():
         profile = db.session.scalar(select(ProfessionalProfile))
-        assert profile.bio == "Atendimento cuidadoso."
+        assert profile.bio == "Atendimento cuidadoso para unhas naturais e alongamento."
         assert profile.is_active is True
 
 
@@ -609,3 +609,47 @@ def test_moderated_professional_is_not_republished_by_owner(app, client):
     assert response.get_json()["error"]["code"] == "publication_locked"
     with app.app_context():
         assert db.session.scalar(select(ProfessionalProfile)).is_active is False
+
+
+def test_professional_presentation_needs_forty_characters(app, client):
+    """D-ONB-02: mínimo de 40 caracteres, mesmo texto no Web e no app."""
+    _, headers = _client(app, "pro-bio@example.com")
+    client.patch(f"{BASE}/professional", headers=headers, json={"displayName": "Marina"})
+
+    short = client.patch(f"{BASE}/professional", headers=headers, json={"bio": "Curta demais."})
+    assert short.status_code == 400
+    assert "pelo menos 40" in short.get_json()["error"]["message"]
+
+    # Cliente antigo do app grava rascunho curto, mas não publica com ele.
+    legacy = client.post(f"{BASE}/professional", headers=headers, json={
+        "displayName": "Marina", "primarySpecialty": "Nail designer",
+        "categories": ["unhas"], "city": "Curitiba", "state": "PR",
+        "attendanceModalities": ["own_space"], "bio": "Curta demais.",
+    })
+    assert legacy.status_code == 200
+    journey = legacy.get_json()["profile"]["journey"]
+    assert journey["missingRequirements"] == [
+        {"key": "bio", "message": "Escreva sua apresentação com pelo menos 40 caracteres."}
+    ]
+    blocked = client.post(f"{BASE}/professional/publish", headers=headers)
+    assert blocked.status_code == 409
+
+
+def test_short_bio_of_published_profile_is_not_unpublished(app, client):
+    """Perfis já no ar com apresentação curta não são afetados (D-ONB-02)."""
+    _, headers = _client(app, "pro-bio-legado@example.com")
+    with app.app_context():
+        user = db.session.scalar(select(User).where(User.email == "pro-bio-legado@example.com"))
+        db.session.add(ProfessionalProfile(
+            user_id=user.id, display_name="Legado", slug="legado-bio",
+            primary_specialty="Barbeiro", specialties_text="Barbearia",
+            bio="Curta.", city="Curitiba", state="PR",
+            attendance_modalities="own_space", is_active=True,
+            published_at=datetime(2026, 9, 1, tzinfo=timezone.utc),
+        ))
+        db.session.commit()
+
+    edited = client.patch(f"{BASE}/professional", headers=headers, json={"instagram": "@legado"})
+
+    assert edited.status_code == 200
+    assert edited.get_json()["profile"]["isActive"] is True

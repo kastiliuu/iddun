@@ -1,0 +1,59 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+
+{% block title %}Seu perfil está no ar | IDDUN Pro{% endblock %}
+{% block body_class %}platform-page onb-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="onb" data-iddun-surface="light" aria-labelledby="onb-done-title">
+  <div class="container onb__shell">
+    <div class="onb__card onb__card--done">
+      <span class="onb__done-mark" aria-hidden="true">{{ icon('check') }}</span>
+      <p class="onb__kicker">Cadastro profissional</p>
+      <h1 class="onb__title" id="onb-done-title">Seu perfil está no ar.</h1>
+      <p class="onb__lead">
+        Clientes já podem encontrar {{ profile.display_name }} no IDDUN.
+        Reservas ainda não estão abertas: elas começam quando você tiver um
+        serviço publicado com horários disponíveis.
+      </p>
+
+      <h2 class="onb__subtitle">Próximos passos</h2>
+      <ol class="onb__next">
+        <li>
+          <a href="{{ url_for('professional.create_service') }}">
+            <strong>Criar um serviço</strong>
+            <small>Nome, duração e preço do que você oferece.</small>
+          </a>
+        </li>
+        <li>
+          <a href="{{ url_for('professional.schedule') }}">
+            <strong>Abrir horários</strong>
+            <small>Defina quando você atende para receber reservas.</small>
+          </a>
+        </li>
+        {% if profile.portfolio_items | length < 3 %}
+        <li>
+          <a href="{{ url_for('professional.edit_profile') }}">
+            <strong>Mostrar seus trabalhos</strong>
+            <small>Fotos do portfólio ajudam clientes a escolher você.</small>
+          </a>
+        </li>
+        {% endif %}
+      </ol>
+
+      <div class="onb__actions onb__actions--done">
+        <a class="onb__secondary" href="{{ url_for('public.professional_detail', slug=profile.slug) }}">Ver meu perfil público</a>
+        <a class="onb__secondary" href="{{ url_for('professional.dashboard') }}">Ir para o painel</a>
+        <a class="btn btn-primary onb__submit" href="{{ url_for('feed.home') }}">Explorar o IDDUN</a>
+      </div>
+      <p class="onb__note">Depois, o painel profissional fica em Minha conta.</p>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock %}

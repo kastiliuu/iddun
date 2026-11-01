@@ -252,6 +252,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="pro-onboarding"
+              />
+
+              <Stack.Screen
                 name="professional/[id]"
               />
 

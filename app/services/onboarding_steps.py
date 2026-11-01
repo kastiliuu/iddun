@@ -23,6 +23,23 @@ from app.services.establishment_readiness_service import (
 )
 
 PROFESSIONAL_MODALITIES = frozenset({"establishment", "own_space", "client_location"})
+
+# D-ONB-01: as mesmas 8 áreas de atuação no Web e no app.
+PROFESSIONAL_CATEGORIES = {
+    "cabelo": "Cabelo",
+    "unhas": "Unhas",
+    "barbearia": "Barbearia",
+    "estetica": "Estética",
+    "maquiagem": "Maquiagem",
+    "sobrancelhas": "Sobrancelhas",
+    "tatuagem": "Tatuagem",
+    "massagem": "Massagem",
+}
+
+# D-ONB-02: apresentação com pelo menos 40 caracteres para publicar, no Web
+# e no app. Perfis já publicados não são afetados (a regra só vale no ato de
+# publicar e nas novas gravações da etapa).
+BIO_MIN_LENGTH = 40
 PHYSICAL_MODES = frozenset({"physical", "hybrid"})
 
 # Mensagens compartilhadas: Web e Expo exibem exatamente estes textos.
@@ -33,7 +50,7 @@ PROFESSIONAL_REQUIREMENT_LABELS = {
     "specialty": "Informe sua especialidade principal.",
     "categories": "Escolha pelo menos uma área de atuação.",
     "attendance_modalities": "Diga como você atende.",
-    "bio": "Escreva sua apresentação.",
+    "bio": f"Escreva sua apresentação com pelo menos {BIO_MIN_LENGTH} caracteres.",
 }
 
 BUSINESS_REQUIREMENT_LABELS = {
@@ -84,7 +101,7 @@ def professional_missing_requirements(profile):
     }
     if not modalities or not modalities.issubset(PROFESSIONAL_MODALITIES):
         missing.append("attendance_modalities")
-    if not requirements["bio"]:
+    if len((profile.bio or "").strip()) < BIO_MIN_LENGTH:
         missing.append("bio")
     return missing
 
