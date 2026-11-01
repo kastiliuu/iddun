@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { ApiError } from "@/api/client";
@@ -26,10 +27,19 @@ import {
   publishEstablishment,
   saveEstablishmentDraft,
 } from "@/api/onboarding";
+import {
+  type EstablishmentMedia,
+  deleteEstablishmentGalleryItem,
+  getEstablishmentMedia,
+  uploadEstablishmentGalleryItem,
+  uploadEstablishmentImage,
+} from "@/api/media";
 import { Button } from "@/components/Button";
+import { useOnboardingStyles } from "@/components/onboarding/onboardingStyles";
 import { Icon } from "@/components/Icon";
+import { MediaPermissionError, pickAndPrepareImage } from "@/media/imagePipeline";
 import { store } from "@/store/local";
-import { fonts, makeStyles, radius, spacing, touch, useTheme } from "@/theme";
+import { useTheme } from "@/theme";
 
 type StepKey = "basics" | "operation" | "address" | "hours" | "contact" | "personalize" | "review";
 
@@ -117,7 +127,7 @@ function stepIndex(key: string | undefined) {
 }
 
 export default function BusinessOnboardingScreen() {
-  const styles = useStyles();
+  const styles = useOnboardingStyles();
   const { colors } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string }>();
@@ -147,6 +157,8 @@ export default function BusinessOnboardingScreen() {
   const [phone, setPhone] = useState("");
   const [whatsapp, setWhatsapp] = useState(true);
   const [email, setEmail] = useState("");
+  const [media, setMedia] = useState<EstablishmentMedia | null>(null);
+  const [mediaBusy, setMediaBusy] = useState<"logo" | "cover" | "gallery" | null>(null);
 
   const hydrate = useCallback((item: EstablishmentDraft) => {
     setDraft(item);
@@ -335,6 +347,56 @@ export default function BusinessOnboardingScreen() {
       setStepError(error instanceof Error ? error.message : "Não foi possível salvar. Tente novamente.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (step.key !== "personalize" || !draft) return;
+    let mounted = true;
+    getEstablishmentMedia(draft.id)
+      .then((response) => {
+        if (mounted) setMedia(response.media);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [step.key, draft]);
+
+  // D-ONB-07: logo, capa e galeria pelo app (opcionais).
+  const handleMedia = async (kind: "logo" | "cover" | "gallery") => {
+    if (!draft || mediaBusy) return;
+    setStepError("");
+    try {
+      const image = await pickAndPrepareImage(
+        "library",
+        kind === "logo" ? "avatar" : kind === "cover" ? "cover" : "portfolio",
+      );
+      if (!image) return;
+      setMediaBusy(kind);
+      const response =
+        kind === "gallery"
+          ? await uploadEstablishmentGalleryItem(draft.id, image)
+          : await uploadEstablishmentImage(draft.id, kind, image);
+      setMedia(response.media);
+    } catch (error) {
+      setStepError(
+        error instanceof MediaPermissionError || error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a imagem. Tente novamente.",
+      );
+    } finally {
+      setMediaBusy(null);
+    }
+  };
+
+  const handleRemoveGallery = async (itemId: number) => {
+    if (!draft) return;
+    try {
+      const response = await deleteEstablishmentGalleryItem(draft.id, itemId);
+      setMedia(response.media);
+    } catch (error) {
+      setStepError(error instanceof Error ? error.message : "Não foi possível remover a foto.");
     }
   };
 
@@ -654,13 +716,59 @@ export default function BusinessOnboardingScreen() {
           ) : null}
 
           {step.key === "personalize" ? (
-            <View style={styles.notice}>
-              <Icon name="image" size={18} color={colors.onSurfaceSecondary} />
-              <Text style={styles.noticeText}>
-                Por enquanto, logo, capa e fotos do espaço são enviados pelo site, em Editar empresa. Seu
-                cadastro continua salvo e pode ser publicado sem fotos.
-              </Text>
-            </View>
+            <>
+              {(
+                [
+                  ["logo", "Logo", "Quadrada, até 5 MB", media?.logo?.url],
+                  ["cover", "Foto de capa", "Fachada ou ambiente, até 5 MB", media?.cover?.url],
+                ] as const
+              ).map(([kind, label, help, url]) => (
+                <Pressable
+                  key={kind}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${url ? "Trocar" : "Escolher"} ${label.toLowerCase()}`}
+                  disabled={mediaBusy !== null}
+                  onPress={() => void handleMedia(kind)}
+                  style={({ pressed }) => [styles.nextItem, pressed && styles.pressed]}
+                >
+                  {url ? (
+                    <Image source={{ uri: url }} style={kind === "logo" ? styles.thumbSquare : styles.thumbWide} />
+                  ) : (
+                    <Icon name="image" size={20} color={colors.muted} />
+                  )}
+                  <View style={styles.nextText}>
+                    <Text style={styles.nextTitle}>{label}</Text>
+                    <Text style={styles.nextBody}>{mediaBusy === kind ? "Enviando…" : help}</Text>
+                  </View>
+                  <Text style={styles.linkText}>{url ? "Trocar" : "Escolher"}</Text>
+                </Pressable>
+              ))}
+              <View style={styles.field}>
+                <Text style={styles.label}>Fotos do espaço</Text>
+                <View style={styles.gallery}>
+                  {(media?.gallery ?? []).map((item) => (
+                    <View key={item.id} style={styles.galleryItem}>
+                      <Image source={{ uri: item.imageUrl }} style={styles.galleryImage} />
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Remover foto"
+                        onPress={() => void handleRemoveGallery(item.id)}
+                        style={styles.galleryRemove}
+                      >
+                        <Icon name="x" size={16} color={colors.onSurface} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+                <Button
+                  title={mediaBusy === "gallery" ? "Enviando…" : "Adicionar foto"}
+                  variant="outline"
+                  disabled={mediaBusy !== null || (media?.gallery.length ?? 0) >= 10}
+                  onPress={() => void handleMedia("gallery")}
+                />
+                <Text style={styles.hint}>Até 10 fotos. Tudo opcional: dá para publicar sem fotos.</Text>
+              </View>
+            </>
           ) : null}
 
           {step.key === "review" ? (
@@ -728,148 +836,3 @@ export default function BusinessOnboardingScreen() {
     </View>
   );
 }
-
-const useStyles = makeStyles((colors) => ({
-  container: { flex: 1, backgroundColor: colors.surface },
-  center: { alignItems: "center", justifyContent: "center" },
-  content: { paddingTop: 54, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
-  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  iconButton: {
-    width: touch.minimum,
-    height: touch.minimum,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.glassSoft,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  count: { color: colors.muted, fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16 },
-  exit: { minHeight: touch.minimum, justifyContent: "center" },
-  exitText: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 12, textDecorationLine: "underline" },
-  progress: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.md, marginBottom: spacing.xl },
-  segment: { flex: 1, height: 4, borderRadius: radius.sm, backgroundColor: colors.surfaceTertiary },
-  segmentDone: { backgroundColor: colors.plumSoftStrong },
-  segmentCurrent: { backgroundColor: colors.plum },
-  kicker: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 1.2 },
-  title: { marginTop: spacing.sm, color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 26, lineHeight: 32 },
-  lead: { marginTop: spacing.sm, color: colors.onSurfaceSecondary, fontFamily: fonts.sans, fontSize: 14, lineHeight: 21 },
-  subtitle: { marginTop: spacing.xl, marginBottom: spacing.sm, color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 18 },
-  alert: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  alertText: { flex: 1, color: colors.onSurface, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  notice: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  noticeText: { flex: 1, color: colors.onSurfaceSecondary, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  form: { marginTop: spacing.xl, gap: spacing.lg },
-  field: { gap: spacing.sm },
-  row: { flexDirection: "row", gap: spacing.sm },
-  rowWide: { flex: 1 },
-  rowShort: { width: 88 },
-  label: { color: colors.onSurfaceSecondary, fontFamily: fonts.sansMedium, fontSize: 13, lineHeight: 18 },
-  hint: { color: colors.muted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
-  input: {
-    minHeight: touch.minimum + 6,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    color: colors.onSurface,
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-  },
-  inputError: { borderColor: colors.error },
-  textArea: { minHeight: 150, paddingTop: spacing.md, textAlignVertical: "top" },
-  fieldError: { color: colors.error, fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16 },
-  choices: { gap: spacing.sm },
-  choice: {
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  choiceSelected: { borderColor: colors.plum, backgroundColor: colors.plumSoft },
-  choiceText: { flex: 1, color: colors.onSurface, fontFamily: fonts.sansMedium, fontSize: 14 },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    borderColor: colors.glassBorderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  check: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.glassBorderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkSelected: { borderColor: colors.plum, backgroundColor: colors.plum },
-  toggleRow: { minHeight: touch.minimum, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  hours: { gap: spacing.sm, marginTop: spacing.sm },
-  hourRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  dayLabel: { width: 72, color: colors.onSurface, fontFamily: fonts.sansMedium, fontSize: 14 },
-  hourInput: { flex: 1, textAlign: "center" },
-  nextItem: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  nextText: { flex: 1, gap: 2 },
-  nextTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 14 },
-  nextBody: { color: colors.muted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
-  reviewItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  reviewLink: { minHeight: touch.minimum, justifyContent: "center", paddingHorizontal: spacing.sm },
-  linkText: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 13 },
-  pending: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.sm, backgroundColor: colors.plumSoft },
-  pendingTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 13 },
-  pendingText: { color: colors.onSurfaceSecondary, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  actions: { marginTop: spacing.xl, gap: spacing.sm },
-  doneMark: {
-    width: 48,
-    height: 48,
-    marginBottom: spacing.lg,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.plum,
-  },
-  pressed: { opacity: 0.75 },
-}));

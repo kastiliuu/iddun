@@ -255,3 +255,71 @@ export function updateProfessionalCoverFocus(
       ),
   );
 }
+
+
+// D-ONB-07 (PR 4 do onboarding): fotos do estabelecimento pelo app.
+// Só o dono ativo; mesmas regras das fotos do Profissional. Fotos são
+// opcionais e não mudam a publicação.
+export type EstablishmentGalleryMedia = {
+  id: number;
+  imageUrl: string;
+  storedPath?: string;
+  caption?: string | null;
+  sortOrder: number;
+};
+
+export type EstablishmentMedia = {
+  logo: ProfessionalMediaImage | null;
+  cover: ProfessionalMediaImage | null;
+  gallery: EstablishmentGalleryMedia[];
+  isActive: boolean;
+};
+
+const establishmentMediaPath = (establishmentId: string) =>
+  `/api/v1/media/establishments/${encodeURIComponent(establishmentId)}`;
+
+export function getEstablishmentMedia(establishmentId: string) {
+  return withAuthenticatedRequest((token) =>
+    api.get<{ media: EstablishmentMedia }>(establishmentMediaPath(establishmentId), { token }),
+  );
+}
+
+export function uploadEstablishmentImage(
+  establishmentId: string,
+  kind: "logo" | "cover",
+  image: UploadableImage,
+  focus: { x?: number; y?: number } = {},
+) {
+  return withAuthenticatedRequest(async (token) => {
+    const body = await imageFormData(image, { focusX: focus.x, focusY: focus.y });
+    return api.post<{ media: EstablishmentMedia }>(
+      `${establishmentMediaPath(establishmentId)}/${kind}`,
+      body,
+      { token },
+    );
+  });
+}
+
+export function uploadEstablishmentGalleryItem(
+  establishmentId: string,
+  image: UploadableImage,
+  caption?: string,
+) {
+  return withAuthenticatedRequest(async (token) => {
+    const body = await imageFormData(image, { caption: caption?.trim() || undefined });
+    return api.post<{ item: EstablishmentGalleryMedia; media: EstablishmentMedia }>(
+      `${establishmentMediaPath(establishmentId)}/gallery`,
+      body,
+      { token },
+    );
+  });
+}
+
+export function deleteEstablishmentGalleryItem(establishmentId: string, itemId: number) {
+  return withAuthenticatedRequest((token) =>
+    api.delete<{ media: EstablishmentMedia }>(
+      `${establishmentMediaPath(establishmentId)}/gallery/${itemId}`,
+      { token },
+    ),
+  );
+}
