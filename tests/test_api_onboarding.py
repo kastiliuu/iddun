@@ -442,10 +442,12 @@ def test_establishment_draft_updates_mobile_auth_context(
     assert establishment_payload["onboardingCompleted"] is False
     assert establishment_payload["isActive"] is False
     assert isinstance(establishment_payload["profileCompletion"], int)
+    # D-ONB-04: apresentação curta (29 caracteres) é gravada pelo POST
+    # antigo, mas continua pendente para publicar.
     assert establishment_payload["readiness"] == {
-        "percentage": 71,
+        "percentage": 57,
         "readyToPublish": False,
-        "missingRequirements": ["operation_mode", "business_hours_mode"],
+        "missingRequirements": ["description", "operation_mode", "business_hours_mode"],
     }
     with app.app_context():
         draft = db.session.get(Establishment, int(establishment_payload["id"]))

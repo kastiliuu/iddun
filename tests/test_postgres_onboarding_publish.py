@@ -43,7 +43,7 @@ def pg_app():
         business = Establishment(
             name="QA Publicação PG", slug="qa-postgres-onboarding-publish",
             category="salao", city="Curitiba", state="PR",
-            description="Apresentação suficiente para publicar.",
+            description="Apresentação suficiente para publicar, com quarenta letras ou mais.",
             phone="41999990000", operation_mode="mobile",
             business_hours_mode="scheduled", is_active=False,
             published_at=None, onboarding_completed=False,

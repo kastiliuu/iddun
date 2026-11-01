@@ -39,7 +39,8 @@ from app.models.professional_experience import (
 )
 from app.services.slug_service import unique_public_handle
 from app.services.establishment_readiness_service import (
-    HOURS_MODES, OPERATION_MODES, evaluate_establishment_readiness,
+    DESCRIPTION_MIN_LENGTH, HOURS_MODES, OPERATION_MODES,
+    evaluate_establishment_readiness,
     valid_business_hours,
 )
 from app.services.onboarding_steps import (
@@ -483,12 +484,16 @@ _BUSINESS_FIELDS = {
     "name", "category", "city", "state", "description", "phone",
     "neighborhood", "address_line1", "address_line2", "postal_code",
     "commercial_email", "operation_mode", "business_hours_mode",
-    "business_hours",
+    "business_hours", "whatsapp_enabled",
 }
 
 
-def _business_values(changes):
-    """Valida só as chaves presentes. Ausência preserva; vazio limpa."""
+def _business_values(changes, *, legacy=False):
+    """Valida só as chaves presentes. Ausência preserva; vazio limpa.
+
+    ``legacy``: contrato do POST antigo do app, que grava rascunho com
+    apresentação curta (a regra de 40 caracteres vale para publicar).
+    """
     unknown = set(changes) - _BUSINESS_FIELDS
     if unknown:
         raise MobileOnboardingError("Campo não permitido nesta etapa.")
@@ -510,8 +515,12 @@ def _business_values(changes):
         )
     if "state" in changes:
         values["state"] = _state(changes["state"])
+    if "description" in changes:
+        values["description"] = _optional_text(
+            changes["description"], "Apresentação",
+            minimum=0 if legacy else DESCRIPTION_MIN_LENGTH, maximum=2000,
+        )
     for key, label, maximum in (
-        ("description", "Apresentação", 2000),
         ("phone", "Telefone", 32),
         ("neighborhood", "Bairro", 100),
         ("address_line2", "Complemento", 120),
@@ -521,6 +530,14 @@ def _business_values(changes):
             values[key] = _optional_text(changes[key], label, maximum=maximum)
     if "phone" in values:
         values["whatsapp_enabled"] = bool(values["phone"])
+    if "whatsapp_enabled" in changes:
+        if not isinstance(changes["whatsapp_enabled"], bool):
+            raise MobileOnboardingError("WhatsApp: informe sim ou não.")
+        # Sem telefone salvo ou enviado, o botão do WhatsApp fica desligado.
+        has_phone = values.get("phone", UNSET)
+        values["whatsapp_enabled"] = changes["whatsapp_enabled"] and bool(
+            has_phone if has_phone is not UNSET else True
+        )
     values.update(_business_optional_values(
         operation_mode=changes.get("operation_mode", UNSET),
         business_hours_mode=changes.get("business_hours_mode", UNSET),
@@ -599,14 +616,14 @@ def _apply_business_values(establishment, values):
     return establishment
 
 
-def update_establishment_draft(*, user, establishment_id, changes):
+def update_establishment_draft(*, user, establishment_id, changes, legacy=False):
     """Salva uma etapa de um estabelecimento do dono, pelo id estável.
 
     Não altera ``is_active``, ``published_at`` nem ``onboarding_completed``.
     O slug público não muda ao renomear.
     """
     establishment = owned_establishment(user, establishment_id)
-    values = _business_values(changes)
+    values = _business_values(changes, legacy=legacy)
     return _apply_business_values(establishment, values)
 
 
@@ -627,6 +644,7 @@ def create_establishment_draft(
     address_line2=UNSET,
     postal_code=UNSET,
     commercial_email=UNSET,
+    whatsapp_enabled=UNSET,
     establishment_id=None,
 ):
     """Cria rascunho (nome, tipo, cidade e UF válidos) ou atualiza o do dono.
@@ -655,6 +673,7 @@ def create_establishment_draft(
         ("address_line2", address_line2),
         ("postal_code", postal_code),
         ("commercial_email", commercial_email),
+        ("whatsapp_enabled", whatsapp_enabled),
     ):
         if value is not UNSET:
             changes[key] = value
@@ -662,9 +681,10 @@ def create_establishment_draft(
     if establishment_id is not None:
         return update_establishment_draft(
             user=user, establishment_id=establishment_id, changes=changes,
+            legacy=True,
         )
 
-    values = _business_values(changes)
+    values = _business_values(changes, legacy=True)
 
     same_name = (
         _owned_establishment_query(user)
@@ -709,7 +729,9 @@ def create_establishment_draft(
         published_at=None,
         is_active=False,
         whatsapp_enabled=False,
-        email=user.email,
+        # D-ONB-05: o e-mail da conta só vira e-mail comercial (público)
+        # quando a pessoa confirma na etapa de contato.
+        email=None,
         city=values["city"],
         state=values["state"],
     )

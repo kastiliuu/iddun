@@ -19,6 +19,7 @@ mudança futura de regra não misture os conceitos.
 """
 
 from app.services.establishment_readiness_service import (
+    DESCRIPTION_MIN_LENGTH,
     evaluate_establishment_readiness,
 )
 
@@ -61,7 +62,10 @@ BUSINESS_REQUIREMENT_LABELS = {
     "business_address": "Informe o endereço comercial.",
     "business_hours_mode": "Defina o funcionamento: sob agendamento ou horários fixos.",
     "business_hours": "Informe horários de funcionamento válidos.",
-    "description": "Escreva a apresentação do estabelecimento.",
+    "description": (
+        "Escreva a apresentação do estabelecimento com pelo menos "
+        f"{DESCRIPTION_MIN_LENGTH} caracteres."
+    ),
     "commercial_contact": "Informe telefone ou e-mail comercial.",
 }
 
@@ -72,6 +76,17 @@ PROFESSIONAL_STEPS = (
     ("modality", "Como você atende", ("attendance_modalities",)),
     ("presentation", "Apresentação", ("bio",)),
 )
+
+# D-ONB-06: os mesmos 7 tipos no Web e no app.
+BUSINESS_CATEGORIES = {
+    "salao": "Salão de beleza",
+    "barbearia": "Barbearia",
+    "tatuagem": "Estúdio de tatuagem",
+    "unhas": "Studio de unhas",
+    "estetica": "Estética",
+    "bem-estar": "Bem-estar / Spa",
+    "multisservicos": "Multi-serviços",
+}
 
 BUSINESS_STEPS = (
     ("basics", "Nome, tipo e cidade", ("name", "category", "location")),
