@@ -56,8 +56,8 @@ def test_business_steps_validate_skip_address_and_publish_explicitly(page: Page)
     expect(page.locator("#name")).to_be_focused()
     expect(page.locator("#category-errors")).to_have_text("Escolha o tipo de estabelecimento.")
 
-    name = f"Studio Ensaio {uuid.uuid4().hex[:4]}"
-    page.locator("#name").fill(name)
+    # Nome fixo: as iniciais do DS usam a primeira e a última palavra.
+    page.locator("#name").fill("Studio Ensaio")
     page.locator(".onb__choice", has_text="Salão de beleza").click()
     page.locator("#city").fill("Curitiba")
     page.locator("#state").fill("PR")
