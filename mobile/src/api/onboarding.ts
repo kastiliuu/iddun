@@ -106,7 +106,8 @@ export type ProfessionalDraftPayload = {
 
 export type EstablishmentDraftPayload = {
   operationMode?: "physical" | "mobile" | "hybrid";
-  businessHoursMode?: "scheduled";
+  businessHoursMode?: "scheduled" | "fixed_hours";
+  businessHours?: Partial<Record<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday", { start: string; end: string }[]>>;
   commercialEmail?: string;
   name: string;
   category: string;
