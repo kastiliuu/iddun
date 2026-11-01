@@ -2430,3 +2430,58 @@ article > div {
     flex: 0 0 auto;
   }
 }
+
+/* NV-07 — horários fixos por dia no cadastro Business. */
+.platform-hours {
+  display: grid;
+  gap: var(--ds-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.platform-hours[hidden] {
+  display: none;
+}
+
+.platform-hours > legend {
+  padding: 0;
+}
+
+.platform-hours__row {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: var(--ds-space-3);
+}
+
+.platform-hours__day {
+  min-height: var(--ds-control-min-target);
+  display: flex;
+  align-items: center;
+  font-size: var(--ds-type-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+.platform-hours__time {
+  display: grid;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+
+.platform-hours__caption {
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
+}
+
+@media (max-width: 47.5em) {
+  .platform-hours__row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .platform-hours__day {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+}

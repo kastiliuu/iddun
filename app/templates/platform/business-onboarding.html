@@ -431,7 +431,27 @@
               {{ form.business_hours_mode(class_="platform-select") }}
               {{ field_errors(form.business_hours_mode) }}
             </div>
-            <p class="platform-field platform-field--wide">Horários fixos poderão ser configurados depois. Esta etapa não altera a publicação atual.</p>
+            {# Horários fixos: uma linha por dia. Sem JavaScript o bloco fica
+               sempre visível; com JavaScript aparece só para "Horários fixos". #}
+            <fieldset class="platform-field platform-field--wide platform-hours" data-hours-panel>
+              <legend class="platform-label">Horários de funcionamento</legend>
+              <p class="platform-help">Preencha abertura e fechamento dos dias em que atende. Deixe em branco os dias fechados.</p>
+              {% for day, name in [('monday', 'Segunda'), ('tuesday', 'Terça'), ('wednesday', 'Quarta'), ('thursday', 'Quinta'), ('friday', 'Sexta'), ('saturday', 'Sábado'), ('sunday', 'Domingo')] %}
+              {% set opens = form[day ~ '_start'] %}
+              {% set closes = form[day ~ '_end'] %}
+              <div class="platform-hours__row" role="group" aria-labelledby="hours-{{ day }}">
+                <span class="platform-hours__day" id="hours-{{ day }}">{{ name }}</span>
+                <label class="platform-hours__time">
+                  <span class="platform-hours__caption">Abertura</span>
+                  {{ opens(class_="platform-input", type="time", step="60", **{"aria-label": opens.label.text}) }}
+                </label>
+                <label class="platform-hours__time">
+                  <span class="platform-hours__caption">Fechamento</span>
+                  {{ closes(class_="platform-input", type="time", step="60", **{"aria-label": closes.label.text}) }}
+                </label>
+              </div>
+              {% endfor %}
+            </fieldset>
           </div>
           <div class="platform-form-grid">
             <div

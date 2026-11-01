@@ -225,3 +225,72 @@ def test_nv07_business_invalid_operation_mode_does_not_persist(app, client):
     assert response.status_code == 200
     assert _count(app) == 0
     assert "operation_mode" in response.get_data(as_text=True)
+
+
+def test_nv07_business_fixed_hours_are_saved_as_weekly_schedule(app, client):
+    _login(client, _owner(app, "nv07-hours@example.com"))
+    response = client.post(
+        "/business/onboarding",
+        data={
+            **VALID,
+            "name": "Studio Horario",
+            "business_hours_mode": "fixed_hours",
+            "monday_start": "09:00",
+            "monday_end": "18:00",
+            "friday_start": "10:00",
+            "friday_end": "16:00",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.name == "Studio Horario")
+        )
+        assert establishment.business_hours_mode == "fixed_hours"
+        assert establishment.business_hours == {
+            "monday": [{"start": "09:00", "end": "18:00"}],
+            "friday": [{"start": "10:00", "end": "16:00"}],
+        }
+
+
+def test_nv07_business_rejects_partial_fixed_hours_without_persisting(app, client):
+    _login(client, _owner(app, "nv07-hours-invalid@example.com"))
+    response = client.post(
+        "/business/onboarding",
+        data={
+            **VALID,
+            "business_hours_mode": "fixed_hours",
+            "monday_start": "09:00",
+        },
+    )
+    assert response.status_code == 200
+    assert _count(app) == 0
+    assert "Informe abertura e fechamento válidos" in response.get_data(as_text=True)
+
+
+def test_nv07_weekly_hours_fields_are_portuguese_time_inputs(app, client):
+    _login(client, _owner(app, "nv07-hours-ui@example.com"))
+    html = client.get("/business/onboarding").get_data(as_text=True)
+
+    panel = re.search(r"<fieldset[^>]*data-hours-panel[^>]*>(.*?)</fieldset>", html, re.S)
+    assert panel, "bloco de horários ausente"
+    block = panel.group(1)
+    assert "Horários de funcionamento" in block
+    for day in ("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"):
+        assert day in block
+    assert len(re.findall(r'<input[^>]*type="time"', block)) == 14
+    # Nada de nomes de dia em inglês na interface.
+    for english in ("monday", "tuesday", "sunday"):
+        assert f"Abertura {english}" not in html
+    assert 'aria-label="Abertura na segunda"' in block
+
+
+def test_nv07_weekly_hours_error_is_shown_once(app, client):
+    _login(client, _owner(app, "nv07-hours-once@example.com"))
+    html = client.post(
+        "/business/onboarding",
+        data={**VALID, "business_hours_mode": "fixed_hours", "monday_start": "09:00"},
+    ).get_data(as_text=True)
+
+    assert html.count('id="business_hours_mode-errors"') == 1
+    assert "Informe abertura e fechamento válidos" in html
