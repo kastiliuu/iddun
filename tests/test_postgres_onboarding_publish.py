@@ -128,7 +128,7 @@ def test_postgresql_concurrent_professional_publish_happens_once(monkeypatch):
         profile = ProfessionalProfile(
             user_id=user.id, display_name="Pro PG", slug="qa-postgres-pro-publish",
             primary_specialty="Nail designer", specialties_text="Unhas",
-            bio="Apresentação suficiente.", city="Curitiba", state="PR",
+            bio="Apresentação suficiente para publicar, com mais de quarenta letras.", city="Curitiba", state="PR",
             attendance_modalities="own_space", is_active=False,
             published_at=None, onboarding_completed=False,
         )
