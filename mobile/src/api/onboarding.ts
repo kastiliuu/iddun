@@ -62,6 +62,33 @@ export type ProfessionalMembership = {
   };
 };
 
+// Etapas e estados do onboarding (backend: app/services/onboarding_steps.py).
+// Cadastro concluído, perfil 100% e publicado são campos distintos;
+// reservável é decidido por serviço e não vem neste objeto.
+export type OnboardingStep = {
+  key: string;
+  label: string;
+  required: boolean;
+  applicable: boolean;
+  complete: boolean;
+};
+
+export type MissingRequirement = {
+  key: string;
+  message: string;
+};
+
+export type OnboardingJourney = {
+  steps: OnboardingStep[];
+  currentStep: string;
+  registrationComplete: boolean;
+  readyToPublish: boolean;
+  profileComplete: boolean;
+  profileCompletion: number;
+  published: boolean;
+  missingRequirements: MissingRequirement[];
+};
+
 export type ProfessionalOnboardingProfile = {
   id: string;
   slug: string;
@@ -71,6 +98,9 @@ export type ProfessionalOnboardingProfile = {
   attendanceModalities: string[];
   bio: string;
   phone: string;
+  headline?: string;
+  instagram?: string;
+  whatsappEnabled?: boolean;
   city: string;
   state: string;
   avatarUrl?: string | null;
@@ -85,6 +115,7 @@ export type ProfessionalOnboardingProfile = {
   onboardingCompleted: boolean;
   publishedAt?: string | null;
   completion: ProfessionalCompletion;
+  journey?: OnboardingJourney;
   experiences: ProfessionalExperience[];
   memberships: ProfessionalMembership[];
 };
@@ -104,10 +135,31 @@ export type ProfessionalDraftPayload = {
   phone?: string;
 };
 
+// Salvamento parcial: chave ausente preserva o valor salvo; null ou ""
+// em campo opcional limpa. Nome, tipo, cidade e UF não podem ser limpos.
+export type ProfessionalDraftPatch = Partial<{
+  displayName: string;
+  headline: string | null;
+  primarySpecialty: string | null;
+  categories: string[] | null;
+  city: string | null;
+  state: string | null;
+  bio: string | null;
+  phone: string | null;
+  whatsappEnabled: boolean;
+  instagram: string | null;
+  attendanceModalities: string[] | null;
+}>;
+
+export type BusinessHours = Partial<Record<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday", { start: string; end: string }[]>>;
+
 export type EstablishmentDraftPayload = {
+  // Id estável devolvido no primeiro salvamento. Sem ele, o servidor só
+  // reaproveita um rascunho nunca publicado com o mesmo nome e cidade.
+  establishmentId?: string;
   operationMode?: "physical" | "mobile" | "hybrid";
   businessHoursMode?: "scheduled" | "fixed_hours";
-  businessHours?: Partial<Record<"monday" | "tuesday" | "wednesday" | "thursday" | "friday" | "saturday" | "sunday", { start: string; end: string }[]>>;
+  businessHours?: BusinessHours;
   commercialEmail?: string;
   name: string;
   category: string;
@@ -118,21 +170,53 @@ export type EstablishmentDraftPayload = {
   neighborhood?: string;
 };
 
+export type EstablishmentDraftPatch = Partial<{
+  name: string;
+  category: string;
+  city: string;
+  state: string;
+  description: string | null;
+  phone: string | null;
+  neighborhood: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  postalCode: string | null;
+  commercialEmail: string | null;
+  operationMode: "physical" | "mobile" | "hybrid" | null;
+  businessHoursMode: "scheduled" | "fixed_hours" | null;
+  businessHours: BusinessHours | null;
+}>;
+
+export type EstablishmentDraft = {
+  id: string;
+  slug: string;
+  name: string;
+  category?: string | null;
+  description: string;
+  phone: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+  operationMode?: "physical" | "mobile" | "hybrid" | null;
+  businessHoursMode?: "scheduled" | "fixed_hours" | null;
+  businessHours?: BusinessHours | null;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  postalCode?: string | null;
+  commercialEmail?: string;
+  isActive: boolean;
+  onboardingCompleted: boolean;
+  publishedAt?: string | null;
+  profileCompletion: number;
+  journey?: OnboardingJourney;
+};
+
 export type EstablishmentDraftResponse = {
-  establishment: {
-    id: string;
-    slug: string;
-    name: string;
-    category?: string | null;
-    description: string;
-    phone: string;
-    neighborhood: string;
-    city: string;
-    state: string;
-    isActive: boolean;
-    onboardingCompleted: boolean;
-    profileCompletion: number;
-  };
+  establishment: EstablishmentDraft;
+};
+
+export type EstablishmentPublishResponse = EstablishmentDraftResponse & {
+  alreadyPublished: boolean;
 };
 
 export type ProfessionalExperiencePayload = {
@@ -204,6 +288,68 @@ export function saveProfessionalDraft(
   );
 }
 
+export function patchProfessionalDraft(
+  changes: ProfessionalDraftPatch,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.patch<ProfessionalOnboardingResponse>(
+        "/api/v1/onboarding/professional",
+        changes,
+        { token },
+      ),
+  );
+}
+
+export function listEstablishmentDrafts() {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.get<{ establishments: EstablishmentDraft[] }>(
+        "/api/v1/onboarding/establishments",
+        { token },
+      ),
+  );
+}
+
+export function getEstablishmentDraft(
+  establishmentId: string,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.get<EstablishmentDraftResponse>(
+        `/api/v1/onboarding/establishments/${encodeURIComponent(establishmentId)}`,
+        { token },
+      ),
+  );
+}
+
+export function patchEstablishmentDraft(
+  establishmentId: string,
+  changes: EstablishmentDraftPatch,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.patch<EstablishmentDraftResponse>(
+        `/api/v1/onboarding/establishments/${encodeURIComponent(establishmentId)}`,
+        changes,
+        { token },
+      ),
+  );
+}
+
+export function publishEstablishment(
+  establishmentId: string,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.post<EstablishmentPublishResponse>(
+        `/api/v1/onboarding/establishments/${encodeURIComponent(establishmentId)}/publish`,
+        undefined,
+        { token },
+      ),
+  );
+}
+
 export function saveEstablishmentDraft(
   payload: EstablishmentDraftPayload,
 ) {
@@ -251,7 +397,7 @@ export function removeProfessionalExperience(
 export function publishProfessionalProfile() {
   return withAuthenticatedRequest(
     (token) =>
-      api.post<ProfessionalOnboardingResponse>(
+      api.post<ProfessionalOnboardingResponse & { alreadyPublished?: boolean }>(
         "/api/v1/onboarding/professional/publish",
         undefined,
         { token },
