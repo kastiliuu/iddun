@@ -14,6 +14,11 @@ WEEKDAYS = frozenset({
     "monday", "tuesday", "wednesday", "thursday",
     "friday", "saturday", "sunday",
 })
+# D-ONB-04 (01/11/2026): apresentação com pelo menos 40 caracteres para
+# publicar, como no Profissional. Estabelecimentos já publicados não mudam
+# de estado por isso (a publicação só é verificada no ato de publicar).
+DESCRIPTION_MIN_LENGTH = 40
+
 _CLOCK = re.compile(r"^(?:[01][0-9]|2[0-3]):[0-5][0-9]$")
 _EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -87,7 +92,8 @@ def evaluate_establishment_readiness(establishment):
     checks = [
         ("name", _filled(getattr(establishment, "name", None))),
         ("category", _filled(getattr(establishment, "category", None))),
-        ("description", _filled(getattr(establishment, "description", None))),
+        ("description", _filled(getattr(establishment, "description", None))
+         and len(establishment.description.strip()) >= DESCRIPTION_MIN_LENGTH),
         ("location", (
             _filled(getattr(establishment, "city", None))
             and _filled(getattr(establishment, "state", None))

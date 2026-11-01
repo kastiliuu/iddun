@@ -50,24 +50,27 @@ def test_experience_form_reports_errors_next_to_fields(page: Page, viewport):
 
 
 def test_business_server_errors_are_readable(page: Page):
+    """Cadastro por etapas (PR 3): etapa de contato sem apresentação."""
+    from e2e.test_web_business_wizard import start_business_draft
+
     _login(page, E2E_EMAIL)
-    page.goto("/business/onboarding")
-    page.locator("#name").fill("Studio Pressa")
-    with page.expect_navigation():
-        page.evaluate(NATIVE_SUBMIT, "#name")
+    draft_id = start_business_draft(page, "Studio Pressa")
+    page.goto(f"/business/onboarding/{draft_id}/contato")
+    page.locator("#description").fill("")
+    page.get_by_role("button", name="Continuar").click()
 
     expect(page.locator("#description")).to_have_attribute("aria-invalid", "true")
     expect(page.locator("#description")).to_have_attribute("aria-describedby", re.compile("description-errors"))
     _assert_readable_error(page, "#description-errors")
 
 
-def test_business_wizard_client_error_matches_server_error(page: Page):
+def test_business_first_step_error_is_readable(page: Page):
     _login(page, E2E_EMAIL)
-    page.goto("/business/onboarding")
+    page.goto("/business/onboarding/novo")
     page.locator("#name").fill("")
     page.get_by_role("button", name="Continuar").click()
 
-    _assert_readable_error(page, "#name-client-error")
+    _assert_readable_error(page, "#name-errors")
 
 
 def test_signup_errors_on_dark_surface_stay_readable(page: Page):

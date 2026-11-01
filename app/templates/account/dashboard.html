@@ -152,9 +152,10 @@
           {% endif %}
 
           {% for access in business_accesses %}
-          <a class="account-context-card account-context-card--business" href="{{ url_for('business.dashboard', slug=access.establishment.slug) }}">
+          {% set business_draft = not access.establishment.is_active and access.establishment.published_at is none %}
+          <a class="account-context-card account-context-card--business" href="{{ url_for('business.onboarding') if business_draft else url_for('business.dashboard', slug=access.establishment.slug) }}">
             <span class="account-context-card__icon">{{ icon('store') }}</span>
-            <span><strong>{{ access.establishment.name }}</strong><small>IDDUN Business · {{ access.role|title }}</small></span>
+            <span><strong>{{ 'Continuar cadastro: ' if business_draft }}{{ access.establishment.name }}</strong><small>{% if business_draft %}rascunho, ainda não publicado{% else %}IDDUN Business · {{ access.role|title }}{% endif %}</small></span>
             {{ icon('chevron-right') }}
           </a>
           {% endfor %}

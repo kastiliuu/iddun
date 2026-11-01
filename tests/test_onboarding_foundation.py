@@ -308,7 +308,9 @@ def test_published_establishment_cannot_lose_a_met_requirement(app, client):
     error = blocked.get_json()["error"]
     assert error["code"] == "publication_requirement_removed"
     assert error["details"]["missingRequirements"] == [
-        {"key": "description", "message": "Escreva a apresentação do estabelecimento."}
+        {"key": "description", "message": (
+            "Escreva a apresentação do estabelecimento com pelo menos 40 caracteres."
+        )}
     ]
 
     to_mobile = client.patch(path, headers=headers, json={"operationMode": "mobile", "addressLine1": None})
@@ -440,7 +442,7 @@ def test_business_completion_uses_the_single_approved_rule(app):
     with app.app_context():
         item = Establishment(
             name="Sem logo", slug="sem-logo", category="salao",
-            description="Apresentação.", city="Curitiba", state="PR",
+            description="Apresentação com pelo menos quarenta caracteres.", city="Curitiba", state="PR",
             phone="41999990000", operation_mode="mobile",
             business_hours_mode="scheduled",
         )
@@ -464,8 +466,9 @@ def test_business_journey_moves_step_by_step(app, client):
         ({"addressLine1": "Rua A, 10"}, "hours"),
         ({"businessHoursMode": "fixed_hours"}, "hours"),
         ({"businessHours": {"monday": [{"start": "09:00", "end": "18:00"}]}}, "contact"),
-        # O e-mail da conta já vem como e-mail comercial do rascunho.
-        ({"description": "Apresentação."}, "review"),
+        # D-ONB-05: rascunho novo não recebe o e-mail da conta sozinho.
+        ({"description": "Apresentação com pelo menos quarenta caracteres."}, "contact"),
+        ({"commercialEmail": "contato@studio.example"}, "review"),
         ({"commercialEmail": ""}, "contact"),
         ({"phone": "41999990000"}, "review"),
     ]
@@ -653,3 +656,29 @@ def test_short_bio_of_published_profile_is_not_unpublished(app, client):
 
     assert edited.status_code == 200
     assert edited.get_json()["profile"]["isActive"] is True
+
+
+def test_new_business_draft_does_not_copy_the_account_email(app, client):
+    """D-ONB-05: o e-mail da conta não vira e-mail comercial sem confirmação."""
+    _, headers = _client(app, "sem-copia@example.com")
+    item = _create(client, headers, {key: DRAFT[key] for key in ("name", "category", "city", "state")})
+    assert item["commercialEmail"] == ""
+    assert "commercial_contact" in [
+        entry["key"] for entry in item["journey"]["missingRequirements"]
+    ]
+
+
+def test_business_description_needs_forty_characters_to_publish(app, client):
+    """D-ONB-04: mínimo de 40 no PATCH e para publicar; POST antigo grava."""
+    _, headers = _client(app, "biz-40@example.com")
+    item = _create(client, headers, {**READY, "description": "Curta demais."})
+    assert "description" in [
+        entry["key"] for entry in item["journey"]["missingRequirements"]
+    ]
+    short = client.patch(
+        f"{BASE}/establishments/{item['id']}", headers=headers,
+        json={"description": "Ainda curta."},
+    )
+    assert short.status_code == 400
+    blocked = client.post(f"{BASE}/establishments/{item['id']}/publish", headers=headers)
+    assert blocked.status_code == 409

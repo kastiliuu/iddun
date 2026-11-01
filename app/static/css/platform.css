@@ -2700,6 +2700,7 @@ article > div {
 }
 
 .onb__choices legend {
+  margin-bottom: var(--ds-space-2);
   padding: 0;
 }
 
@@ -2971,4 +2972,9 @@ article > div {
     margin-inline: 0;
     padding-inline: 0;
   }
+}
+
+/* Cadastro de Estabelecimento (PR 3): escolha única em cartões. */
+.onb__choice-check--radio {
+  border-radius: 50%;
 }

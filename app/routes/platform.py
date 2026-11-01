@@ -19,8 +19,15 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.forms.platform import (
+    BizPublishForm,
+    BizStepAddressForm,
+    BizStepBasicsForm,
+    BizStepContactForm,
+    BizStepHoursForm,
+    BizStepMediaForm,
+    BizStepOperationForm,
     BusinessEditForm,
-    BusinessOnboardingForm,
+    WEEKDAY_FIELDS,
     ProfessionalCertificationForm,
     ProfessionalEditForm,
     ProPublishForm,
@@ -44,7 +51,6 @@ from app.models.booking import (
 from app.models.certification import ProfessionalCertification
 from app.models.establishment import (
     Establishment,
-    EstablishmentAccessRole,
     EstablishmentAccessStatus,
     EstablishmentGalleryItem,
     EstablishmentUserAccess,
@@ -95,18 +101,25 @@ from app.services.professional_schedule_service import (
     save_weekly_schedule,
     schedule_rows,
 )
+from app.services.establishment_readiness_service import valid_business_hours
 from app.services.mobile_onboarding_service import (
     MobileOnboardingError,
     OnboardingConflict,
+    create_establishment_draft,
+    owned_establishment,
+    owned_establishments,
+    publish_establishment,
     publish_professional_profile,
+    update_establishment_draft,
     update_professional_draft,
 )
 from app.services.onboarding_steps import (
     PROFESSIONAL_CATEGORIES,
+    business_journey,
     professional_journey,
 )
 from app.services.reputation_service import reputation_summary
-from app.services.slug_service import unique_public_handle, unique_slug
+from app.services.slug_service import unique_slug
 from app.services.time_service import to_local, local_naive_to_utc
 
 
@@ -262,6 +275,8 @@ PRO_ONBOARDING_STEPS = (
         "slug": "fotos",
         "key": "personalize",
         "form": ProStepPersonalizeForm,
+        "optional": True,
+        "multipart": True,
         "title": "Deixe o perfil com a sua cara",
         "lead": "Tudo nesta etapa é opcional. Dá para fazer agora ou depois, em Editar perfil.",
     },
@@ -481,6 +496,9 @@ def onboarding_step(step):
         step_index=index,
         step_total=len(PRO_ONBOARDING_STEPS),
         previous_url=_pro_step_url(previous) if previous else url_for("professional.start"),
+        step_url=_pro_step_url,
+        review_url=_pro_step_url("revisar"),
+        onb_kicker="Cadastro profissional",
         back_to_review=back_to_review,
         profile=profile,
         journey=journey,
@@ -1939,193 +1957,404 @@ def remove_certification(certification_id):
     )
 
 
+# --- Cadastro de Estabelecimento por etapas (PR 3 do onboarding V0) -------
+#
+# O rascunho nasce na etapa 1 (nome, tipo, cidade e UF, SCR-EST-002) e cada
+# etapa seguinte é salva pelo id estável, com autorização de proprietário
+# ativo, pelo mesmo serviço da API do app. Publicar é explícito (F1);
+# endereço só para físico ou híbrido (F2); estabelecimentos publicados não
+# passam pelo cadastro nem são alterados por ele.
+
+BIZ_ONBOARDING_STEPS = (
+    {
+        "slug": "dados",
+        "key": "basics",
+        "form": BizStepBasicsForm,
+        "title": "Qual é o seu espaço e onde ele fica?",
+        "lead": "Nome, tipo e cidade criam o rascunho da sua página. Nada fica público até você publicar.",
+    },
+    {
+        "slug": "atendimento",
+        "key": "operation",
+        "form": BizStepOperationForm,
+        "title": "Como seu negócio atende?",
+        "lead": "Se você atende só no endereço do cliente, nenhum endereço aparece na sua página.",
+    },
+    {
+        "slug": "endereco",
+        "key": "address",
+        "form": BizStepAddressForm,
+        "title": "Qual é o endereço comercial?",
+        "lead": "Use o endereço do espaço onde os clientes são atendidos. Nunca um endereço residencial.",
+    },
+    {
+        "slug": "funcionamento",
+        "key": "hours",
+        "form": BizStepHoursForm,
+        "title": "Quando você atende?",
+        "lead": "Funcionamento do espaço. Os horários de cada profissional são definidos depois, na agenda.",
+    },
+    {
+        "slug": "contato",
+        "key": "contact",
+        "form": BizStepContactForm,
+        "title": "Como os clientes falam com você?",
+        "lead": "Uma apresentação curta e pelo menos um contato: telefone ou e-mail comercial.",
+    },
+    {
+        "slug": "fotos",
+        "key": "personalize",
+        "form": BizStepMediaForm,
+        "title": "Mostre seu espaço",
+        "lead": "Logo, capa e fotos são opcionais. Dá para fazer agora ou depois, em Editar empresa.",
+        "optional": True,
+        "multipart": True,
+    },
+    {
+        "slug": "revisar",
+        "key": "review",
+        "form": BizPublishForm,
+        "title": "Revise e publique sua página",
+        "lead": "Publicar coloca a página no ar. Reservas dependem de serviços, profissionais e horários, que você organiza depois.",
+    },
+)
+BIZ_STEP_BY_SLUG = {item["slug"]: item for item in BIZ_ONBOARDING_STEPS}
+BIZ_SLUG_BY_KEY = {item["key"]: item["slug"] for item in BIZ_ONBOARDING_STEPS}
+
+
+def _biz_step_url(establishment_id, slug, **params):
+    return url_for(
+        "business.onboarding_step",
+        establishment_id=establishment_id,
+        step=slug,
+        **params,
+    )
+
+
+def _biz_drafts():
+    """Rascunhos nunca publicados do dono (os publicados ficam no painel)."""
+    return [
+        item for item in owned_establishments(current_user)
+        if not item.is_active and item.published_at is None
+    ]
+
+
+def _biz_step_applies(establishment, slug):
+    if slug != "endereco":
+        return True
+    return establishment is None or establishment.operation_mode in {"physical", "hybrid"}
+
+
+def _biz_neighbour(establishment, index, direction):
+    position = index + direction
+    while 0 <= position < len(BIZ_ONBOARDING_STEPS):
+        slug = BIZ_ONBOARDING_STEPS[position]["slug"]
+        if _biz_step_applies(establishment, slug):
+            return slug
+        position += direction
+    return None
+
+
+def _biz_prefill(form, establishment, slug):
+    if slug == "dados":
+        form.name.data = establishment.name
+        form.category.data = establishment.category
+        form.city.data = establishment.city
+        form.state.data = establishment.state
+    elif slug == "atendimento":
+        form.operation_mode.data = establishment.operation_mode
+    elif slug == "endereco":
+        form.address_line1.data = establishment.address_line1
+        form.address_line2.data = establishment.address_line2
+        form.neighborhood.data = establishment.neighborhood
+        form.postal_code.data = establishment.postal_code
+    elif slug == "funcionamento":
+        form.business_hours_mode.data = establishment.business_hours_mode
+        for day, periods in (establishment.business_hours or {}).items():
+            if periods:
+                getattr(form, f"{day}_start").data = periods[0].get("start")
+                getattr(form, f"{day}_end").data = periods[0].get("end")
+    elif slug == "contato":
+        form.description.data = establishment.description
+        form.phone.data = establishment.phone
+        form.whatsapp_enabled.data = bool(establishment.whatsapp_enabled) or not establishment.phone
+        form.instagram.data = establishment.instagram
+        # D-ONB-05: o e-mail da conta é só sugestão, visível e editável;
+        # passa a valer quando a pessoa salva esta etapa.
+        form.email.data = establishment.email or current_user.email
+    elif slug == "fotos":
+        form.logo_focus_x.data = establishment.logo_focus_x
+        form.logo_focus_y.data = establishment.logo_focus_y
+        form.cover_focus_x.data = establishment.cover_focus_x
+        form.cover_focus_y.data = establishment.cover_focus_y
+
+
+def _biz_hours(form):
+    weekly = {}
+    for day, _label in WEEKDAY_FIELDS:
+        start = (getattr(form, f"{day}_start").data or "").strip()
+        end = (getattr(form, f"{day}_end").data or "").strip()
+        if start or end:
+            weekly[day] = [{"start": start, "end": end}]
+    return weekly
+
+
+def _biz_changes(form, slug):
+    if slug == "dados":
+        return {
+            "name": form.name.data,
+            "category": form.category.data,
+            "city": form.city.data,
+            "state": form.state.data,
+        }
+    if slug == "atendimento":
+        return {"operation_mode": form.operation_mode.data}
+    if slug == "endereco":
+        return {
+            "address_line1": form.address_line1.data,
+            "address_line2": form.address_line2.data or None,
+            "neighborhood": form.neighborhood.data or None,
+            "postal_code": form.postal_code.data or None,
+        }
+    if slug == "funcionamento":
+        if form.business_hours_mode.data == "fixed_hours":
+            return {"business_hours_mode": "fixed_hours", "business_hours": _biz_hours(form)}
+        # Sob agendamento: a grade deixa de valer (DEC-ID-103).
+        return {"business_hours_mode": "scheduled", "business_hours": None}
+    if slug == "contato":
+        phone = (form.phone.data or "").strip()
+        return {
+            "description": form.description.data,
+            "phone": phone or None,
+            "whatsapp_enabled": bool(form.whatsapp_enabled.data and phone),
+            "commercial_email": (form.email.data or "").strip().lower() or None,
+        }
+    return {}
+
+
+def _save_biz_media_step(form, establishment):
+    gallery_files = _files_with_names(form.gallery_files.data)
+    room = max(0, 10 - len(establishment.gallery_items))
+    if len(gallery_files) > room:
+        form.gallery_files.errors.append(
+            f"Você pode adicionar mais {room} foto(s) agora."
+            if room
+            else "A galeria já tem 10 fotos. Remova alguma em Editar empresa."
+        )
+        return False
+
+    replaced_media = []
+    try:
+        with UploadBatch() as uploads:
+            logo_url = uploads.save_image(form.logo_file.data, "establishments/logos")
+            cover_url = uploads.save_image(form.cover_file.data, "establishments/covers")
+            gallery_urls = uploads.save_many_images(
+                gallery_files, "establishments/gallery", max_files=10,
+            )
+            establishment.logo_focus_x = _focus_value(form.logo_focus_x.data)
+            establishment.logo_focus_y = _focus_value(form.logo_focus_y.data)
+            establishment.cover_focus_x = _focus_value(form.cover_focus_x.data)
+            establishment.cover_focus_y = _focus_value(form.cover_focus_y.data)
+            if logo_url:
+                replaced_media.append(establishment.logo_url)
+                establishment.logo_url = logo_url
+            if cover_url:
+                replaced_media.append(establishment.cover_url)
+                establishment.cover_url = cover_url
+            start_order = len(establishment.gallery_items)
+            for offset, image_url in enumerate(gallery_urls):
+                db.session.add(EstablishmentGalleryItem(
+                    establishment=establishment,
+                    image_url=image_url,
+                    sort_order=start_order + offset,
+                ))
+            db.session.commit()
+            uploads.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        form.gallery_files.errors.append(str(exc))
+        return False
+    except (OSError, SQLAlchemyError):
+        _record_upload_failure(
+            form.gallery_files,
+            "Não foi possível salvar as fotos agora. Tente novamente.",
+            "Falha ao salvar fotos do onboarding de estabelecimento.",
+        )
+        return False
+
+    delete_uploaded_files(replaced_media)
+    return True
+
+
+def _render_biz_step(definition, establishment, form, *, step_error=None,
+                     back_to_review=False, status=200):
+    index = BIZ_ONBOARDING_STEPS.index(definition)
+    previous = _biz_neighbour(establishment, index, -1)
+    if establishment is None:
+        previous_url = url_for("business.onboarding")
+        step_url = lambda slug, **params: url_for("business.onboarding_new")  # noqa: E731
+        review_url = url_for("business.onboarding_new")
+    else:
+        previous_url = (
+            _biz_step_url(establishment.id, previous) if previous
+            else url_for("business.onboarding")
+        )
+
+        def step_url(slug, **params):
+            return _biz_step_url(establishment.id, slug, **params)
+
+        review_url = step_url("revisar")
+    return render_template(
+        "platform/biz-onboarding-step.html",
+        form=form,
+        step=definition,
+        steps=BIZ_ONBOARDING_STEPS,
+        step_index=index,
+        step_total=len(BIZ_ONBOARDING_STEPS),
+        previous_url=previous_url,
+        step_url=step_url,
+        review_url=review_url,
+        onb_kicker="Cadastro do estabelecimento",
+        back_to_review=back_to_review,
+        establishment=establishment,
+        journey=business_journey(establishment) if establishment is not None else None,
+        weekdays=WEEKDAY_FIELDS,
+        step_error=step_error,
+        current_page="for-professionals",
+    ), status
+
+
+@business_bp.get("/onboarding")
+@login_required
+def onboarding():
+    """Começar ou continuar: rascunhos do dono e "criar outro"."""
+    drafts = _biz_drafts()
+    if not drafts:
+        return redirect(url_for("business.onboarding_new"))
+    return render_template(
+        "platform/biz-onboarding-start.html",
+        drafts=[(item, business_journey(item)) for item in drafts],
+        slug_by_key=BIZ_SLUG_BY_KEY,
+        current_page="for-professionals",
+    )
+
+
+@business_bp.route("/onboarding/novo", methods=["GET", "POST"])
+@login_required
+def onboarding_new():
+    definition = BIZ_STEP_BY_SLUG["dados"]
+    form = BizStepBasicsForm()
+    step_error = None
+    if form.validate_on_submit():
+        try:
+            establishment = create_establishment_draft(
+                user=current_user,
+                name=form.name.data,
+                category=form.category.data,
+                city=form.city.data,
+                state=form.state.data,
+            )
+        except MobileOnboardingError as exc:
+            step_error = str(exc)
+        else:
+            return redirect(_biz_step_url(establishment.id, "atendimento"))
+    return _render_biz_step(
+        definition, None, form, step_error=step_error,
+        status=422 if request.method == "POST" else 200,
+    )
+
+
 @business_bp.route(
-    "/onboarding",
+    "/onboarding/<int:establishment_id>/<step>",
     methods=["GET", "POST"],
 )
 @login_required
-def onboarding():
-    form = BusinessOnboardingForm()
-
-    if request.method == "GET":
-        form.email.data = current_user.email
-
-    # Weekly hours apply only when the owner explicitly chooses fixed hours.
-    weekly_hours = None
-    hours_valid = True
-    if request.method == "POST" and form.business_hours_mode.data == "fixed_hours":
-        from app.services.establishment_readiness_service import valid_business_hours
-        weekly_hours = {}
-        for day in ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"):
-            start = (getattr(form, f"{day}_start").data or "").strip()
-            end = (getattr(form, f"{day}_end").data or "").strip()
-            if start or end:
-                weekly_hours[day] = [{"start": start, "end": end}]
-        if not valid_business_hours(weekly_hours):
-            hours_valid = False
-
-    form_is_valid = form.validate_on_submit()
-    if request.method == "POST" and not hours_valid:
-        form.business_hours_mode.errors.append(
-            "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
+def onboarding_step(establishment_id, step):
+    definition = BIZ_STEP_BY_SLUG.get(step)
+    if definition is None:
+        abort(404)
+    try:
+        establishment = owned_establishment(current_user, establishment_id)
+    except MobileOnboardingError:
+        abort(404)
+    if establishment.is_active:
+        flash(
+            "Esta página já está publicada. Para mudar algo, use Editar empresa.",
+            "info",
         )
+        return redirect(url_for("business.dashboard", slug=establishment.slug))
 
-    if form_is_valid and hours_valid:
-        try:
-            with UploadBatch() as uploads:
-                logo_url = uploads.save_image(
-                    form.logo_file.data,
-                    "establishments/logos",
-                )
-                cover_url = uploads.save_image(
-                    form.cover_file.data,
-                    "establishments/covers",
-                )
-                gallery_urls = (
-                    uploads.save_many_images(
-                        form.gallery_files.data,
-                        "establishments/gallery",
-                        max_files=10,
-                    )
-                )
+    index = BIZ_ONBOARDING_STEPS.index(definition)
+    back_to_review = request.args.get("retorno") == "revisar" and step != "revisar"
+    if not _biz_step_applies(establishment, step):
+        # Endereço só para físico ou híbrido (F2): pula para a próxima.
+        return redirect(_biz_step_url(
+            establishment.id,
+            "revisar" if back_to_review else _biz_neighbour(establishment, index, 1),
+        ))
 
-                establishment = Establishment(
-                    name=form.name.data.strip(),
-                    slug=unique_public_handle(
-                        form.name.data,
-                        resource_type="establishment",
-                    ),
-                    description=(
-                        form.description.data.strip()
-                    ),
-                    category=form.category.data,
-                    operation_mode=form.operation_mode.data or None,
-                    business_hours_mode=form.business_hours_mode.data or None,
-                    business_hours=weekly_hours,
-                    visual_theme=_theme_for_business(
-                        form.category.data
-                    ),
-                    plan_tier="free",
-                    onboarding_completed=True,
-                    published_at=utcnow(),
-                    phone=(
-                        form.phone.data or ""
-                    ).strip()
-                    or None,
-                    whatsapp_enabled=bool(
-                        form.whatsapp_enabled.data
-                        and form.phone.data
-                    ),
-                    email=(
-                        form.email.data or ""
-                    ).strip().lower()
-                    or None,
-                    instagram=(
-                        form.instagram.data or ""
-                    ).strip()
-                    or None,
-                    address_line1=(
-                        form.address_line1.data.strip()
-                    ),
-                    address_line2=(
-                        form.address_line2.data or ""
-                    ).strip()
-                    or None,
-                    neighborhood=(
-                        form.neighborhood.data or ""
-                    ).strip()
-                    or None,
-                    city=form.city.data.strip(),
-                    state=(
-                        form.state.data.strip().upper()
-                    ),
-                    postal_code=(
-                        form.postal_code.data or ""
-                    ).strip()
-                    or None,
-                    logo_url=logo_url,
-                    cover_url=cover_url,
-                    logo_focus_x=_focus_value(
-                        form.logo_focus_x.data
-                    ),
-                    logo_focus_y=_focus_value(
-                        form.logo_focus_y.data
-                    ),
-                    cover_focus_x=_focus_value(
-                        form.cover_focus_x.data
-                    ),
-                    cover_focus_y=_focus_value(
-                        form.cover_focus_y.data
-                    ),
-                )
+    form = definition["form"]()
+    step_error = None
+    if request.method == "GET":
+        _biz_prefill(form, establishment, step)
 
-                db.session.add(establishment)
-                db.session.flush()
-
-                db.session.add(
-                    EstablishmentUserAccess(
-                        user=current_user,
-                        establishment=establishment,
-                        role=(
-                            EstablishmentAccessRole.OWNER
-                        ),
-                        status=(
-                            EstablishmentAccessStatus.ACTIVE
-                        ),
-                    )
-                )
-
-                for index, image_url in enumerate(
-                    gallery_urls
-                ):
-                    db.session.add(
-                        EstablishmentGalleryItem(
-                            establishment=establishment,
-                            image_url=image_url,
-                            sort_order=index,
-                        )
-                    )
-
-                db.session.commit()
-                uploads.commit()
-
-        except ValueError as exc:
-            db.session.rollback()
-            form.gallery_files.errors.append(
-                str(exc)
-            )
-
-        except (OSError, SQLAlchemyError):
-            _record_upload_failure(
-                form.gallery_files,
-                (
-                    "Não foi possível criar a página "
-                    "da empresa agora. Tente novamente."
-                ),
-                (
-                    "Falha ao salvar o onboarding "
-                    "do estabelecimento."
-                ),
-            )
-
+    if form.validate_on_submit():
+        if step == "revisar":
+            try:
+                publish_establishment(user=current_user, establishment_id=establishment.id)
+            except OnboardingConflict as exc:
+                step_error = str(exc)
+            else:
+                return redirect(url_for(
+                    "business.onboarding_done", establishment_id=establishment.id,
+                ))
+        elif step == "fotos":
+            if _save_biz_media_step(form, establishment):
+                return redirect(_biz_step_url(establishment.id, "revisar"))
         else:
-            flash(
-                (
-                    "Página da empresa criada. Agora "
-                    "monte sua equipe no IDDUN Business."
-                ),
-                "success",
-            )
-            return redirect(
-                url_for(
-                    "business.dashboard",
-                    slug=establishment.slug,
-                )
-            )
+            hours_ok = True
+            changes = _biz_changes(form, step)
+            if step == "funcionamento" and changes["business_hours_mode"] == "fixed_hours":
+                hours_ok = valid_business_hours(changes["business_hours"])
+                if not hours_ok:
+                    form.business_hours_mode.errors.append(
+                        "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
+                    )
+            if hours_ok:
+                try:
+                    update_establishment_draft(
+                        user=current_user,
+                        establishment_id=establishment.id,
+                        changes=changes,
+                    )
+                except MobileOnboardingError as exc:
+                    step_error = str(exc)
+                else:
+                    if back_to_review:
+                        return redirect(_biz_step_url(establishment.id, "revisar"))
+                    return redirect(_biz_step_url(
+                        establishment.id, _biz_neighbour(establishment, index, 1),
+                    ))
 
+    return _render_biz_step(
+        definition, establishment, form, step_error=step_error,
+        back_to_review=back_to_review,
+        status=422 if request.method == "POST" else 200,
+    )
+
+
+@business_bp.get("/onboarding/<int:establishment_id>/concluido")
+@login_required
+def onboarding_done(establishment_id):
+    try:
+        establishment = owned_establishment(current_user, establishment_id)
+    except MobileOnboardingError:
+        abort(404)
+    if not establishment.is_active:
+        return redirect(_biz_step_url(establishment.id, "revisar"))
     return render_template(
-        "platform/business-onboarding.html",
-        form=form,
+        "platform/biz-onboarding-done.html",
+        establishment=establishment,
         current_page="for-professionals",
     )
 
@@ -2527,8 +2756,10 @@ def edit(slug):
                     establishment.ready_to_publish
                 )
 
+                # Rascunho só vai ao ar por publicação explícita (F1).
                 if (
-                    establishment.onboarding_completed
+                    establishment.is_active
+                    and establishment.onboarding_completed
                     and establishment.published_at
                     is None
                 ):

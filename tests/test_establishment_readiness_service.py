@@ -153,7 +153,7 @@ def test_legacy_readiness_does_not_mutate_publication(published, active):
 def test_real_establishment_model_readiness_has_no_side_effects():
     item = Establishment(
         name="Studio Real", slug="studio-real", category="salao",
-        description="Atendimento com horário agendado.",
+        description="Atendimento com horário agendado e cuidado em cada detalhe.",
         city="Curitiba", state="PR", phone="41999999999",
         operation_mode="mobile", business_hours_mode="scheduled",
         address_line1=None, published_at=None, is_active=False,

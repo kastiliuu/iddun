@@ -307,6 +307,7 @@ def _establishment_payload(item):
             item.description or ""
         ),
         "phone": item.phone or "",
+        "whatsappEnabled": bool(item.whatsapp_enabled),
         "operationMode": item.operation_mode,
         "businessHoursMode": item.business_hours_mode,
         "businessHours": item.business_hours,
@@ -350,6 +351,7 @@ ESTABLISHMENT_FIELDS = (
     ("operationMode", "operation_mode"),
     ("businessHoursMode", "business_hours_mode"),
     ("businessHours", "business_hours"),
+    ("whatsappEnabled", "whatsapp_enabled"),
 )
 
 PROFESSIONAL_FIELDS = (

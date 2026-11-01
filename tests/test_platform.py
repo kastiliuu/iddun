@@ -19,7 +19,7 @@ from app.models.professional import (
 )
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
-from onboarding_flow import complete_professional_onboarding
+from onboarding_flow import complete_business_onboarding, complete_professional_onboarding
 
 
 def _create_user(
@@ -283,36 +283,25 @@ def test_business_onboarding_creates_owner_access_and_public_page(
 
     _login_session(client, user_id)
 
-    response = client.post(
-        "/business/onboarding",
-        data={
-            "name": "Studio Aurora",
-            "category": "salao",
-            "description": (
-                "Um espaço dedicado a experiências de beleza, "
-                "atendimento e transformação com cuidado."
-            ),
-            "phone": "41988888888",
-            "email": "contato@aurora.com",
-            "instagram": "@studioaurora",
-            "address_line1": "Rua Teste, 100",
-            "address_line2": "Sala 2",
-            "neighborhood": "Batel",
-            "city": "Curitiba",
-            "state": "PR",
-            "postal_code": "80000000",
-            "logo_focus_x": "41",
-            "logo_focus_y": "52",
-            "cover_focus_x": "63",
-            "cover_focus_y": "48",
-            "logo_file": _image("logo.png"),
-        },
-        content_type="multipart/form-data",
-        follow_redirects=False,
+    complete_business_onboarding(
+        client,
+        name="Studio Aurora",
+        category="salao",
+        description=(
+            "Um espaço dedicado a experiências de beleza, "
+            "atendimento e transformação com cuidado."
+        ),
+        phone="41988888888",
+        email="contato@aurora.com",
+        instagram="@studioaurora",
+        address_line1="Rua Teste, 100",
+        address_line2="Sala 2",
+        neighborhood="Batel",
+        postal_code="80000000",
+        logo_focus=(41, 52),
+        cover_focus=(63, 48),
+        logo=_image("logo.png"),
     )
-
-    assert response.status_code == 302
-    assert "/business/" in response.headers["Location"]
 
     with app.app_context():
         establishment = db.session.scalar(
@@ -391,21 +380,16 @@ def test_same_account_can_be_client_professional_and_business_owner(
         ),
     )
 
-    client.post(
-        "/business/onboarding",
-        data={
-            "name": "Barbearia Multi",
-            "category": "barbearia",
-            "description": (
+    complete_business_onboarding(
+        client,
+        name="Barbearia Multi",
+        category="barbearia",
+        description=(
                 "Barbearia contemporânea focada em corte, "
                 "barba, identidade e atendimento cuidadoso."
             ),
-            "address_line1": "Rua Multi, 10",
-            "city": "Curitiba",
-            "state": "PR",
-            "logo_file": _image("logo.jpg"),
-        },
-        content_type="multipart/form-data",
+        address_line1="Rua Multi, 10",
+        logo=_image("logo.jpg"),
     )
 
     with app.app_context():
@@ -572,22 +556,17 @@ def test_business_invitation_requires_professional_acceptance(
 
     _login_session(client, owner_id)
 
-    client.post(
-        "/business/onboarding",
-        data={
-            "name": "Studio Convite",
-            "category": "unhas",
-            "description": (
+    complete_business_onboarding(
+        client,
+        name="Studio Convite",
+        category="unhas",
+        description=(
                 "Um espaço profissional criado para "
                 "experiências de beleza cuidadosas e "
                 "atendimento personalizado."
             ),
-            "address_line1": "Rua Convite, 10",
-            "city": "Curitiba",
-            "state": "PR",
-            "logo_file": _image("logo.jpg"),
-        },
-        content_type="multipart/form-data",
+        address_line1="Rua Convite, 10",
+        logo=_image("logo.jpg"),
     )
 
     with app.app_context():

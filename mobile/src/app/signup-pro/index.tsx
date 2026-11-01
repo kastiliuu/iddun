@@ -1,1962 +1,251 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+// Entrada do cadastro profissional e de estabelecimento no app.
+// Onboarding V0 (PRs 2 e 3): os dois cadastros acontecem por etapas, salvas
+// no servidor, nas telas /pro-onboarding e /business-onboarding — a mesma
+// ordem e as mesmas regras do Web. Esta tela só ajuda a escolher e a
+// retomar rascunhos.
+import React, { useEffect, useState } from "react";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Image } from "expo-image";
-import {
-  useLocalSearchParams,
-  useRouter,
-} from "expo-router";
+import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
+import {
+  type EstablishmentDraft,
+  getProfessionalOnboarding,
+  listEstablishmentDrafts,
+} from "@/api/onboarding";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { useToast } from "@/components/Toast";
+import { fonts, makeStyles, radius, spacing, touch, useTheme } from "@/theme";
 
-import {
-  getCurrentUser,
-} from "@/api/auth";
-
-import {
-  getProfessionalOnboarding,
-  saveEstablishmentDraft,
-} from "@/api/onboarding";
-
-import {
-  store,
-} from "@/store/local";
-
-import {
-  fonts,
-  makeStyles,
-  radius,
-  spacing,
-  touch,
-  useTheme,
-} from "@/theme";
-
-type AccountType =
-  | "professional"
-  | "establishment";
-
-type CategoryOption = {
-  id: string;
-  label: string;
-};
-
-const categoryOptions: CategoryOption[] = [
-  {
-    id: "cabelo",
-    label: "Cabelo",
-  },
-  {
-    id: "unhas",
-    label: "Unhas",
-  },
-  {
-    id: "barbearia",
-    label: "Barbearia",
-  },
-  {
-    id: "estetica",
-    label: "Estética",
-  },
-  {
-    id: "maquiagem",
-    label: "Maquiagem",
-  },
-  {
-    id: "sobrancelhas",
-    label: "Sobrancelhas",
-  },
-  {
-    id: "tatuagem",
-    label: "Tatuagem",
-  },
-  {
-    id: "massagem",
-    label: "Massagem",
-  },
-];
-
-// HH:MM em 24 horas, o mesmo formato que a API valida.
-const HOUR_PATTERN = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+type AccountType = "professional" | "establishment";
+type ProfessionalState = "none" | "draft" | "published";
 
 export default function SignupProfessionalScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
-  const toast = useToast();
 
-  const params =
-    useLocalSearchParams<{
-      name?: string;
-      email?: string;
-    }>();
+  const [accountType, setAccountType] = useState<AccountType>("professional");
+  const [professional, setProfessional] = useState<ProfessionalState>("none");
+  const [drafts, setDrafts] = useState<EstablishmentDraft[]>([]);
 
-  const [accountType, setAccountType] =
-    useState<AccountType>(
-      "professional",
-    );
-
-  const [name, setName] =
-    useState(
-      params.name ??
-        "",
-    );
-
-  const [businessName, setBusinessName] =
-    useState("");
-
-  const [email, setEmail] =
-    useState(
-      params.email ??
-        "",
-    );
-
-  const [phone, setPhone] =
-    useState("");
-
-  const [businessOperationMode, setBusinessOperationMode] = useState<"" | "physical" | "mobile" | "hybrid">("");
-  const [businessHoursMode, setBusinessHoursMode] = useState<"" | "scheduled" | "fixed_hours">("");
-  const [commercialEmail, setCommercialEmail] = useState("");
-  const [weeklyHours, setWeeklyHours] = useState<Record<string, { start: string; end: string }>>({});
-  const [hoursError, setHoursError] = useState("");
-
-  const [city, setCity] =
-    useState(
-      "Curitiba",
-    );
-
-  const [state, setState] =
-    useState(
-      "PR",
-    );
-
-  const [neighborhood, setNeighborhood] =
-    useState("");
-
-  const [specialty, setSpecialty] =
-    useState("");
-
-  const [selectedCategories, setSelectedCategories] =
-    useState<string[]>([]);
-
-  const [attendanceModalities, setAttendanceModalities] =
-    useState<string[]>([]);
-
-  const [bio, setBio] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [professionalDraft, setProfessionalDraft] =
-    useState<"none" | "draft" | "published">("none");
-
-  useEffect(
-    () => {
-      let mounted = true;
-
-      const hydrate =
-        async () => {
-          const currentUser =
-            store.getUser();
-
-          if (
-            mounted &&
-            currentUser
-          ) {
-            setName(
-              (value) =>
-                value ||
-                currentUser.name,
-            );
-            setEmail(
-              (value) =>
-                value ||
-                currentUser.email,
-            );
-          }
-
-          try {
-            const response =
-              await getProfessionalOnboarding();
-
-            if (
-              !mounted ||
-              !response.profile
-            ) {
-              return;
-            }
-
-            const profile =
-              response.profile;
-
-            setProfessionalDraft(
-              profile.isActive ? "published" : "draft",
-            );
-
-            setAccountType(
-              "professional",
-            );
-            setName(
-              profile.displayName,
-            );
-            setSpecialty(
-              profile.primarySpecialty ||
-                "",
-            );
-            setSelectedCategories(
-              profile.categories,
-            );
-            setAttendanceModalities(profile.attendanceModalities ?? []);
-            setCity(
-              profile.city ||
-                "Curitiba",
-            );
-            setState(
-              profile.state ||
-                "PR",
-            );
-            setBio(
-              profile.bio,
-            );
-            setPhone(
-              profile.phone,
-            );
-          } catch {
-            // Uma falha de rede não apaga o que a pessoa já digitou.
-          }
-        };
-
-      void hydrate();
-
-      return () => {
-        mounted = false;
-      };
-    },
-    [],
-  );
-
-  const isEstablishment =
-    accountType ===
-    "establishment";
-
-  const displayName =
-    isEstablishment
-      ? businessName.trim()
-      : name.trim();
-
-  const canContinue =
-    useMemo(() => {
-      if (!name.trim()) {
-        return false;
-      }
-
-      if (!email.trim()) {
-        return false;
-      }
-
-      if (!city.trim()) {
-        return false;
-      }
-
-      if (
-        state.trim().length !== 2
-      ) {
-        return false;
-      }
-
-      if (!specialty.trim()) {
-        return false;
-      }
-
-      if (
-        selectedCategories.length ===
-        0
-      ) {
-        return false;
-      }
-
-      if (
-        isEstablishment &&
-        !businessName.trim()
-      ) {
-        return false;
-      }
-
-      return true;
-    }, [
-      name,
-      email,
-      city,
-      state,
-      specialty,
-      selectedCategories,
-      isEstablishment,
-      businessName,
-    ]);
-
-  const toggleCategory = (
-    categoryId: string,
-  ) => {
-    Haptics.selectionAsync().catch(
-      () => {},
-    );
-
-    setSelectedCategories(
-      (current) => {
-        if (
-          current.includes(
-            categoryId,
-          )
-        ) {
-          return current.filter(
-            (item) =>
-              item !==
-              categoryId,
-          );
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      // Uma falha de rede só esconde a retomada; começar continua possível.
+      try {
+        const response = await getProfessionalOnboarding();
+        if (mounted && response.profile) {
+          setProfessional(response.profile.isActive ? "published" : "draft");
         }
+      } catch {}
+      try {
+        const response = await listEstablishmentDrafts();
+        if (mounted) {
+          setDrafts(response.establishments.filter((item) => !item.isActive && !item.publishedAt));
+        }
+      } catch {}
+    };
+    void load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-        return [
-          ...current,
-          categoryId,
-        ];
-      },
+  const choose = (value: AccountType) => {
+    Haptics.selectionAsync().catch(() => {});
+    setAccountType(value);
+  };
+
+  const typeCard = (value: AccountType, icon: "user" | "home", title: string, body: string) => {
+    const selected = accountType === value;
+    return (
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ checked: selected }}
+        onPress={() => choose(value)}
+        style={({ pressed }) => [styles.typeCard, selected && styles.typeCardSelected, pressed && styles.pressed]}
+      >
+        <View style={styles.typeIcon}>
+          <Icon name={icon} size={20} color={selected ? colors.plum : colors.muted} />
+        </View>
+        <Text style={styles.typeTitle}>{title}</Text>
+        <Text style={styles.typeDescription}>{body}</Text>
+      </Pressable>
     );
   };
 
-  const handleSubmit =
-    async () => {
-      if (!canContinue) {
-        toast.show({
-          title:
-            "Complete seu perfil",
-          body:
-            "Preencha os campos obrigatórios antes de continuar.",
-          icon:
-            "alert-circle",
-        });
-
-        return;
-      }
-
-      try {
-        setLoading(true);
-
-        Haptics.impactAsync(
-          Haptics
-            .ImpactFeedbackStyle
-            .Medium,
-        ).catch(() => {});
-
-        if (isEstablishment) {
-          const firstCategory =
-            selectedCategories[0];
-
-          const categoryMap:
-            Record<string, string> = {
-              cabelo: "salao",
-              unhas: "unhas",
-              barbearia: "barbearia",
-              estetica: "estetica",
-              maquiagem: "salao",
-              sobrancelhas: "salao",
-              tatuagem: "tatuagem",
-              massagem: "bem-estar",
-            };
-
-          const weeklyEntries = Object.entries(weeklyHours).filter(([, range]) => range.start.trim() || range.end.trim());
-          if (businessHoursMode === "fixed_hours" && (
-            weeklyEntries.length === 0 || weeklyEntries.some(([, range]) =>
-              !HOUR_PATTERN.test(range.start) ||
-              !HOUR_PATTERN.test(range.end) ||
-              range.start >= range.end
-            )
-          )) {
-            setHoursError("Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia.");
-            return;
-          }
-          setHoursError("");
-          await saveEstablishmentDraft({
-            ...(businessOperationMode ? { operationMode: businessOperationMode } : {}),
-            ...(businessHoursMode ? { businessHoursMode } : {}),
-            ...(businessHoursMode === "fixed_hours" ? { businessHours: Object.fromEntries(Object.entries(weeklyHours).filter(([, range]) => range.start.trim() && range.end.trim()).map(([day, range]) => [day, [{ start: range.start, end: range.end }]])) } : {}),
-            ...(commercialEmail.trim() ? { commercialEmail: commercialEmail.trim() } : {}),
-            name:
-              businessName.trim(),
-            category:
-              categoryMap[
-                firstCategory
-              ] || "multisservicos",
-            city: city.trim(),
-            state:
-              state.trim().toUpperCase(),
-            description:
-              bio.trim(),
-            phone:
-              phone.trim(),
-            neighborhood:
-              neighborhood.trim(),
-          });
-
-          await getCurrentUser();
-
-          toast.show({
-            title:
-              "Estabelecimento salvo",
-            body:
-              "Seu rascunho está salvo no IDDUN e pode ser retomado depois.",
-            icon:
-              "check",
-          });
-
-          router.replace(
-            "/(tabs)/profile",
-          );
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
   return (
-    <View
-      style={
-        styles.container
-      }
-    >
-      <ScrollView
-        contentContainerStyle={
-          styles.content
-        }
-        showsVerticalScrollIndicator={
-          false
-        }
-        keyboardShouldPersistTaps="handled"
-      >
-        <View
-          style={
-            styles.header
-          }
-        >
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Voltar"
-            onPress={() => {
-              if (
-                router.canGoBack()
-              ) {
-                router.back();
-              } else {
-                router.replace(
-                  "/(tabs)/profile",
-                );
-              }
-            }}
-            style={({
-              pressed,
-            }) => [
-              styles.headerButton,
-              pressed &&
-                styles.pressed,
-            ]}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)/profile"))}
+            style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
           >
-            <Icon
-              name="arrow-left"
-              size={20}
-              color={
-                colors.onSurface
-              }
-            />
+            <Icon name="arrow-left" size={20} color={colors.onSurface} />
           </Pressable>
-
           <Image
-            source={require(
-              "../../../assets/branding/iddun-logo-white.png",
-            )}
-            style={
-              styles.logo
-            }
+            source={require("../../../assets/branding/iddun-logo-white.png")}
+            style={styles.logo}
             contentFit="contain"
             accessibilityLabel="IDDUN"
           />
-
-          <View
-            style={
-              styles.headerPlaceholder
-            }
-          />
+          <View style={styles.headerPlaceholder} />
         </View>
 
-        <View
-          style={
-            styles.intro
-          }
-        >
-          <Text
-            style={
-              styles.eyebrow
-            }
-          >
-            IDDUN PROFISSIONAL
-          </Text>
+        <Text style={styles.eyebrow}>IDDUN PROFISSIONAL</Text>
+        <Text style={styles.title} accessibilityRole="header">Transforme seu trabalho em presença.</Text>
+        <Text style={styles.description}>
+          Crie seu perfil profissional ou a página do seu espaço. Uma pergunta por vez, tudo salvo para você
+          continuar depois.
+        </Text>
 
-          <Text
-            style={
-              styles.title
-            }
-          >
-            Transforme seu trabalho em presença.
-          </Text>
-
-          <Text
-            style={
-              styles.description
-            }
-          >
-            Crie seu perfil profissional, publique trabalhos, ofereça serviços e seja descoberto por novos clientes.
-          </Text>
+        <Text style={styles.fieldLabel}>Como você trabalha?</Text>
+        <View style={styles.typeOptions} accessibilityRole="radiogroup">
+          {typeCard("professional", "user", "Profissional", "Trabalho de forma independente ou dentro de um espaço.")}
+          {typeCard("establishment", "home", "Estabelecimento", "Salão, studio, barbearia, clínica ou outro espaço com equipe.")}
         </View>
 
-        <View
-          style={
-            styles.typeSection
-          }
-        >
-          <Text
-            style={
-              styles.fieldLabel
-            }
-          >
-            Como você trabalha?
-          </Text>
-
-          <View
-            style={
-              styles.typeOptions
-            }
-          >
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                selected:
-                  accountType ===
-                  "professional",
-              }}
-              onPress={() =>
-                setAccountType(
-                  "professional",
-                )
-              }
-              style={({
-                pressed,
-              }) => [
-                styles.typeCard,
-
-                accountType ===
-                  "professional" &&
-                  styles.typeCardSelected,
-
-                pressed &&
-                  styles.pressed,
-              ]}
-            >
-              <View
-                style={
-                  styles.typeIcon
-                }
-              >
-                <Icon
-                  name="user"
-                  size={20}
-                  color={
-                    accountType ===
-                    "professional"
-                      ? colors.plum
-                      : colors.muted
-                  }
-                />
-              </View>
-
-              <Text
-                style={
-                  styles.typeTitle
-                }
-              >
-                Profissional
-              </Text>
-
-              <Text
-                style={
-                  styles.typeDescription
-                }
-              >
-                Trabalho de forma independente ou dentro de um espaço.
-              </Text>
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                selected:
-                  accountType ===
-                  "establishment",
-              }}
-              onPress={() =>
-                setAccountType(
-                  "establishment",
-                )
-              }
-              style={({
-                pressed,
-              }) => [
-                styles.typeCard,
-
-                accountType ===
-                  "establishment" &&
-                  styles.typeCardSelected,
-
-                pressed &&
-                  styles.pressed,
-              ]}
-            >
-              <View
-                style={
-                  styles.typeIcon
-                }
-              >
-                <Icon
-                  name="home"
-                  size={20}
-                  color={
-                    accountType ===
-                    "establishment"
-                      ? colors.plum
-                      : colors.muted
-                  }
-                />
-              </View>
-
-              <Text
-                style={
-                  styles.typeTitle
-                }
-              >
-                Estabelecimento
-              </Text>
-
-              <Text
-                style={
-                  styles.typeDescription
-                }
-              >
-                Salão, studio, barbearia, clínica ou outro espaço com equipe.
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        {isEstablishment ? (
-          <>
-        <View
-          style={
-            styles.form
-          }
-        >
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Seu nome *
-            </Text>
-
-            <TextInput
-              value={name}
-              onChangeText={
-                setName
-              }
-              placeholder="Nome completo"
-              placeholderTextColor={
-                colors.muted
-              }
-              autoCapitalize="words"
-              style={
-                styles.input
-              }
-            />
-          </View>
-
-          {isEstablishment ? (
-            <View
-              style={
-                styles.field
-              }
-            >
-              <Text
-                style={
-                  styles.fieldLabel
-                }
-              >
-                Nome do estabelecimento *
-              </Text>
-
-              <TextInput
-                value={
-                  businessName
-                }
-                onChangeText={
-                  setBusinessName
-                }
-                placeholder="Ex.: Atelier Lumi"
-                placeholderTextColor={
-                  colors.muted
-                }
-                autoCapitalize="words"
-                style={
-                  styles.input
-                }
-              />
-            </View>
-          ) : null}
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              E-mail *
-            </Text>
-
-            <TextInput
-              value={email}
-              onChangeText={
-                setEmail
-              }
-              placeholder="seu@email.com"
-              placeholderTextColor={
-                colors.muted
-              }
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              editable={false}
-              style={[
-                styles.input,
-                styles.inputDisabled,
-              ]}
-            />
-          </View>
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Telefone
-            </Text>
-
-            <TextInput
-              value={phone}
-              onChangeText={
-                setPhone
-              }
-              placeholder="(41) 99999-9999"
-              placeholderTextColor={
-                colors.muted
-              }
-              keyboardType="phone-pad"
-              style={
-                styles.input
-              }
-            />
-          </View>
-
-          {isEstablishment ? (
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Modalidade de atendimento</Text>
-              {([
-                ["physical", "No estabelecimento"],
-                ["mobile", "No endereço do cliente"],
-                ["hybrid", "Híbrido"],
-              ] as const).map(([value, label]) => (
-                <Pressable
-                  key={value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: businessOperationMode === value }}
-                  onPress={() => setBusinessOperationMode(value)}
-                  style={[styles.categoryChip, businessOperationMode === value && styles.categoryChipSelected]}
-                >
-                  <Text style={[styles.categoryText, businessOperationMode === value && styles.categoryTextSelected]}>{label}</Text>
-                </Pressable>
-              ))}
-              <Text style={styles.fieldLabel}>Funcionamento</Text>
-              <Pressable
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: businessHoursMode === "scheduled" }}
-                onPress={() => setBusinessHoursMode(businessHoursMode === "scheduled" ? "" : "scheduled")}
-                style={[styles.categoryChip, businessHoursMode === "scheduled" && styles.categoryChipSelected]}
-              >
-                <Text style={[styles.categoryText, businessHoursMode === "scheduled" && styles.categoryTextSelected]}>Atendimento sob agendamento</Text>
-              </Pressable>
-              <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: businessHoursMode === "fixed_hours" }}
-                onPress={() => setBusinessHoursMode(businessHoursMode === "fixed_hours" ? "" : "fixed_hours")}
-                style={[styles.categoryChip, businessHoursMode === "fixed_hours" && styles.categoryChipSelected]}>
-                <Text style={[styles.categoryText, businessHoursMode === "fixed_hours" && styles.categoryTextSelected]}>Horários fixos</Text>
-              </Pressable>
-              {businessHoursMode === "fixed_hours" ? (
-                <>
-                  {([["monday","Segunda"],["tuesday","Terça"],["wednesday","Quarta"],["thursday","Quinta"],["friday","Sexta"],["saturday","Sábado"],["sunday","Domingo"]] as [string, string][]).map(([day, label]) => (
-                    <View key={day} style={styles.field}>
-                      <Text style={styles.fieldLabel}>{label}</Text>
-                      <View style={styles.row}>
-                        <TextInput value={weeklyHours[day]?.start || ""} onChangeText={value => setWeeklyHours(previous => ({ ...previous, [day]: { start: value, end: previous[day]?.end || "" } }))}
-                          accessibilityLabel={`Abertura: ${label}`} placeholder="Abertura 09:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" maxLength={5} style={[styles.input, styles.rowField]} />
-                        <TextInput value={weeklyHours[day]?.end || ""} onChangeText={value => setWeeklyHours(previous => ({ ...previous, [day]: { start: previous[day]?.start || "", end: value } }))}
-                          accessibilityLabel={`Fechamento: ${label}`} placeholder="Fechamento 18:00" placeholderTextColor={colors.muted} keyboardType="numbers-and-punctuation" maxLength={5} style={[styles.input, styles.rowField]} />
-                      </View>
-                    </View>
-                  ))}
-                  <Text style={styles.fieldHint}>Deixe em branco os dias em que não atende.</Text>
-                  {hoursError ? <Text style={styles.fieldError} accessibilityRole="alert">{hoursError}</Text> : null}
-                </>
-              ) : null}
-              <Text style={styles.fieldLabel}>E-mail comercial</Text>
-              <TextInput
-                value={commercialEmail}
-                onChangeText={setCommercialEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="contato@empresa.com.br (opcional)"
-                placeholderTextColor={colors.muted}
-                style={styles.input}
-              />
-            </View>
-          ) : null}
-
-          <View
-            style={
-              styles.row
-            }
-          >
-            <View
-              style={[
-                styles.field,
-                styles.rowField,
-              ]}
-            >
-              <Text
-                style={
-                  styles.fieldLabel
-                }
-              >
-                Cidade *
-              </Text>
-
-              <TextInput
-                value={city}
-                onChangeText={
-                  setCity
-                }
-                placeholder="Cidade"
-                placeholderTextColor={
-                  colors.muted
-                }
-                style={
-                  styles.input
-                }
-              />
-            </View>
-
-            <View
-              style={[
-                styles.field,
-                styles.rowField,
-              ]}
-            >
-              <Text
-                style={
-                  styles.fieldLabel
-                }
-              >
-                UF *
-              </Text>
-
-              <TextInput
-                value={state}
-                onChangeText={(value) =>
-                  setState(
-                    value
-                      .replace(
-                        /[^a-zA-Z]/g,
-                        "",
-                      )
-                      .slice(0, 2)
-                      .toUpperCase(),
-                  )
-                }
-                placeholder="PR"
-                placeholderTextColor={
-                  colors.muted
-                }
-                autoCapitalize="characters"
-                maxLength={2}
-                style={
-                  styles.input
-                }
-              />
-            </View>
-          </View>
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Bairro
-            </Text>
-
-            <TextInput
-              value={neighborhood}
-              onChangeText={
-                setNeighborhood
-              }
-              placeholder="Bairro"
-              placeholderTextColor={
-                colors.muted
-              }
-              style={
-                styles.input
-              }
-            />
-          </View>
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Especialidade *
-            </Text>
-
-            <TextInput
-              value={
-                specialty
-              }
-              onChangeText={
-                setSpecialty
-              }
-              placeholder={
-                isEstablishment
-                  ? "Ex.: Hair & Beauty Studio"
-                  : "Ex.: Nail Designer"
-              }
-              placeholderTextColor={
-                colors.muted
-              }
-              style={
-                styles.input
-              }
-            />
-          </View>
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Categorias *
-            </Text>
-
-            <Text
-              style={
-                styles.fieldHint
-              }
-            >
-              Escolha uma ou mais áreas do seu trabalho.
-            </Text>
-
-            <View
-              style={
-                styles.categories
-              }
-            >
-              {categoryOptions.map(
-                (category) => {
-                  const selected =
-                    selectedCategories.includes(
-                      category.id,
-                    );
-
-                  return (
-                    <Pressable
-                      key={
-                        category.id
-                      }
-                      accessibilityRole="button"
-                      accessibilityState={{
-                        selected,
-                      }}
-                      onPress={() =>
-                        toggleCategory(
-                          category.id,
-                        )
-                      }
-                      style={({
-                        pressed,
-                      }) => [
-                        styles.categoryChip,
-
-                        selected &&
-                          styles.categoryChipSelected,
-
-                        pressed &&
-                          styles.pressed,
-                      ]}
-                    >
-                      {selected ? (
-                        <Icon
-                          name="check"
-                          size={13}
-                          color={
-                            colors.onBrandPrimary
-                          }
-                        />
-                      ) : null}
-
-                      <Text
-                        style={[
-                          styles.categoryText,
-
-                          selected &&
-                            styles.categoryTextSelected,
-                        ]}
-                      >
-                        {
-                          category.label
-                        }
-                      </Text>
-                    </Pressable>
-                  );
-                },
-              )}
-            </View>
-          </View>
-
-          {!isEstablishment ? (
-            <View style={styles.field}>
-              <Text style={styles.fieldLabel}>Onde você atende?</Text>
-              <Text style={styles.fieldHint}>
-                Escolha os locais em que pretende oferecer seus serviços.
-              </Text>
-              <View style={styles.categories}>
-                {([
-                  ["establishment", "Em estabelecimento"],
-                  ["own_space", "Em espaço próprio"],
-                  ["client_location", "No endereço do cliente"],
-                ] as const).map(([id, label]) => {
-                  const selected = attendanceModalities.includes(id);
-                  return (
-                    <Pressable
-                      key={id}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: selected }}
-                      onPress={() => setAttendanceModalities(current =>
-                        current.includes(id)
-                          ? current.filter(item => item !== id)
-                          : [...current, id]
-                      )}
-                      style={[styles.categoryChip, selected && styles.categoryChipSelected]}
-                    >
-                      <Text style={[styles.categoryText, selected && styles.categoryTextSelected]}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-          ) : null}
-
-          <View
-            style={
-              styles.field
-            }
-          >
-            <Text
-              style={
-                styles.fieldLabel
-              }
-            >
-              Bio
-            </Text>
-
-            <TextInput
-              value={bio}
-              onChangeText={
-                setBio
-              }
-              placeholder={
-                isEstablishment
-                  ? "Conte um pouco sobre o espaço, conceito e experiência..."
-                  : "Conte um pouco sobre você, sua experiência e estilo de trabalho..."
-              }
-              placeholderTextColor={
-                colors.muted
-              }
-              multiline
-              maxLength={300}
-              textAlignVertical="top"
-              style={[
-                styles.input,
-                styles.textArea,
-              ]}
-            />
-
-            <Text
-              style={
-                styles.counter
-              }
-            >
-              {bio.length}/300
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={
-            styles.previewCard
-          }
-        >
-          <Text
-            style={
-              styles.previewEyebrow
-            }
-          >
-            PRÉVIA DO PERFIL
-          </Text>
-
-          <View
-            style={
-              styles.previewHeader
-            }
-          >
-            <View
-              style={
-                styles.previewAvatar
-              }
-            >
-              <Text
-                style={
-                  styles.previewAvatarText
-                }
-              >
-                {(
-                  displayName ||
-                  "I"
-                )
-                  .charAt(0)
-                  .toUpperCase()}
-              </Text>
-            </View>
-
-            <View
-              style={
-                styles.previewContent
-              }
-            >
-              <Text
-                style={
-                  styles.previewName
-                }
-                numberOfLines={1}
-              >
-                {displayName ||
-                  "Seu perfil"}
-              </Text>
-
-              <Text
-                style={
-                  styles.previewSpecialty
-                }
-                numberOfLines={1}
-              >
-                {specialty ||
-                  "Sua especialidade"}
-              </Text>
-
-              <View
-                style={
-                  styles.previewMeta
-                }
-              >
-                <Icon
-                  name="map-pin"
-                  size={11}
-                  color={
-                    colors.muted
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.previewMetaText
-                  }
-                  numberOfLines={1}
-                >
-                  {neighborhood
-                    ? `${neighborhood} · ${city}`
-                    : city}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={
-            styles.infoCard
-          }
-        >
-          <Icon
-            name="shield"
-            size={19}
-            color={
-              colors.plum
-            }
-          />
-
-          <View
-            style={
-              styles.infoContent
-            }
-          >
-            <Text
-              style={
-                styles.infoTitle
-              }
-            >
-              Seu perfil ainda poderá ser editado
-            </Text>
-
-            <Text
-              style={
-                styles.infoText
-              }
-            >
-              Depois do cadastro você poderá adicionar foto, capa, serviços, portfólio, horários e outras informações profissionais.
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={
-            styles.submitArea
-          }
-        >
-          <Button
-            title={
-              isEstablishment
-                ? "Criar estabelecimento"
-                : "Criar perfil profissional"
-            }
-            onPress={
-              handleSubmit
-            }
-            disabled={
-              !canContinue
-            }
-            loading={
-              loading
-            }
-            fullWidth
-          />
-        </View>
-
-          </>
-        ) : (
-          // Onboarding PR 2: o cadastro profissional acontece por etapas,
-          // salvas no servidor, na tela /pro-onboarding (igual ao Web).
-          <View style={styles.proEntry}>
-            <Text style={styles.infoTitle}>
-              {professionalDraft === "published"
+        {accountType === "professional" ? (
+          <View style={styles.entry}>
+            <Text style={styles.entryTitle}>
+              {professional === "published"
                 ? "Seu perfil profissional já está no ar."
-                : professionalDraft === "draft"
+                : professional === "draft"
                   ? "Você tem um cadastro profissional em andamento."
                   : "Cadastro em 7 etapas curtas."}
             </Text>
-            <Text style={styles.infoText}>
-              {professionalDraft === "published"
+            <Text style={styles.entryText}>
+              {professional === "published"
                 ? "Para mudar fotos, portfólio ou apresentação, use o editor do seu perfil."
-                : "Uma pergunta por vez. Cada etapa fica salva e você publica quando estiver tudo pronto."}
+                : "Cada etapa fica salva e você publica quando estiver tudo pronto."}
             </Text>
             <Button
               title={
-                professionalDraft === "published"
+                professional === "published"
                   ? "Editar meu perfil"
-                  : professionalDraft === "draft"
+                  : professional === "draft"
                     ? "Continuar cadastro"
                     : "Começar cadastro profissional"
               }
               fullWidth
-              onPress={() =>
-                router.push(
-                  professionalDraft === "published"
-                    ? "/professional-onboarding"
-                    : "/pro-onboarding",
-                )
-              }
+              onPress={() => router.push(professional === "published" ? "/professional-onboarding" : "/pro-onboarding")}
+            />
+          </View>
+        ) : (
+          <View style={styles.entry}>
+            {drafts.length > 0 ? (
+              <>
+                <Text style={styles.entryTitle}>Continue de onde parou</Text>
+                {drafts.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push({ pathname: "/business-onboarding", params: { id: item.id } })}
+                    style={({ pressed }) => [styles.draft, pressed && styles.pressed]}
+                  >
+                    <View style={styles.draftText}>
+                      <Text style={styles.draftTitle}>Continuar {item.name}</Text>
+                      <Text style={styles.entryText}>
+                        {item.city}/{item.state} · rascunho, ainda não publicado
+                      </Text>
+                    </View>
+                    <Icon name="chevron-right" size={18} color={colors.muted} />
+                  </Pressable>
+                ))}
+              </>
+            ) : (
+              <Text style={styles.entryTitle}>Cadastro em 7 etapas curtas.</Text>
+            )}
+            <Text style={styles.entryText}>
+              Nome, tipo e cidade criam o rascunho. A página só vai ao ar quando você publicar.
+            </Text>
+            <Button
+              title={drafts.length > 0 ? "Criar outro estabelecimento" : "Começar cadastro do estabelecimento"}
+              variant={drafts.length > 0 ? "outline" : "primary"}
+              fullWidth
+              onPress={() => router.push("/business-onboarding")}
             />
           </View>
         )}
-
-        <View
-          style={
-            styles.bottomSpace
-          }
-        />
       </ScrollView>
     </View>
   );
 }
 
-const useStyles = makeStyles(
-  (colors) => ({
-    proEntry: {
-      marginTop:
-        spacing.xxl,
-
-      gap:
-        spacing.md,
-    },
-
-    container: {
-      flex: 1,
-
-      backgroundColor:
-        colors.surface,
-    },
-
-    content: {
-      paddingTop: 54,
-
-      paddingHorizontal:
-        spacing.lg,
-    },
-
-    header: {
-      minHeight: 52,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "space-between",
-    },
-
-    headerButton: {
-      width:
-        touch.minimum,
-
-      height:
-        touch.minimum,
-
-      borderRadius:
-        radius.pill,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.glassSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    headerPlaceholder: {
-      width:
-        touch.minimum,
-
-      height:
-        touch.minimum,
-    },
-
-    logo: {
-      width: 104,
-      height: 32,
-    },
-
-    intro: {
-      marginTop:
-        spacing.xl,
-    },
-
-    eyebrow: {
-      color:
-        colors.plum,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 10,
-      lineHeight: 14,
-
-      letterSpacing: 1.5,
-    },
-
-    title: {
-      maxWidth: 350,
-
-      marginTop:
-        spacing.sm,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 32,
-      lineHeight: 38,
-
-      letterSpacing: -0.4,
-    },
-
-    description: {
-      maxWidth: 340,
-
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 13,
-      lineHeight: 20,
-    },
-
-    typeSection: {
-      marginTop:
-        spacing.xxl,
-    },
-
-    typeOptions: {
-      marginTop:
-        spacing.sm,
-
-      gap:
-        spacing.sm,
-    },
-
-    typeCard: {
-      minHeight: 112,
-
-      padding:
-        spacing.lg,
-
-      borderRadius:
-        radius.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    typeCardSelected: {
-      backgroundColor:
-        colors.plumSoft,
-
-      borderColor:
-        colors.plum,
-    },
-
-    typeIcon: {
-      width: 40,
-      height: 40,
-
-      borderRadius:
-        radius.md,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.glassSoft,
-    },
-
-    typeTitle: {
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 14,
-      lineHeight: 18,
-    },
-
-    typeDescription: {
-      marginTop:
-        spacing.xs,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-      lineHeight: 17,
-    },
-
-    form: {
-      marginTop:
-        spacing.xxxl,
-
-      gap:
-        spacing.lg,
-    },
-
-    field: {
-      gap:
-        spacing.sm,
-    },
-
-    row: {
-      flexDirection:
-        "row",
-
-      gap:
-        spacing.sm,
-    },
-
-    rowField: {
-      flex: 1,
-    },
-
-    fieldLabel: {
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 11,
-      lineHeight: 15,
-    },
-
-    fieldError: {
-      color:
-        colors.error,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    fieldHint: {
-      marginTop: -4,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-      lineHeight: 15,
-    },
-
-    input: {
-      minHeight: 50,
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 13,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    inputDisabled: {
-      opacity: 0.72,
-    },
-
-    textArea: {
-      minHeight: 116,
-
-      paddingTop:
-        spacing.md,
-
-      paddingBottom:
-        spacing.md,
-    },
-
-    counter: {
-      alignSelf:
-        "flex-end",
-
-      marginTop: -4,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 9,
-      lineHeight: 12,
-    },
-
-    categories: {
-      flexDirection:
-        "row",
-
-      flexWrap:
-        "wrap",
-
-      gap:
-        spacing.sm,
-    },
-
-    categoryChip: {
-      minHeight:
-        touch.minimum,
-
-      paddingHorizontal:
-        spacing.md,
-
-      borderRadius:
-        radius.pill,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      gap:
-        spacing.xs,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    categoryChipSelected: {
-      backgroundColor:
-        colors.plum,
-
-      borderColor:
-        colors.plum,
-    },
-
-    categoryText: {
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 11,
-      lineHeight: 15,
-    },
-
-    categoryTextSelected: {
-      color:
-        colors.onBrandPrimary,
-    },
-
-    previewCard: {
-      marginTop:
-        spacing.xxxl,
-
-      padding:
-        spacing.lg,
-
-      borderRadius:
-        radius.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    previewEyebrow: {
-      color:
-        colors.plum,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 9,
-      lineHeight: 12,
-
-      letterSpacing: 1.2,
-    },
-
-    previewHeader: {
-      marginTop:
-        spacing.lg,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap:
-        spacing.md,
-    },
-
-    previewAvatar: {
-      width: 58,
-      height: 58,
-
-      borderRadius: 29,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      backgroundColor:
-        colors.plumSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.plum,
-    },
-
-    previewAvatarText: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.display,
-
-      fontSize: 21,
-      lineHeight: 26,
-    },
-
-    previewContent: {
-      flex: 1,
-
-      minWidth: 0,
-    },
-
-    previewName: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 15,
-      lineHeight: 19,
-    },
-
-    previewSpecialty: {
-      marginTop: 2,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-      lineHeight: 14,
-    },
-
-    previewMeta: {
-      marginTop:
-        spacing.xs,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-
-      gap:
-        spacing.xs,
-    },
-
-    previewMetaText: {
-      flex: 1,
-
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-      lineHeight: 13,
-    },
-
-    infoCard: {
-      marginTop:
-        spacing.lg,
-
-      padding:
-        spacing.lg,
-
-      borderRadius:
-        radius.md,
-
-      flexDirection:
-        "row",
-
-      alignItems:
-        "flex-start",
-
-      gap:
-        spacing.md,
-
-      backgroundColor:
-        colors.plumSoft,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    infoContent: {
-      flex: 1,
-    },
-
-    infoTitle: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    infoText: {
-      marginTop:
-        spacing.xs,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-      lineHeight: 16,
-    },
-
-    submitArea: {
-      marginTop:
-        spacing.xxl,
-    },
-
-    bottomSpace: {
-      height: 64,
-    },
-
-    pressed: {
-      opacity: 0.76,
-    },
-  }),
-);
+const useStyles = makeStyles((colors) => ({
+  container: { flex: 1, backgroundColor: colors.surface },
+  content: { paddingTop: 54, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
+  header: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  headerButton: {
+    width: touch.minimum,
+    height: touch.minimum,
+    borderRadius: radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.glassSoft,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  headerPlaceholder: { width: touch.minimum, height: touch.minimum },
+  logo: { width: 104, height: 32 },
+  eyebrow: { marginTop: spacing.xl, color: colors.plum, fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 1.5 },
+  title: {
+    maxWidth: 350,
+    marginTop: spacing.sm,
+    color: colors.onSurface,
+    fontFamily: fonts.display,
+    fontSize: 32,
+    lineHeight: 38,
+  },
+  description: {
+    maxWidth: 340,
+    marginTop: spacing.md,
+    color: colors.onSurfaceSecondary,
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  fieldLabel: { marginTop: spacing.xxl, color: colors.onSurfaceSecondary, fontFamily: fonts.sansMedium, fontSize: 13 },
+  typeOptions: { marginTop: spacing.sm, gap: spacing.sm },
+  typeCard: {
+    minHeight: 112,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  typeCardSelected: { backgroundColor: colors.plumSoft, borderColor: colors.plum },
+  typeIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.glassSoft,
+  },
+  typeTitle: { marginTop: spacing.md, color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 15 },
+  typeDescription: { marginTop: spacing.xs, color: colors.muted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
+  entry: { marginTop: spacing.xxl, gap: spacing.md },
+  entryTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 16 },
+  entryText: { color: colors.muted, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
+  draft: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  draftText: { flex: 1, gap: 2 },
+  draftTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 14 },
+  pressed: { opacity: 0.75 },
+}));

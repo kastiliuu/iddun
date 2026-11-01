@@ -92,13 +92,12 @@ CONTRAST = """
 PAGES = [
     (E2E_EMAIL, "/pro/comecar", [".platform-entry__head h1", ".platform-mode-card__content strong", ".platform-mode-card__content small"]),
     (E2E_EMAIL, "/pro/onboarding", [".onb__title", ".onb__lead", ".onb__count", ".onb__exit"]),
-    (E2E_EMAIL, "/business/onboarding", [".platform-onboarding__aside h1"]),
+    (E2E_EMAIL, "/business/onboarding/novo", [".onb__title", ".onb__lead", ".onb__choice-label"]),
     (E2E_PRO_EMAIL, "/pro/perfil/editar", [".platform-editor__head h1"]),
     (E2E_PRO_EMAIL, f"/business/{E2E_BUSINESS_SLUG}/painel", [".business-catalog__details span", ".business-catalog__value a", ".platform-panel .btn-outline"]),
 ]
 
 BACK_LINK_PAGES = [
-    (E2E_EMAIL, "/business/onboarding"),
     (E2E_PRO_EMAIL, "/pro/perfil/editar"),
 ]
 

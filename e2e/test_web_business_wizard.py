@@ -1,17 +1,20 @@
-"""PR-2 (BUG-015 / BUG-017) — assistente Business no navegador.
+"""PR 3 do onboarding — cadastro de Estabelecimento por etapas no navegador.
 
-- "Criar página da empresa" só aparece na última etapa;
-- erros em português ao lado do campo, sem balão nativo;
-- Enter numa etapa inicial não envia o formulário incompleto: abre a etapa
-  com o primeiro problema;
-- a empresa é criada sem logo (DEC-ID-101) e aparece com iniciais.
+Uma pergunta por tela, salva no servidor; erros em português ao lado do
+campo; endereço só para físico ou híbrido (F2); apresentação 40+ (D-ONB-04);
+e-mail da conta só como sugestão (D-ONB-05); publicação explícita (F1);
+empresa sem logo aparece com iniciais (DEC-ID-101).
 """
 
 import re
+import uuid
 
 from playwright.sync_api import Page, expect
 
 from e2e.seed_client import E2E_EMAIL, E2E_PASSWORD
+from e2e.test_web_readable_text import CONTRAST, SMALL_TEXT
+
+DESCRIPTION = "Um espaço dedicado a coloração autoral e atendimento sem pressa."
 
 
 def _login(page: Page):
@@ -22,56 +25,85 @@ def _login(page: Page):
     expect(page).to_have_url(re.compile(r"/feed(?:\?.*)?$"))
 
 
-def _step(page: Page, number: int):
-    return page.locator(f'[data-wizard-step="{number}"]')
-
-
-def test_business_wizard_validates_in_portuguese_and_creates_without_logo(page: Page):
-    _login(page)
-    page.goto("/business/onboarding")
-
-    submit = page.locator("[data-wizard-submit]")
-    next_button = page.locator("[data-wizard-next]")
-    expect(submit).to_be_hidden()
-
-    # Etapa 1 sem nome: mensagem junto ao campo, sem avançar.
-    next_button.click()
-    expect(_step(page, 1)).to_be_visible()
-    expect(page.locator("#name-client-error")).to_have_text("Preencha este campo.")
-    expect(page.locator("#name")).to_have_attribute("aria-invalid", "true")
-
-    page.locator("#name").fill("Studio Ensaio")
-    expect(page.locator("#name-client-error")).to_have_count(0)
-
-    # Enter com as etapas seguintes vazias não envia: abre a etapa 2.
-    page.locator("#name").press("Enter")
-    expect(_step(page, 2)).to_be_visible()
-    expect(page.locator("#description-client-error")).to_have_text("Preencha este campo.")
-    expect(page).to_have_url(re.compile(r"/business/onboarding$"))
-
-    page.locator("#description").fill("Curta.")
-    next_button.click()
-    expect(page.locator("#description-client-error")).to_contain_text(
-        "Use pelo menos 40 caracteres"
-    )
-    page.locator("#description").fill(
-        "Um espaço dedicado a coloração autoral e atendimento sem pressa."
-    )
-    next_button.click()
-
-    expect(_step(page, 3)).to_be_visible()
-    page.locator("#address_line1").fill("Rua Teste, 100")
+def start_business_draft(page: Page, name: str) -> str:
+    """Cria um rascunho pela etapa 1 e devolve o id."""
+    page.goto("/business/onboarding/novo")
+    page.locator("#name").fill(name)
+    page.locator(".onb__choice", has_text="Salão de beleza").click()
     page.locator("#city").fill("Curitiba")
     page.locator("#state").fill("PR")
-    next_button.click()
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/business/onboarding/\d+/atendimento$"))
+    return re.search(r"/business/onboarding/(\d+)/", page.url).group(1)
 
-    expect(_step(page, 4)).to_be_visible()
-    expect(submit).to_be_hidden()
-    next_button.click()
 
-    expect(_step(page, 5)).to_be_visible()
-    expect(submit).to_be_visible()
-    submit.click()
+def _readable(page: Page):
+    assert page.evaluate(SMALL_TEXT) == []
+    failing = [
+        item for item in page.evaluate(CONTRAST, None)
+        if item["ratio"] < (3 if item["large"] else 4.5)
+    ]
+    assert failing == [], failing[:5]
 
+
+def test_business_steps_validate_skip_address_and_publish_explicitly(page: Page):
+    _login(page)
+    page.goto("/business/onboarding/novo")
+    expect(page.locator(".onb__count")).to_have_text("Etapa 1 de 7")
+
+    page.get_by_role("button", name="Continuar").click()
+    expect(page.locator("#name-errors")).to_have_text("Informe o nome do estabelecimento.")
+    expect(page.locator("#name")).to_be_focused()
+    expect(page.locator("#category-errors")).to_have_text("Escolha o tipo de estabelecimento.")
+
+    # Nome fixo: as iniciais do DS usam a primeira e a última palavra.
+    page.locator("#name").fill("Studio Ensaio")
+    page.locator(".onb__choice", has_text="Salão de beleza").click()
+    page.locator("#city").fill("Curitiba")
+    page.locator("#state").fill("PR")
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/atendimento$"))
+
+    page.locator(".onb__choice", has_text="No endereço do cliente").click()
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/funcionamento$"))
+    expect(page.locator(".onb__count")).to_have_text("Etapa 4 de 7")
+
+    page.locator(".onb__choice", has_text="Sob agendamento").click()
+    expect(page.locator("[data-hours-panel]")).to_be_hidden()
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/contato$"))
+
+    expect(page.locator("#email")).to_have_value(E2E_EMAIL)
+    page.locator("#description").fill("Curta.")
+    page.get_by_role("button", name="Continuar").click()
+    expect(page.locator("#description-errors")).to_contain_text("Use entre 40 e 2000 caracteres.")
+    expect(page.locator("#description")).to_be_focused()
+    page.locator("#description").fill(DESCRIPTION)
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/fotos$"))
+
+    page.get_by_role("link", name="Fazer depois").click()
+    expect(page).to_have_url(re.compile(r"/revisar$"))
+    expect(page.get_by_text("Endereço comercial", exact=True)).to_have_count(0)
+    _readable(page)
+    page.get_by_role("button", name="Publicar página").click()
+
+    expect(page).to_have_url(re.compile(r"/concluido$"))
+    expect(page.get_by_role("heading", level=1)).to_contain_text("está no ar.")
+    _readable(page)
+    page.get_by_role("link", name="Ir para o painel").click()
     expect(page).to_have_url(re.compile(r"/business/[^/]+/painel$"))
     expect(page.locator(".platform-dashboard-avatar .ds-avatar-initials")).to_have_text("SE")
+
+
+def test_owner_can_leave_and_continue_a_draft(page: Page):
+    _login(page)
+    name = f"Studio Pausa {uuid.uuid4().hex[:4]}"
+    draft_id = start_business_draft(page, name)
+
+    page.get_by_role("link", name="Sair e continuar depois").click()
+    page.goto("/business/onboarding")
+    page.get_by_role("link", name=f"Continuar {name}").click()
+    expect(page).to_have_url(re.compile(rf"/business/onboarding/{draft_id}/atendimento$"))
+    expect(page.locator(".onb__count")).to_have_text("Etapa 2 de 7")

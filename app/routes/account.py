@@ -41,7 +41,13 @@ def _active_business_accesses(user):
     return [
         access
         for access in user.establishment_accesses
-        if access.status == EstablishmentAccessStatus.ACTIVE and access.establishment.is_active
+        if access.status == EstablishmentAccessStatus.ACTIVE
+        and (
+            access.establishment.is_active
+            # Rascunho do cadastro por etapas (nunca publicado) aparece
+            # como "Continuar cadastro"; página desativada não aparece.
+            or access.establishment.published_at is None
+        )
     ]
 
 

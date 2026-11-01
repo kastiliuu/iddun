@@ -1,0 +1,34 @@
+{% from 'components/icon.html' import icon %}
+
+{#
+  Revisão comum do cadastro por etapas: o que está pronto, o que falta e
+  link para cada etapa (volta para a revisão depois de salvar).
+#}
+{% macro review_list(journey, steps, step_url, note='Tudo pronto. Fotos e detalhes podem ser completados depois.') %}
+  <ul class="onb__review" aria-label="Itens do cadastro">
+    {% for item in journey.steps if item.key not in ('personalize', 'review') and item.applicable %}
+      {% set target = (steps | selectattr('key', 'equalto', item.key) | first) %}
+      <li class="onb__review-item{% if item.complete %} is-done{% endif %}">
+        <span class="onb__review-icon" aria-hidden="true">{{ icon('check' if item.complete else 'alert-circle') }}</span>
+        <span class="onb__review-text">
+          <strong>{{ item.label }}</strong>
+          <small>{{ 'Pronto' if item.complete else 'Falta preencher' }}</small>
+        </span>
+        <a class="onb__review-link" href="{{ step_url(target.slug, retorno='revisar') }}">
+          {{ 'Editar' if item.complete else 'Completar' }}<span class="sr-only"> {{ item.label }}</span>
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% if journey.missingRequirements %}
+    <div class="onb__pending" id="onb-pending">
+      <p><strong>Para publicar, falta:</strong></p>
+      <ul>
+        {% for item in journey.missingRequirements %}<li>{{ item.message }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% else %}
+    <p class="onb__note">{{ note }}</p>
+  {% endif %}
+{% endmacro %}
