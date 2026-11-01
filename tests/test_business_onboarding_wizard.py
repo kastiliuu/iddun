@@ -225,3 +225,44 @@ def test_nv07_business_invalid_operation_mode_does_not_persist(app, client):
     assert response.status_code == 200
     assert _count(app) == 0
     assert "operation_mode" in response.get_data(as_text=True)
+
+
+def test_nv07_business_fixed_hours_are_saved_as_weekly_schedule(app, client):
+    _login(client, _owner(app, "nv07-hours@example.com"))
+    response = client.post(
+        "/business/onboarding",
+        data={
+            **VALID,
+            "name": "Studio Horario",
+            "business_hours_mode": "fixed_hours",
+            "monday_start": "09:00",
+            "monday_end": "18:00",
+            "friday_start": "10:00",
+            "friday_end": "16:00",
+        },
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        establishment = db.session.scalar(
+            select(Establishment).where(Establishment.name == "Studio Horario")
+        )
+        assert establishment.business_hours_mode == "fixed_hours"
+        assert establishment.business_hours == {
+            "monday": [{"start": "09:00", "end": "18:00"}],
+            "friday": [{"start": "10:00", "end": "16:00"}],
+        }
+
+
+def test_nv07_business_rejects_partial_fixed_hours_without_persisting(app, client):
+    _login(client, _owner(app, "nv07-hours-invalid@example.com"))
+    response = client.post(
+        "/business/onboarding",
+        data={
+            **VALID,
+            "business_hours_mode": "fixed_hours",
+            "monday_start": "09:00",
+        },
+    )
+    assert response.status_code == 200
+    assert _count(app) == 0
+    assert "Informe abertura e fechamento válidos" in response.get_data(as_text=True)
