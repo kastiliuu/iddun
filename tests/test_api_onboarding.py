@@ -1180,6 +1180,9 @@ def test_business_draft_allows_partial_details_without_publication(app, client):
 
 
 def test_business_draft_update_keeps_legacy_publication_flags(app, client):
+    """Compatibilidade por nome nunca altera estabelecimento publicado (PR 1
+    do onboarding, condição 2). A edição do dono usa o id estável e mantém
+    os sinais de publicação."""
     _, headers = _authenticated_client(app, email="business-legacy@example.com")
     first = client.post(
         f"{BASE}/establishment", headers=headers, json=BUSINESS_DRAFT_INPUT
@@ -1195,10 +1198,26 @@ def test_business_draft_update_keeps_legacy_publication_flags(app, client):
         business.is_active = True
         db.session.commit()
 
-    updated = client.post(
+    by_name = client.post(
         f"{BASE}/establishment",
         headers=headers,
         json={**BUSINESS_DRAFT_INPUT, "operationMode": "mobile"},
+    )
+    assert by_name.status_code == 409
+    assert by_name.get_json()["error"]["code"] == "establishment_exists"
+    with app.app_context():
+        business = db.session.get(Establishment, establishment_id)
+        assert business.operation_mode is None
+        assert db.session.scalar(select(func.count(Establishment.id))) == 1
+
+    updated = client.post(
+        f"{BASE}/establishment",
+        headers=headers,
+        json={
+            **BUSINESS_DRAFT_INPUT,
+            "operationMode": "mobile",
+            "establishmentId": str(establishment_id),
+        },
     )
     assert updated.status_code == 201
     data = updated.get_json()["establishment"]

@@ -140,19 +140,23 @@ class Establishment(db.Model):
 
     @property
     def profile_completion(self):
-        checks = [
-            bool(self.logo_url),
-            bool(self.name),
-            bool(self.description),
-            bool(self.category),
-            bool(self.city and self.state),
-            bool(self.address_line1),
-        ]
-        return round((sum(checks) / len(checks)) * 100)
+        # DEC-ID-107: uma única regra para Web, API e painel. Logo, capa,
+        # fotos e equipe não contam; contato, modalidade e funcionamento sim.
+        from app.services.establishment_readiness_service import (
+            evaluate_establishment_readiness,
+        )
+
+        return evaluate_establishment_readiness(self).percentage
 
     @property
     def ready_to_publish(self):
-        return self.profile_completion == 100
+        # Elegível pelas regras atuais (DEC-ID-100/103). Não indica que
+        # está publicado (is_active) nem que aceita reservas (DEC-ID-108).
+        from app.services.establishment_readiness_service import (
+            evaluate_establishment_readiness,
+        )
+
+        return evaluate_establishment_readiness(self).ready_to_publish
 
 
 class EstablishmentUserAccess(db.Model):
