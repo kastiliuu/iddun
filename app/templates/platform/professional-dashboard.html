@@ -145,7 +145,16 @@
     </section>
     {% endif %}
 
-    {% if profile.profile_completion < 100 %}
+    {% if not profile.is_active %}
+    {# Onboarding PR 2: rascunho não está no ar até a publicação explícita. #}
+    <section class="pro-completion-card pro-completion-card--draft">
+      <span class="pro-kicker">RASCUNHO</span>
+      <p>Seu perfil ainda não está no ar. Termine o cadastro e publique quando estiver pronto.</p>
+      <a href="{{ url_for('professional.onboarding') }}">
+        Continuar cadastro {{ icon('chevron-right') }}
+      </a>
+    </section>
+    {% elif profile.profile_completion < 100 %}
     <section class="pro-completion-card">
       <span class="pro-kicker">PRESENÇA PROFISSIONAL</span>
       <div>

@@ -1,0 +1,219 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+{% from 'components/media-upload.html' import media_upload, multi_upload %}
+
+{% block title %}{{ step.title }} | Cadastro profissional IDDUN{% endblock %}
+{% block body_class %}platform-page onb-page{% endblock %}
+
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/media-cropper.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set current_number = step_index + 1 %}
+<section class="onb" data-iddun-surface="light" aria-labelledby="onb-title">
+  <div class="container onb__shell">
+    <header class="onb__top">
+      <a class="onb__back" href="{{ previous_url }}">{{ icon('arrow-left') }}<span>Voltar</span></a>
+      <p class="onb__count" id="onb-count">Etapa {{ current_number }} de {{ step_total }}</p>
+      <a class="onb__exit" href="{{ url_for('account.dashboard') }}">Sair e continuar depois</a>
+    </header>
+
+    <ol class="onb__progress" aria-labelledby="onb-count">
+      {% for item in steps %}
+        {% set done = journey and (journey.steps | selectattr('key', 'equalto', item.key) | map(attribute='complete') | first) %}
+        <li class="onb__segment{% if loop.index0 == step_index %} is-current{% elif done %} is-done{% endif %}"
+            {% if loop.index0 == step_index %}aria-current="step"{% endif %}>
+          <span class="sr-only">{{ item.title }}{% if loop.index0 == step_index %} (etapa atual){% elif done %} (concluída){% endif %}</span>
+        </li>
+      {% endfor %}
+    </ol>
+
+    <div class="onb__card">
+      <p class="onb__kicker">Cadastro profissional</p>
+      <h1 class="onb__title" id="onb-title">{{ step.title }}</h1>
+      <p class="onb__lead">{{ step.lead }}</p>
+
+      {% if step_error %}
+        <div class="onb__alert" role="alert" tabindex="-1" data-onb-alert>
+          {{ icon('alert-circle') }}<p>{{ step_error }}</p>
+        </div>
+      {% endif %}
+
+      <form method="post" novalidate class="onb__form"
+            {% if step.slug == 'fotos' %}enctype="multipart/form-data"{% endif %}>
+        {{ form.hidden_tag() }}
+
+        {% if step.slug == 'nome' %}
+          <div class="platform-field">
+            {{ form.display_name.label(class_='platform-label') }}
+            {{ form.display_name(class_='platform-input', autocomplete='name', autofocus=true) }}
+            {{ field_errors(form.display_name) }}
+          </div>
+
+        {% elif step.slug == 'cidade' %}
+          <div class="onb__row">
+            <div class="platform-field">
+              {{ form.city.label(class_='platform-label') }}
+              {{ form.city(class_='platform-input', autocomplete='address-level2', placeholder='Ex.: Curitiba') }}
+              {{ field_errors(form.city) }}
+            </div>
+            <div class="platform-field onb__field--short">
+              {{ form.state.label(class_='platform-label') }}
+              {{ form.state(class_='platform-input', autocomplete='address-level1', maxlength='2', placeholder='PR') }}
+              {{ field_errors(form.state) }}
+            </div>
+          </div>
+
+        {% elif step.slug == 'especialidade' %}
+          <div class="platform-field">
+            {{ form.primary_specialty.label(class_='platform-label') }}
+            {{ form.primary_specialty(class_='platform-input', placeholder='Ex.: Nail designer, colorista, barbeiro') }}
+            {{ field_errors(form.primary_specialty) }}
+          </div>
+          <fieldset class="onb__choices" {% if form.categories.errors %}aria-describedby="categories-errors"{% endif %}>
+            <legend class="platform-label">Áreas de atuação</legend>
+            <p class="platform-help">Escolha uma ou mais.</p>
+            <div class="onb__choice-grid">
+              {% for option in form.categories %}
+                <label class="onb__choice">
+                  {{ option(class_='onb__choice-input') }}
+                  <span class="onb__choice-label">{{ option.label.text }}</span>
+                  <span class="onb__choice-check" aria-hidden="true">{{ icon('check') }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+          {{ field_errors(form.categories) }}
+
+        {% elif step.slug == 'atendimento' %}
+          <fieldset class="onb__choices" {% if form.attendance_modalities.errors %}aria-describedby="attendance_modalities-errors"{% endif %}>
+            <legend class="sr-only">{{ form.attendance_modalities.label.text }}</legend>
+            <div class="onb__choice-list">
+              {% for option in form.attendance_modalities %}
+                <label class="onb__choice onb__choice--row">
+                  {{ option(class_='onb__choice-input') }}
+                  <span class="onb__choice-label">{{ option.label.text }}</span>
+                  <span class="onb__choice-check" aria-hidden="true">{{ icon('check') }}</span>
+                </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+          {{ field_errors(form.attendance_modalities) }}
+
+        {% elif step.slug == 'apresentacao' %}
+          <div class="platform-field">
+            {{ form.bio.label(class_='platform-label') }}
+            {{ form.bio(class_='platform-textarea', rows='7', maxlength='2000', data_onb_counter='bio',
+                        placeholder='Ex.: Trabalho com unhas naturais e alongamento em gel há 6 anos. Cuido da saúde da unha e do acabamento.',
+                        **{'aria-describedby': 'bio-hint'}) }}
+            <p class="platform-help" id="bio-hint">Pelo menos 40 caracteres. <span data-onb-count="bio" aria-live="polite"></span></p>
+            {{ field_errors(form.bio) }}
+          </div>
+          <div class="platform-field">
+            {{ form.headline.label(class_='platform-label') }}
+            {{ form.headline(class_='platform-input', placeholder='Ex.: Especialista em loiros e transformações') }}
+            <p class="platform-help">Uma frase curta que aparece abaixo do seu nome.</p>
+            {{ field_errors(form.headline) }}
+          </div>
+
+        {% elif step.slug == 'fotos' %}
+          <div class="platform-media-pair">
+            <div class="platform-field">
+              {{ form.avatar_file.label(class_='platform-label') }}
+              {{ media_upload(form.avatar_file, form.avatar_focus_x, form.avatar_focus_y, 'avatar', profile.avatar_url, 'Escolher foto', 'Rosto bem visível · até 5 MB') }}
+              {{ field_errors(form.avatar_file) }}
+            </div>
+            <div class="platform-field">
+              {{ form.cover_file.label(class_='platform-label') }}
+              {{ media_upload(form.cover_file, form.cover_focus_x, form.cover_focus_y, 'cover', profile.cover_url, 'Foto de capa', 'Ambiente ou trabalho · até 5 MB') }}
+              {{ field_errors(form.cover_file) }}
+            </div>
+          </div>
+          <div class="platform-field">
+            {{ form.portfolio_files.label(class_='platform-label') }}
+            {{ multi_upload(form.portfolio_files, 'Escolher fotos de trabalhos', 'Até 8 no total · até 5 MB cada') }}
+            {% if profile.portfolio_items %}
+              <p class="platform-help">Você já tem {{ profile.portfolio_items | length }} {{ 'foto' if profile.portfolio_items | length == 1 else 'fotos' }} no portfólio.</p>
+            {% endif %}
+            {{ field_errors(form.portfolio_files) }}
+          </div>
+          <div class="onb__row">
+            <div class="platform-field">
+              {{ form.phone.label(class_='platform-label') }}
+              {{ form.phone(class_='platform-input', inputmode='tel', autocomplete='tel', placeholder='(41) 99999-9999') }}
+              {{ field_errors(form.phone) }}
+            </div>
+            <div class="platform-field">
+              {{ form.instagram.label(class_='platform-label') }}
+              {{ form.instagram(class_='platform-input', placeholder='@seuperfil') }}
+              {{ field_errors(form.instagram) }}
+            </div>
+          </div>
+          <div class="platform-field platform-checkbox-field">
+            {{ form.whatsapp_enabled() }}
+            {{ form.whatsapp_enabled.label(class_='platform-label') }}
+          </div>
+          <div class="platform-field">
+            {{ form.visual_theme.label(class_='platform-label') }}
+            {{ form.visual_theme(class_='platform-select') }}
+            <p class="platform-help">Muda a atmosfera do seu perfil. Se não escolher, fica Beleza.</p>
+          </div>
+
+        {% elif step.slug == 'revisar' %}
+          <ul class="onb__review" aria-label="Itens do cadastro">
+            {% for item in journey.steps if item.key not in ('personalize', 'review') and item.applicable %}
+              {% set target = (steps | selectattr('key', 'equalto', item.key) | first) %}
+              <li class="onb__review-item{% if item.complete %} is-done{% endif %}">
+                <span class="onb__review-icon" aria-hidden="true">{{ icon('check' if item.complete else 'alert-circle') }}</span>
+                <span class="onb__review-text">
+                  <strong>{{ item.label }}</strong>
+                  <small>{{ 'Pronto' if item.complete else 'Falta preencher' }}</small>
+                </span>
+                <a class="onb__review-link" href="{{ url_for('professional.onboarding_step', step=target.slug, retorno='revisar') }}">
+                  {{ 'Editar' if item.complete else 'Completar' }}<span class="sr-only"> {{ item.label }}</span>
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+
+          {% if journey.missingRequirements %}
+            <div class="onb__pending" id="onb-pending">
+              <p><strong>Para publicar, falta:</strong></p>
+              <ul>
+                {% for item in journey.missingRequirements %}<li>{{ item.message }}</li>{% endfor %}
+              </ul>
+            </div>
+          {% else %}
+            <p class="onb__note">Tudo pronto. Fotos, portfólio e contatos podem ser completados depois, em Editar perfil.</p>
+          {% endif %}
+        {% endif %}
+
+        <div class="onb__actions">
+          {% if back_to_review %}
+            <a class="onb__secondary" href="{{ url_for('professional.onboarding_step', step='revisar') }}">Voltar para a revisão</a>
+          {% elif step.slug == 'fotos' %}
+            <a class="onb__secondary" href="{{ url_for('professional.onboarding_step', step='revisar') }}">Fazer depois</a>
+          {% endif %}
+          {% if step.slug == 'revisar' and journey.missingRequirements %}
+            {{ form.submit(class_='btn btn-primary onb__submit', disabled=true, **{'aria-describedby': 'onb-pending'}) }}
+          {% else %}
+            {{ form.submit(class_='btn btn-primary onb__submit', data_onb_submit='') }}
+          {% endif %}
+        </div>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/platform.js') }}" defer></script>
+{% if step.slug == 'fotos' %}
+<script src="{{ url_for('static', filename='js/media-cropper.js') }}" defer></script>
+{% endif %}
+{% endblock %}

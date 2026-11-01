@@ -11,7 +11,7 @@ import re
 from werkzeug.datastructures import MultiDict
 
 from app.extensions import db
-from app.forms.platform import ProfessionalEditForm, ProfessionalOnboardingForm
+from app.forms.platform import ProfessionalEditForm, ProStepModalityForm
 from app.models.professional import ProfessionalProfile
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
@@ -72,19 +72,27 @@ def test_edit_shows_checkboxes_with_saved_choices(app, client):
 
 
 def test_onboarding_shows_checkboxes(app, client):
+    """Cadastro por etapas (PR 2): a modalidade tem uma tela própria."""
     _login(client, _user(app, "mod-onboarding@example.com"))
+    assert client.post("/pro/onboarding/nome", data={"display_name": "Pro Etapas"}).status_code == 302
 
-    html = client.get("/pro/onboarding").get_data(as_text=True)
+    html = client.get("/pro/onboarding/atendimento").get_data(as_text=True)
 
-    _assert_checkbox_group(html)
-    assert "data-required-group" in html
+    boxes = _checkboxes(html)
+    assert len(boxes) == 3
+    for box, value in zip(boxes, CHOICES):
+        assert 'type="checkbox"' in box
+        assert f'value="{value}"' in box
+    assert re.search(r"<fieldset[^>]*>\s*<legend[^>]*>\s*Como você atende\?", html)
+    for label in ("Em estabelecimento", "Em espaço próprio", "No endereço do cliente"):
+        assert label in html
 
 
 def test_submitted_value_is_unchanged(app):
     data = MultiDict([("attendance_modalities", "establishment"),
                       ("attendance_modalities", "client_location")])
     with app.test_request_context(method="POST", data=data):
-        for form_class in (ProfessionalOnboardingForm, ProfessionalEditForm):
+        for form_class in (ProStepModalityForm, ProfessionalEditForm):
             form = form_class(meta={"csrf": False})
             form.validate()
             assert form.attendance_modalities.data == ["establishment", "client_location"]

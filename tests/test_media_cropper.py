@@ -50,7 +50,7 @@ def test_shared_cropper_assets_expose_accessible_drag_contract():
 
 def test_platform_profile_templates_load_shared_cropper_once():
     template_paths = (
-        "app/templates/platform/professional-onboarding.html",
+        "app/templates/platform/pro-onboarding-step.html",
         "app/templates/platform/professional-edit.html",
         "app/templates/platform/business-onboarding.html",
         "app/templates/platform/business-edit.html",

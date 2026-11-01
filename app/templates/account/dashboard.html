@@ -131,7 +131,13 @@
             {{ icon('chevron-right') }}
           </a>
 
-          {% if current_user.professional_profile %}
+          {% if current_user.professional_profile and not current_user.professional_profile.is_active %}
+          <a class="account-context-card account-context-card--pro" href="{{ url_for('professional.onboarding') }}">
+            <span class="account-context-card__icon">{{ icon('user') }}</span>
+            <span><strong>Continuar cadastro profissional</strong><small>{{ current_user.professional_profile.display_name }} · rascunho, ainda não publicado</small></span>
+            {{ icon('chevron-right') }}
+          </a>
+          {% elif current_user.professional_profile %}
           <a class="account-context-card account-context-card--pro" href="{{ url_for('professional.dashboard') }}">
             <span class="account-context-card__icon">{{ icon('user') }}</span>
             <span><strong>IDDUN Pro</strong><small>{{ current_user.professional_profile.display_name }} · {{ current_user.professional_profile.profile_completion }}% completo</small></span>

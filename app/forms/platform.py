@@ -1,11 +1,12 @@
 from app.forms.base import IddunForm
 from flask_wtf.file import FileAllowed, FileField, FileSize, MultipleFileField
 from wtforms import BooleanField, DateField, DecimalField, IntegerField, RadioField, SelectField, SelectMultipleField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, URL
+from wtforms.validators import DataRequired, Email, Length, NumberRange, Optional, Regexp, URL
 from wtforms.widgets import CheckboxInput, HiddenInput, ListWidget
 
 from app.models.professional import ProfileTheme
 from app.models.experience import ExperienceCategory
+from app.services.onboarding_steps import BIO_MIN_LENGTH, PROFESSIONAL_CATEGORIES
 
 
 IMAGE_VALIDATORS = [
@@ -41,44 +42,105 @@ class CheckboxGroupField(SelectMultipleField):
     option_widget = CheckboxInput()
 
 
-class ProfessionalOnboardingForm(IddunForm):
+ATTENDANCE_MODALITY_CHOICES = [
+    ("establishment", "Em estabelecimento"),
+    ("own_space", "Em espaço próprio"),
+    ("client_location", "No endereço do cliente"),
+]
+
+PROFESSIONAL_AREA_CHOICES = list(PROFESSIONAL_CATEGORIES.items())
+
+
+# Onboarding Profissional por etapas (PR 2): um formulário por pergunta.
+# As regras de negócio ficam no serviço compartilhado com a API do app;
+# estes formulários só validam formato e obrigatoriedade da etapa.
+
+
+class ProStepIdentityForm(IddunForm):
+    display_name = StringField(
+        "Nome profissional",
+        validators=[DataRequired(message="Informe seu nome profissional."), Length(min=2, max=140)],
+    )
+    submit = SubmitField("Continuar")
+
+
+class ProStepLocationForm(IddunForm):
+    city = StringField(
+        "Cidade",
+        validators=[DataRequired(message="Informe a cidade onde você atende."), Length(min=2, max=100)],
+    )
+    state = StringField(
+        "UF",
+        validators=[
+            DataRequired(message="Informe a UF onde você atende."),
+            Length(min=2, max=2, message="Use as duas letras da UF."),
+            Regexp(r"^[A-Za-z]{2}$", message="Use as duas letras da UF."),
+        ],
+    )
+    submit = SubmitField("Continuar")
+
+
+class ProStepSpecialtyForm(IddunForm):
+    primary_specialty = StringField(
+        "Especialidade principal",
+        validators=[DataRequired(message="Informe sua especialidade principal."), Length(min=2, max=120)],
+    )
+    categories = CheckboxGroupField(
+        "Áreas de atuação",
+        choices=PROFESSIONAL_AREA_CHOICES,
+        validators=[DataRequired(message="Escolha pelo menos uma área de atuação.")],
+    )
+    submit = SubmitField("Continuar")
+
+
+class ProStepModalityForm(IddunForm):
+    attendance_modalities = CheckboxGroupField(
+        "Como você atende?",
+        choices=ATTENDANCE_MODALITY_CHOICES,
+        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
+    )
+    submit = SubmitField("Continuar")
+
+
+class ProStepPresentationForm(IddunForm):
+    headline = StringField("Chamada (opcional)", validators=[Optional(), Length(max=180)])
+    bio = TextAreaField(
+        "Apresentação",
+        validators=[
+            DataRequired(message="Escreva sua apresentação."),
+            Length(
+                min=BIO_MIN_LENGTH,
+                max=2000,
+                message=f"Use entre {BIO_MIN_LENGTH} e 2000 caracteres.",
+            ),
+        ],
+    )
+    submit = SubmitField("Continuar")
+
+
+class ProStepPersonalizeForm(IddunForm):
     avatar_file = FileField("Foto de perfil", validators=[Optional(), *IMAGE_VALIDATORS])
     cover_file = FileField("Foto de capa", validators=[Optional(), *IMAGE_VALIDATORS])
     avatar_focus_x = focus_field()
     avatar_focus_y = focus_field()
     cover_focus_x = focus_field()
     cover_focus_y = focus_field()
-    display_name = StringField("Nome profissional", validators=[DataRequired(), Length(min=2, max=140)])
-    headline = StringField("Como você se apresenta?", validators=[Optional(), Length(max=180)])
-    primary_specialty = StringField("Especialidade principal", validators=[DataRequired(), Length(max=120)])
-    specialties_text = StringField(
-        "Outras especialidades",
-        validators=[Optional(), Length(max=500)],
-        description="Separe por vírgulas.",
-    )
-    bio = TextAreaField("Sobre você", validators=[DataRequired(), Length(min=40, max=2000)])
+    portfolio_files = MultipleFileField("Trabalhos")
     phone = StringField("WhatsApp / telefone", validators=[Optional(), Length(max=32)])
     whatsapp_enabled = BooleanField("Mostrar botão do WhatsApp no meu perfil", default=True)
     instagram = StringField("Instagram", validators=[Optional(), Length(max=120)])
-    city = StringField("Cidade", validators=[DataRequired(), Length(max=100)])
-    state = StringField("UF", validators=[DataRequired(), Length(min=2, max=2)])
-    attendance_modalities = CheckboxGroupField(
-        "Onde você atende?",
-        choices=[
-            ("establishment", "Em estabelecimento"),
-            ("own_space", "Em espaço próprio"),
-            ("client_location", "No endereço do cliente"),
-        ],
-        validators=[DataRequired(message="Selecione pelo menos uma modalidade de atendimento.")],
-    )
+    # D-ONB-03: opcional, padrão Beleza.
     visual_theme = SelectField(
         "Universo visual",
         choices=ProfileTheme.CHOICES,
-        validators=[DataRequired()],
+        validators=[Optional()],
         default=ProfileTheme.BEAUTY,
     )
-    portfolio_files = MultipleFileField("Portfólio")
-    submit = SubmitField("Criar meu perfil")
+    submit = SubmitField("Salvar e continuar")
+
+
+class ProPublishForm(IddunForm):
+    submit = SubmitField("Publicar perfil")
 
 
 class ProfessionalEditForm(IddunForm):

@@ -481,8 +481,10 @@
 
   // V-02a: fora dos assistentes, depois de um erro do servidor, o foco
   // vai para o primeiro campo inválido (os assistentes abrem a etapa certa).
+  // Grupos de caixas (fieldset com erro) recebem o foco na primeira opção.
   const firstServerError = document.querySelector(
-    'form:not([data-wizard-form]) [aria-invalid="true"]',
+    'form:not([data-wizard-form]) [aria-invalid="true"], '
+    + 'form:not([data-wizard-form]) fieldset[aria-describedby*="-errors"] input',
   );
 
   if (firstServerError) {
@@ -522,6 +524,46 @@
     hoursMode.addEventListener('change', syncHoursPanel);
     syncHoursPanel();
   }
+
+  // Onboarding por etapas (PR 2): só melhora o formulário comum.
+  // Erro geral da etapa recebe o foco; contador da apresentação; o botão
+  // mostra "Salvando…" e não aceita segundo clique.
+  const onbAlert = document.querySelector('[data-onb-alert]');
+
+  if (onbAlert && !firstServerError) {
+    onbAlert.focus();
+  }
+
+  document
+    .querySelectorAll('[data-onb-counter]')
+    .forEach((field) => {
+      const output = document.querySelector(
+        `[data-onb-count="${field.dataset.onbCounter}"]`,
+      );
+
+      if (!output) return;
+
+      const update = () => {
+        const length = field.value.trim().length;
+        output.textContent = `${length} de 2000 caracteres.`;
+      };
+
+      field.addEventListener('input', update);
+      update();
+    });
+
+  document
+    .querySelectorAll('[data-onb-submit]')
+    .forEach((button) => {
+      button.form?.addEventListener('submit', (event) => {
+        if (button.disabled) return;
+        window.setTimeout(() => {
+          if (event.defaultPrevented) return;
+          button.disabled = true;
+          button.value = 'Salvando…';
+        }, 0);
+      });
+    });
 
   const form = (
     document.querySelector(

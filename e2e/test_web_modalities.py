@@ -44,6 +44,8 @@ def test_edit_uses_touchable_checkboxes(page: Page, viewport):
 
 
 def test_wizard_requires_one_modality_next_to_the_group(page: Page):
+    """Cadastro por etapas (PR 2): a modalidade tem tela própria e o erro
+    do servidor aparece junto ao grupo, com foco no primeiro campo."""
     page.goto("/cadastro")
     page.locator("#name").fill("Pro Modalidade Navegador")
     page.locator("#email").fill(f"qa-modalidade-{uuid.uuid4().hex[:8]}@example.com")
@@ -53,17 +55,22 @@ def test_wizard_requires_one_modality_next_to_the_group(page: Page):
         page.get_by_role("button", name="Criar minha conta").click()
 
     page.goto("/pro/onboarding")
-    next_button = page.locator("[data-wizard-next]")
-    page.locator("#display_name").fill("Pro Modalidade Navegador")
-    next_button.click()
+    expect(page).to_have_url(re.compile(r"/pro/onboarding/nome$"))
+    continue_button = page.get_by_role("button", name="Continuar")
+    continue_button.click()
+    page.locator("#city").fill("Curitiba")
+    page.locator("#state").fill("PR")
+    continue_button.click()
     page.locator("#primary_specialty").fill("Colorista")
-    next_button.click()
+    page.locator(".onb__choice", has_text="Cabelo").click()
+    continue_button.click()
+    expect(page).to_have_url(re.compile(r"/pro/onboarding/atendimento$"))
 
-    error = page.locator("#attendance_modalities-0-client-error")
+    continue_button.click()
+    error = page.locator("#attendance_modalities-errors")
     expect(error).to_have_text(MESSAGE)
-    expect(page.locator('[data-wizard-step="2"]')).to_be_visible()
+    expect(page.locator("#attendance_modalities-0")).to_be_focused()
 
-    page.locator(".platform-choice", has_text="No endereço do cliente").click()
-    expect(error).to_have_count(0)
-    next_button.click()
-    expect(page.locator('[data-wizard-step="3"]')).to_be_visible()
+    page.locator(".onb__choice", has_text="No endereço do cliente").click()
+    page.get_by_role("button", name="Continuar").click()
+    expect(page).to_have_url(re.compile(r"/pro/onboarding/apresentacao$"))
