@@ -1805,7 +1805,24 @@ def onboarding():
     if request.method == "GET":
         form.email.data = current_user.email
 
-    if form.validate_on_submit():
+    # Weekly hours apply only when the owner explicitly chooses fixed hours.
+    weekly_hours = None
+    hours_valid = True
+    if request.method == "POST" and form.business_hours_mode.data == "fixed_hours":
+        from app.services.establishment_readiness_service import valid_business_hours
+        weekly_hours = {}
+        for day in ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"):
+            start = (getattr(form, f"{day}_start").data or "").strip()
+            end = (getattr(form, f"{day}_end").data or "").strip()
+            if start or end:
+                weekly_hours[day] = [{"start": start, "end": end}]
+        if not valid_business_hours(weekly_hours):
+            hours_valid = False
+            form.business_hours_mode.errors.append(
+                "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
+            )
+
+    if form.validate_on_submit() and hours_valid:
         try:
             with UploadBatch() as uploads:
                 logo_url = uploads.save_image(
@@ -1836,6 +1853,7 @@ def onboarding():
                     category=form.category.data,
                     operation_mode=form.operation_mode.data or None,
                     business_hours_mode=form.business_hours_mode.data or None,
+                    business_hours=weekly_hours,
                     visual_theme=_theme_for_business(
                         form.category.data
                     ),
