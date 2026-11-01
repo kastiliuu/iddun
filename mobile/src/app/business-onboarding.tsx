@@ -133,6 +133,7 @@ export default function BusinessOnboardingScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
 
   const [loading, setLoading] = useState(Boolean(params.id));
+  const [locked, setLocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [draft, setDraft] = useState<EstablishmentDraft | null>(null);
@@ -197,6 +198,10 @@ export default function BusinessOnboardingScreen() {
         if (!mounted) return;
         if (response.establishment.isActive) {
           router.replace("/(tabs)/profile");
+          return;
+        }
+        if (response.establishment.publishedAt) {
+          setLocked(true);
           return;
         }
         hydrate(response.establishment);
@@ -474,6 +479,23 @@ export default function BusinessOnboardingScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator color={colors.plum} />
+      </View>
+    );
+  }
+
+  if (locked) {
+    // Desativado pela moderação (publishedAt sem isActive): mesma regra do
+    // servidor, que recusa a publicação com publication_locked.
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.kicker}>CADASTRO DO ESTABELECIMENTO</Text>
+          <Text style={styles.title} accessibilityRole="header">Esta página foi desativada.</Text>
+          <Text style={styles.lead}>Não é possível publicar por aqui. Fale com o suporte do IDDUN.</Text>
+          <View style={styles.actions}>
+            <Button title="Voltar ao perfil" fullWidth onPress={() => router.replace("/(tabs)/profile")} />
+          </View>
+        </ScrollView>
       </View>
     );
   }

@@ -131,7 +131,7 @@
             {{ icon('chevron-right') }}
           </a>
 
-          {% if current_user.professional_profile and not current_user.professional_profile.is_active %}
+          {% if current_user.professional_profile and not current_user.professional_profile.is_active and current_user.professional_profile.published_at is none %}
           <a class="account-context-card account-context-card--pro" href="{{ url_for('professional.onboarding') }}">
             <span class="account-context-card__icon">{{ icon('user') }}</span>
             <span><strong>Continuar cadastro profissional</strong><small>{{ current_user.professional_profile.display_name }} · rascunho, ainda não publicado</small></span>
@@ -140,7 +140,7 @@
           {% elif current_user.professional_profile %}
           <a class="account-context-card account-context-card--pro" href="{{ url_for('professional.dashboard') }}">
             <span class="account-context-card__icon">{{ icon('user') }}</span>
-            <span><strong>IDDUN Pro</strong><small>{{ current_user.professional_profile.display_name }} · {{ current_user.professional_profile.profile_completion }}% completo</small></span>
+            <span><strong>IDDUN Pro</strong><small>{{ current_user.professional_profile.display_name }} · {% if current_user.professional_profile.is_active %}{{ current_user.professional_profile.profile_completion }}% completo{% else %}fora do ar{% endif %}</small></span>
             {{ icon('chevron-right') }}
           </a>
           {% else %}
@@ -152,10 +152,10 @@
           {% endif %}
 
           {% for access in business_accesses %}
-          {% set business_draft = not access.establishment.is_active and access.establishment.published_at is none %}
-          <a class="account-context-card account-context-card--business" href="{{ url_for('business.onboarding') if business_draft else url_for('business.dashboard', slug=access.establishment.slug) }}">
+          {% set business_draft = not access.establishment.is_active and access.establishment.published_at is none and access.role == 'owner' %}
+          <a class="account-context-card account-context-card--business" href="{{ url_for('business.onboarding_resume', establishment_id=access.establishment.id) if business_draft else url_for('business.dashboard', slug=access.establishment.slug) }}">
             <span class="account-context-card__icon">{{ icon('store') }}</span>
-            <span><strong>{{ 'Continuar cadastro: ' if business_draft }}{{ access.establishment.name }}</strong><small>{% if business_draft %}rascunho, ainda não publicado{% else %}IDDUN Business · {{ access.role|title }}{% endif %}</small></span>
+            <span><strong>{{ 'Continuar cadastro: ' if business_draft }}{{ access.establishment.name }}</strong><small>{% if business_draft %}rascunho, ainda não publicado{% else %}IDDUN Business · {{ access.role|title }}{% if not access.establishment.is_active %} · rascunho{% endif %}{% endif %}</small></span>
             {{ icon('chevron-right') }}
           </a>
           {% endfor %}

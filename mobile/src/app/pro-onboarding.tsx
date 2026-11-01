@@ -116,6 +116,7 @@ export default function ProOnboardingScreen() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [profile, setProfile] = useState<ProfessionalOnboardingProfile | null>(null);
@@ -164,6 +165,10 @@ export default function ProOnboardingScreen() {
         if (response.profile?.isActive) {
           // Perfil no ar não refaz o cadastro: segue para o perfil.
           router.replace("/professional-onboarding");
+          return;
+        }
+        if (response.profile?.publishedAt) {
+          setLocked(true);
           return;
         }
         if (response.profile) {
@@ -348,6 +353,23 @@ export default function ProOnboardingScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator color={colors.plum} />
+      </View>
+    );
+  }
+
+  if (locked) {
+    // Desativado pela moderação (publishedAt sem isActive): mesma regra do
+    // servidor, que recusa a publicação com publication_locked.
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.kicker}>CADASTRO PROFISSIONAL</Text>
+          <Text style={styles.title} accessibilityRole="header">Este perfil foi desativado.</Text>
+          <Text style={styles.lead}>Não é possível publicar por aqui. Fale com o suporte do IDDUN.</Text>
+          <View style={styles.actions}>
+            <Button title="Voltar ao perfil" fullWidth onPress={() => router.replace("/(tabs)/profile")} />
+          </View>
+        </ScrollView>
       </View>
     );
   }

@@ -19,7 +19,7 @@ import { Icon } from "@/components/Icon";
 import { fonts, makeStyles, radius, spacing, touch, useTheme } from "@/theme";
 
 type AccountType = "professional" | "establishment";
-type ProfessionalState = "none" | "draft" | "published";
+type ProfessionalState = "none" | "draft" | "published" | "locked";
 
 export default function SignupProfessionalScreen() {
   const styles = useStyles();
@@ -37,7 +37,10 @@ export default function SignupProfessionalScreen() {
       try {
         const response = await getProfessionalOnboarding();
         if (mounted && response.profile) {
-          setProfessional(response.profile.isActive ? "published" : "draft");
+          // publishedAt sem isActive: desativado pela moderação.
+          setProfessional(
+            response.profile.isActive ? "published" : response.profile.publishedAt ? "locked" : "draft",
+          );
         }
       } catch {}
       try {
@@ -113,28 +116,34 @@ export default function SignupProfessionalScreen() {
         {accountType === "professional" ? (
           <View style={styles.entry}>
             <Text style={styles.entryTitle}>
-              {professional === "published"
-                ? "Seu perfil profissional já está no ar."
+              {professional === "locked"
+                ? "Seu perfil profissional foi desativado."
+                : professional === "published"
+                  ? "Seu perfil profissional já está no ar."
                 : professional === "draft"
                   ? "Você tem um cadastro profissional em andamento."
                   : "Cadastro em 7 etapas curtas."}
             </Text>
             <Text style={styles.entryText}>
-              {professional === "published"
-                ? "Para mudar fotos, portfólio ou apresentação, use o editor do seu perfil."
+              {professional === "locked"
+                ? "Não é possível publicar por aqui. Fale com o suporte do IDDUN."
+                : professional === "published"
+                  ? "Para mudar fotos, portfólio ou apresentação, use o editor do seu perfil."
                 : "Cada etapa fica salva e você publica quando estiver tudo pronto."}
             </Text>
-            <Button
-              title={
-                professional === "published"
-                  ? "Editar meu perfil"
-                  : professional === "draft"
-                    ? "Continuar cadastro"
-                    : "Começar cadastro profissional"
-              }
-              fullWidth
-              onPress={() => router.push(professional === "published" ? "/professional-onboarding" : "/pro-onboarding")}
-            />
+            {professional !== "locked" ? (
+              <Button
+                title={
+                  professional === "published"
+                    ? "Editar meu perfil"
+                    : professional === "draft"
+                      ? "Continuar cadastro"
+                      : "Começar cadastro profissional"
+                }
+                fullWidth
+                onPress={() => router.push(professional === "published" ? "/professional-onboarding" : "/pro-onboarding")}
+              />
+            ) : null}
           </View>
         ) : (
           <View style={styles.entry}>

@@ -307,7 +307,10 @@ def test_owner_with_drafts_chooses_to_continue_or_start_another(app, client):
     first = _start(client, name="Studio Um")
     html = client.get("/business/onboarding").get_data(as_text=True)
     assert "Continuar Studio Um" in html
-    assert f'href="/business/onboarding/{first}/atendimento"' in html
+    assert f'href="/business/onboarding/{first}"' in html
+    assert client.get(f"/business/onboarding/{first}").headers["Location"].endswith(
+        f"/business/onboarding/{first}/atendimento"
+    )
     assert "Criar outro estabelecimento" in html
 
     second = _start(client, name="Studio Dois")
