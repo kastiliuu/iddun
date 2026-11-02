@@ -19,7 +19,7 @@
       <ul class="onb__next">
         {% for item, journey in drafts %}
           <li>
-            <a href="{{ url_for('business.onboarding_step', establishment_id=item.id, step=slug_by_key[journey.currentStep]) }}">
+            <a href="{{ url_for('business.onboarding_resume', establishment_id=item.id) }}">
               <strong>Continuar {{ item.name }}</strong>
               <small>{{ item.city }}/{{ item.state }} · rascunho · {{ journey.missingRequirements | length }} {{ 'pendência' if journey.missingRequirements | length == 1 else 'pendências' }} para publicar</small>
             </a>

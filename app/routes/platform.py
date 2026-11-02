@@ -235,6 +235,17 @@ def start():
 # ação explícita na etapa "Revisar e publicar" (F1). Perfis já publicados
 # não passam por aqui: seguem para o painel e para Editar perfil.
 
+# Fora do ar pela moderação (published_at preenchido e is_active falso):
+# mesma regra da publicação, que recusa com publication_locked.
+PRO_LOCKED_MESSAGE = (
+    "Este perfil foi desativado e não pode ser publicado por aqui. "
+    "Fale com o suporte do IDDUN."
+)
+BIZ_LOCKED_MESSAGE = (
+    "Esta página foi desativada e não pode ser publicada por aqui. "
+    "Fale com o suporte do IDDUN."
+)
+
 PRO_ONBOARDING_STEPS = (
     {
         "slug": "nome",
@@ -429,6 +440,10 @@ def onboarding():
     profile = current_user.professional_profile
     if profile is not None and profile.is_active:
         return redirect(url_for("professional.dashboard"))
+    if profile is not None and profile.published_at is not None:
+        # Desativado pela moderação: o dono não republica por aqui.
+        flash(PRO_LOCKED_MESSAGE, "info")
+        return redirect(url_for("professional.dashboard"))
     if profile is None:
         return redirect(_pro_step_url("nome"))
     journey = professional_journey(profile)
@@ -448,6 +463,9 @@ def onboarding_step(step):
             "Seu perfil já está publicado. Para mudar algo, use Editar perfil.",
             "info",
         )
+        return redirect(url_for("professional.dashboard"))
+    if profile is not None and profile.published_at is not None:
+        flash(PRO_LOCKED_MESSAGE, "info")
         return redirect(url_for("professional.dashboard"))
     if profile is None and step != "nome":
         return redirect(_pro_step_url("nome"))
@@ -2234,9 +2252,23 @@ def onboarding():
     return render_template(
         "platform/biz-onboarding-start.html",
         drafts=[(item, business_journey(item)) for item in drafts],
-        slug_by_key=BIZ_SLUG_BY_KEY,
         current_page="for-professionals",
     )
+
+
+@business_bp.get("/onboarding/<int:establishment_id>")
+@login_required
+def onboarding_resume(establishment_id):
+    """Retoma um rascunho na primeira etapa pendente."""
+    try:
+        establishment = owned_establishment(current_user, establishment_id)
+    except MobileOnboardingError:
+        abort(404)
+    if establishment.is_active or establishment.published_at is not None:
+        return redirect(url_for("business.dashboard", slug=establishment.slug))
+    return redirect(_biz_step_url(
+        establishment.id, BIZ_SLUG_BY_KEY[business_journey(establishment)["currentStep"]],
+    ))
 
 
 @business_bp.route("/onboarding/novo", methods=["GET", "POST"])
@@ -2282,6 +2314,9 @@ def onboarding_step(establishment_id, step):
             "Esta página já está publicada. Para mudar algo, use Editar empresa.",
             "info",
         )
+        return redirect(url_for("business.dashboard", slug=establishment.slug))
+    if establishment.published_at is not None:
+        flash(BIZ_LOCKED_MESSAGE, "info")
         return redirect(url_for("business.dashboard", slug=establishment.slug))
 
     index = BIZ_ONBOARDING_STEPS.index(definition)

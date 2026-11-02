@@ -45,8 +45,13 @@
       {% if not establishment.is_active and establishment.published_at is none %}
       {# Onboarding PR 3: rascunho só vai ao ar pela publicação explícita. #}
       <section class="platform-completion-card platform-completion-card--draft">
-        <div><span class="platform-kicker">RASCUNHO</span><h2>Esta página ainda não está no ar.</h2><p>Termine o cadastro e publique quando estiver pronto.</p></div>
-        <a class="btn btn-primary" href="{{ url_for('business.onboarding') }}">Continuar cadastro</a>
+        <div><span class="platform-kicker">RASCUNHO</span><h2>Esta página ainda não está no ar.</h2><p>{% if access.role == 'owner' %}Termine o cadastro e publique quando estiver pronto.{% else %}Quem é proprietário termina o cadastro e publica.{% endif %}</p></div>
+        {% if access.role == 'owner' %}<a class="btn btn-primary" href="{{ url_for('business.onboarding_resume', establishment_id=establishment.id) }}">Continuar cadastro</a>{% endif %}
+      </section>
+      {% elif not establishment.is_active %}
+      {# PR 4: desativada pela moderação; o dono não republica pelo cadastro. #}
+      <section class="platform-completion-card platform-completion-card--draft">
+        <div><span class="platform-kicker">FORA DO AR</span><h2>Esta página foi desativada.</h2><p>Ela não pode ser publicada por aqui. Fale com o suporte do IDDUN.</p></div>
       </section>
       {% elif establishment.profile_completion < 100 %}
       <section class="platform-completion-card" data-reveal>

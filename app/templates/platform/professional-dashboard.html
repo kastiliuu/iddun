@@ -145,7 +145,13 @@
     </section>
     {% endif %}
 
-    {% if not profile.is_active %}
+    {% if not profile.is_active and profile.published_at is not none %}
+    {# PR 4: desativado pela moderação; o dono não republica pelo cadastro. #}
+    <section class="pro-completion-card pro-completion-card--draft">
+      <span class="pro-kicker">FORA DO AR</span>
+      <p>Este perfil foi desativado e não pode ser publicado por aqui. Fale com o suporte do IDDUN.</p>
+    </section>
+    {% elif not profile.is_active %}
     {# Onboarding PR 2: rascunho não está no ar até a publicação explícita. #}
     <section class="pro-completion-card pro-completion-card--draft">
       <span class="pro-kicker">RASCUNHO</span>

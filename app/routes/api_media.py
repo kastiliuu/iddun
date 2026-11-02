@@ -2,6 +2,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from flask import Blueprint, request
 
 from app.extensions import csrf, db, limiter
+from app.models.establishment import EstablishmentGalleryItem
 from app.models.professional import (
     ProfessionalPortfolioItem,
 )
@@ -852,5 +853,234 @@ def reorder_professional_portfolio():
                 for item in ordered
             ]
         },
+        cache_control="no-store",
+    )
+
+
+# --- Fotos do estabelecimento no app (D-ONB-07, PR 4 do onboarding) --------
+#
+# Mesmo padrão das fotos do Profissional: multipart com o campo "file",
+# 5 MB, tipo verificado pelo conteúdo e metadados removidos por
+# UploadBatch/save_image. Só o proprietário ativo envia ou remove; outra
+# conta e id inexistente recebem a mesma resposta (404). Fotos são
+# opcionais (DEC-ID-101): enviar ou remover não muda a publicação.
+
+GALLERY_LIMIT = 10
+
+
+def _owned_establishment_or_error(establishment_id):
+    from app.services.mobile_onboarding_service import (
+        MobileOnboardingError,
+        owned_establishment,
+    )
+
+    user = _bearer_user()
+    if user is None:
+        return None, api_error(
+            "authentication_required",
+            "Entre na sua conta para continuar.",
+            401,
+        )
+    try:
+        return owned_establishment(user, establishment_id), None
+    except MobileOnboardingError:
+        return None, api_error(
+            "establishment_not_found",
+            "Estabelecimento não encontrado.",
+            404,
+        )
+
+
+def _gallery_payload(item):
+    return {
+        "id": item.id,
+        "imageUrl": resolve_image_url(item.image_url, external=True),
+        "storedPath": item.image_url,
+        "caption": item.caption,
+        "sortOrder": item.sort_order,
+    }
+
+
+def _establishment_media_payload(establishment):
+    return {
+        "logo": (
+            _image_payload(
+                establishment.logo_url,
+                focus_x=establishment.logo_focus_x,
+                focus_y=establishment.logo_focus_y,
+            )
+            if establishment.logo_url else None
+        ),
+        "cover": (
+            _image_payload(
+                establishment.cover_url,
+                focus_x=establishment.cover_focus_x,
+                focus_y=establishment.cover_focus_y,
+            )
+            if establishment.cover_url else None
+        ),
+        "gallery": [_gallery_payload(item) for item in establishment.gallery_items],
+        # Estado de publicação só para conferência: fotos não o alteram.
+        "isActive": establishment.is_active,
+    }
+
+
+def _upload_establishment_image(establishment_id, kind):
+    establishment, error = _owned_establishment_or_error(establishment_id)
+    if error is not None:
+        return error
+    file_storage, error = _multipart_file()
+    if error is not None:
+        return error
+
+    folder = "establishments/logos" if kind == "logo" else "establishments/covers"
+    replaced_media = getattr(establishment, f"{kind}_url")
+    try:
+        focus_x = _focus_value(request.form.get("focusX"))
+        focus_y = _focus_value(request.form.get("focusY"))
+        with UploadBatch() as uploads:
+            stored_path = uploads.save_image(file_storage, folder)
+            setattr(establishment, f"{kind}_url", stored_path)
+            setattr(establishment, f"{kind}_focus_x", focus_x)
+            setattr(establishment, f"{kind}_focus_y", focus_y)
+            db.session.commit()
+            uploads.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_error("invalid_image", str(exc), 400)
+    except (OSError, SQLAlchemyError):
+        db.session.rollback()
+        return api_error(
+            "media_upload_failed",
+            "Não foi possível salvar a imagem agora.",
+            503,
+        )
+
+    if replaced_media and replaced_media != stored_path:
+        delete_uploaded_file(replaced_media)
+
+    return api_json(
+        {"media": _establishment_media_payload(establishment)},
+        cache_control="no-store",
+    )
+
+
+@api_media_bp.get("/establishments/<int:establishment_id>")
+def get_establishment_media(establishment_id):
+    establishment, error = _owned_establishment_or_error(establishment_id)
+    if error is not None:
+        return error
+    return api_json(
+        {"media": _establishment_media_payload(establishment)},
+        cache_control="no-store",
+    )
+
+
+@api_media_bp.post("/establishments/<int:establishment_id>/logo")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def upload_establishment_logo(establishment_id):
+    return _upload_establishment_image(establishment_id, "logo")
+
+
+@api_media_bp.post("/establishments/<int:establishment_id>/cover")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def upload_establishment_cover(establishment_id):
+    return _upload_establishment_image(establishment_id, "cover")
+
+
+@api_media_bp.post("/establishments/<int:establishment_id>/gallery")
+@csrf.exempt
+@limiter.limit("60 per hour")
+def upload_establishment_gallery(establishment_id):
+    establishment, error = _owned_establishment_or_error(establishment_id)
+    if error is not None:
+        return error
+    file_storage, error = _multipart_file()
+    if error is not None:
+        return error
+
+    if len(establishment.gallery_items) >= GALLERY_LIMIT:
+        return api_error(
+            "gallery_limit_reached",
+            f"A galeria pode ter no máximo {GALLERY_LIMIT} imagens.",
+            409,
+        )
+    caption = (request.form.get("caption", "") or "").strip()
+    if len(caption) > 180:
+        return api_error(
+            "invalid_caption",
+            "A legenda deve ter no máximo 180 caracteres.",
+            400,
+        )
+
+    try:
+        with UploadBatch() as uploads:
+            stored_path = uploads.save_image(file_storage, "establishments/gallery")
+            item = EstablishmentGalleryItem(
+                establishment=establishment,
+                image_url=stored_path,
+                caption=caption or None,
+                sort_order=len(establishment.gallery_items),
+            )
+            db.session.add(item)
+            db.session.commit()
+            uploads.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_error("invalid_image", str(exc), 400)
+    except (OSError, SQLAlchemyError):
+        db.session.rollback()
+        return api_error(
+            "media_upload_failed",
+            "Não foi possível salvar a imagem agora.",
+            503,
+        )
+
+    return api_json(
+        {
+            "item": _gallery_payload(item),
+            "media": _establishment_media_payload(establishment),
+        },
+        201,
+        cache_control="no-store",
+    )
+
+
+@api_media_bp.delete("/establishments/<int:establishment_id>/gallery/<int:item_id>")
+@csrf.exempt
+@limiter.limit("60 per hour")
+def delete_establishment_gallery_item(establishment_id, item_id):
+    establishment, error = _owned_establishment_or_error(establishment_id)
+    if error is not None:
+        return error
+
+    item = db.session.get(EstablishmentGalleryItem, item_id)
+    if item is None or item.establishment_id != establishment.id:
+        return api_error(
+            "gallery_item_not_found",
+            "Imagem da galeria não encontrada.",
+            404,
+        )
+
+    stored_path = item.image_url
+    try:
+        establishment.gallery_items.remove(item)
+        db.session.flush()
+        for index, current in enumerate(establishment.gallery_items):
+            current.sort_order = index
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return api_error(
+            "gallery_update_failed",
+            "Não foi possível atualizar a galeria agora.",
+            503,
+        )
+
+    delete_uploaded_file(stored_path)
+    return api_json(
+        {"media": _establishment_media_payload(establishment)},
         cache_control="no-store",
     )

@@ -24,16 +24,10 @@ import {
   publishProfessionalProfile,
 } from "@/api/onboarding";
 import { Button } from "@/components/Button";
+import { useOnboardingStyles } from "@/components/onboarding/onboardingStyles";
 import { Icon } from "@/components/Icon";
 import { store } from "@/store/local";
-import {
-  fonts,
-  makeStyles,
-  radius,
-  spacing,
-  touch,
-  useTheme,
-} from "@/theme";
+import { useTheme } from "@/theme";
 
 type StepKey =
   | "identity"
@@ -117,11 +111,12 @@ function stepIndex(key: string | undefined) {
 }
 
 export default function ProOnboardingScreen() {
-  const styles = useStyles();
+  const styles = useOnboardingStyles();
   const { colors } = useTheme();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [profile, setProfile] = useState<ProfessionalOnboardingProfile | null>(null);
@@ -170,6 +165,10 @@ export default function ProOnboardingScreen() {
         if (response.profile?.isActive) {
           // Perfil no ar não refaz o cadastro: segue para o perfil.
           router.replace("/professional-onboarding");
+          return;
+        }
+        if (response.profile?.publishedAt) {
+          setLocked(true);
           return;
         }
         if (response.profile) {
@@ -354,6 +353,23 @@ export default function ProOnboardingScreen() {
     return (
       <View style={[styles.container, styles.center]}>
         <ActivityIndicator color={colors.plum} />
+      </View>
+    );
+  }
+
+  if (locked) {
+    // Desativado pela moderação (publishedAt sem isActive): mesma regra do
+    // servidor, que recusa a publicação com publication_locked.
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.kicker}>CADASTRO PROFISSIONAL</Text>
+          <Text style={styles.title} accessibilityRole="header">Este perfil foi desativado.</Text>
+          <Text style={styles.lead}>Não é possível publicar por aqui. Fale com o suporte do IDDUN.</Text>
+          <View style={styles.actions}>
+            <Button title="Voltar ao perfil" fullWidth onPress={() => router.replace("/(tabs)/profile")} />
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -635,128 +651,3 @@ export default function ProOnboardingScreen() {
     </View>
   );
 }
-
-const useStyles = makeStyles((colors) => ({
-  container: { flex: 1, backgroundColor: colors.surface },
-  center: { alignItems: "center", justifyContent: "center" },
-  content: { paddingTop: 54, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl },
-  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  iconButton: {
-    width: touch.minimum,
-    height: touch.minimum,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.glassSoft,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  count: { color: colors.muted, fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16 },
-  exit: { minHeight: touch.minimum, justifyContent: "center" },
-  exitText: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 12, textDecorationLine: "underline" },
-  progress: { flexDirection: "row", gap: spacing.xs, marginTop: spacing.md, marginBottom: spacing.xl },
-  segment: { flex: 1, height: 4, borderRadius: radius.sm, backgroundColor: colors.surfaceTertiary },
-  segmentDone: { backgroundColor: colors.plumSoftStrong },
-  segmentCurrent: { backgroundColor: colors.plum },
-  kicker: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 1.2 },
-  title: { marginTop: spacing.sm, color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 26, lineHeight: 32 },
-  lead: { marginTop: spacing.sm, color: colors.onSurfaceSecondary, fontFamily: fonts.sans, fontSize: 14, lineHeight: 21 },
-  subtitle: { marginTop: spacing.xl, marginBottom: spacing.sm, color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 18 },
-  alert: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  alertText: { flex: 1, color: colors.onSurface, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  form: { marginTop: spacing.xl, gap: spacing.lg },
-  field: { gap: spacing.sm },
-  row: { flexDirection: "row", gap: spacing.sm },
-  rowWide: { flex: 1 },
-  rowShort: { width: 88 },
-  label: { color: colors.onSurfaceSecondary, fontFamily: fonts.sansMedium, fontSize: 13, lineHeight: 18 },
-  hint: { color: colors.muted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
-  input: {
-    minHeight: touch.minimum + 6,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    color: colors.onSurface,
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    backgroundColor: colors.surfaceSecondary,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-  },
-  inputError: { borderColor: colors.error },
-  textArea: { minHeight: 150, paddingTop: spacing.md, textAlignVertical: "top" },
-  fieldError: { color: colors.error, fontFamily: fonts.sansMedium, fontSize: 12, lineHeight: 16 },
-  choices: { gap: spacing.sm },
-  choice: {
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  choiceSelected: { borderColor: colors.plum, backgroundColor: colors.plumSoft },
-  choiceText: { flex: 1, color: colors.onSurface, fontFamily: fonts.sansMedium, fontSize: 14 },
-  choiceTextSelected: { color: colors.onSurface },
-  check: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.glassBorderStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkSelected: { borderColor: colors.plum, backgroundColor: colors.plum },
-  toggleRow: { minHeight: touch.minimum, flexDirection: "row", alignItems: "center", gap: spacing.md },
-  nextItem: {
-    minHeight: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    backgroundColor: colors.surfaceSecondary,
-  },
-  nextText: { flex: 1, gap: 2 },
-  nextTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 14 },
-  nextBody: { color: colors.muted, fontFamily: fonts.sans, fontSize: 12, lineHeight: 17 },
-  reviewItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  reviewLink: { minHeight: touch.minimum, justifyContent: "center", paddingHorizontal: spacing.sm },
-  linkText: { color: colors.onBrandTertiary, fontFamily: fonts.sansMedium, fontSize: 13 },
-  pending: { gap: spacing.xs, padding: spacing.md, borderRadius: radius.sm, backgroundColor: colors.plumSoft },
-  pendingTitle: { color: colors.onSurface, fontFamily: fonts.sansSemiBold, fontSize: 13 },
-  pendingText: { color: colors.onSurfaceSecondary, fontFamily: fonts.sans, fontSize: 13, lineHeight: 19 },
-  actions: { marginTop: spacing.xl, gap: spacing.sm },
-  doneMark: {
-    width: 48,
-    height: 48,
-    marginBottom: spacing.lg,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.plum,
-  },
-  pressed: { opacity: 0.75 },
-}));
