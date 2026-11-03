@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
@@ -8,7 +8,12 @@ from app.models.beauty_graph import (
     Save,
     SaveTarget,
 )
-from app.models.establishment import Establishment
+from app.models.establishment import (
+    Establishment,
+    EstablishmentAccessRole,
+    EstablishmentAccessStatus,
+    EstablishmentUserAccess,
+)
 from app.models.experience import Experience
 from app.models.professional import (
     ProfessionalPortfolioItem,
@@ -37,6 +42,15 @@ from app.services.reputation_service import (
 
 class BeautyGraphError(ValueError):
     pass
+
+
+class OwnProfileError(BeautyGraphError):
+    """D-SOC-06: ninguém segue o próprio perfil Pro nem a própria empresa."""
+
+
+FOLLOWING_PAGE_SIZE = 20
+MAX_FOLLOWING_PAGE_SIZE = 50
+MAX_LEGACY_SLUGS = 200
 
 
 def _require_user(user):
@@ -271,6 +285,24 @@ def _save_filters(
     return filters
 
 
+def owns_follow_target(user, target):
+    """O perfil Pro da própria conta ou empresa em que a conta é dona ativa."""
+    if user is None or user.id is None or target is None:
+        return False
+
+    if isinstance(target, ProfessionalProfile):
+        return target.user_id == user.id
+
+    return db.session.scalar(
+        select(EstablishmentUserAccess.id).where(
+            EstablishmentUserAccess.user_id == user.id,
+            EstablishmentUserAccess.establishment_id == target.id,
+            EstablishmentUserAccess.role == EstablishmentAccessRole.OWNER,
+            EstablishmentUserAccess.status == EstablishmentAccessStatus.ACTIVE,
+        )
+    ) is not None
+
+
 def follow_target(
     *,
     user,
@@ -278,10 +310,15 @@ def follow_target(
     target_id,
 ):
     _require_user(user)
-    resolve_follow_target(
+    target = resolve_follow_target(
         target_type,
         target_id,
     )
+
+    if owns_follow_target(user, target):
+        raise OwnProfileError(
+            "Você não pode seguir o seu próprio perfil."
+        )
 
     existing = db.session.scalar(
         select(Follow).where(
@@ -539,13 +576,45 @@ def graph_state(user):
     }
 
 
+def _experience_ids_by_slug(slugs):
+    """Favoritos antigos do navegador guardavam o slug da experiência."""
+    if not slugs:
+        return {}
+
+    rows = db.session.execute(
+        public_experiences_query()
+        .with_only_columns(Experience.slug, Experience.id)
+        .where(Experience.slug.in_(slugs))
+    ).all()
+
+    return {slug: item_id for slug, item_id in rows}
+
+
 def reconcile_graph(
     *,
     user,
     follows,
     saves,
+    experience_slugs=(),
 ):
     _require_user(user)
+
+    ids_by_slug = _experience_ids_by_slug(
+        list(experience_slugs)
+    )
+    saves = list(saves)
+    legacy_rejected = []
+
+    for slug in experience_slugs:
+        if slug in ids_by_slug:
+            saves.append(
+                {
+                    "targetType": SaveTarget.EXPERIENCE,
+                    "targetId": ids_by_slug[slug],
+                }
+            )
+        else:
+            legacy_rejected.append(slug)
 
     imported = {
         "follows": [],
@@ -605,6 +674,11 @@ def reconcile_graph(
             rejected[
                 "saves"
             ].append(reference)
+
+    if experience_slugs:
+        # Só aparece quando o cliente mandou slugs antigos; o contrato do
+        # app continua com follows e saves.
+        rejected["experienceSlugs"] = legacy_rejected
 
     return {
         "state": graph_state(user),
@@ -672,6 +746,12 @@ def _profile_saved_payload(
                 if part
             )
             or "Brasil"
+        ),
+        # D11: sem upload, a Web mostra iniciais em vez da foto de estoque.
+        "avatarUploaded": bool(
+            item.avatar_url
+            if kind == SaveTarget.PROFESSIONAL
+            else item.logo_url
         ),
         "rating": (
             reputation["average"]
@@ -843,4 +923,142 @@ def saved_items(user):
         "portfolioItems": (
             portfolio_items
         ),
+    }
+
+
+def follower_count(target_type, target_id):
+    """Número real de contas que seguem o perfil (D-SOC-05)."""
+    column = (
+        Follow.professional_id
+        if target_type == FollowTarget.PROFESSIONAL
+        else Follow.establishment_id
+    )
+
+    return db.session.scalar(
+        select(func.count(Follow.id)).where(
+            Follow.target_type == target_type,
+            column == target_id,
+        )
+    ) or 0
+
+
+def is_following(user, target_type, target_id):
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+
+    return db.session.scalar(
+        select(Follow.id).where(
+            *_follow_filters(
+                user.id,
+                target_type,
+                target_id,
+            )
+        )
+    ) is not None
+
+
+def is_saved(user, target_type, target_id):
+    if user is None or not getattr(user, "is_authenticated", False):
+        return False
+
+    return db.session.scalar(
+        select(Save.id).where(
+            *_save_filters(
+                user.id,
+                target_type,
+                target_id,
+            )
+        )
+    ) is not None
+
+
+def _public_follows_query(user_id):
+    """Seguidos cujo perfil continua público, do mais recente ao mais antigo."""
+    active_professionals = select(ProfessionalProfile.id).where(
+        ProfessionalProfile.is_active.is_(True)
+    )
+    active_establishments = select(Establishment.id).where(
+        Establishment.is_active.is_(True)
+    )
+
+    return select(Follow).where(
+        Follow.user_id == user_id,
+        (
+            (
+                (Follow.target_type == FollowTarget.PROFESSIONAL)
+                & Follow.professional_id.in_(active_professionals)
+            )
+            | (
+                (Follow.target_type == FollowTarget.ESTABLISHMENT)
+                & Follow.establishment_id.in_(active_establishments)
+            )
+        ),
+    )
+
+
+def _location(*parts):
+    return " · ".join(part for part in parts if part) or None
+
+
+def following_payload(follow):
+    if follow.target_type == FollowTarget.PROFESSIONAL:
+        item = follow.professional
+        return {
+            "targetType": FollowTarget.PROFESSIONAL,
+            "targetId": item.id,
+            "slug": item.slug,
+            "name": item.display_name,
+            "subtitle": item.primary_specialty or "Profissional de beleza",
+            "location": _location(item.city, item.state),
+            # D11: sem foto enviada, o perfil mostra as iniciais.
+            "avatar": (
+                resolve_image_url(item.avatar_url, external=True)
+                if item.avatar_url
+                else None
+            ),
+            "followedAt": follow.created_at.isoformat(),
+        }
+
+    item = follow.establishment
+    return {
+        "targetType": FollowTarget.ESTABLISHMENT,
+        "targetId": item.id,
+        "slug": item.slug,
+        "name": item.name,
+        "subtitle": item.category or "Espaço de beleza",
+        "location": _location(item.neighborhood, item.city, item.state),
+        "avatar": (
+            resolve_image_url(item.logo_url, external=True)
+            if item.logo_url
+            else None
+        ),
+        "followedAt": follow.created_at.isoformat(),
+    }
+
+
+def following_page(user, *, limit=FOLLOWING_PAGE_SIZE, before=None):
+    """Página de seguidos; `before` é o id do último item da página anterior."""
+    _require_user(user)
+
+    limit = max(1, min(int(limit), MAX_FOLLOWING_PAGE_SIZE))
+    query = _public_follows_query(user.id)
+
+    total = db.session.scalar(
+        select(func.count()).select_from(query.subquery())
+    ) or 0
+
+    if before is not None:
+        query = query.where(Follow.id < before)
+
+    rows = db.session.scalars(
+        query.order_by(Follow.id.desc()).limit(limit + 1)
+    ).all()
+
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+
+    return {
+        "items": [following_payload(item) for item in rows],
+        "total": total,
+        "nextCursor": str(rows[-1].id) if has_more and rows else None,
     }

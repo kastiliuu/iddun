@@ -41,6 +41,7 @@ def _db_item(profile):
 
     reputation = reputation_summary(profile.reviews_received)
     return {
+        "id": profile.id,
         "slug": profile.slug,
         "name": profile.display_name,
         "role": profile.primary_specialty.strip().capitalize() if profile.primary_specialty and profile.primary_specialty.strip() else "Profissional de beleza",
