@@ -4,6 +4,8 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import csrf, db, limiter
 from app.models.work_post import (
+    MAX_POST_IMAGES,
+    ReportTarget,
     WorkPostStatus,
 )
 from app.services.api_auth import (
@@ -23,6 +25,16 @@ from app.services.media_service import (
     MAX_IMAGE_BYTES,
     UploadBatch,
     delete_uploaded_file,
+)
+from app.services.post_interactions import (
+    InteractionError,
+    add_comment,
+    delete_comment,
+    hide_comment,
+    list_comments,
+    report_content,
+    serialize_comment,
+    set_like,
 )
 from app.services.work_post_service import (
     WorkPostError,
@@ -50,6 +62,11 @@ MAX_POST_BODY_BYTES = 32_768
 MAX_POST_MULTIPART_BYTES = (
     MAX_IMAGE_BYTES
     + (512 * 1024)
+)
+# Carrossel: até 10 imagens de 5 MB numa publicação (D-SOC-02).
+MAX_POST_CAROUSEL_BYTES = (
+    MAX_POST_IMAGES * MAX_IMAGE_BYTES
+    + (1024 * 1024)
 )
 
 
@@ -197,6 +214,44 @@ def _multipart_file():
     return file_storage, None
 
 
+def _multipart_images():
+    """Até 10 imagens em `images` (ou `file`, formato antigo); zero é texto."""
+    if (
+        request.content_length is not None
+        and request.content_length > MAX_POST_CAROUSEL_BYTES
+    ):
+        return None, api_error(
+            "request_too_large",
+            "Cada imagem deve ter no máximo 5 MB.",
+            413,
+        )
+
+    if (
+        not request.content_type
+        or "multipart/form-data" not in request.content_type.lower()
+    ):
+        return None, api_error(
+            "multipart_required",
+            "Envie a publicação como multipart/form-data.",
+            415,
+        )
+
+    files = [
+        item
+        for item in request.files.getlist("images") + request.files.getlist("file")
+        if getattr(item, "filename", "")
+    ]
+
+    if len(files) > MAX_POST_IMAGES:
+        return None, api_error(
+            "too_many_images",
+            f"Uma publicação pode ter até {MAX_POST_IMAGES} imagens.",
+            400,
+        )
+
+    return files, None
+
+
 def _optional_int(value, label):
     if value in (
         None,
@@ -317,7 +372,8 @@ def get_post(
 ):
     user = _optional_user()
     payload = public_post(
-        post_id
+        post_id,
+        user,
     )
 
     if payload is not None:
@@ -441,15 +497,14 @@ def get_my_posts():
 )
 @csrf.exempt
 @limiter.limit("40 per hour")
+@limiter.limit("30 per day")
 def create_post():
     user, error = _require_user()
 
     if error is not None:
         return error
 
-    file_storage, error = (
-        _multipart_file()
-    )
+    files, error = _multipart_images()
 
     if error is not None:
         return error
@@ -487,36 +542,34 @@ def create_post():
             or WorkPostStatus.PUBLISHED
         ).strip()
 
+        alt_texts = request.form.getlist("altTexts")
+
         with UploadBatch() as uploads:
-            stored_path = (
-                uploads.save_image(
-                    file_storage,
-                    "work-posts",
+            images = []
+            for index, file_storage in enumerate(files):
+                images.append(
+                    {
+                        "image_url": uploads.save_image(
+                            file_storage,
+                            "work-posts",
+                        ),
+                        # O foco enviado vale para a primeira imagem.
+                        "focus_x": request.form.get("focusX", 50) if index == 0 else 50,
+                        "focus_y": request.form.get("focusY", 50) if index == 0 else 50,
+                        "alt_text": alt_texts[index] if index < len(alt_texts) else None,
+                    }
                 )
-            )
 
             post = create_work_post(
                 user=user,
                 author_type=author_type,
                 author_id=author_id,
-                image_url=stored_path,
+                images=images,
                 caption=request.form.get(
                     "caption"
                 ),
                 experience_id=experience_id,
                 status=status,
-                image_focus_x=(
-                    request.form.get(
-                        "focusX",
-                        50,
-                    )
-                ),
-                image_focus_y=(
-                    request.form.get(
-                        "focusY",
-                        50,
-                    )
-                ),
             )
 
             uploads.commit()
@@ -750,7 +803,7 @@ def remove_post(
         return error
 
     try:
-        image_url = delete_work_post(
+        image_paths = delete_work_post(
             user=user,
             post_id=post_id,
         )
@@ -768,9 +821,9 @@ def remove_post(
             503,
         )
 
-    delete_uploaded_file(
-        image_url
-    )
+    # D-SOC-09: as imagens saem do armazenamento depois do commit.
+    for path in image_paths:
+        delete_uploaded_file(path)
 
     return api_json(
         {
@@ -780,3 +833,143 @@ def remove_post(
             "private, no-store"
         ),
     )
+
+
+
+# ----------------------------------------------------------------------
+# Curtir, comentar e denunciar (PR 3; DEC-ID-035, 229, 231, 275).
+
+
+def _interaction_error(exc):
+    db.session.rollback()
+    return api_error(exc.code, str(exc), exc.status)
+
+
+@api_posts_bp.put("/posts/<int:post_id>/like")
+@csrf.exempt
+@limiter.limit("300 per hour")
+def like_post(post_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    try:
+        result = set_like(user, post_id, True)
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json(result, cache_control="private, no-store")
+
+
+@api_posts_bp.delete("/posts/<int:post_id>/like")
+@csrf.exempt
+@limiter.limit("300 per hour")
+def unlike_post(post_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    try:
+        result = set_like(user, post_id, False)
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json(result, cache_control="private, no-store")
+
+
+@api_posts_bp.get("/posts/<int:post_id>/comments")
+def get_comments(post_id):
+    user = _optional_user()
+    try:
+        result = list_comments(post_id, user)
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json(
+        result,
+        cache_control="private, no-store" if user is not None else "public, max-age=30",
+    )
+
+
+@api_posts_bp.post("/posts/<int:post_id>/comments")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def post_comment(post_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    try:
+        comment = add_comment(
+            user,
+            post_id,
+            payload.get("body"),
+            payload.get("parentId"),
+        )
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json(
+        {"comment": serialize_comment(comment, user)},
+        201,
+        cache_control="private, no-store",
+    )
+
+
+@api_posts_bp.delete("/comments/<int:comment_id>")
+@csrf.exempt
+@limiter.limit("80 per hour")
+def remove_comment(comment_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    try:
+        delete_comment(user, comment_id)
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json({"success": True}, cache_control="private, no-store")
+
+
+@api_posts_bp.post("/comments/<int:comment_id>/hide")
+@csrf.exempt
+@limiter.limit("80 per hour")
+def hide_post_comment(comment_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    try:
+        hide_comment(user, comment_id)
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    return api_json({"success": True}, cache_control="private, no-store")
+
+
+def _report(target_type, target_id):
+    user, error = _require_user()
+    if error is not None:
+        return error
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    try:
+        report_content(
+            user,
+            target_type,
+            target_id,
+            payload.get("category"),
+            payload.get("description"),
+        )
+    except InteractionError as exc:
+        return _interaction_error(exc)
+    # DEC-ID-275 B: sem protocolo nem confirmação para quem denunciou.
+    return "", 204
+
+
+@api_posts_bp.post("/posts/<int:post_id>/report")
+@csrf.exempt
+@limiter.limit("20 per hour")
+def report_post(post_id):
+    return _report(ReportTarget.POST, post_id)
+
+
+@api_posts_bp.post("/comments/<int:comment_id>/report")
+@csrf.exempt
+@limiter.limit("20 per hour")
+def report_comment(comment_id):
+    return _report(ReportTarget.COMMENT, comment_id)

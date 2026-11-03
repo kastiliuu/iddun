@@ -2,6 +2,7 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models.establishment import (
+    EstablishmentAccessRole,
     EstablishmentAccessStatus,
     EstablishmentUserAccess,
 )
@@ -10,11 +11,14 @@ from app.models.experience import (
     ExperienceStatus,
 )
 from app.models.work_post import (
+    MAX_POST_IMAGES,
     WorkPost,
     WorkPostAuthorType,
+    WorkPostMedia,
     WorkPostStatus,
     utcnow,
 )
+from app.services.profile_service import ensure_client_profile
 from app.services.public_eligibility import (
     establishment_is_public,
     professional_is_public,
@@ -86,6 +90,15 @@ def creator_author(
 ):
     _require_user(user)
 
+    if author_type == WorkPostAuthorType.CLIENT:
+        # DEC-ID-224: a Cliente publica no próprio contexto.
+        profile = ensure_client_profile(user)
+        if author_id is not None and profile.id != author_id:
+            raise WorkPostError(
+                "Perfil de cliente não encontrado para esta conta."
+            )
+        return profile
+
     if (
         author_type
         == WorkPostAuthorType.PROFESSIONAL
@@ -131,6 +144,10 @@ def creator_author(
                 == user.id,
                 EstablishmentUserAccess.status
                 == EstablishmentAccessStatus.ACTIVE,
+                # D-SOC-02: só a dona publica como empresa até existir
+                # permissão de conteúdo (DEC-ID-224, AUD-14).
+                EstablishmentUserAccess.role
+                == EstablishmentAccessRole.OWNER,
             )
             .order_by(
                 EstablishmentUserAccess.id.asc()
@@ -178,6 +195,11 @@ def _owned_post(
     user,
     post_id,
 ):
+    """
+    Publicação que a conta pode editar e remover (DEC-ID-232): a própria
+    como Cliente ou Pro; da empresa, a dona ou quem criou o post enquanto
+    tiver acesso ativo. Removida não volta.
+    """
     _require_user(user)
 
     post = db.session.get(
@@ -185,10 +207,18 @@ def _owned_post(
         post_id,
     )
 
-    if post is None:
+    if post is None or post.status == WorkPostStatus.REMOVED:
         raise WorkPostError(
             "Publicação não encontrada."
         )
+
+    if post.author_type == WorkPostAuthorType.CLIENT:
+        profile = user.client_profile
+        if profile is None or profile.id != post.client_profile_id:
+            raise WorkPostError(
+                "Publicação não encontrada."
+            )
+        return post
 
     if (
         post.author_type
@@ -211,7 +241,7 @@ def _owned_post(
 
     access = db.session.scalar(
         select(
-            EstablishmentUserAccess.id
+            EstablishmentUserAccess
         ).where(
             EstablishmentUserAccess.user_id
             == user.id,
@@ -222,7 +252,13 @@ def _owned_post(
         )
     )
 
-    if access is None:
+    if access is None or not (
+        access.role == EstablishmentAccessRole.OWNER
+        or (
+            post.created_by_user_id is not None
+            and post.created_by_user_id == user.id
+        )
+    ):
         raise WorkPostError(
             "Publicação não encontrada."
         )
@@ -297,18 +333,66 @@ def _experience_for_author(
     return experience
 
 
+def _clean_alt(value):
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise WorkPostError("Texto alternativo inválido.")
+    clean = value.strip()
+    if len(clean) > 300:
+        raise WorkPostError(
+            "O texto alternativo deve ter no máximo 300 caracteres."
+        )
+    return clean or None
+
+
+def _normalized_images(images, image_url, image_focus_x, image_focus_y):
+    """Lista ordenada de imagens; aceita o formato antigo de uma imagem."""
+    if images is None:
+        images = (
+            [{"image_url": image_url, "focus_x": image_focus_x, "focus_y": image_focus_y}]
+            if image_url
+            else []
+        )
+
+    if len(images) > MAX_POST_IMAGES:
+        raise WorkPostError(
+            f"Uma publicação pode ter até {MAX_POST_IMAGES} imagens."
+        )
+
+    clean = []
+    for item in images:
+        if not item.get("image_url"):
+            raise WorkPostError("Imagem inválida.")
+        clean.append(
+            {
+                "image_url": item["image_url"],
+                "focus_x": _focus(item.get("focus_x"), "Foco horizontal"),
+                "focus_y": _focus(item.get("focus_y"), "Foco vertical"),
+                "alt_text": _clean_alt(item.get("alt_text")),
+            }
+        )
+    return clean
+
+
 def create_work_post(
     *,
     user,
     author_type,
-    image_url,
+    image_url=None,
     author_id=None,
     caption=None,
     experience_id=None,
     status=WorkPostStatus.PUBLISHED,
     image_focus_x=50,
     image_focus_y=50,
+    images=None,
 ):
+    """
+    Texto, imagem única ou carrossel até 10 (DEC-ID-225). Publicação vazia
+    é recusada. `images` é uma lista de {image_url, focus_x, focus_y,
+    alt_text}; `image_url` continua aceito para uma imagem só.
+    """
     if status not in (
         WorkPostStatus.DRAFT,
         WorkPostStatus.PUBLISHED,
@@ -317,9 +401,12 @@ def create_work_post(
             "Status inválido para nova publicação."
         )
 
-    if not image_url:
+    media = _normalized_images(images, image_url, image_focus_x, image_focus_y)
+    clean_caption = _clean_caption(caption)
+
+    if not media and not clean_caption:
         raise WorkPostError(
-            "Adicione uma imagem à publicação."
+            "Escreva um texto ou adicione uma imagem."
         )
 
     publishing = (
@@ -334,6 +421,11 @@ def create_work_post(
         publishing=publishing,
     )
 
+    if author_type == WorkPostAuthorType.CLIENT and experience_id not in (None, ""):
+        raise WorkPostError(
+            "Somente Pro e empresa vinculam serviços à publicação."
+        )
+
     experience = (
         _experience_for_author(
             experience_id=experience_id,
@@ -343,8 +435,15 @@ def create_work_post(
         )
     )
 
+    cover = media[0] if media else None
+
     post = WorkPost(
         author_type=author_type,
+        client_profile_id=(
+            author.id
+            if author_type == WorkPostAuthorType.CLIENT
+            else None
+        ),
         professional_id=(
             author.id
             if author_type
@@ -357,23 +456,16 @@ def create_work_post(
             == WorkPostAuthorType.ESTABLISHMENT
             else None
         ),
+        created_by_user_id=user.id,
         experience_id=(
             experience.id
             if experience
             else None
         ),
-        caption=_clean_caption(
-            caption
-        ),
-        image_url=image_url,
-        image_focus_x=_focus(
-            image_focus_x,
-            "Foco horizontal",
-        ),
-        image_focus_y=_focus(
-            image_focus_y,
-            "Foco vertical",
-        ),
+        caption=clean_caption,
+        image_url=cover["image_url"] if cover else None,
+        image_focus_x=cover["focus_x"] if cover else 50,
+        image_focus_y=cover["focus_y"] if cover else 50,
         status=status,
         published_at=(
             utcnow()
@@ -381,6 +473,17 @@ def create_work_post(
             else None
         ),
     )
+
+    post.media = [
+        WorkPostMedia(
+            position=index,
+            image_url=item["image_url"],
+            focus_x=item["focus_x"],
+            focus_y=item["focus_y"],
+            alt_text=item["alt_text"],
+        )
+        for index, item in enumerate(media)
+    ]
 
     db.session.add(post)
     db.session.commit()
@@ -404,6 +507,12 @@ def update_work_post(
         user=user,
         post_id=post_id,
     )
+
+    if post.status == WorkPostStatus.HIDDEN:
+        # Ocultado pela moderação: só a equipe da plataforma restaura.
+        raise WorkPostError(
+            "Esta publicação está em análise e não pode ser alterada agora."
+        )
 
     next_status = (
         status
@@ -429,13 +538,24 @@ def update_work_post(
         user=user,
         author_type=post.author_type,
         author_id=(
-            post.professional_id
+            post.client_profile_id
+            if post.author_type == WorkPostAuthorType.CLIENT
+            else post.professional_id
             if post.author_type
             == WorkPostAuthorType.PROFESSIONAL
             else post.establishment_id
         ),
         publishing=publishing,
     )
+
+    if (
+        experience_supplied
+        and post.author_type == WorkPostAuthorType.CLIENT
+        and experience_id not in (None, "")
+    ):
+        raise WorkPostError(
+            "Somente Pro e empresa vinculam serviços à publicação."
+        )
 
     if caption_supplied:
         post.caption = (
@@ -484,6 +604,15 @@ def update_work_post(
                 image_focus_y,
                 "Foco vertical",
             )
+        )
+
+    if post.media and (image_focus_x is not None or image_focus_y is not None):
+        post.media[0].focus_x = post.image_focus_x
+        post.media[0].focus_y = post.image_focus_y
+
+    if caption_supplied and not post.caption and not post.media:
+        raise WorkPostError(
+            "Escreva um texto ou adicione uma imagem."
         )
 
     was_published = (
@@ -538,6 +667,22 @@ def replace_work_post_image(
         "Foco vertical",
     )
 
+    # A primeira imagem do carrossel acompanha a capa.
+    if post.media:
+        cover = post.media[0]
+        cover.image_url = image_url
+        cover.focus_x = post.image_focus_x
+        cover.focus_y = post.image_focus_y
+    else:
+        post.media.append(
+            WorkPostMedia(
+                position=0,
+                image_url=image_url,
+                focus_x=post.image_focus_x,
+                focus_y=post.image_focus_y,
+            )
+        )
+
     db.session.commit()
 
     return post, previous
@@ -559,22 +704,41 @@ def delete_work_post(
     user,
     post_id,
 ):
+    """
+    D-SOC-09: remoção lógica. O post some de tudo na hora, as imagens saem
+    do armazenamento e a linha fica para o histórico das denúncias.
+    Devolve os caminhos das imagens para apagar depois do commit.
+    """
     post = _owned_post(
         user=user,
         post_id=post_id,
     )
-    image_url = post.image_url
 
-    db.session.delete(post)
+    paths = [item.image_url for item in post.media]
+    if post.image_url and post.image_url not in paths:
+        paths.append(post.image_url)
+
+    post.media = []
+    post.image_url = None
+    post.status = WorkPostStatus.REMOVED
+    post.removed_at = utcnow()
     db.session.commit()
 
-    return image_url
+    return paths
 
 
 def creator_options(user):
+    """Contextos em que a conta pode publicar (DEC-ID-224, D-SOC-02)."""
     _require_user(user)
 
-    authors = []
+    client = ensure_client_profile(user)
+    authors = [
+        {
+            "type": WorkPostAuthorType.CLIENT,
+            "id": client.id,
+            "name": user.name,
+        }
+    ]
     professional_ids = []
     establishment_ids = []
 
@@ -608,6 +772,8 @@ def creator_options(user):
         if (
             access.status
             != EstablishmentAccessStatus.ACTIVE
+            or access.role
+            != EstablishmentAccessRole.OWNER
             or access.establishment
             is None
             or not establishment_is_public(
@@ -711,19 +877,40 @@ def owned_posts_query(user):
         else None
     )
 
-    establishment_ids = [
+    owned_establishments = [
         access.establishment_id
         for access
         in user.establishment_accesses
         if (
             access.status
             == EstablishmentAccessStatus.ACTIVE
+            and access.role == EstablishmentAccessRole.OWNER
         )
     ]
+    managed_establishments = [
+        access.establishment_id
+        for access
+        in user.establishment_accesses
+        if access.status == EstablishmentAccessStatus.ACTIVE
+    ]
 
-    from sqlalchemy import or_
+    from sqlalchemy import and_, or_
 
     clauses = []
+
+    if user.client_profile is not None:
+        clauses.append(
+            WorkPost.client_profile_id == user.client_profile.id
+        )
+
+    if managed_establishments:
+        # Quem criou o post da empresa continua vendo enquanto tiver acesso.
+        clauses.append(
+            and_(
+                WorkPost.establishment_id.in_(managed_establishments),
+                WorkPost.created_by_user_id == user.id,
+            )
+        )
 
     if professional_id is not None:
         clauses.append(
@@ -731,10 +918,10 @@ def owned_posts_query(user):
             == professional_id
         )
 
-    if establishment_ids:
+    if owned_establishments:
         clauses.append(
             WorkPost.establishment_id.in_(
-                establishment_ids
+                owned_establishments
             )
         )
 
@@ -748,7 +935,8 @@ def owned_posts_query(user):
     return (
         select(WorkPost)
         .where(
-            or_(*clauses)
+            or_(*clauses),
+            WorkPost.status != WorkPostStatus.REMOVED,
         )
         .order_by(
             WorkPost.created_at.desc(),

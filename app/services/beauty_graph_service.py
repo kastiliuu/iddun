@@ -141,6 +141,15 @@ def _public_work_post(target_id):
             "Publicação não encontrada."
         )
 
+    if item.author_type == WorkPostAuthorType.CLIENT:
+        # Publicação da Cliente (PR 3): conta ativa.
+        profile = item.client_profile
+        if profile is None or not profile.user.is_active:
+            raise BeautyGraphError(
+                "Publicação não encontrada."
+            )
+        return item
+
     if (
         item.author_type
         == WorkPostAuthorType.PROFESSIONAL
