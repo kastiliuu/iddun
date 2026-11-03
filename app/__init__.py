@@ -4,7 +4,17 @@ from urllib.parse import urlsplit
 from uuid import uuid4
 
 from dotenv import load_dotenv
-from flask import Flask, flash, g, jsonify, redirect, request, url_for
+from flask import (
+    Flask,
+    flash,
+    g,
+    has_request_context,
+    jsonify,
+    redirect,
+    request,
+    url_for,
+)
+from flask_login import current_user
 from flask_wtf.csrf import CSRFError, generate_csrf
 from sqlalchemy import text
 from werkzeug.exceptions import (
@@ -15,6 +25,11 @@ from werkzeug.exceptions import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import csrf, db, limiter, login_manager, migrate
+from app.services.navigation_context import (
+    account_contexts,
+    saved_item_count,
+    unread_notification_count,
+)
 from app.routes.account import account_bp
 from app.routes.api import api_v1_bp
 from app.routes.api_account import api_account_bp
@@ -371,6 +386,30 @@ def create_app(test_config=None):
         return resolve_media_url(
             value
         )
+
+    @app.context_processor
+    def inject_navigation():
+        """Menus do cabeçalho: contextos, notificações e favoritos (PR 1)."""
+        if not has_request_context() or not current_user.is_authenticated:
+            return {}
+
+        def cached(key, factory):
+            store = g.setdefault("_iddun_navigation", {})
+            if key not in store:
+                store[key] = factory()
+            return store[key]
+
+        return {
+            "nav_contexts": lambda: cached(
+                "contexts", lambda: account_contexts(current_user)
+            ),
+            "nav_unread_count": lambda: cached(
+                "unread", lambda: unread_notification_count(current_user)
+            ),
+            "nav_saved_count": lambda: cached(
+                "saved", lambda: saved_item_count(current_user)
+            ),
+        }
 
     @app.get("/csrf-token")
     def refresh_csrf_token():

@@ -26,6 +26,7 @@ from app.services.job_service import (
     update_job,
     withdraw_application,
 )
+from app.services.api_csrf import protect_cookie_mutation
 
 
 api_jobs_bp = Blueprint(
@@ -33,6 +34,9 @@ api_jobs_bp = Blueprint(
     __name__,
     url_prefix="/api/v1",
 )
+
+# Sessão por cookie da Web exige token CSRF nas mutações (AUD-04).
+api_jobs_bp.before_request(protect_cookie_mutation)
 
 MAX_BODY_BYTES = 32_768
 

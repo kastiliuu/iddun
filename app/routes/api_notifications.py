@@ -20,6 +20,7 @@ from app.services.notification_service import (
     serialize_preference,
     update_notification_preferences,
 )
+from app.services.api_csrf import protect_cookie_mutation
 
 
 api_notifications_bp = Blueprint(
@@ -27,6 +28,9 @@ api_notifications_bp = Blueprint(
     __name__,
     url_prefix="/api/v1/notifications",
 )
+
+# Sessão por cookie da Web exige token CSRF nas mutações (AUD-04).
+api_notifications_bp.before_request(protect_cookie_mutation)
 
 MAX_BODY_BYTES = 16_384
 
