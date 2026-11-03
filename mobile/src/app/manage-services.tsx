@@ -96,7 +96,7 @@ export default function ManageServicesScreen() {
               router.back();
             } else {
               router.replace(
-                "/(tabs)/create",
+                "/create",
               );
             }
           }}

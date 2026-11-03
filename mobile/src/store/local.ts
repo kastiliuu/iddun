@@ -19,6 +19,19 @@ export type Role =
   | "professional"
   | "establishment";
 
+/**
+ * Contextos autorizados da conta (PR 1, D-SOC-01). Servem só para a troca
+ * pelo avatar; cada tela continua dependendo da permissão do backend.
+ */
+export type AccountContext = {
+  kind: "client" | "professional" | "establishment";
+  name: string;
+  id?: string;
+  slug?: string;
+  state?: "published" | "draft" | "locked";
+  role?: "owner" | "manager";
+};
+
 export type CurrentUser =
   | {
       role: Role;
@@ -38,6 +51,7 @@ export type CurrentUser =
       city?: string;
       neighborhood?: string;
       emailVerified?: boolean;
+      contexts?: AccountContext[];
     }
   | null;
 

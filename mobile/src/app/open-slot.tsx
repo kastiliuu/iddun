@@ -432,7 +432,7 @@ export default function OpenSlotScreen() {
                 router.back();
               } else {
                 router.replace(
-                  "/(tabs)/create",
+                  "/create",
                 );
               }
             }}
@@ -490,7 +490,7 @@ export default function OpenSlotScreen() {
             variant="secondary"
             onPress={() =>
               router.replace(
-                "/(tabs)/create",
+                "/create",
               )
             }
             fullWidth
@@ -541,7 +541,7 @@ export default function OpenSlotScreen() {
           actionLabel="Voltar"
           onActionPress={() =>
             router.replace(
-              "/(tabs)/create",
+              "/create",
             )
           }
         />
@@ -579,7 +579,7 @@ export default function OpenSlotScreen() {
                 router.back();
               } else {
                 router.replace(
-                  "/(tabs)/create",
+                  "/create",
                 );
               }
             }}

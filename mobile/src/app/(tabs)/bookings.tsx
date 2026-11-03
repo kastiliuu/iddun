@@ -355,36 +355,6 @@ export default function BookingsScreen() {
             styles.header
           }
         >
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Voltar"
-            onPress={() => {
-              if (
-                router.canGoBack()
-              ) {
-                router.back();
-              } else {
-                router.replace(
-                  "/(tabs)/profile",
-                );
-              }
-            }}
-            style={({
-              pressed,
-            }) => [
-              styles.headerButton,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Icon
-              name="arrow-left"
-              size={20}
-              color={
-                colors.onSurface
-              }
-            />
-          </Pressable>
 
           <Text
             style={
