@@ -65,11 +65,11 @@
           <span>Minhas reservas</span>
           {{ icon('chevron-right') }}
         </a>
-        <button type="button" data-saved-trigger>
+        <a href="{{ url_for('feed.favorites', aba='salvos') }}">
           {{ icon('bookmark') }}
           <span>Meus salvos</span>
           {{ icon('chevron-right') }}
-        </button>
+        </a>
         <a href="{{ url_for('public.professionals') }}">
           {{ icon('users') }}
           <span>Profissionais</span>
@@ -289,6 +289,7 @@
               <strong>{{ item.name }}</strong>
               <small>{{ item.specialty }}</small>
               <em>{{ item.location }}</em>
+              {% if item.reason %}<small class="feed-recommendation__reason">{{ item.reason }}</small>{% endif %}
             </span>
           </a>
           <button
@@ -337,6 +338,7 @@
               <strong>{{ item.name }}</strong>
               <small>{{ item.specialty }}</small>
               <em>{{ item.location }}</em>
+              {% if item.reason %}<small class="feed-recommendation__reason">{{ item.reason }}</small>{% endif %}
             </span>
           </a>
           <button

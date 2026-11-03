@@ -25,6 +25,7 @@ from werkzeug.exceptions import (
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import csrf, db, limiter, login_manager, migrate
+from app.services.graph_ui import template_helpers as graph_template_helpers
 from app.services.navigation_context import (
     account_contexts,
     saved_item_count,
@@ -410,6 +411,14 @@ def create_app(test_config=None):
                 "saved", lambda: saved_item_count(current_user)
             ),
         }
+
+    @app.context_processor
+    def inject_graph():
+        """Seguir e Salvar com o estado da conta em qualquer página (PR 2)."""
+        if not has_request_context():
+            return {}
+
+        return graph_template_helpers(current_user)
 
     @app.get("/csrf-token")
     def refresh_csrf_token():

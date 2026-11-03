@@ -59,8 +59,9 @@
   </a>
 
   <a
-    href="{{ url_for('feed.home') }}#feed-saved-panel"
-    class="mobile-bottom-nav__item"
+    href="{{ url_for('feed.favorites') }}"
+    class="mobile-bottom-nav__item{% if current_page == 'favorites' %} is-active{% endif %}"
+    {% if current_page == 'favorites' %}aria-current="page"{% endif %}
     aria-label="Favoritos: perfis seguidos e itens salvos"
   >
     {{ icon('bookmark', 'mobile-bottom-nav__icon') }}

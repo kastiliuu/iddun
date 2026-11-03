@@ -1,0 +1,165 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'components/graph-buttons.html' import follow_button, save_attrs with context %}
+{#
+  Favoritos (PR 2, D-SOC-05 e 07): quem você segue e o que você salvou.
+  Tudo vem da conta; a lista é privada.
+#}
+
+{% block title %}Favoritos | IDDUN{% endblock %}
+{% block body_class %}favorites-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/favorites.css') }}">{% endblock %}
+
+{% macro avatar(name, image, kind) -%}
+<span class="favorites-avatar{% if kind == 'establishment' %} favorites-avatar--business{% endif %}" aria-hidden="true">
+  {%- if image -%}<img src="{{ image }}" alt="" loading="lazy">{%- else -%}{{ name|initials }}{%- endif -%}
+</span>
+{%- endmacro %}
+
+{% macro heart(target_type, target_id, title) -%}
+<button type="button" class="favorites-heart icon-button" data-pop {{ save_attrs(target_type, target_id, title) }}>
+  <span class="icon-state icon-state--off" aria-hidden="true">{{ icon('heart', 'favorite-icon') }}</span>
+  <span class="icon-state icon-state--on" aria-hidden="true">{{ icon('heart-filled', 'favorite-icon') }}</span>
+</button>
+{%- endmacro %}
+
+{% block content %}
+<div class="favorites">
+  <div class="container favorites__inner">
+    <header class="favorites__head">
+      <h1>Favoritos</h1>
+      <p>Quem você segue e o que você guardou para depois. Só você vê esta lista.</p>
+    </header>
+
+    <nav class="favorites-tabs" aria-label="Favoritos">
+      <a href="{{ url_for('feed.favorites') }}" {% if tab == 'seguindo' %}aria-current="page"{% endif %}>
+        Seguindo <span class="favorites-tabs__count">{{ following.total }}</span>
+      </a>
+      <a href="{{ url_for('feed.favorites', aba='salvos') }}" {% if tab == 'salvos' %}aria-current="page"{% endif %}>
+        Salvos <span class="favorites-tabs__count">{{ saved_total }}</span>
+      </a>
+    </nav>
+
+    {% if tab == 'seguindo' %}
+    <section aria-labelledby="favorites-following-title">
+      <h2 id="favorites-following-title" class="sr-only">Seguindo</h2>
+      {% if following['items'] %}
+      <ul class="favorites-list" role="list">
+        {% for item in following['items'] %}
+        {% set href = url_for('public.professional_detail', slug=item.slug) if item.targetType == 'professional' else url_for('public.establishment_detail', slug=item.slug) %}
+        <li class="favorites-row">
+          <a class="favorites-row__identity" href="{{ href }}">
+            {{ avatar(item.name, item.avatar, item.targetType) }}
+            <span>
+              <strong>{{ item.name }}</strong>
+              <small>{{ 'Profissional' if item.targetType == 'professional' else 'Estabelecimento' }} · {{ item.subtitle }}{% if item.location %} · {{ item.location }}{% endif %}</small>
+            </span>
+          </a>
+          {{ follow_button(item.targetType, item.targetId, item.name, 'btn btn-outline btn-outline--light btn-sm') }}
+        </li>
+        {% endfor %}
+      </ul>
+      {% if following.nextCursor %}
+      <a class="btn btn-outline favorites__more" href="{{ url_for('feed.favorites', cursor=following.nextCursor) }}">Ver mais</a>
+      {% endif %}
+      {% if continuing %}
+      <a class="favorites__back" href="{{ url_for('feed.favorites') }}">{{ icon('arrow-left') }} Voltar ao início da lista</a>
+      {% endif %}
+      {% else %}
+      <div class="favorites-empty">
+        {{ icon('users') }}
+        <strong>Você ainda não segue ninguém.</strong>
+        <span>Siga profissionais e estabelecimentos para ver o trabalho deles no seu feed.</span>
+        <a class="btn btn-primary" href="{{ url_for('public.professionals') }}">Explorar profissionais</a>
+      </div>
+      {% endif %}
+    </section>
+    {% else %}
+    <section aria-labelledby="favorites-saved-title">
+      <h2 id="favorites-saved-title" class="sr-only">Salvos</h2>
+      {% if saved_total %}
+        {% if saved.experiences %}
+        <h3 class="favorites-group">Serviços</h3>
+        <ul class="favorites-grid" role="list">
+          {% for item in saved.experiences %}
+          <li class="favorites-card">
+            <a href="{{ url_for('public.experience_detail', slug=item.id) }}">
+              <img src="{{ item.image }}" alt="" loading="lazy">
+              <span class="favorites-card__body">
+                <strong>{{ item.name }}</strong>
+                <small>{{ item.professionalName }} · R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</small>
+              </span>
+            </a>
+            {{ heart('experience', item.entityId, 'experiência ' ~ item.name) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if saved.profiles %}
+        <h3 class="favorites-group">Profissionais e estabelecimentos</h3>
+        <ul class="favorites-list" role="list">
+          {% for item in saved.profiles %}
+          {% set href = url_for('public.professional_detail', slug=item.routeId) if item.kind == 'professional' else url_for('public.establishment_detail', slug=item.routeId) %}
+          <li class="favorites-row">
+            <a class="favorites-row__identity" href="{{ href }}">
+              {{ avatar(item.name, item.avatar if item.avatarUploaded else None, item.kind) }}
+              <span>
+                <strong>{{ item.name }}</strong>
+                <small>{{ item.specialty }}{% if item.location %} · {{ item.location }}{% endif %}</small>
+              </span>
+            </a>
+            {{ heart(item.kind, item.id, item.name) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if saved.posts %}
+        <h3 class="favorites-group">Publicações</h3>
+        <ul class="favorites-grid" role="list">
+          {% for item in saved.posts %}
+          <li class="favorites-card">
+            <a href="{{ url_for('feed.home') }}#post-{{ item.id }}">
+              <img src="{{ item.image }}" alt="" loading="lazy">
+              <span class="favorites-card__body">
+                <strong>{{ item.author.name }}</strong>
+                <small>{{ item.caption or 'Trabalho salvo no IDDUN' }}</small>
+              </span>
+            </a>
+            {{ heart('work_post', item.id, 'publicação de ' ~ item.author.name) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if saved.portfolioItems %}
+        <h3 class="favorites-group">Trabalhos do portfólio</h3>
+        <ul class="favorites-grid" role="list">
+          {% for item in saved.portfolioItems %}
+          <li class="favorites-card">
+            <a href="{{ url_for('public.professional_detail', slug=item.professionalRouteId) }}">
+              <img src="{{ item.image }}" alt="" loading="lazy">
+              <span class="favorites-card__body">
+                <strong>{{ item.authorName }}</strong>
+                <small>{{ item.caption or 'Trabalho profissional' }}</small>
+              </span>
+            </a>
+            {{ heart('portfolio_item', item.id, 'trabalho de ' ~ item.authorName) }}
+          </li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      {% else %}
+      <div class="favorites-empty">
+        {{ icon('bookmark') }}
+        <strong>Sua coleção começa com uma descoberta.</strong>
+        <span>Salve serviços, profissionais, estabelecimentos e trabalhos para reencontrar depois.</span>
+        <a class="btn btn-primary" href="{{ url_for('public.experiences') }}">Explorar serviços</a>
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

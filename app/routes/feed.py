@@ -9,6 +9,10 @@ from flask_login import (
     login_required,
 )
 
+from app.services.beauty_graph_service import (
+    following_page,
+    saved_items,
+)
 from app.services.client_feed_service import (
     client_feed_context,
     client_feed_page,
@@ -46,6 +50,38 @@ def home():
         **context,
     )
 
+
+
+@feed_bp.get("/favoritos")
+@login_required
+def favorites():
+    """Favoritos: quem você segue e o que você salvou (D-SOC-05, 07)."""
+    tab = request.args.get("aba", "seguindo")
+    if tab not in {"seguindo", "salvos"}:
+        tab = "seguindo"
+
+    cursor = request.args.get("cursor", "")
+    before = int(cursor) if cursor.isdigit() else None
+
+    following = following_page(
+        current_user,
+        limit=20,
+        before=before if tab == "seguindo" else None,
+    )
+
+    # Só itens que continuam públicos entram na lista e na contagem.
+    saved = saved_items(current_user)
+    saved_total = sum(len(items) for items in saved.values())
+
+    return render_template(
+        "feed/favorites.html",
+        current_page="favorites",
+        tab=tab,
+        following=following,
+        saved=saved,
+        saved_total=saved_total,
+        continuing=before is not None and tab == "seguindo",
+    )
 
 
 @feed_bp.get("/feed/mais")

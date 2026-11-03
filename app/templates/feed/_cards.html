@@ -65,6 +65,8 @@
         </span>
       </a>
 
+      {# D-SOC-06: sem Seguir no próprio perfil ou na própria empresa. #}
+      {% if not graph_owns(post.authorKind, author_id) %}
       <button
         class="feed-follow-button{% if is_following %} is-active{% endif %}"
         type="button"
@@ -75,6 +77,7 @@
       >
         {{ 'Seguindo' if is_following else 'Seguir' }}
       </button>
+      {% endif %}
     </div>
 
     {% if post.caption %}
