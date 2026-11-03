@@ -1,0 +1,47 @@
+/*
+ * Seguir e Salvar (PR 2, D-SOC-05). Só tokens do Design System.
+ */
+
+.graph-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.graph-follow .icon-state--on {
+  display: none;
+}
+
+.graph-follow[data-active="true"] .icon-state--off {
+  display: none;
+}
+
+.graph-follow[data-active="true"] .icon-state--on {
+  display: grid;
+}
+
+.graph-follow .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.graph-follower-count {
+  color: inherit;
+  font-weight: 600;
+}
+
+/* Coração do diretório de profissionais: mostra o estado salvo. */
+.professional-profile-card__favorite[data-active="true"] .icon-state--off {
+  display: none;
+}
+
+.professional-profile-card__favorite[data-active="true"] .icon-state--on {
+  display: grid;
+}
+
+/* Motivo da sugestão no feed (D-SOC-05): pode quebrar linha. */
+.feed-recommendation__identity .feed-recommendation__reason {
+  color: var(--color-plum);
+  font-weight: 600;
+  white-space: normal;
+}

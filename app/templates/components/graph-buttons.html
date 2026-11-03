@@ -1,0 +1,53 @@
+{% from 'components/icon.html' import icon %}
+{#
+  Seguir e Salvar reais (PR 2, D-SOC-05). O clique é tratado por graph.js;
+  sem conta, o botão leva ao login e volta para esta página.
+  Importar com `with context` para ver a conta e o estado da rede.
+#}
+
+{% macro login_url() -%}
+{{ url_for('auth.login', next=request.full_path.rstrip('?')) }}
+{%- endmacro %}
+
+{% macro follow_button(target_type, target_id, name, class_name='btn btn-outline') -%}
+{%- if not graph_owns(target_type, target_id) -%}
+{%- set active = graph_follows(target_type, target_id) -%}
+<button
+  type="button"
+  class="{{ class_name }} graph-follow{% if active %} is-active{% endif %}"
+  data-follow-button
+  data-active="{{ 'true' if active else 'false' }}"
+  data-target-type="{{ target_type }}"
+  data-target-id="{{ target_id }}"
+  data-login-url="{{ login_url() }}"
+  aria-pressed="{{ 'true' if active else 'false' }}"
+><span class="icon-state icon-state--off" aria-hidden="true">{{ icon('plus') }}</span><span class="icon-state icon-state--on" aria-hidden="true">{{ icon('check') }}</span><span data-graph-label>{{ 'Seguindo' if active else 'Seguir' }}</span><span class="sr-only"> {{ name }}</span></button>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro follower_count(target_type, target_id) -%}
+{%- set count = graph_follower_count(target_type, target_id) -%}
+<span
+  class="graph-follower-count"
+  data-follower-count
+  data-target-type="{{ target_type }}"
+  data-target-id="{{ target_id }}"
+  data-count="{{ count }}"
+>{{ '1 seguidor' if count == 1 else count ~ ' seguidores' }}</span>
+{%- endmacro %}
+
+{#
+  Atributos do coração de salvar, para botões com marcação própria
+  (cartões do catálogo e de profissionais).
+#}
+{% macro save_attrs(target_type, target_id, title) -%}
+{%- set active = graph_saved(target_type, target_id) -%}
+data-save-button
+data-target-type="{{ target_type }}"
+data-target-id="{{ target_id }}"
+data-save-title="{{ title }}"
+data-login-url="{{ login_url() }}"
+data-active="{{ 'true' if active else 'false' }}"
+aria-pressed="{{ 'true' if active else 'false' }}"
+aria-label="{{ ('Remover ' ~ title ~ ' dos favoritos') if active else ('Salvar ' ~ title) }}"
+{%- endmacro %}

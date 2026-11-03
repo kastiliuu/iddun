@@ -1,5 +1,6 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
+{% from 'components/graph-buttons.html' import follow_button, follower_count with context %}
 
 {% block title %}{{ professional.name }} | IDDUN{% endblock %}
 {% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% if selected_service %} has-service-bar{% endif %}{% endblock %}
@@ -25,11 +26,12 @@
           {% else %}<span>{{ icon('sparkles') }} Novo no IDDUN</span>{% endif %}
           <span>{{ icon('map-pin') }} {{ professional.location }}</span>
           {% if professional.verified %}<span>{{ icon('shield-check') }} Perfil verificado</span>{% endif %}
+          {% if professional.source == 'database' %}<span>{{ icon('users') }} {{ follower_count('professional', professional.profile.id) }}</span>{% endif %}
         </div>
       </div>
     </div>
     <div class="public-profile-hero__actions">
-      <button class="btn btn-outline" type="button" data-favorite aria-pressed="false">{{ icon('heart') }} Seguir</button>
+      {% if professional.source == 'database' %}{{ follow_button('professional', professional.profile.id, professional.name) }}{% endif %}
       {% if professional.whatsapp_available %}<a class="btn btn-whatsapp" href="{{ url_for('public.professional_whatsapp', slug=professional.slug) }}" target="_blank" rel="noopener">{{ icon('message-circle') }} WhatsApp</a>{% endif %}
       {% if professional.experiences %}<a class="btn btn-primary" href="#experiencias">Ver experiências</a>{% else %}<a class="btn btn-primary" href="#portfolio">Ver trabalho</a>{% endif %}
     </div>

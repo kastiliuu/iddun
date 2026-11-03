@@ -4,14 +4,16 @@
   Cabeçalho único das telas logadas (PR 1, D-SOC-04; FE-DEC-021, 022, 030).
   Nasceu do cabeçalho do feed: busca com sugestões, Início, Explorar,
   Reservas, Favoritos, Notificações e o menu Eu com os contextos da conta.
-  No feed (app_header_panels) Favoritos e Notificações abrem os painéis;
-  nas outras páginas levam ao feed com o painel já aberto.
+  Favoritos leva à página /favoritos (PR 2, D-SOC-07). No feed
+  (app_header_panels) Notificações abre o painel; nas outras páginas leva
+  ao feed com o painel já aberto.
 #}
 {% set endpoint = request.endpoint or '' %}
 {% set header_active = (
   'home' if endpoint == 'feed.home'
   else 'explore' if endpoint in ['public.experiences', 'public.experience_detail', 'public.professionals', 'public.professional_detail', 'public.establishments', 'public.establishment_detail']
   else 'bookings' if endpoint.startswith('bookings.')
+  else 'favorites' if endpoint == 'feed.favorites'
   else ''
 ) %}
 {% set header_avatar = current_user.client_profile.avatar_url if current_user.client_profile else None %}
@@ -99,23 +101,13 @@
         <span>Reservas</span>
       </a>
 
-      {% set saved_label = 'Favoritos' ~ (', ' ~ header_saved ~ ' itens' if header_saved else '') %}
-      {% if app_header_panels %}
-      <button
-        class="feed-header__nav-item"
-        type="button"
-        aria-label="{{ saved_label }}"
-        aria-expanded="false"
-        aria-controls="feed-saved-panel"
-        data-saved-trigger
-      >
-      {% else %}
+      {% set saved_label = 'Favoritos' ~ (', ' ~ header_saved ~ ' itens salvos' if header_saved else '') %}
       <a
-        class="feed-header__nav-item"
-        href="{{ url_for('feed.home') }}#feed-saved-panel"
+        class="feed-header__nav-item{% if header_active == 'favorites' %} is-active{% endif %}"
+        href="{{ url_for('feed.favorites') }}"
         aria-label="{{ saved_label }}"
+        {% if header_active == 'favorites' %}aria-current="page"{% endif %}
       >
-      {% endif %}
         <span class="feed-header__icon-wrap">
           {{ icon('bookmark') }}
           {% if header_saved %}
@@ -125,7 +117,7 @@
           {% endif %}
         </span>
         <span>Favoritos</span>
-      {% if app_header_panels %}</button>{% else %}</a>{% endif %}
+      </a>
 
       {% set unread_label = 'Notificações' ~ (', ' ~ header_unread ~ ' não lidas' if header_unread else '') %}
       {% if app_header_panels %}

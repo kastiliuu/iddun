@@ -10,8 +10,11 @@ from app.services.api_contract import (
     api_json,
 )
 from app.services.beauty_graph_service import (
+    MAX_LEGACY_SLUGS,
     BeautyGraphError,
+    OwnProfileError,
     follow_target,
+    following_page,
     graph_state,
     reconcile_graph,
     saved_items,
@@ -235,6 +238,12 @@ def put_follow(
             target_type=target_type,
             target_id=target_id,
         )
+    except OwnProfileError as exc:
+        return api_error(
+            "own_profile",
+            str(exc),
+            400,
+        )
     except BeautyGraphError as exc:
         return api_error(
             "invalid_follow_target",
@@ -376,6 +385,58 @@ def delete_save(
     )
 
 
+def _legacy_slugs(payload):
+    """Favoritos antigos da Web: slugs de experiência guardados no navegador."""
+    value = payload.get("experienceSlugs", [])
+
+    if not isinstance(value, list):
+        raise BeautyGraphError("experienceSlugs: envie uma lista.")
+
+    if len(value) > MAX_LEGACY_SLUGS:
+        raise BeautyGraphError(
+            f"experienceSlugs: envie no máximo {MAX_LEGACY_SLUGS} itens."
+        )
+
+    slugs = []
+
+    for item in value:
+        if not isinstance(item, str) or not 0 < len(item) <= 200:
+            raise BeautyGraphError("experienceSlugs: item inválido.")
+        if item not in slugs:
+            slugs.append(item)
+
+    return slugs
+
+
+@api_graph_bp.get("/following")
+def get_following():
+    user, error = _require_user()
+
+    if error is not None:
+        return error
+
+    limit = request.args.get("limit", type=int) or 20
+    cursor = request.args.get("cursor")
+
+    if cursor is not None and not cursor.isdigit():
+        return api_error(
+            "invalid_cursor",
+            "Não foi possível continuar a lista.",
+            400,
+        )
+
+    return api_json(
+        following_page(
+            user,
+            limit=limit,
+            before=int(cursor) if cursor else None,
+        ),
+        cache_control=(
+            "private, no-store"
+        ),
+    )
+
+
 @api_graph_bp.post(
     "/reconcile"
 )
@@ -401,11 +462,13 @@ def reconcile():
             payload,
             "saves",
         )
+        experience_slugs = _legacy_slugs(payload)
 
         result = reconcile_graph(
             user=user,
             follows=follows,
             saves=saves,
+            experience_slugs=experience_slugs,
         )
     except BeautyGraphError as exc:
         return api_error(

@@ -1,11 +1,5 @@
 (() => {
-  document.querySelectorAll('[data-favorite]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const nextActive = button.dataset.active !== 'true';
-      button.dataset.active = String(nextActive);
-      button.setAttribute('aria-pressed', String(nextActive));
-    });
-  });
+  // Seguir e favoritar perfis gravam na conta por graph.js (PR 2).
 
   document.querySelectorAll('[data-gallery-track]').forEach((track) => {
     const section = track.closest('.public-profile-section');

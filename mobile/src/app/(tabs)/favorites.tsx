@@ -13,7 +13,9 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 
 import {
+  type FollowingPage,
   getBeautyGraph,
+  getFollowing,
   getSavedItems,
   type SavedItemsResponse,
 } from "@/api/graph";
@@ -37,6 +39,20 @@ import {
   touch,
   useTheme,
 } from "@/theme";
+
+/**
+ * Favoritos (PR 2, D-SOC-05): Seguindo e Salvos. Salvos mantém os filtros
+ * Publicações, Profissionais e Serviços.
+ */
+type FavoritesSection =
+  | "following"
+  | "saved";
+
+const emptyFollowing: FollowingPage = {
+  items: [],
+  total: 0,
+  nextCursor: null,
+};
 
 type FavoritesTab =
   | "posts"
@@ -75,8 +91,19 @@ export default function FavoritesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
 
+  const [section, setSection] =
+    useState<FavoritesSection>("following");
+
   const [activeTab, setActiveTab] =
     useState<FavoritesTab>("posts");
+
+  const [following, setFollowing] =
+    useState<FollowingPage>(
+      emptyFollowing,
+    );
+
+  const [loadingMore, setLoadingMore] =
+    useState(false);
 
   const [saved, setSaved] =
     useState<SavedItemsResponse>(
@@ -125,9 +152,11 @@ export default function FavoritesScreen() {
           const [
             response,
             graph,
+            followingPage,
           ] = await Promise.all([
             getSavedItems(),
             getBeautyGraph(),
+            getFollowing(),
           ]);
 
           if (!mounted) {
@@ -136,6 +165,10 @@ export default function FavoritesScreen() {
 
           store.replaceGraphState(
             graph,
+          );
+
+          setFollowing(
+            followingPage,
           );
 
           setSaved(
@@ -208,6 +241,142 @@ export default function FavoritesScreen() {
           experience.entityId,
         ),
     );
+
+  const savedCount =
+    visiblePosts.length
+    + visiblePortfolio.length
+    + visibleProfiles.length
+    + visibleExperiences.length;
+
+  const loadMoreFollowing =
+    async () => {
+      if (
+        loadingMore
+        || !following.nextCursor
+      ) {
+        return;
+      }
+
+      setLoadingMore(true);
+
+      try {
+        const next =
+          await getFollowing(
+            following.nextCursor,
+          );
+
+        setFollowing(
+          (current) => ({
+            items: [
+              ...current.items,
+              ...next.items,
+            ],
+            total: next.total,
+            nextCursor:
+              next.nextCursor,
+          }),
+        );
+      } catch {
+        // O botão continua disponível para tentar de novo.
+      } finally {
+        setLoadingMore(false);
+      }
+    };
+
+  const renderFollowing = () => {
+    if (
+      following.items.length === 0
+    ) {
+      return (
+        <EmptyState
+          title="Você ainda não segue ninguém"
+          description="Siga profissionais e estabelecimentos para ver o trabalho deles no seu feed."
+          actionLabel="Explorar"
+          onActionPress={() =>
+            router.push(
+              "/(tabs)/discover",
+            )
+          }
+        />
+      );
+    }
+
+    return (
+      <View
+        style={
+          styles.list
+        }
+      >
+        {following.items.map(
+          (item) => (
+            <ProfessionalCard
+              key={
+                `${item.targetType}-${item.targetId}`
+              }
+              id={String(
+                item.targetId,
+              )}
+              routeId={
+                item.slug
+              }
+              name={
+                item.name
+              }
+              avatar={
+                item.avatar
+              }
+              specialty={
+                item.subtitle
+              }
+              location={
+                item.location ??
+                undefined
+              }
+              routeType={
+                item.targetType
+              }
+            />
+          ),
+        )}
+
+        {following.nextCursor ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ver mais perfis seguidos"
+            accessibilityState={{
+              busy: loadingMore,
+            }}
+            disabled={loadingMore}
+            onPress={() =>
+              void loadMoreFollowing()
+            }
+            style={({ pressed }) => [
+              styles.tab,
+              styles.moreButton,
+              pressed &&
+                styles.pressed,
+            ]}
+          >
+            {loadingMore ? (
+              <ActivityIndicator
+                color={
+                  colors.plum
+                }
+              />
+            ) : (
+              <Text
+                style={
+                  styles.tabText
+                }
+              >
+                Ver mais
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
+      </View>
+    );
+  };
 
   const renderPublications = () => {
     if (
@@ -623,7 +792,7 @@ export default function FavoritesScreen() {
               styles.loadingText
             }
           >
-            Carregando seus salvos...
+            Carregando seus favoritos...
           </Text>
         </View>
       );
@@ -642,6 +811,13 @@ export default function FavoritesScreen() {
           }
         />
       );
+    }
+
+    if (
+      section ===
+      "following"
+    ) {
+      return renderFollowing();
     }
 
     if (
@@ -751,6 +927,74 @@ export default function FavoritesScreen() {
           style={
             styles.tabs
           }
+          accessibilityRole="tablist"
+        >
+          {(
+            [
+              {
+                id: "following",
+                label: "Seguindo",
+                count: following.total,
+              },
+              {
+                id: "saved",
+                label: "Salvos",
+                count: savedCount,
+              },
+            ] as const
+          ).map(
+            (item) => {
+              const selected =
+                section ===
+                item.id;
+
+              return (
+                <Pressable
+                  key={
+                    item.id
+                  }
+                  accessibilityRole="tab"
+                  accessibilityState={{
+                    selected,
+                  }}
+                  accessibilityLabel={
+                    `${item.label}, ${item.count}`
+                  }
+                  onPress={() =>
+                    setSection(
+                      item.id,
+                    )
+                  }
+                  style={({ pressed }) => [
+                    styles.tab,
+                    selected &&
+                      styles.tabActive,
+                    pressed &&
+                      styles.pressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabText,
+                      selected &&
+                        styles.tabTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {`${item.label} (${item.count})`}
+                  </Text>
+                </Pressable>
+              );
+            },
+          )}
+        </View>
+
+        {section === "saved" ? (
+        <View
+          style={[
+            styles.tabs,
+            styles.filterTabs,
+          ]}
         >
           {tabs.map(
             (tab) => {
@@ -800,6 +1044,7 @@ export default function FavoritesScreen() {
             },
           )}
         </View>
+        ) : null}
 
         <View
           style={
@@ -940,6 +1185,20 @@ const useStyles =
           "center",
         justifyContent:
           "center",
+      },
+
+      filterTabs: {
+        marginTop:
+          spacing.sm,
+      },
+
+      moreButton: {
+        flex: 0,
+        minHeight:
+          touch.minimum,
+        borderWidth: 1,
+        borderColor:
+          colors.glassBorder,
       },
 
       tabActive: {

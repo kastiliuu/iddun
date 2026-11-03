@@ -15,7 +15,6 @@ from app.services.availability_service import (
 )
 from app.services.beauty_graph_service import (
     graph_state,
-    saved_items,
 )
 from app.services.feed_service import feed_page
 from app.services.media_storage import resolve_image_url
@@ -291,26 +290,117 @@ def _recommendations(
             )
         )
 
+    reasons = _RecommendationReasons(
+        profile=profile,
+        followed_professionals=followed_professionals,
+        followed_establishments=followed_establishments,
+    )
+
     return {
         "professionals": [
-            _profile_recommendation(
-                item,
-                kind="professional",
-            )
+            {
+                **_profile_recommendation(
+                    item,
+                    kind="professional",
+                ),
+                "reason": reasons.for_professional(item),
+            }
             for item in professionals[
                 :limit
             ]
         ],
         "establishments": [
-            _profile_recommendation(
-                item,
-                kind="establishment",
-            )
+            {
+                **_profile_recommendation(
+                    item,
+                    kind="establishment",
+                ),
+                "reason": reasons.for_establishment(item),
+            }
             for item in establishments[
                 :limit
             ]
         ],
     }
+
+
+class _RecommendationReasons:
+    """
+    Motivo verificável de cada sugestão (D-SOC-05), na ordem: atende em
+    quem você segue, mesma especialidade/categoria de quem você segue,
+    mesma cidade. Sem motivo real, a sugestão vai sem motivo.
+    """
+
+    def __init__(self, *, profile, followed_professionals, followed_establishments):
+        self.city = (profile.city or "").strip()
+        self.followed_professionals = followed_professionals
+        self.followed_establishments = followed_establishments
+        self._specialties = None
+        self._categories = None
+        self._establishment_names = None
+
+    @staticmethod
+    def _key(value):
+        return (value or "").strip().casefold()
+
+    def _followed_specialties(self):
+        if self._specialties is None:
+            self._specialties = {
+                self._key(value)
+                for value in db.session.scalars(
+                    select(ProfessionalProfile.primary_specialty).where(
+                        ProfessionalProfile.id.in_(self.followed_professionals)
+                    )
+                )
+                if value
+            } if self.followed_professionals else set()
+        return self._specialties
+
+    def _followed_categories(self):
+        if self._categories is None:
+            self._categories = {
+                self._key(value)
+                for value in db.session.scalars(
+                    select(Establishment.category).where(
+                        Establishment.id.in_(self.followed_establishments)
+                    )
+                )
+                if value
+            } if self.followed_establishments else set()
+        return self._categories
+
+    def _same_city(self, city):
+        if self.city and self._key(city) == self._key(self.city):
+            return f"Mesma cidade: {city.strip()}"
+        return None
+
+    def for_professional(self, item):
+        for membership in item.active_memberships:
+            if (
+                membership.establishment_id in self.followed_establishments
+                and membership.establishment.is_active
+            ):
+                return f"Atende em {membership.establishment.name}"
+
+        specialty = item.primary_specialty
+        if specialty and self._key(specialty) in self._followed_specialties():
+            return f"Mesma especialidade de quem você segue: {specialty}"
+
+        return self._same_city(item.city)
+
+    def for_establishment(self, item):
+        for membership in item.active_memberships:
+            if (
+                membership.professional_id in self.followed_professionals
+                and membership.professional.is_active
+            ):
+                return f"{membership.professional.display_name} atende aqui"
+
+        category = item.category
+        if category and self._key(category) in self._followed_categories():
+            return f"Mesma categoria de quem você segue: {category}"
+
+        return self._same_city(item.city)
 
 
 def _real_work_image(slot):
@@ -518,8 +608,6 @@ def client_feed_context(
             is not None
             else None
         ),
-        "saved_items":
-            saved_items(user),
         "iddun_now":
             now_items,
         "recommended_professionals":

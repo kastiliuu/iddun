@@ -72,6 +72,23 @@ export type SavedPortfolioItem = {
   caption: string;
 };
 
+export type FollowingItem = {
+  targetType: FollowTargetType;
+  targetId: number;
+  slug: string;
+  name: string;
+  subtitle: string;
+  location?: string | null;
+  avatar?: string | null;
+  followedAt: string;
+};
+
+export type FollowingPage = {
+  items: FollowingItem[];
+  total: number;
+  nextCursor: string | null;
+};
+
 export type SavedItemsResponse = {
   profiles: SavedProfile[];
   experiences: SavedExperience[];
@@ -244,6 +261,27 @@ export function getSavedItems() {
     (token) =>
       api.get<SavedItemsResponse>(
         "/api/v1/graph/saved-items",
+        { token },
+      ),
+  );
+}
+
+
+/**
+ * Quem a conta segue, do mais recente ao mais antigo (PR 2, D-SOC-05).
+ * Só perfis que continuam públicos.
+ */
+export function getFollowing(
+  cursor?: string | null,
+) {
+  const query = cursor
+    ? `?cursor=${encodeURIComponent(cursor)}`
+    : "";
+
+  return withAuthenticatedRequest(
+    (token) =>
+      api.get<FollowingPage>(
+        `/api/v1/graph/following${query}`,
         { token },
       ),
   );

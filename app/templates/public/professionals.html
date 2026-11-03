@@ -1,5 +1,6 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
+{% from 'components/graph-buttons.html' import save_attrs with context %}
 
 {% block title %}Profissionais | IDDUN{% endblock %}
 {% block body_class %}professionals-page{% if current_user.is_authenticated %} authenticated-discovery-page{% endif %}{% endblock %}
@@ -52,10 +53,12 @@
               <h3>{{ professional.name }}</h3>
               <p>{{ professional.role }}</p>
             </div>
-            <button type="button" class="professional-profile-card__favorite" aria-label="Favoritar {{ professional.name }}" aria-pressed="false" data-favorite data-active="false">
-              <span class="icon-state icon-state--off">{{ icon('heart') }}</span>
-              <span class="icon-state icon-state--on">{{ icon('heart-filled') }}</span>
+            {% if professional.source == 'database' %}
+            <button type="button" class="professional-profile-card__favorite" {{ save_attrs('professional', professional.id, professional.name) }}>
+              <span class="icon-state icon-state--off" aria-hidden="true">{{ icon('heart') }}</span>
+              <span class="icon-state icon-state--on" aria-hidden="true">{{ icon('heart-filled') }}</span>
             </button>
+            {% endif %}
           </div>
 
           <div class="professional-profile-card__meta">

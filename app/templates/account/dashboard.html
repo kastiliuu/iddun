@@ -92,7 +92,7 @@
             {{ icon('chevron-right', 'account-activity-card__arrow') }}
           </a>
 
-          <a class="account-activity-card" href="{{ url_for('feed.home') }}#feed-saved-panel">
+          <a class="account-activity-card" href="{{ url_for('feed.favorites', aba='salvos') }}">
             <span class="account-activity-card__icon">{{ icon('bookmark') }}</span>
             <span class="account-activity-card__value">{{ save_count }}</span>
             <strong>Favoritos</strong>

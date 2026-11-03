@@ -353,7 +353,8 @@ def test_authenticated_mobile_navigation_has_five_client_destinations(app, clien
         links, ["Início", "Explorar", "Reservas", "Favoritos", "Perfil"]  # FE-DEC-021
     ):
         assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
-    assert "feed-saved-panel" in links[3]
+    # D-SOC-07: Favoritos é uma página, não mais o painel do feed.
+    assert 'href="/favoritos"' in links[3]
     assert "reserv" in links[2].lower()
 
 

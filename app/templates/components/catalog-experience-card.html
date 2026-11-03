@@ -1,4 +1,5 @@
 {% from 'components/icon.html' import icon %}
+{% from 'components/graph-buttons.html' import save_attrs with context %}
 {% from 'components/real-work-media.html' import service_href, service_media %}
 
 
@@ -8,15 +9,16 @@
 
 {% macro favorite_button(item, featured=false) -%}
 
+{#
+  Salvar grava na conta (PR 2). Itens de demonstração, sem registro no
+  banco, não têm o coração: não há o que salvar.
+#}
+{% if item.database_id %}
 <button
   class="catalog-card__favorite icon-button icon-button--glass{% if featured %} catalog-featured__favorite{% endif %}"
   type="button"
-  aria-label="Favoritar experiência {{ item.title }}"
-  aria-pressed="false"
-  data-favorite
-  data-favorite-id="{{ item.slug }}"
-  data-favorite-title="{{ item.title }}"
-  data-active="false"
+  data-pop
+  {{ save_attrs('experience', item.database_id, 'experiência ' ~ item.title) }}
 >
 
   <span
@@ -41,6 +43,7 @@
   </span>
 
 </button>
+{% endif %}
 
 {%- endmacro %}
 

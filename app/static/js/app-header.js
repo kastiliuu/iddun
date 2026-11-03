@@ -32,17 +32,6 @@
     '[data-notification-panel]',
   );
 
-  const savedTriggers = [
-    ...document.querySelectorAll(
-      '[data-saved-trigger]',
-    ),
-  ];
-
-  const savedPanel = document.querySelector(
-    '[data-saved-panel]',
-  );
-
-
   let searchTimer = null;
   let searchController = null;
 
@@ -56,23 +45,6 @@
     accountTrigger.setAttribute(
       'aria-expanded',
       'false',
-    );
-  };
-
-  const closeSaved = () => {
-    if (!savedPanel) {
-      return;
-    }
-
-    savedPanel.hidden = true;
-
-    savedTriggers.forEach(
-      (trigger) => {
-        trigger.setAttribute(
-          'aria-expanded',
-          'false',
-        );
-      },
     );
   };
 
@@ -99,7 +71,6 @@
         accountMenu?.hidden ?? true;
 
       closeNotifications();
-      closeSaved();
 
       if (!accountMenu) return;
 
@@ -120,7 +91,6 @@
         ?? true;
 
       closeAccountMenu();
-      closeSaved();
 
       if (!notificationPanel) {
         return;
@@ -132,38 +102,6 @@
       notificationTrigger.setAttribute(
         'aria-expanded',
         String(willOpen),
-      );
-    },
-  );
-
-  savedTriggers.forEach(
-    (trigger) => {
-      trigger.addEventListener(
-        'click',
-        () => {
-          const willOpen =
-            savedPanel?.hidden
-            ?? true;
-
-          closeAccountMenu();
-          closeNotifications();
-
-          if (!savedPanel) {
-            return;
-          }
-
-          savedPanel.hidden =
-            !willOpen;
-
-          savedTriggers.forEach(
-            (item) => {
-              item.setAttribute(
-                'aria-expanded',
-                String(willOpen),
-              );
-            },
-          );
-        },
       );
     },
   );
@@ -198,20 +136,6 @@
       ) {
         closeNotifications();
       }
-
-      if (
-        savedPanel
-        && !savedPanel.contains(
-          target,
-        )
-        && !savedTriggers.some(
-          (trigger) => (
-            trigger.contains(target)
-          ),
-        )
-      ) {
-        closeSaved();
-      }
     },
   );
 
@@ -224,7 +148,6 @@
 
       closeAccountMenu();
       closeNotifications();
-      closeSaved();
 
       if (searchResults) {
         searchResults.hidden = true;
@@ -604,16 +527,13 @@
     open?.trigger.focus();
   });
 
-  // Favoritos e Notificações abrem o painel do feed também a partir de
-  // outras páginas, pelo endereço (#feed-saved-panel, #feed-notification-panel).
+  // Notificações abre o painel do feed também a partir de outras páginas
+  // (#feed-notification-panel). O antigo #feed-saved-panel leva à página
+  // Favoritos, que substituiu o painel (PR 2, D-SOC-07).
   const openPanelFromHash = () => {
-    if (window.location.hash === '#feed-saved-panel' && savedPanel) {
-      closeAccountMenu();
-      closeNotifications();
-      savedPanel.hidden = false;
-      savedTriggers.forEach((trigger) => {
-        trigger.setAttribute('aria-expanded', 'true');
-      });
+    if (window.location.hash === '#feed-saved-panel') {
+      window.location.replace('/favoritos?aba=salvos');
+      return;
     }
 
     if (
@@ -622,7 +542,6 @@
       && notificationTrigger
     ) {
       closeAccountMenu();
-      closeSaved();
       notificationPanel.hidden = false;
       notificationTrigger.setAttribute('aria-expanded', 'true');
     }

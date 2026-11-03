@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/components.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/graph.css') }}">
   {% set uses_app_header = current_user.is_authenticated and current_page != 'home' %}
   {% if uses_app_header and request.endpoint != 'feed.home' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
@@ -26,7 +27,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='css/visual-v2.css') }}">
   {% block styles_after %}{% endblock %}
 </head>
-<body class="{% block body_class %}{% endblock %}">
+<body class="{% block body_class %}{% endblock %}" data-authenticated="{{ 'true' if current_user.is_authenticated else 'false' }}">
   <a class="skip-link" href="#main-content">Ir para o conteúdo principal</a>
 
   {% block site_header %}
@@ -59,6 +60,7 @@
   {% endblock %}
 
   <script src="{{ url_for('static', filename='js/navigation.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/graph.js') }}" defer></script>
   {% if current_user.is_authenticated %}
   <script src="{{ url_for('static', filename='js/app-header.js') }}" defer></script>
   {% endif %}
