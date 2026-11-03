@@ -110,7 +110,7 @@ export default function CreateServiceScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled">
       <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
-        onPress={() => router.canGoBack() ? router.back() : router.replace("/(tabs)/create")}
+        onPress={() => router.canGoBack() ? router.back() : router.replace("/create")}
         style={styles.backButton}>
         <Icon name="arrow-left" size={20} color={colors.onSurface} />
       </Pressable>

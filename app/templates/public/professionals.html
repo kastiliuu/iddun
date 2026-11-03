@@ -9,6 +9,7 @@
 {% endblock %}
 
 {% block content %}
+{% if current_user.is_authenticated %}{% include 'components/explore-tabs.html' %}{% endif %}
 <section class="professionals-hero">
   <div class="container professionals-hero__inner">
     <div data-reveal>

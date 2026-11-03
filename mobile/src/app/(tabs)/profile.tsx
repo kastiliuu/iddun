@@ -530,89 +530,15 @@ export default function ProfileScreen() {
             </Text>
 
             <View style={styles.menuCard}>
+              {/* PR 1 (D-SOC-04): ferramentas de trabalho ficam na troca de contexto. */}
               <MenuItem
-                icon="grid"
-                title="Painel profissional"
-                subtitle="Publicações, serviços e presença"
+                icon="repeat"
+                title="Trocar de contexto"
+                subtitle="Profissional e estabelecimentos da sua conta"
                 onPress={() =>
-                  router.push("/(tabs)/create")
+                  router.push("/contexts")
                 }
               />
-
-              {user.role === "professional" ? (
-                <>
-                  <View style={styles.menuDivider} />
-
-                  <MenuItem
-                    icon="briefcase"
-                    title="Minha presença profissional"
-                    subtitle="Progresso, experiência e publicação"
-                    onPress={() =>
-                      router.push("/professional-onboarding")
-                    }
-                  />
-
-                  <View style={styles.menuDivider} />
-
-                  <MenuItem
-                    icon="send"
-                    title="Minhas candidaturas"
-                    subtitle="Acompanhe vagas em que você demonstrou interesse"
-                    onPress={() =>
-                      router.push("/job-applications")
-                    }
-                  />
-                </>
-              ) : null}
-
-              <View style={styles.menuDivider} />
-
-              <MenuItem
-                icon="star"
-                title="Avaliações"
-                subtitle="Painel de reputação em preparação"
-                disabled
-              />
-
-              {user.role === "establishment" ? (
-                <>
-                  <View style={styles.menuDivider} />
-
-                  <MenuItem
-                    icon="users"
-                    title="Equipe"
-                    subtitle="Profissionais vinculados ao estabelecimento"
-                    disabled={!user.profileId}
-                    onPress={() => {
-                      if (!user.profileId) {
-                        return;
-                      }
-
-                      router.push(
-                        `/establishment-team/${user.profileId}`,
-                      );
-                    }}
-                  />
-
-                  <View style={styles.menuDivider} />
-
-                  <MenuItem
-                    icon="briefcase"
-                    title="Gerenciar vagas"
-                    subtitle="Publique oportunidades e acompanhe candidatos"
-                    disabled={!user.profileId}
-                    onPress={() => {
-                      if (!user.profileId) {
-                        return;
-                      }
-
-                      router.push(
-                        `/manage-jobs/${user.profileId}`,
-                      );
-                    }}
-                  />
-                </>
-              ) : null}
             </View>
           </View>
         )}

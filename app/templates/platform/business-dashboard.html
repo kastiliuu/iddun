@@ -24,20 +24,7 @@
   </div>
 </section>
 
-<nav class="business-section-nav" aria-label="Seções do painel Business">
-  <div class="container business-section-nav__inner">
-    <a href="#business-overview">{{ icon('home') }}<span>Visão geral</span></a>
-    <a href="#business-operations">{{ icon('calendar') }}<span>Operação</span></a>
-    <a href="{{ url_for('business.bookings', slug=establishment.slug) }}">{{ icon('calendar-check') }}<span>Reservas</span></a>
-    <a href="{{ url_for('business.insights', slug=establishment.slug) }}">{{ icon('chart-no-axes-column') }}<span>Indicadores</span></a>
-    <a href="#business-catalog">{{ icon('scissors') }}<span>Serviços</span></a>
-    <a href="#business-team">{{ icon('users') }}<span>Equipe</span></a>
-    <a href="#business-reputation">{{ icon('star') }}<span>Avaliações</span></a>
-    <a href="#business-gallery">{{ icon('store') }}<span>Galeria</span></a>
-    <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar empresa</span></a>
-    <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Voltar ao Cliente</span></a>
-  </div>
-</nav>
+{% include 'components/business-nav.html' %}
 
 <section class="platform-dashboard-content" id="business-overview">
   <div class="container platform-dashboard-grid">

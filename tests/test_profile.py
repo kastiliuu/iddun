@@ -84,6 +84,10 @@ def test_account_completion_uses_every_field_shown_on_the_page(app, client):
         user.client_profile.avatar_url = "uploads/clients/avatar.webp"
         db.session.commit()
 
+    # O fixture mantém uma única sessão entre requisições; em produção cada
+    # requisição abre a sua. O cabeçalho único lê o perfil do Cliente, então
+    # a próxima requisição precisa reler o que foi gravado acima.
+    db.session.expire_all()
     response = client.get("/minha-conta")
 
     assert response.status_code == 200

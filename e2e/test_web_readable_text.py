@@ -19,7 +19,7 @@ SMALL_TEXT = """
     const rect = el.getBoundingClientRect();
     const style = getComputedStyle(el);
     return rect.width > 0 && style.visibility !== 'hidden' && style.display !== 'none'
-      && !el.closest('[hidden], [aria-hidden="true"], .site-header, .mobile-bottom-nav, footer, .media-cropper');
+      && !el.closest('[hidden], [aria-hidden="true"], .sr-only, .site-header, .mobile-bottom-nav, footer, .media-cropper');
   })
   .map((el) => ({ text: el.innerText.trim().slice(0, 30), size: parseFloat(getComputedStyle(el).fontSize) }))
   .filter((item) => item.size < 12)

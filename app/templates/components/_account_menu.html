@@ -1,0 +1,105 @@
+{% from 'components/icon.html' import icon %}
+{#
+  Menu Eu com a troca de contexto (PR 1; DEC-ID-077, FE-DEC-022).
+  Mesmo conteúdo no cabeçalho único e no cabeçalho Pro. Escolher um
+  contexto só leva ao painel dele: cada rota confere a permissão.
+#}
+
+{% macro context_href(item) -%}
+  {%- if item.kind == 'client' -%}
+    {{ url_for('feed.home') }}
+  {%- elif item.kind == 'professional' -%}
+    {{ url_for('professional.onboarding') if item.state == 'draft' else url_for('professional.dashboard') }}
+  {%- elif item.state == 'draft' and item.role == 'owner' -%}
+    {{ url_for('business.onboarding_resume', establishment_id=item.id) }}
+  {%- else -%}
+    {{ url_for('business.dashboard', slug=item.slug) }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro context_note(item) -%}
+  {%- if item.kind == 'client' -%}Cliente
+  {%- elif item.kind == 'professional' -%}Profissional{% if item.state == 'draft' %} · rascunho{% elif item.state == 'locked' %} · fora do ar{% endif %}
+  {%- else -%}{{ 'Proprietário' if item.role == 'owner' else 'Gestão' }}{% if item.state == 'draft' %} · rascunho{% endif %}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro is_active_context(item, active_kind, active_id) -%}
+  {{- 'yes' if item.kind == active_kind and (item.kind != 'establishment' or item.id == active_id) else '' -}}
+{%- endmacro %}
+
+{#
+  contexts: nav_contexts(); active_kind: 'client' | 'professional' |
+  'establishment'; active_id: id do estabelecimento ativo; avatar: caminho
+  da foto ou None.
+#}
+{% macro account_menu(contexts, active_kind='client', active_id=None, avatar=None) %}
+{% set active_name = {'client': 'Cliente', 'professional': 'Profissional', 'establishment': 'Estabelecimento'}[active_kind] %}
+{% set has_professional = contexts | selectattr('kind', 'equalto', 'professional') | list %}
+<div
+  id="feed-account-menu"
+  class="feed-account-menu"
+  hidden
+  data-account-menu
+>
+  <div class="feed-account-menu__identity">
+    <span
+      class="feed-avatar{% if avatar %} has-image{% endif %}"
+      {% if avatar %}style="background-image:url('{{ avatar|media_url }}')"{% endif %}
+    >
+      {% if not avatar %}{{ current_user.name[:1]|upper }}{% endif %}
+    </span>
+    <span>
+      <strong>{{ current_user.name }}</strong>
+      <small>Você está no contexto {{ active_name }}</small>
+    </span>
+  </div>
+
+  <p class="sr-only" id="feed-account-contexts-title">Trocar de contexto</p>
+  <ul class="feed-account-menu__contexts" aria-labelledby="feed-account-contexts-title" data-account-contexts>
+    {% for item in contexts %}
+    {% set current = is_active_context(item, active_kind, active_id) %}
+    <li>
+      <a
+        href="{{ context_href(item) }}"
+        {% if current %}aria-current="true"{% endif %}
+        data-context-kind="{{ item.kind }}"
+      >
+        {{ icon('compass' if item.kind == 'client' else 'briefcase' if item.kind == 'professional' else 'store') }}
+        <span>
+          <strong>{{ item.name }}</strong>
+          <small>{{ context_note(item) }}</small>
+        </span>
+        {% if current %}{{ icon('check') }}{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if not has_professional %}
+  <a href="{{ url_for('professional.start') }}">
+    {{ icon('briefcase') }} Tornar-me profissional
+  </a>
+  {% endif %}
+  <a href="{{ url_for('account.dashboard') }}">
+    {{ icon('user') }} Minha conta
+  </a>
+  <a href="{{ url_for('account.edit') }}#dados-pessoais">
+    {{ icon('edit') }} Editar perfil
+  </a>
+  <a href="{{ url_for('account.privacy') }}">
+    {{ icon('shield-check') }} Privacidade e segurança
+  </a>
+  {% if current_user.role == 'admin' %}
+  <a href="{{ url_for('admin.dashboard') }}">
+    {{ icon('sliders') }} Admin
+  </a>
+  {% endif %}
+  <form action="{{ url_for('auth.logout') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit">
+      {{ icon('arrow-left') }} Sair
+    </button>
+  </form>
+</div>
+{% endmacro %}

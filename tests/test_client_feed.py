@@ -350,7 +350,7 @@ def test_authenticated_mobile_navigation_has_five_client_destinations(app, clien
     assert "mobile-bottom-nav--client" in nav_class
     assert len(links) == 5
     for item, label in zip(
-        links, ["Início", "Descobrir", "Reservas", "Salvos", "Perfil"]
+        links, ["Início", "Explorar", "Reservas", "Favoritos", "Perfil"]  # FE-DEC-021
     ):
         assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
     assert "feed-saved-panel" in links[3]
@@ -373,7 +373,7 @@ def test_anonymous_mobile_navigation_keeps_public_destinations(client):
     assert "mobile-bottom-nav--client" not in nav_class
     assert len(links) == 4
     for item, label in zip(
-        links, ["Início", "Descobrir", "Profissionais", "Entrar"]
+        links, ["Início", "Explorar", "Profissionais", "Entrar"]
     ):
         assert re.search(r"<span>\s*" + re.escape(label) + r"\s*</span>", item)
 

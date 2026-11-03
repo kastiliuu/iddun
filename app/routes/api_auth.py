@@ -18,6 +18,10 @@ from app.services.api_auth import (
     revoke_user_session,
     rotate_refresh_token,
 )
+from app.services.navigation_context import (
+    account_contexts,
+    contexts_payload,
+)
 from app.services.api_contract import (
     api_error,
     api_json,
@@ -170,6 +174,10 @@ def _user_payload(user):
             )
     elif user.client_profile is not None:
         payload["profileId"] = str(user.client_profile.id)
+
+    # D-SOC-01 / AUD-15: todos os contextos autorizados para a troca pelo
+    # avatar. "role" continua para versões anteriores do app.
+    payload["contexts"] = contexts_payload(account_contexts(user))
 
     return payload
 

@@ -405,7 +405,7 @@ export default function CreatePostScreen() {
                 router.back();
               } else {
                 router.replace(
-                  "/(tabs)/create",
+                  "/create",
                 );
               }
             }}
@@ -503,7 +503,7 @@ export default function CreatePostScreen() {
               fullWidth
               onPress={() =>
                 router.replace(
-                  "/(tabs)/create",
+                  "/create",
                 )
               }
             />

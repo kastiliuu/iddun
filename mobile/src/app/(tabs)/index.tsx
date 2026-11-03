@@ -45,6 +45,7 @@ import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { SectionHeader } from "@/components/SectionHeader";
+import { Avatar } from "@/components/Avatar";
 import { StoryAvatar } from "@/components/StoryAvatar";
 
 import {
@@ -539,6 +540,21 @@ export default function HomeScreen() {
             />
         </View>
 
+          <View style={styles.headerActions}>
+          {/* PR 1 (FE-DEC-030): Criar é ação do feed, não aba. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Criar publicação ou serviço"
+            onPress={() => router.push("/create")}
+            style={({ pressed }) => [
+              styles.createButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Icon name="plus" size={16} color={colors.onBrandPrimary} />
+            <Text style={styles.createButtonText}>Criar</Text>
+          </Pressable>
+
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
@@ -588,6 +604,24 @@ export default function HomeScreen() {
               </View>
             ) : null}
           </Pressable>
+
+          {/* PR 1 (DEC-ID-077): o avatar abre a troca de contexto. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Trocar de contexto"
+            onPress={() => router.push("/contexts")}
+            style={({ pressed }) => [
+              styles.avatarButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Avatar
+              name={store.getUser()?.name ?? "IDDUN"}
+              uri={store.getUser()?.avatar}
+              size={36}
+            />
+          </Pressable>
+          </View>
         </View>
 
         <View
@@ -1114,6 +1148,61 @@ const useStyles =
           fonts.display,
 
         fontSize: 13,
+      },
+
+      headerActions: {
+        flexDirection:
+          "row",
+
+        alignItems:
+          "center",
+
+        gap: spacing.sm,
+      },
+
+      createButton: {
+        minHeight:
+          touch.minimum,
+
+        paddingHorizontal:
+          spacing.md,
+
+        flexDirection:
+          "row",
+
+        alignItems:
+          "center",
+
+        gap: spacing.xs,
+
+        borderRadius: 999,
+
+        backgroundColor:
+          colors.plum,
+      },
+
+      createButtonText: {
+        color:
+          colors.onBrandPrimary,
+
+        fontFamily:
+          fonts.sansSemiBold,
+
+        fontSize: 13,
+      },
+
+      avatarButton: {
+        width:
+          touch.minimum,
+
+        height:
+          touch.minimum,
+
+        alignItems:
+          "center",
+
+        justifyContent:
+          "center",
       },
 
       notificationButton: {

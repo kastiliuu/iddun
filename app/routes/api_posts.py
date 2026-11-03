@@ -34,6 +34,7 @@ from app.services.work_post_service import (
     replace_work_post_image,
     update_work_post,
 )
+from app.services.api_csrf import protect_cookie_mutation
 
 
 api_posts_bp = Blueprint(
@@ -41,6 +42,9 @@ api_posts_bp = Blueprint(
     __name__,
     url_prefix="/api/v1",
 )
+
+# Sessão por cookie da Web exige token CSRF nas mutações (AUD-04).
+api_posts_bp.before_request(protect_cookie_mutation)
 
 MAX_POST_BODY_BYTES = 32_768
 MAX_POST_MULTIPART_BYTES = (

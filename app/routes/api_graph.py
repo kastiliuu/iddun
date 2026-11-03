@@ -19,6 +19,7 @@ from app.services.beauty_graph_service import (
     unfollow_target,
     unsave_target,
 )
+from app.services.api_csrf import protect_cookie_mutation
 
 
 api_graph_bp = Blueprint(
@@ -26,6 +27,9 @@ api_graph_bp = Blueprint(
     __name__,
     url_prefix="/api/v1/graph",
 )
+
+# Sessão por cookie da Web exige token CSRF nas mutações (AUD-04).
+api_graph_bp.before_request(protect_cookie_mutation)
 
 MAX_GRAPH_BODY_BYTES = 65_536
 MAX_RECONCILE_ITEMS = 500

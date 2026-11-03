@@ -1,0 +1,312 @@
+/*
+ * Cabeçalho único das telas logadas (PR 1, D-SOC-04).
+ * A base visual continua em feed.css (.feed-header*); aqui ficam só as
+ * partes novas: lista de contextos no menu Eu, sino no celular e o
+ * formulário de busca. Apenas tokens do Design System.
+ */
+
+.feed-search {
+  margin: 0;
+}
+
+/*
+ * O menu Eu agora aparece em todas as telas logadas; os itens sobem de
+ * 0,69rem (11 px) para o mínimo legível do DS (FE-DEC-013).
+ */
+.feed-account-menu > a,
+.feed-account-menu form button {
+  font-size: var(--ds-type-secondary);
+}
+
+.feed-account-menu__contexts {
+  margin: 0;
+  padding: var(--ds-space-1) 0;
+  list-style: none;
+  border-bottom: 0.0625rem solid var(--ds-border-subtle);
+}
+
+.feed-account-menu__contexts a {
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  display: grid;
+  grid-template-columns: 1.2rem minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.feed-account-menu__contexts a:hover,
+.feed-account-menu__contexts a:focus-visible {
+  background: var(--color-off-white);
+}
+
+.feed-account-menu__contexts a:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: -0.125rem;
+}
+
+.feed-account-menu__contexts a > span {
+  min-width: 0;
+  display: grid;
+  gap: 0.125rem;
+}
+
+.feed-account-menu__contexts strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.feed-account-menu__contexts small {
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
+}
+
+.feed-account-menu__contexts .icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-on-light-muted);
+}
+
+.feed-account-menu__contexts a[aria-current="true"] .icon:last-child {
+  color: var(--color-plum);
+}
+
+.feed-header__mobile-bell {
+  display: none;
+  position: relative;
+  min-width: var(--ds-control-min-target);
+  min-height: var(--ds-control-min-target);
+  place-items: center;
+  color: var(--color-off-white);
+}
+
+.feed-header__mobile-bell .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.feed-header__mobile-bell .feed-header__badge {
+  position: absolute;
+  top: var(--ds-space-1);
+  right: var(--ds-space-1);
+}
+
+.feed-header__mobile-bell:focus-visible,
+.feed-header__mobile-account:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+  border-radius: var(--ds-radius-md);
+}
+
+@media (max-width: 56.25em) {
+  .feed-header__inner {
+    grid-template-columns:
+      5.75rem
+      minmax(0, 1fr)
+      var(--ds-control-min-target)
+      var(--ds-control-min-target);
+  }
+
+  .feed-header__mobile-bell {
+    display: grid;
+  }
+}
+
+/*
+ * "Mais" das barras Pro e Business (FE-DEC-023, 024): um botão com o mesmo
+ * peso dos links e um menu no estilo do menu Eu.
+ */
+.nav-more {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.nav-more__trigger {
+  min-height: var(--ds-control-min-target);
+  margin: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nav-more__trigger:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.nav-more__menu {
+  z-index: 90;
+  top: calc(100% + var(--ds-space-1));
+  right: 0;
+}
+
+.business-section-nav .nav-more__trigger {
+  padding: 0.9rem 0.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  color: var(--color-mist);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.business-section-nav .nav-more__trigger:hover,
+.business-section-nav .nav-more__trigger[aria-expanded="true"] {
+  color: var(--color-off-white);
+}
+
+.business-section-nav .nav-more__trigger .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.business-section-nav a[aria-current="page"] {
+  color: var(--color-off-white);
+  border-bottom-color: var(--color-plum);
+}
+
+/* Os links do menu não herdam o visual escuro da barra. */
+.business-section-nav .nav-more__menu a,
+.pro-header__nav .nav-more__menu a {
+  height: auto;
+  min-width: 0;
+  min-height: var(--ds-control-min-target);
+  padding: 0 var(--ds-space-3);
+  display: grid;
+  grid-template-columns: 1.2rem 1fr;
+  place-items: center start;
+  gap: var(--ds-space-2);
+  border-bottom: 0;
+  background: var(--color-white);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.business-section-nav .nav-more__menu a:hover,
+.business-section-nav .nav-more__menu a:focus-visible,
+.pro-header__nav .nav-more__menu a:hover,
+.pro-header__nav .nav-more__menu a:focus-visible {
+  background: var(--color-off-white);
+  color: var(--color-ink);
+}
+
+.business-section-nav .nav-more__menu a[aria-current="page"],
+.pro-header__nav .nav-more__menu a[aria-current="page"] {
+  color: var(--color-plum);
+}
+
+.business-section-nav .nav-more__menu a::after,
+.pro-header__nav .nav-more__menu a::after {
+  content: none;
+}
+
+.pro-header__nav .nav-more__trigger {
+  position: relative;
+  min-width: 4.875rem;
+  padding: 0.5rem 0.7rem;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--ds-space-1);
+  color: var(--color-off-white);
+  font-size: var(--ds-type-caption);
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+.pro-header__nav .nav-more__trigger:hover,
+.pro-header__nav .nav-more__trigger[aria-expanded="true"],
+.pro-header__nav .nav-more__trigger.is-active {
+  opacity: 1;
+}
+
+.pro-header__nav .nav-more__trigger .icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* O avatar do Pro abre o menu Eu. */
+.pro-header__account-wrap {
+  justify-self: end;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+button.pro-header__account {
+  min-height: var(--ds-control-min-target);
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+button.pro-header__account:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+@media (max-width: 77.5em) {
+  .pro-header__nav .nav-more__trigger {
+    min-width: 3.875rem;
+  }
+
+  .pro-header__nav .nav-more__trigger span {
+    display: none;
+  }
+}
+
+/* Abas de Explorar: Serviços, Profissionais, Estabelecimentos. */
+.explore-tabs {
+  position: relative;
+  z-index: 3;
+  background: var(--ds-surface-raised);
+  border-bottom: 0.0625rem solid var(--ds-border-subtle);
+}
+
+.explore-tabs__inner {
+  display: flex;
+  gap: var(--ds-space-6);
+  overflow-x: auto;
+}
+
+.explore-tabs a {
+  min-height: var(--ds-control-min-target);
+  display: inline-flex;
+  align-items: center;
+  border-bottom: 0.125rem solid transparent;
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.explore-tabs a:hover {
+  color: var(--ds-text-primary);
+}
+
+.explore-tabs a[aria-current="page"] {
+  border-bottom-color: var(--ds-action-primary);
+  color: var(--ds-text-primary);
+}
+
+.explore-tabs a:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.business-section-nav .nav-more__menu .icon,
+.pro-header__nav .nav-more__menu .icon {
+  width: 1rem;
+  height: 1rem;
+  color: var(--color-text-on-light-muted);
+}

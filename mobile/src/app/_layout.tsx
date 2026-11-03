@@ -188,7 +188,19 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
-                name="bookings"
+                name="create"
+              />
+
+              <Stack.Screen
+                name="contexts"
+              />
+
+              <Stack.Screen
+                name="context/professional"
+              />
+
+              <Stack.Screen
+                name="context/establishment/[id]"
               />
 
               <Stack.Screen

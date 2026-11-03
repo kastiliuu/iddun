@@ -1,12 +1,43 @@
+/*
+ * Token CSRF para chamadas JSON feitas com a sessão da Web (AUD-04).
+ * As APIs exigem o cabeçalho X-CSRFToken quando a sessão vem do cookie.
+ */
+window.IDDUN = window.IDDUN || {};
+window.IDDUN.csrfToken = () => {
+  const meta = document.querySelector('meta[name="csrf-token"]');
+  return meta ? meta.getAttribute('content') || '' : '';
+};
+window.IDDUN.fetchWithCsrf = async (url, options = {}) => {
+  const send = () => fetch(url, {
+    credentials: 'same-origin',
+    ...options,
+    headers: {
+      Accept: 'application/json',
+      ...(options.headers || {}),
+      'X-CSRFToken': window.IDDUN.csrfToken(),
+    },
+  });
+  let response = await send();
+  if (response.status === 400 && typeof window.IDDUN.refreshCsrfToken === 'function') {
+    const body = await response.clone().json().catch(() => null);
+    if (body && body.error && body.error.code === 'csrf_failed' && await window.IDDUN.refreshCsrfToken()) {
+      response = await send();
+    }
+  }
+  return response;
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   const csrfRefreshInterval = 45 * 60 * 1000;
   let csrfRefreshPromise = null;
   let lastCsrfRefreshAt = Date.now();
 
   const csrfFields = () => document.querySelectorAll('input[name="csrf_token"]');
+  const csrfMeta = () => document.querySelector('meta[name="csrf-token"]');
+  const hasCsrfTarget = () => csrfFields().length > 0 || csrfMeta() !== null;
 
   const refreshCsrfToken = () => {
-    if (!csrfFields().length) return Promise.resolve(false);
+    if (!hasCsrfTarget()) return Promise.resolve(false);
     if (csrfRefreshPromise) return csrfRefreshPromise;
 
     csrfRefreshPromise = fetch('/csrf-token', {
@@ -29,6 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
         csrfFields().forEach((field) => {
           field.value = payload.csrfToken;
         });
+        csrfMeta()?.setAttribute('content', payload.csrfToken);
 
         lastCsrfRefreshAt = Date.now();
         return true;
@@ -41,7 +73,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return csrfRefreshPromise;
   };
 
-  if (csrfFields().length) {
+  window.IDDUN.refreshCsrfToken = refreshCsrfToken;
+
+  if (hasCsrfTarget()) {
     window.setInterval(() => {
       if (document.visibilityState === 'visible') refreshCsrfToken();
     }, csrfRefreshInterval);

@@ -23,6 +23,7 @@ from app.services.media_storage import (
 from app.services.time_service import (
     as_utc,
 )
+from app.services.api_csrf import protect_cookie_mutation
 
 
 api_availability_bp = Blueprint(
@@ -30,6 +31,9 @@ api_availability_bp = Blueprint(
     __name__,
     url_prefix="/api/v1",
 )
+
+# Sessão por cookie da Web exige token CSRF nas mutações (AUD-04).
+api_availability_bp.before_request(protect_cookie_mutation)
 
 MAX_BODY_BYTES = 32_768
 

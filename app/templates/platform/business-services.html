@@ -6,6 +6,7 @@
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
 
 {% block content %}
+{% include 'components/business-nav.html' %}
 <section class="platform-editor" aria-labelledby="business-services-title">
   <div class="container platform-editor__layout">
     <header class="platform-editor__head">

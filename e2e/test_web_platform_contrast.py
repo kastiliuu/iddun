@@ -78,7 +78,7 @@ CONTRAST = """
     const rect = element.getBoundingClientRect();
     const style = getComputedStyle(element);
     return rect.width > 0 && style.visibility !== 'hidden' && style.display !== 'none'
-      && !element.closest('[hidden], [aria-hidden="true"], .site-header, .mobile-bottom-nav, footer, .media-cropper');
+      && !element.closest('[hidden], [aria-hidden="true"], .sr-only, .site-header, .mobile-bottom-nav, footer, .media-cropper');
   };
   const ownText = (element) => [...element.childNodes]
     .some((node) => node.nodeType === 3 && node.textContent.trim());

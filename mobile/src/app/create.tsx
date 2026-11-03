@@ -188,20 +188,21 @@ export default function CreateScreen() {
         <View style={styles.header}>
           <Image
             source={require(
-              "../../../assets/branding/iddun-logo-white.png",
+              "../../assets/branding/iddun-logo-white.png",
             )}
             style={styles.logo}
             contentFit="contain"
             accessibilityLabel="IDDUN"
           />
 
+          {/* PR 1: Criar saiu das abas; a tela agora volta para onde estava. */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Notificações"
+            accessibilityLabel="Fechar"
             onPress={() =>
-              router.push(
-                "/notifications",
-              )
+              router.canGoBack()
+                ? router.back()
+                : router.replace("/(tabs)")
             }
             style={({ pressed }) => [
               styles.headerButton,
@@ -210,7 +211,7 @@ export default function CreateScreen() {
             ]}
           >
             <Icon
-              name="bell"
+              name="x"
               size={20}
               color={
                 colors.onSurface
