@@ -20,6 +20,7 @@ import {
 } from "@/components/Toast";
 
 import {
+  type CurrentUser,
   store,
   useStoreVersion,
 } from "@/store/local";
@@ -63,6 +64,31 @@ function numericTargetId(
 }
 
 
+/**
+ * D-SOC-06: ninguém segue o próprio perfil Pro nem a própria empresa (dono).
+ * Os contextos vêm de /auth/me; o backend também recusa (own_profile).
+ */
+export function ownsFollowTarget(
+  user: CurrentUser,
+  targetType: FollowTargetType,
+  id: string,
+) {
+  return Boolean(
+    user?.contexts?.some(
+      (context) =>
+        context.id === id
+        && (
+          (targetType === "professional"
+            && context.kind === "professional")
+          || (targetType === "establishment"
+            && context.kind === "establishment"
+            && context.role === "owner")
+        ),
+    ),
+  );
+}
+
+
 export function FollowButton({
   id,
   targetType = "professional",
@@ -88,6 +114,13 @@ export function FollowButton({
 
   const targetId =
     numericTargetId(id);
+
+  const ownProfile =
+    ownsFollowTarget(
+      store.getUser(),
+      targetType,
+      id,
+    );
 
   const serverBacked =
     targetId !== null;
@@ -224,6 +257,10 @@ export function FollowButton({
         setBusy(false);
       }
     };
+
+  if (ownProfile) {
+    return null;
+  }
 
   return (
     <Pressable
