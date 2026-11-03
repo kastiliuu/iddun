@@ -22,6 +22,7 @@ marketplace-page
 
 
 {% block content %}
+{% if current_user.is_authenticated %}{% include 'components/explore-tabs.html' %}{% endif %}
 
 <div
   class="marketplace-shell"

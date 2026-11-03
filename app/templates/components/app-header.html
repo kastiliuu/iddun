@@ -1,0 +1,210 @@
+{% from 'components/icon.html' import icon %}
+{% from 'components/_account_menu.html' import account_menu with context %}
+{#
+  Cabeçalho único das telas logadas (PR 1, D-SOC-04; FE-DEC-021, 022, 030).
+  Nasceu do cabeçalho do feed: busca com sugestões, Início, Explorar,
+  Reservas, Favoritos, Notificações e o menu Eu com os contextos da conta.
+  No feed (app_header_panels) Favoritos e Notificações abrem os painéis;
+  nas outras páginas levam ao feed com o painel já aberto.
+#}
+{% set endpoint = request.endpoint or '' %}
+{% set header_active = (
+  'home' if endpoint == 'feed.home'
+  else 'explore' if endpoint in ['public.experiences', 'public.experience_detail', 'public.professionals', 'public.professional_detail', 'public.establishments', 'public.establishment_detail']
+  else 'bookings' if endpoint.startswith('bookings.')
+  else ''
+) %}
+{% set header_avatar = current_user.client_profile.avatar_url if current_user.client_profile else None %}
+{% set header_saved = nav_saved_count() %}
+{% set header_unread = nav_unread_count() %}
+{% set header_contexts = nav_contexts() %}
+{% set header_context = (
+  'establishment' if endpoint.startswith('business.') and establishment is defined and establishment
+  else 'professional' if endpoint.startswith('professional.')
+  else 'client'
+) %}
+{% set header_context_id = establishment.id if header_context == 'establishment' else None %}
+
+<header class="feed-header" data-feed-header data-app-header>
+  <div class="feed-header__inner">
+    <a
+      class="feed-header__brand"
+      href="{{ url_for('feed.home') }}"
+      aria-label="IDDUN — ir para o início"
+    >
+      <img
+        src="{{ url_for('static', filename='img/branding/iddun-logo-white.png') }}"
+        alt="IDDUN"
+        width="128"
+        height="43"
+      >
+    </a>
+
+    <form
+      class="feed-search"
+      action="{{ url_for('public.experiences') }}"
+      method="get"
+      role="search"
+      data-feed-search
+    >
+      {{ icon('search', 'feed-search__icon') }}
+      <label class="sr-only" for="feed-global-search">
+        Buscar profissionais, procedimentos ou lugares
+      </label>
+      <input
+        id="feed-global-search"
+        name="q"
+        type="search"
+        value="{{ request.args.get('q', '') if header_active == 'explore' else '' }}"
+        placeholder="Buscar profissionais, procedimentos ou lugares"
+        autocomplete="off"
+        enterkeyhint="search"
+        aria-autocomplete="list"
+        aria-controls="feed-search-results"
+        aria-expanded="false"
+        data-feed-search-input
+      >
+      <div
+        id="feed-search-results"
+        class="feed-search-results"
+        role="listbox"
+        hidden
+        data-feed-search-results
+      ></div>
+    </form>
+
+    <nav class="feed-header__nav" aria-label="Navegação principal">
+      <a
+        class="feed-header__nav-item{% if header_active == 'home' %} is-active{% endif %}"
+        href="{{ url_for('feed.home') }}"
+        {% if header_active == 'home' %}aria-current="page"{% endif %}
+      >
+        {{ icon('home') }}
+        <span>Início</span>
+      </a>
+      <a
+        class="feed-header__nav-item{% if header_active == 'explore' %} is-active{% endif %}"
+        href="{{ url_for('public.experiences') }}"
+        {% if header_active == 'explore' %}aria-current="page"{% endif %}
+      >
+        {{ icon('compass') }}
+        <span>Explorar</span>
+      </a>
+      <a
+        class="feed-header__nav-item{% if header_active == 'bookings' %} is-active{% endif %}"
+        href="{{ url_for('bookings.mine') }}"
+        {% if header_active == 'bookings' %}aria-current="page"{% endif %}
+      >
+        {{ icon('calendar') }}
+        <span>Reservas</span>
+      </a>
+
+      {% set saved_label = 'Favoritos' ~ (', ' ~ header_saved ~ ' itens' if header_saved else '') %}
+      {% if app_header_panels %}
+      <button
+        class="feed-header__nav-item"
+        type="button"
+        aria-label="{{ saved_label }}"
+        aria-expanded="false"
+        aria-controls="feed-saved-panel"
+        data-saved-trigger
+      >
+      {% else %}
+      <a
+        class="feed-header__nav-item"
+        href="{{ url_for('feed.home') }}#feed-saved-panel"
+        aria-label="{{ saved_label }}"
+      >
+      {% endif %}
+        <span class="feed-header__icon-wrap">
+          {{ icon('bookmark') }}
+          {% if header_saved %}
+          <span class="feed-header__badge feed-header__badge--saved" aria-hidden="true">
+            {{ header_saved if header_saved < 100 else '99+' }}
+          </span>
+          {% endif %}
+        </span>
+        <span>Favoritos</span>
+      {% if app_header_panels %}</button>{% else %}</a>{% endif %}
+
+      {% set unread_label = 'Notificações' ~ (', ' ~ header_unread ~ ' não lidas' if header_unread else '') %}
+      {% if app_header_panels %}
+      <button
+        class="feed-header__nav-item feed-notification-trigger"
+        type="button"
+        aria-label="{{ unread_label }}"
+        aria-expanded="false"
+        aria-controls="feed-notification-panel"
+        data-notification-trigger
+      >
+      {% else %}
+      <a
+        class="feed-header__nav-item feed-notification-trigger"
+        href="{{ url_for('feed.home') }}#feed-notification-panel"
+        aria-label="{{ unread_label }}"
+      >
+      {% endif %}
+        <span class="feed-header__icon-wrap">
+          {{ icon('bell') }}
+          {% if header_unread %}
+          <span class="feed-header__badge" aria-hidden="true">
+            {{ header_unread if header_unread < 100 else '99+' }}
+          </span>
+          {% endif %}
+        </span>
+        <span>Notificações</span>
+      {% if app_header_panels %}</button>{% else %}</a>{% endif %}
+
+      <div class="feed-account-menu-wrap">
+        <button
+          class="feed-header__account"
+          type="button"
+          aria-expanded="false"
+          aria-controls="feed-account-menu"
+          data-account-menu-trigger
+        >
+          <span
+            class="feed-avatar feed-avatar--header{% if header_avatar %} has-image{% endif %}"
+            {% if header_avatar %}style="background-image:url('{{ header_avatar|media_url }}')"{% endif %}
+            aria-hidden="true"
+          >
+            {% if not header_avatar %}{{ current_user.name[:1]|upper }}{% endif %}
+          </span>
+          <span class="feed-header__account-label">Eu</span>
+          {{ icon('chevron-down') }}
+        </button>
+        {{ account_menu(header_contexts, header_context, header_context_id, header_avatar) }}
+      </div>
+    </nav>
+
+    <a
+      class="feed-header__mobile-bell"
+      href="{{ url_for('feed.home') }}#feed-notification-panel"
+      aria-label="{{ unread_label }}"
+    >
+      {{ icon('bell') }}
+      {% if header_unread %}
+      <span class="feed-header__badge" aria-hidden="true">
+        {{ header_unread if header_unread < 100 else '99+' }}
+      </span>
+      {% endif %}
+    </a>
+
+    <a
+      class="feed-header__mobile-account"
+      href="{{ url_for('account.dashboard') }}"
+      aria-label="Minha conta e contextos"
+    >
+      <span
+        class="feed-avatar feed-avatar--header{% if header_avatar %} has-image{% endif %}"
+        {% if header_avatar %}style="background-image:url('{{ header_avatar|media_url }}')"{% endif %}
+      >
+        {% if not header_avatar %}{{ current_user.name[:1]|upper }}{% endif %}
+      </span>
+    </a>
+  </div>
+
+  {% if app_header_panels %}
+    {% include 'feed/_header_panels.html' %}
+  {% endif %}
+</header>

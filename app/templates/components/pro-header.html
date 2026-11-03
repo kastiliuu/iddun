@@ -1,5 +1,9 @@
 {% from 'components/icon.html' import icon %}
-{# Shared navigation for all operational IDDUN Pro pages. #}
+{% from 'components/_account_menu.html' import account_menu with context %}
+{#
+  Navegação das páginas operacionais do IDDUN Pro (PR 1; FE-DEC-023):
+  Painel, Agenda, Serviços, Clientes e Mais. O menu Eu troca o contexto.
+#}
 <header class="pro-header">
   <div class="pro-header__inner">
     <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
@@ -9,34 +13,53 @@
 
     <nav class="pro-header__nav" aria-label="Navegação IDDUN Pro">
       <a href="{{ url_for('professional.dashboard') }}" {% if pro_active == 'home' %}class="is-active" aria-current="page"{% endif %}>
-        {{ icon('home') }}<span>Início</span>
+        {{ icon('home') }}<span>Painel</span>
       </a>
       <a href="{{ url_for('professional.dashboard') }}#agenda-hoje">
         {{ icon('calendar') }}<span>Agenda</span>
       </a>
+      <a href="{{ url_for('professional.services') }}" {% if pro_active == 'services' %}class="is-active" aria-current="page"{% endif %}>
+        {{ icon('scissors') }}<span>Serviços</span>
+      </a>
       <a href="{{ url_for('professional.clients') }}" {% if pro_active == 'clients' %}class="is-active" aria-current="page"{% endif %}>
         {{ icon('users') }}<span>Clientes</span>
       </a>
-      <a href="{{ url_for('professional.insights') }}" {% if pro_active == 'insights' %}class="is-active" aria-current="page"{% endif %}>
-        {{ icon('bar-chart-2') }}<span>Insights</span>
-      </a>
-      <a href="{{ url_for('professional.schedule') }}" {% if pro_active == 'schedule' %}class="is-active" aria-current="page"{% endif %}>
-        {{ icon('clock') }}<span>Jornada</span>
-      </a>
-      <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">
-        {{ icon('user') }}<span>Perfil público</span>
-      </a>
-      <a href="{{ url_for('feed.home') }}">
-        {{ icon('compass') }}<span>Cliente</span>
-      </a>
+      <div class="nav-more">
+        <button
+          type="button"
+          class="nav-more__trigger{% if pro_active in ['insights', 'schedule'] %} is-active{% endif %}"
+          aria-expanded="false"
+          aria-controls="pro-more-menu"
+          data-disclosure-trigger
+        >
+          {{ icon('menu') }}<span>Mais</span>
+        </button>
+        <div id="pro-more-menu" class="feed-account-menu nav-more__menu" hidden data-disclosure-panel>
+          <a href="{{ url_for('professional.insights') }}" {% if pro_active == 'insights' %}aria-current="page"{% endif %}>{{ icon('star') }} Insights</a>
+          <a href="{{ url_for('professional.schedule') }}" {% if pro_active == 'schedule' %}aria-current="page"{% endif %}>{{ icon('clock') }} Jornada semanal</a>
+          <a href="{{ url_for('professional.certifications') }}">{{ icon('award') }} Formação e certificações</a>
+          <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }} Editar perfil</a>
+          <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }} Ver perfil público</a>
+        </div>
+      </div>
     </nav>
 
-    <a class="pro-header__account" href="{{ url_for('professional.edit_profile') }}" aria-label="Editar meu perfil profissional">
-      <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
-        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
-        {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
-      </span>
-      <span>Eu</span>
-    </a>
+    <div class="feed-account-menu-wrap pro-header__account-wrap">
+      <button
+        class="pro-header__account"
+        type="button"
+        aria-expanded="false"
+        aria-controls="feed-account-menu"
+        aria-label="Eu: conta e troca de contexto"
+        data-account-menu-trigger
+      >
+        <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
+          {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
+          {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+        </span>
+        <span>Eu</span>
+      </button>
+      {{ account_menu(nav_contexts(), 'professional', None, profile.avatar_url) }}
+    </div>
   </div>
 </header>

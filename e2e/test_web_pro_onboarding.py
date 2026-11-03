@@ -87,7 +87,8 @@ def test_full_journey_publishes_only_when_asked(page: Page):
     expect(page.get_by_text("Reservas ainda não estão abertas", exact=False)).to_be_visible()
     _readable(page)
     page.get_by_role("link", name="Ver meu perfil público").click()
-    expect(page.get_by_text("Pro Etapas Navegador").first).to_be_visible()
+    # O menu Eu (fechado) do cabeçalho também traz o nome; conferimos a página.
+    expect(page.get_by_role("heading", level=1, name="Pro Etapas Navegador")).to_be_visible()
 
 
 def test_review_shows_what_is_missing_and_returns_after_fixing(page: Page):

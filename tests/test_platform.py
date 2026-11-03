@@ -628,9 +628,15 @@ def test_business_invitation_requires_professional_acceptance(
         f"/estabelecimentos/{slug}"
     ).get_data(as_text=True)
 
+    # Só a seção Equipe importa aqui: o cabeçalho único mostra o nome de
+    # quem está logado no menu Eu.
+    team_before_acceptance = public_before_acceptance.split(
+        'id="equipe"', 1
+    )[1].split("</section>", 1)[0]
+
     assert (
         "<strong>Pro Convidada</strong>"
-        not in public_before_acceptance
+        not in team_before_acceptance
     )
 
     _login_session(
@@ -666,9 +672,13 @@ def test_business_invitation_requires_professional_acceptance(
         f"/estabelecimentos/{slug}"
     ).get_data(as_text=True)
 
+    team_after_acceptance = public_after_acceptance.split(
+        'id="equipe"', 1
+    )[1].split("</section>", 1)[0]
+
     assert (
         "<strong>Pro Convidada</strong>"
-        in public_after_acceptance
+        in team_after_acceptance
     )
 
 

@@ -14,7 +14,7 @@ def test_real_client_login_feed_and_reservations(page: Page):
     page.locator('button[type="submit"][data-submit]').click()
 
     expect(page).to_have_url(re.compile(r"/feed(?:\?.*)?$"))
-    expect(page.get_by_role("navigation", name="Navegação do feed")).to_be_visible()
+    expect(page.locator("[data-app-header]").get_by_role("navigation", name="Navegação principal")).to_be_visible()
     expect(page.get_by_role("link", name="Reservas").first).to_be_visible()
 
     page.get_by_role("link", name="Reservas").first.click()
@@ -22,7 +22,7 @@ def test_real_client_login_feed_and_reservations(page: Page):
 
     # Authenticated user can return directly to the protected feed.
     page.goto("/feed")
-    expect(page.get_by_role("navigation", name="Navegação do feed")).to_be_visible()
+    expect(page.locator("[data-app-header]").get_by_role("navigation", name="Navegação principal")).to_be_visible()
 
 
 def test_anonymous_browser_is_redirected_from_private_feed(page: Page):

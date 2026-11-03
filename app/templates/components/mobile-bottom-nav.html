@@ -33,16 +33,16 @@
        ====================================================== -->
   <a
     href="{{ url_for('public.experiences') }}"
-    class="mobile-bottom-nav__item{% if current_page in ['experiences', 'establishments'] %} is-active{% endif %}"
-    {% if current_page in ['experiences', 'establishments'] %}
+    class="mobile-bottom-nav__item{% if current_page in ['experiences', 'establishments', 'professionals'] %} is-active{% endif %}"
+    {% if current_page in ['experiences', 'establishments', 'professionals'] %}
       aria-current="page"
     {% endif %}
-    aria-label="Descobrir serviços e experiências"
+    aria-label="Explorar serviços, profissionais e estabelecimentos"
   >
     {{ icon('compass', 'mobile-bottom-nav__icon') }}
 
     <span>
-      Descobrir
+      Explorar
     </span>
   </a>
 
@@ -50,8 +50,8 @@
   {% if current_user.is_authenticated %}
   <a
     href="{{ url_for('bookings.mine') }}"
-    class="mobile-bottom-nav__item{% if current_page in ['bookings', 'booking', 'reservations'] %} is-active{% endif %}"
-    {% if current_page in ['bookings', 'booking', 'reservations'] %}aria-current="page"{% endif %}
+    class="mobile-bottom-nav__item{% if (request.endpoint or '').startswith('bookings.') %} is-active{% endif %}"
+    {% if (request.endpoint or '').startswith('bookings.') %}aria-current="page"{% endif %}
     aria-label="Minhas reservas"
   >
     {{ icon('calendar', 'mobile-bottom-nav__icon') }}
@@ -61,16 +61,16 @@
   <a
     href="{{ url_for('feed.home') }}#feed-saved-panel"
     class="mobile-bottom-nav__item"
-    aria-label="Meus itens salvos"
+    aria-label="Favoritos: perfis seguidos e itens salvos"
   >
     {{ icon('bookmark', 'mobile-bottom-nav__icon') }}
-    <span>Salvos</span>
+    <span>Favoritos</span>
   </a>
 
   <a
     href="{{ url_for('account.dashboard') }}"
-    class="mobile-bottom-nav__item{% if current_page == 'account' %} is-active{% endif %}"
-    {% if current_page == 'account' %}aria-current="page"{% endif %}
+    class="mobile-bottom-nav__item{% if current_page == 'account' and not (request.endpoint or '').startswith('bookings.') %} is-active{% endif %}"
+    {% if current_page == 'account' and not (request.endpoint or '').startswith('bookings.') %}aria-current="page"{% endif %}
     aria-label="Abrir meu perfil"
   >
     {{ icon('user', 'mobile-bottom-nav__icon') }}

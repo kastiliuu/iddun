@@ -6,6 +6,7 @@
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/professionals.css') }}">{% endblock %}
 
 {% block content %}
+{% if current_user.is_authenticated %}{% include 'components/explore-tabs.html' %}{% endif %}
 <section class="professionals-hero establishments-hero">
   <div class="container professionals-hero__inner">
     <div data-reveal>
