@@ -59,6 +59,15 @@ import {
 } from "@/theme";
 
 
+const MAX_IMAGES = 10;
+
+const AUTHOR_LABEL: Record<WorkPostAuthorKind, string> = {
+  client: "Cliente",
+  professional: "Profissional",
+  establishment: "Empresa",
+};
+
+
 export default function CreatePostScreen() {
   const styles =
     useStyles();
@@ -86,13 +95,17 @@ export default function CreatePostScreen() {
   ] =
     useState(true);
 
+  // Carrossel até 10 fotos, com texto alternativo (PR 3; D-SOC-02).
   const [
-    image,
-    setImage,
+    images,
+    setImages,
   ] =
-    useState<UploadableImage | null>(
-      null,
-    );
+    useState<
+      {
+        image: UploadableImage;
+        alt: string;
+      }[]
+    >([]);
 
   const [
     caption,
@@ -233,6 +246,15 @@ export default function CreatePostScreen() {
         return;
       }
 
+      if (images.length >= MAX_IMAGES) {
+        toast.show({
+          title: "Limite de fotos",
+          body: `Uma publicação pode ter até ${MAX_IMAGES} fotos.`,
+          icon: "alert-circle",
+        });
+        return;
+      }
+
       try {
         setMediaBusy(
           true,
@@ -245,8 +267,14 @@ export default function CreatePostScreen() {
           );
 
         if (prepared) {
-          setImage(
-            prepared,
+          setImages(
+            (current) => [
+              ...current,
+              {
+                image: prepared,
+                alt: "",
+              },
+            ].slice(0, MAX_IMAGES),
           );
         }
       } catch (error) {
@@ -289,7 +317,8 @@ export default function CreatePostScreen() {
   const publish =
     async () => {
       if (
-        !image ||
+        (!images.length &&
+          !caption.trim()) ||
         !authorType ||
         !authorId
       ) {
@@ -297,7 +326,7 @@ export default function CreatePostScreen() {
           title:
             "Complete a publicação",
           body:
-            "Escolha uma imagem e um perfil autor.",
+            "Escreva um texto ou adicione uma foto.",
           icon:
             "alert-circle",
         });
@@ -313,10 +342,13 @@ export default function CreatePostScreen() {
           await createPost({
             authorType,
             authorId,
-            image,
+            images,
             caption:
               caption.trim(),
-            experienceId,
+            experienceId:
+              authorType === "client"
+                ? null
+                : experienceId,
             status:
               "published",
           });
@@ -520,22 +552,93 @@ export default function CreatePostScreen() {
                   styles.sectionLabel
                 }
               >
-                IMAGEM
+                {`FOTOS (${images.length}/${MAX_IMAGES})`}
               </Text>
 
-              {image ? (
-                <Image
-                  source={{
-                    uri:
-                      image.uri,
-                  }}
-                  style={
-                    styles.preview
-                  }
-                  contentFit="cover"
-                  transition={160}
-                  accessibilityLabel="Prévia da publicação"
-                />
+              {images.length ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.thumbs}
+                >
+                  {images.map((item, index) => (
+                    <View
+                      key={`${item.image.uri}-${index}`}
+                      style={styles.thumb}
+                    >
+                      <Image
+                        source={{ uri: item.image.uri }}
+                        style={styles.thumbImage}
+                        contentFit="cover"
+                        accessibilityLabel={`Foto ${index + 1} de ${images.length}`}
+                      />
+                      <TextInput
+                        value={item.alt}
+                        onChangeText={(value) =>
+                          setImages((current) =>
+                            current.map((entry, position) =>
+                              position === index
+                                ? { ...entry, alt: value }
+                                : entry,
+                            ),
+                          )
+                        }
+                        placeholder="Descreva a foto"
+                        placeholderTextColor={colors.muted}
+                        maxLength={300}
+                        style={styles.altInput}
+                        accessibilityLabel={`Texto alternativo da foto ${index + 1}`}
+                      />
+                      <View style={styles.thumbControls}>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Mover foto ${index + 1} para antes`}
+                          disabled={index === 0}
+                          onPress={() =>
+                            setImages((current) => {
+                              const next = [...current];
+                              [next[index - 1], next[index]] = [next[index], next[index - 1]];
+                              return next;
+                            })
+                          }
+                          style={[styles.thumbButton, index === 0 && styles.thumbButtonDisabled]}
+                        >
+                          <Icon name="arrow-left" size={16} color={colors.onSurface} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Mover foto ${index + 1} para depois`}
+                          disabled={index === images.length - 1}
+                          onPress={() =>
+                            setImages((current) => {
+                              const next = [...current];
+                              [next[index + 1], next[index]] = [next[index], next[index + 1]];
+                              return next;
+                            })
+                          }
+                          style={[
+                            styles.thumbButton,
+                            index === images.length - 1 && styles.thumbButtonDisabled,
+                          ]}
+                        >
+                          <Icon name="arrow-right" size={16} color={colors.onSurface} />
+                        </Pressable>
+                        <Pressable
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remover foto ${index + 1}`}
+                          onPress={() =>
+                            setImages((current) =>
+                              current.filter((_, position) => position !== index),
+                            )
+                          }
+                          style={styles.thumbButton}
+                        >
+                          <Icon name="x" size={16} color={colors.onSurface} />
+                        </Pressable>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
               ) : (
                 <View
                   style={
@@ -555,7 +658,7 @@ export default function CreatePostScreen() {
                       styles.placeholderTitle
                     }
                   >
-                    Escolha o trabalho que você quer mostrar
+                    Fotos são opcionais
                   </Text>
 
                   <Text
@@ -563,7 +666,7 @@ export default function CreatePostScreen() {
                       styles.placeholderText
                     }
                   >
-                    A imagem será otimizada antes do envio.
+                    {`Até ${MAX_IMAGES} fotos, na ordem que você escolher. Também dá para publicar só texto.`}
                   </Text>
                 </View>
               )}
@@ -716,7 +819,10 @@ export default function CreatePostScreen() {
                             author.type ===
                             "establishment"
                               ? "home"
-                              : "user"
+                              : author.type ===
+                                  "professional"
+                                ? "briefcase"
+                                : "user"
                           }
                           size={17}
                           color={
@@ -734,7 +840,7 @@ export default function CreatePostScreen() {
                           ]}
                           numberOfLines={1}
                         >
-                          {author.name}
+                          {`${author.name} · ${AUTHOR_LABEL[author.type]}`}
                         </Text>
                       </Pressable>
                     );
@@ -753,7 +859,7 @@ export default function CreatePostScreen() {
                   styles.sectionLabel
                 }
               >
-                LEGENDA
+                TEXTO
               </Text>
 
               <TextInput
@@ -785,6 +891,7 @@ export default function CreatePostScreen() {
               </Text>
             </View>
 
+            {authorType !== "client" ? (
             <View
               style={
                 styles.section
@@ -899,6 +1006,7 @@ export default function CreatePostScreen() {
                 },
               )}
             </View>
+            ) : null}
 
             <View
               style={
@@ -918,17 +1026,18 @@ export default function CreatePostScreen() {
                   styles.hint
                 }
               >
-                Você poderá editar a legenda ou arquivar a publicação depois.
+                Audiência: Público. Você poderá editar a legenda ou remover a publicação depois.
               </Text>
 
               <Button
-                title="Publicar trabalho"
+                title="Publicar"
                 fullWidth
                 loading={
                   publishing
                 }
                 disabled={
-                  !image ||
+                  (!images.length &&
+                    !caption.trim()) ||
                   !authorType ||
                   !authorId
                 }
@@ -954,6 +1063,50 @@ export default function CreatePostScreen() {
 const useStyles =
   makeStyles(
     (colors) => ({
+      thumbs: {
+        gap: spacing.md,
+      },
+
+      thumb: {
+        width: 148,
+        gap: spacing.sm,
+      },
+
+      thumbImage: {
+        width: 148,
+        height: 148,
+        borderRadius: radius.md,
+      },
+
+      altInput: {
+        minHeight: 44,
+        paddingHorizontal: spacing.sm,
+        borderRadius: radius.sm,
+        borderWidth: 1,
+        borderColor: colors.glassBorderStrong,
+        color: colors.onSurface,
+        fontFamily: fonts.sans,
+        fontSize: 13,
+      },
+
+      thumbControls: {
+        flexDirection: "row",
+        gap: spacing.xs,
+      },
+
+      thumbButton: {
+        width: 44,
+        height: 44,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: radius.sm,
+        backgroundColor: colors.glassSoft,
+      },
+
+      thumbButtonDisabled: {
+        opacity: 0.4,
+      },
+
       container: {
         flex: 1,
         backgroundColor:

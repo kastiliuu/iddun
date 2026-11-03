@@ -15,6 +15,7 @@ import {
 
 import {
   imageFormData,
+  readImageBlob,
   type UploadableImage,
 } from "@/api/media";
 
@@ -24,17 +25,21 @@ export type FeedMode =
   | "following";
 
 export type WorkPostAuthorKind =
+  | "client"
   | "professional"
   | "establishment";
 
 export type WorkPostStatus =
   | "draft"
   | "published"
-  | "archived";
+  | "archived"
+  | "hidden"
+  | "removed";
 
 export type WorkPostAuthor = {
   id: string;
-  routeId: string;
+  /** Nulo para Cliente, que ainda não tem perfil público (PR 4). */
+  routeId: string | null;
   kind: WorkPostAuthorKind;
   name: string;
   avatar?: string | null;
@@ -52,12 +57,26 @@ export type WorkPostService = {
   category?: string | null;
 };
 
+export type WorkPostMedia = {
+  url: string;
+  focusX: number;
+  focusY: number;
+  alt: string;
+};
+
 export type WorkPost = {
   id: string;
   authorId: string;
   authorKind: WorkPostAuthorKind;
   author: WorkPostAuthor;
-  image: string;
+  /** Primeira imagem; nula em publicação só de texto (PR 3). */
+  image: string | null;
+  /** Carrossel até 10 imagens, na ordem escolhida. */
+  media?: WorkPostMedia[];
+  likesCount?: number;
+  likedByMe?: boolean;
+  /** A conta pode remover este post (autoria). */
+  mine?: boolean;
   imageFocusX: number;
   imageFocusY: number;
   caption: string;
@@ -105,7 +124,13 @@ export type CreatorOptions = {
 export type CreatePostPayload = {
   authorType: WorkPostAuthorKind;
   authorId?: number | null;
-  image: UploadableImage;
+  /** Até 10 imagens; nenhuma vale para publicação só de texto. */
+  images?: {
+    image: UploadableImage;
+    alt?: string;
+  }[];
+  /** Formato antigo, uma imagem. */
+  image?: UploadableImage;
   caption?: string;
   experienceId?: number | null;
   status?: Extract<
@@ -198,7 +223,24 @@ async function withAuthenticatedRequest<T>(
 async function postFormData(
   payload: CreatePostPayload,
 ) {
-  const form = await imageFormData(payload.image);
+  const form = new FormData();
+  const images =
+    payload.images ??
+    (payload.image
+      ? [{ image: payload.image }]
+      : []);
+
+  for (const item of images) {
+    form.append(
+      "images",
+      await readImageBlob(item.image),
+      item.image.name,
+    );
+    form.append(
+      "altTexts",
+      item.alt?.trim() ?? "",
+    );
+  }
 
   form.append(
     "authorType",
@@ -452,4 +494,151 @@ export async function unfavoritePost(
     favorited:
       response.saved,
   };
+}
+
+
+// --------------------------------------------------------------------
+// Curtir, comentar e denunciar (PR 3; DEC-ID-035, 229, 231, 275).
+
+export type PostComment = {
+  id: string;
+  body: string;
+  author: {
+    name: string;
+    avatar?: string | null;
+  };
+  createdAt: string | null;
+  parentId: string | null;
+  mine: boolean;
+  canDelete: boolean;
+  canHide: boolean;
+  replies?: PostComment[];
+};
+
+export type PostCommentsResponse = {
+  items: PostComment[];
+  total: number;
+  canModerate: boolean;
+};
+
+export type ReportCategory =
+  | "spam"
+  | "sexual"
+  | "violence"
+  | "harassment"
+  | "misinformation"
+  | "image_rights"
+  | "other";
+
+/** D-SOC-10. */
+export const REPORT_CATEGORIES: {
+  id: ReportCategory;
+  label: string;
+}[] = [
+  { id: "spam", label: "Spam ou golpe" },
+  { id: "sexual", label: "Conteúdo sexual" },
+  { id: "violence", label: "Violência ou ódio" },
+  { id: "harassment", label: "Assédio ou bullying" },
+  { id: "misinformation", label: "Informação falsa" },
+  { id: "image_rights", label: "Uso indevido de imagem ou direito autoral" },
+  { id: "other", label: "Outro motivo" },
+];
+
+
+export function setPostLike(
+  postId: string,
+  liked: boolean,
+) {
+  return withAuthenticatedRequest(
+    (token) => {
+      const path = `/api/v1/posts/${postId}/like`;
+      return liked
+        ? api.put<{ liked: boolean; likesCount: number }>(path, {}, { token })
+        : api.delete<{ liked: boolean; likesCount: number }>(path, { token });
+    },
+  );
+}
+
+
+export async function getPostComments(
+  postId: string,
+) {
+  const token =
+    await getAccessToken();
+
+  return api.get<PostCommentsResponse>(
+    `/api/v1/posts/${postId}/comments`,
+    token
+      ? { token }
+      : undefined,
+  );
+}
+
+
+export function addPostComment(
+  postId: string,
+  body: string,
+  parentId?: string | null,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.post<{ comment: PostComment }>(
+        `/api/v1/posts/${postId}/comments`,
+        { body, parentId: parentId ?? null },
+        { token },
+      ),
+  );
+}
+
+
+export function deletePostComment(
+  commentId: string,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.delete<{ success: boolean }>(
+        `/api/v1/comments/${commentId}`,
+        { token },
+      ),
+  );
+}
+
+
+export function hidePostComment(
+  commentId: string,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.post<{ success: boolean }>(
+        `/api/v1/comments/${commentId}/hide`,
+        {},
+        { token },
+      ),
+  );
+}
+
+
+/** Sem protocolo nem confirmação para quem denuncia (DEC-ID-275 B). */
+export function reportContent(
+  target: "post" | "comment",
+  targetId: string,
+  category: ReportCategory,
+  description?: string,
+) {
+  const path =
+    target === "post"
+      ? `/api/v1/posts/${targetId}/report`
+      : `/api/v1/comments/${targetId}/report`;
+
+  return withAuthenticatedRequest(
+    (token) =>
+      api.post<null>(
+        path,
+        {
+          category,
+          description: description?.trim() || null,
+        },
+        { token },
+      ),
+  );
 }

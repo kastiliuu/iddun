@@ -462,6 +462,15 @@ export default function HomeScreen() {
             undefined,
         }}
         image={post.image}
+        media={post.media}
+        likesCount={post.likesCount}
+        likedByMe={post.likedByMe}
+        mine={post.mine}
+        onRemoved={() =>
+          setFeedPosts((current) =>
+            current.filter((item) => item.id !== post.id),
+          )
+        }
         caption={
           post.caption
         }

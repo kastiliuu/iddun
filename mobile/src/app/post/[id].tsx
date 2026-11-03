@@ -35,8 +35,17 @@ import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { FollowButton } from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
+import {
+  LikeButton,
+  MediaCarousel,
+} from "@/components/PostCard";
+import {
+  ReportModal,
+  type ReportTarget,
+} from "@/components/ReportModal";
 import { Rating } from "@/components/Rating";
 import { useToast } from "@/components/Toast";
+import { store } from "@/store/local";
 
 import {
   pickAndPrepareImage,
@@ -63,6 +72,8 @@ export default function PostDetailScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
+  const [report, setReport] =
+    useState<ReportTarget | null>(null);
 
   const params =
     useLocalSearchParams<{
@@ -245,6 +256,11 @@ export default function PostDetailScreen() {
   }
 
   const openAuthor = () => {
+    // Cliente ainda não tem perfil público (PR 4).
+    if (author.kind === "client" || !author.routeId) {
+      return;
+    }
+
     router.push(
       author.kind ===
         "establishment"
@@ -624,6 +640,33 @@ export default function PostDetailScreen() {
             Publicação
           </Text>
 
+          {!post.canManage ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Denunciar publicação"
+              onPress={() => {
+                if (!store.getUser()) {
+                  router.push("/login");
+                  return;
+                }
+                setReport({ type: "post", id: post.id });
+              }}
+              style={({ pressed }) => [
+                styles.headerButton,
+                pressed &&
+                  styles.pressed,
+              ]}
+            >
+              <Icon
+                name="flag"
+                size={18}
+                color={
+                  colors.onSurface
+                }
+              />
+            </Pressable>
+          ) : null}
+
           {post.canManage ? (
             <Pressable
               accessibilityRole="button"
@@ -712,36 +755,38 @@ export default function PostDetailScreen() {
             </View>
           </Pressable>
 
-          <FollowButton
-            id={
-              author.id
-            }
-            targetType={
-              author.kind
-            }
-            authorName={
-              author.name
-            }
-          />
+          {author.kind !== "client" ? (
+            <FollowButton
+              id={
+                author.id
+              }
+              targetType={
+                author.kind
+              }
+              authorName={
+                author.name
+              }
+            />
+          ) : null}
         </View>
 
-        <View
-          style={
-            styles.mediaWrap
-          }
-        >
-          <Image
-            source={{
-              uri: post.image,
-            }}
+        {(post.media?.length || post.image) ? (
+          <View
             style={
-              styles.image
+              styles.mediaWrap
             }
-            contentFit="cover"
-            transition={220}
-            accessibilityLabel={`Publicação de ${author.name}`}
-          />
-        </View>
+          >
+            <MediaCarousel
+              media={
+                post.media?.length
+                  ? post.media
+                  : [{ url: post.image as string }]
+              }
+              authorName={author.name}
+              onPress={() => {}}
+            />
+          </View>
+        ) : null}
 
         <View
           style={
@@ -753,6 +798,12 @@ export default function PostDetailScreen() {
               styles.leftActions
             }
           >
+            <LikeButton
+              postId={post.id}
+              initialLiked={Boolean(post.likedByMe)}
+              initialCount={post.likesCount ?? 0}
+            />
+
             <FavoriteButton
               kind="posts"
               id={post.id}
@@ -1223,6 +1274,11 @@ export default function PostDetailScreen() {
             "/login",
           );
         }}
+      />
+
+      <ReportModal
+        target={report}
+        onClose={() => setReport(null)}
       />
     </View>
   );

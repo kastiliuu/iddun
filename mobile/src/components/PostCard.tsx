@@ -1,6 +1,11 @@
-import React from "react";
+import React, {
+  useState,
+} from "react";
 import {
+  Alert,
+  Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
 } from "react-native";
@@ -12,6 +17,16 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { FollowButton } from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
 import { Rating } from "@/components/Rating";
+import {
+  ReportModal,
+  type ReportTarget,
+} from "@/components/ReportModal";
+import { useToast } from "@/components/Toast";
+import {
+  deletePost,
+  setPostLike,
+} from "@/api/feed";
+import { store } from "@/store/local";
 
 import {
   fonts,
@@ -23,6 +38,7 @@ import {
 } from "@/theme";
 
 type PostAuthorKind =
+  | "client"
   | "professional"
   | "establishment";
 
@@ -31,14 +47,31 @@ type PostCardProps = {
 
   author: {
     id: string;
-    routeId?: string;
+    /** Cliente ainda não tem perfil público (PR 4). */
+    routeId?: string | null;
     name: string;
     avatar?: string | null;
     kind: PostAuthorKind;
     specialty?: string;
   };
 
-  image: string;
+  /** Primeira imagem; nula em publicação só de texto (PR 3). */
+  image: string | null;
+
+  /** Carrossel até 10 imagens, na ordem escolhida. */
+  media?: {
+    url: string;
+    alt?: string;
+  }[];
+
+  likesCount?: number;
+
+  likedByMe?: boolean;
+
+  /** A conta pode remover este post (autoria). */
+  mine?: boolean;
+
+  onRemoved?: () => void;
 
   caption?: string;
 
@@ -69,10 +102,161 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
+/**
+ * Curtir (PR 3): uma curtida por pessoa, contada no servidor.
+ */
+export function LikeButton({
+  postId,
+  initialLiked,
+  initialCount,
+}: {
+  postId: string;
+  initialLiked: boolean;
+  initialCount: number;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const router = useRouter();
+  const toast = useToast();
+  const [liked, setLiked] = useState(initialLiked);
+  const [count, setCount] = useState(initialCount);
+  const [busy, setBusy] = useState(false);
+
+  const toggle = async () => {
+    if (busy) {
+      return;
+    }
+
+    if (!store.getUser()) {
+      router.push("/login");
+      return;
+    }
+
+    const next = !liked;
+    const before = count;
+    setLiked(next);
+    setCount(Math.max(0, before + (next ? 1 : -1)));
+    setBusy(true);
+
+    try {
+      const response = await setPostLike(postId, next);
+      setLiked(response.liked);
+      setCount(response.likesCount);
+    } catch (error) {
+      setLiked(!next);
+      setCount(before);
+      toast.show({
+        title: "Não foi possível curtir",
+        body: error instanceof Error ? error.message : "Tente novamente.",
+        icon: "alert-circle",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Curtir, ${count} curtida${count === 1 ? "" : "s"}`}
+      accessibilityState={{ selected: liked, busy }}
+      hitSlop={6}
+      onPress={() => void toggle()}
+      style={({ pressed }) => [
+        styles.countButton,
+        pressed && styles.pressed,
+      ]}
+    >
+      <Icon
+        name="heart"
+        size={21}
+        color={liked ? colors.plum : colors.onSurface}
+      />
+      <Text style={[styles.countText, liked && styles.countTextActive]}>
+        {count}
+      </Text>
+    </Pressable>
+  );
+}
+
+export function MediaCarousel({
+  media,
+  authorName,
+  onPress,
+}: {
+  media: { url: string; alt?: string }[];
+  authorName: string;
+  onPress: () => void;
+}) {
+  const styles = useStyles();
+  const [width, setWidth] = useState(0);
+  const [index, setIndex] = useState(0);
+  const total = media.length;
+
+  return (
+    <View
+      style={styles.mediaPressable}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+    >
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={total > 1}
+        onMomentumScrollEnd={(event) => {
+          if (width > 0) {
+            setIndex(Math.round(event.nativeEvent.contentOffset.x / width));
+          }
+        }}
+        accessibilityLabel={
+          total > 1
+            ? `Carrossel com ${total} imagens de ${authorName}`
+            : undefined
+        }
+      >
+        {media.map((item, position) => (
+          <Pressable
+            key={`${item.url}-${position}`}
+            accessibilityRole="button"
+            accessibilityLabel={
+              item.alt
+              || (total > 1
+                ? `Imagem ${position + 1} de ${total} publicada por ${authorName}`
+                : `Publicação de ${authorName}`)
+            }
+            onPress={onPress}
+            style={{ width: width || undefined }}
+          >
+            <Image
+              source={{ uri: item.url }}
+              style={styles.image}
+              contentFit="cover"
+              transition={220}
+            />
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      {total > 1 ? (
+        <View style={styles.mediaCount} accessibilityLiveRegion="polite">
+          <Text style={styles.mediaCountText}>
+            {`${index + 1} de ${total}`}
+          </Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function PostCard({
   id,
   author,
   image,
+  media,
+  likesCount = 0,
+  likedByMe = false,
+  mine = false,
+  onRemoved,
   caption,
   rating,
   service,
@@ -86,8 +270,70 @@ export function PostCard({
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
+  const toast = useToast();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [report, setReport] = useState<ReportTarget | null>(null);
+
+  const gallery =
+    media && media.length
+      ? media
+      : image
+        ? [{ url: image }]
+        : [];
+
+  const hasProfile = author.kind !== "client" && Boolean(author.routeId ?? author.id);
+
+  const removePost = () => {
+    setMenuOpen(false);
+    Alert.alert(
+      "Remover publicação?",
+      "Ela sai do feed e as imagens são apagadas.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Remover",
+          style: "destructive",
+          onPress: () => {
+            deletePost(id)
+              .then(() => {
+                toast.show({
+                  title: "Publicação removida",
+                  icon: "check",
+                });
+                onRemoved?.();
+              })
+              .catch((error) => {
+                toast.show({
+                  title: "Não foi possível remover",
+                  body: error instanceof Error ? error.message : "Tente novamente.",
+                  icon: "alert-circle",
+                });
+              });
+          },
+        },
+      ],
+    );
+  };
+
+  const openMenu = () => {
+    if (onMorePress) {
+      onMorePress();
+      return;
+    }
+
+    if (!store.getUser()) {
+      router.push("/login");
+      return;
+    }
+
+    setMenuOpen(true);
+  };
 
   const openAuthor = () => {
+    if (!hasProfile) {
+      return;
+    }
+
     router.push(
       author.kind === "establishment"
         ? `/establishment/${author.routeId ?? author.id}`
@@ -118,8 +364,9 @@ export function PostCard({
     >
       <View style={styles.header}>
         <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Abrir perfil de ${author.name}`}
+          accessibilityRole={hasProfile ? "button" : undefined}
+          accessibilityLabel={hasProfile ? `Abrir perfil de ${author.name}` : author.name}
+          disabled={!hasProfile}
           onPress={openAuthor}
           style={({ pressed }) => [
             styles.authorArea,
@@ -152,7 +399,7 @@ export function PostCard({
         </Pressable>
 
         <View style={styles.headerActions}>
-          {showFollow ? (
+          {showFollow && author.kind !== "client" ? (
             <FollowButton
               id={author.id}
               targetType={author.kind}
@@ -160,12 +407,12 @@ export function PostCard({
             />
           ) : null}
 
-          {onMorePress ? (
+          {(
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Mais opções"
+              accessibilityLabel="Mais opções da publicação"
               hitSlop={8}
-              onPress={onMorePress}
+              onPress={openMenu}
               style={({ pressed }) => [
                 styles.iconButton,
                 pressed && styles.pressed,
@@ -177,30 +424,38 @@ export function PostCard({
                 color={colors.onSurfaceSecondary}
               />
             </Pressable>
-          ) : null}
+          )}
         </View>
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Abrir publicação"
-        onPress={openPost}
-        style={({ pressed }) => [
-          styles.mediaPressable,
-          pressed && styles.mediaPressed,
-        ]}
-      >
-        <Image
-          source={{ uri: image }}
-          style={styles.image}
-          contentFit="cover"
-          transition={220}
-          accessibilityLabel={`Publicação de ${author.name}`}
+      {gallery.length ? (
+        <MediaCarousel
+          media={gallery}
+          authorName={author.name}
+          onPress={openPost}
         />
-      </Pressable>
+      ) : caption ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Abrir publicação"
+          onPress={openPost}
+          style={({ pressed }) => [
+            styles.textPost,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Text style={styles.textPostBody}>{caption}</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.actions}>
         <View style={styles.leftActions}>
+          <LikeButton
+            postId={id}
+            initialLiked={likedByMe}
+            initialCount={likesCount}
+          />
+
           <FavoriteButton
             kind="posts"
             id={id}
@@ -228,6 +483,7 @@ export function PostCard({
               size={21}
               color={colors.onSurface}
             />
+            <Text style={styles.countText}>{commentsCount}</Text>
           </Pressable>
 
           {onSharePress ? (
@@ -255,7 +511,7 @@ export function PostCard({
         ) : null}
       </View>
 
-      {caption ? (
+      {caption && gallery.length ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Abrir publicação completa"
@@ -357,10 +613,16 @@ export function PostCard({
             </View>
           </Pressable>
 
+          {/* DEC-ID-037: Agendar só com disponibilidade real; sem ela, o
+              cartão leva ao serviço. */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`Agendar ${service.name}`}
-            onPress={openBooking}
+            accessibilityLabel={
+              service.availabilityLabel
+                ? `Agendar ${service.name}`
+                : `Ver serviço ${service.name}`
+            }
+            onPress={service.availabilityLabel ? openBooking : openService}
             style={({ pressed }) => [
               styles.bookButton,
               pressed &&
@@ -368,7 +630,7 @@ export function PostCard({
             ]}
           >
             <Text style={styles.bookText}>
-              Agendar
+              {service.availabilityLabel ? "Agendar" : "Ver serviço"}
             </Text>
 
             <Icon
@@ -381,11 +643,141 @@ export function PostCard({
           </Pressable>
         </View>
       ) : null}
+
+      <Modal
+        visible={menuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuOpen(false)}
+      >
+        <Pressable
+          accessibilityLabel="Fechar menu"
+          style={styles.menuBackdrop}
+          onPress={() => setMenuOpen(false)}
+        >
+          <View style={styles.menuSheet} accessibilityViewIsModal>
+            {mine ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={removePost}
+                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+              >
+                <Icon name="trash-2" size={18} color={colors.error} />
+                <Text style={styles.menuText}>Remover publicação</Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setMenuOpen(false);
+                  setReport({ type: "post", id });
+                }}
+                style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+              >
+                <Icon name="flag" size={18} color={colors.onSurface} />
+                <Text style={styles.menuText}>Denunciar publicação</Text>
+              </Pressable>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setMenuOpen(false)}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.pressed]}
+            >
+              <Icon name="x" size={18} color={colors.muted} />
+              <Text style={styles.menuText}>Cancelar</Text>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <ReportModal
+        target={report}
+        onClose={() => setReport(null)}
+      />
     </View>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
+  countButton: {
+    minHeight: touch.minimum,
+    minWidth: touch.minimum,
+    paddingHorizontal: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+  },
+
+  countText: {
+    color: colors.onSurfaceSecondary,
+    fontFamily: fonts.sansMedium,
+    fontSize: 13,
+  },
+
+  countTextActive: {
+    color: colors.plum,
+  },
+
+  mediaCount: {
+    position: "absolute",
+    top: spacing.md,
+    right: spacing.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.overlayInk,
+  },
+
+  mediaCountText: {
+    color: colors.white,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: 12,
+  },
+
+  textPost: {
+    marginHorizontal: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSecondary,
+  },
+
+  textPostBody: {
+    color: colors.onSurface,
+    fontFamily: fonts.sans,
+    fontSize: 17,
+    lineHeight: 25,
+  },
+
+  menuBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: colors.overlayInk,
+  },
+
+  menuSheet: {
+    padding: spacing.lg,
+    gap: spacing.xs,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    backgroundColor: colors.surfaceSecondary,
+  },
+
+  menuItem: {
+    minHeight: touch.minimum + 4,
+    paddingHorizontal: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    borderRadius: radius.sm,
+  },
+
+  menuText: {
+    color: colors.onSurface,
+    fontFamily: fonts.sansMedium,
+    fontSize: 16,
+  },
+
   card: {
     width: "100%",
     backgroundColor:
