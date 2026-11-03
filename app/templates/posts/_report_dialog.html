@@ -1,0 +1,32 @@
+{#
+  Janela de denúncia (PR 3; D-SOC-10, DEC-ID-272, 275 B). Uma por página;
+  posts.js preenche o alvo e abre. Ao enviar, a janela fecha sem protocolo
+  nem confirmação. Denúncia não apaga nada: vai para a fila da equipe.
+#}
+{% if current_user.is_authenticated %}
+<dialog class="report-dialog" aria-labelledby="report-dialog-title" data-report-dialog>
+  <form method="post" action="{{ url_for('posts.report') }}" data-report-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="target_type" value="post" data-report-type>
+    <input type="hidden" name="target_id" value="" data-report-id>
+    <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+    <h2 id="report-dialog-title">Denunciar</h2>
+    <p>Conte o que está errado. A equipe do IDDUN analisa; nada é apagado automaticamente.</p>
+    <fieldset>
+      <legend>Motivo</legend>
+      {% for value, label in report_categories.items() %}
+      <label class="report-dialog__option">
+        <input type="radio" name="category" value="{{ value }}" required>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    <label class="report-dialog__description" for="report-description">Descrição (opcional)</label>
+    <textarea id="report-description" name="description" rows="3" maxlength="1000"></textarea>
+    <div class="report-dialog__actions">
+      <button type="button" class="btn btn-outline btn-outline--light btn-sm" data-report-cancel>Cancelar</button>
+      <button type="submit" class="btn btn--ds-primary btn-sm">Enviar</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}

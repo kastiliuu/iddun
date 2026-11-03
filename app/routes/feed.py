@@ -17,6 +17,8 @@ from app.services.client_feed_service import (
     client_feed_context,
     client_feed_page,
 )
+from app.models.work_post import ReportCategory
+from app.services.work_post_service import creator_options
 
 
 feed_bp = Blueprint(
@@ -47,6 +49,9 @@ def home():
     return render_template(
         "feed/index.html",
         current_page="feed",
+        # PR 3: compositor e janela de denúncia.
+        composer=creator_options(current_user),
+        report_categories=ReportCategory.LABELS,
         **context,
     )
 

@@ -165,7 +165,10 @@ def test_mobile_post_upload_reuses_real_blob_multipart_builder():
     feed = _read("mobile/src/api/feed.ts")
     media = _read("mobile/src/api/media.ts")
     assert "export async function imageFormData(" in media
-    assert "await imageFormData(payload.image)" in feed
+    # PR 3: o carrossel lê cada foto como Blob real pelo mesmo leitor.
+    assert "export async function readImageBlob(" in media
+    assert "const blob = await readImageBlob(image);" in media
+    assert "await readImageBlob(item.image)" in feed
     assert "await imageFormData(image, {focusX, focusY})" in feed
     assert "await postFormData(payload)" in feed
     assert "as unknown as Blob" not in feed

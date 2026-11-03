@@ -29,6 +29,7 @@ def _viewer(user):
         "follows": set(),
         "saves": set(),
         "own_professional": None,
+        "own_client": None,
         "owned_establishments": set(),
     }
 
@@ -42,6 +43,8 @@ def _viewer(user):
         }
         profile = user.professional_profile
         state["own_professional"] = profile.id if profile is not None else None
+        client = user.client_profile
+        state["own_client"] = client.id if client is not None else None
         state["owned_establishments"] = set(
             db.session.scalars(
                 select(EstablishmentUserAccess.establishment_id).where(
@@ -70,6 +73,9 @@ def template_helpers(user):
             return state["own_professional"] == int(target_id)
         if target_type == FollowTarget.ESTABLISHMENT:
             return int(target_id) in state["owned_establishments"]
+        if target_type == "client":
+            # Publicação da própria Cliente (PR 3): menu com Remover.
+            return state["own_client"] == int(target_id)
         return False
 
     return {

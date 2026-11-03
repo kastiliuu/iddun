@@ -6,6 +6,7 @@
 
 {% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
 {% endblock %}
 
 {% block site_header %}
@@ -157,6 +158,8 @@
         </a>
       </div>
     </header>
+
+    {% include 'feed/_composer.html' %}
 
     {% if feed_items %}
     <div
@@ -362,6 +365,7 @@
 </div>
 
 <div class="feed-toast" role="status" aria-live="polite" hidden data-feed-toast></div>
+{% include 'posts/_report_dialog.html' %}
 {% endblock %}
 
 {% block site_footer %}{% endblock %}
@@ -372,4 +376,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/posts.js') }}" defer></script>
 {% endblock %}
