@@ -3,7 +3,21 @@ from app.models.reschedule_request import RescheduleRequest
 from app.models.cancellation_request import CancellationRequest
 from app.models.job import JobApplication, JobApplicationStatus, JobPost, JobPostStatus
 from app.models.notification import Notification, NotificationKind, NotificationPreference
-from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus
+from app.models.work_post import (
+    CommentStatus,
+    ContentReport,
+    ModerationAction,
+    ModerationActionType,
+    ReportCategory,
+    ReportStatus,
+    ReportTarget,
+    WorkPost,
+    WorkPostAuthorType,
+    WorkPostComment,
+    WorkPostLike,
+    WorkPostMedia,
+    WorkPostStatus,
+)
 from app.models.beauty_graph import Follow, FollowTarget, Save, SaveTarget
 from app.models.account_token import AccountToken, AccountTokenPurpose
 from app.models.api_session import ApiSession

@@ -50,6 +50,7 @@ from app.routes.auth import auth_bp
 from app.routes.bookings import bookings_bp
 from app.routes.calendar import calendar_bp
 from app.routes.feed import feed_bp
+from app.routes.posts import posts_bp
 from app.routes.public import public_bp
 from app.routes.platform import business_bp, professional_bp
 from app.services.api_contract import api_error
@@ -572,6 +573,7 @@ def create_app(test_config=None):
     app.register_blueprint(bookings_bp)
     app.register_blueprint(calendar_bp)
     app.register_blueprint(feed_bp)
+    app.register_blueprint(posts_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(professional_bp)
     app.register_blueprint(business_bp)

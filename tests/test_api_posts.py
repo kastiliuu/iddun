@@ -648,7 +648,7 @@ def test_post_can_be_edited_archived_and_remains_visible_to_owner(
     ] == WorkPostStatus.ARCHIVED
 
 
-def test_delete_post_removes_database_row_and_media(
+def test_delete_post_is_logical_and_removes_media(
     app,
     client,
 ):
@@ -691,13 +691,21 @@ def test_delete_post_removes_database_row_and_media(
         is True
     )
 
+    # D-SOC-09: remoção lógica. A linha fica para o histórico das
+    # denúncias, sem imagens; o post some do público e os arquivos saem.
     with app.app_context():
-        assert db.session.get(
+        removed = db.session.get(
             WorkPost,
             int(
                 created["id"]
             ),
-        ) is None
+        )
+        assert removed.status == "removed"
+        assert removed.removed_at is not None
+        assert removed.image_url is None
+        assert removed.media == []
+
+    assert client.get(POSTS + "/" + created["id"]).status_code == 404
 
     assert _upload_files(
         app
@@ -868,6 +876,11 @@ def test_creator_options_only_return_authors_and_services_owned_by_account(
     assert response.status_code == 200
     payload = response.get_json()
 
+    with app.app_context():
+        client_profile_id = db.session.scalar(
+            select(ClientProfile.id).where(ClientProfile.user_id == user_id)
+        )
+
     assert {
         (
             item["type"],
@@ -876,6 +889,11 @@ def test_creator_options_only_return_authors_and_services_owned_by_account(
         for item
         in payload["authors"]
     } == {
+        # DEC-ID-224: a conta também publica como Cliente.
+        (
+            "client",
+            client_profile_id,
+        ),
         (
             "professional",
             profile_id,

@@ -17,6 +17,7 @@ from app.services.api_contract import (
     pagination_payload,
 )
 from app.services.feed_service import (
+    interaction_counts,
     serialize_work_post,
 )
 from app.services.experience_service import (
@@ -622,6 +623,7 @@ def discovery():
             search
         ).limit(limit)
     ).all()
+    post_counts = interaction_counts([item.id for item in posts])
 
     return api_json(
         {
@@ -641,7 +643,8 @@ def discovery():
             ],
             "posts": [
                 serialize_work_post(
-                    item
+                    item,
+                    counts=post_counts,
                 )
                 for item in posts
             ],
@@ -679,15 +682,20 @@ def _posts(
             == establishment_id
         )
 
+    rows = db.session.scalars(
+        query.order_by(
+            WorkPost.id.desc()
+        )
+    ).all()
+    # Curtidas e comentários reais também no perfil (PR 3).
+    counts = interaction_counts([item.id for item in rows])
+
     return [
         serialize_work_post(
-            item
+            item,
+            counts=counts,
         )
-        for item in db.session.scalars(
-            query.order_by(
-                WorkPost.id.desc()
-            )
-        ).all()
+        for item in rows
     ]
 
 

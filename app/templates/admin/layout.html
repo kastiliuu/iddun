@@ -103,6 +103,14 @@
         {{ icon('clock') }}
         <span>Reservas</span>
       </a>
+
+      <a
+        href="{{ url_for('posts.moderation') }}"
+        class="{% if admin_section == 'moderation' %}is-active{% endif %}"
+      >
+        {{ icon('shield-check') }}
+        <span>Moderação</span>
+      </a>
     </nav>
 
     <div class="admin-sidebar__foot">

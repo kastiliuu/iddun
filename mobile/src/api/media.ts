@@ -75,13 +75,9 @@ async function withAuthenticatedRequest<T>(
 }
 
 
-export async function imageFormData(
+export async function readImageBlob(
   image: UploadableImage,
-  extras: Record<
-    string,
-    string | number | undefined
-  > = {},
-): Promise<FormData> {
+): Promise<Blob> {
   // Expo's fetch rejects a React Native { uri, name, type } object
   // masquerading as Blob. Read the normalized file as a real Blob.
   const fileResponse = await fetch(image.uri);
@@ -95,6 +91,19 @@ export async function imageFormData(
   if (!blob.size) {
     throw new Error("A imagem selecionada está vazia.");
   }
+
+  return blob;
+}
+
+
+export async function imageFormData(
+  image: UploadableImage,
+  extras: Record<
+    string,
+    string | number | undefined
+  > = {},
+): Promise<FormData> {
+  const blob = await readImageBlob(image);
 
   const form = new FormData();
   form.append("file", blob, image.name);

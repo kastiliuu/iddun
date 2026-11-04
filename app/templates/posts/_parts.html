@@ -1,0 +1,124 @@
+{% from 'components/icon.html' import icon %}
+{#
+  Partes de uma publicação (PR 3; D-SOC-11), usadas no cartão do feed e na
+  página do post. Importar com `with context`.
+#}
+
+{% macro author_href(post) -%}
+{%- if post.author.kind == 'professional' -%}{{ url_for('public.professional_detail', slug=post.author.routeId) }}
+{%- elif post.author.kind == 'establishment' -%}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}
+{%- endif -%}
+{%- endmacro %}
+
+{% macro author_role(post) -%}
+{{ post.author.specialty or ('Cliente' if post.author.kind == 'client' else 'Profissional' if post.author.kind == 'professional' else 'Estabelecimento') }}
+{%- endmacro %}
+
+{#
+  Carrossel acessível: rolagem com encaixe e, com mais de uma imagem,
+  botões Anterior/Próxima e "1 de N". Sem JavaScript continua rolável.
+#}
+{% macro carousel(post, link=None, large=False, link_label=None) -%}
+{%- set count = post.media|length -%}
+<div class="post-carousel{% if large %} post-carousel--large{% endif %}" data-carousel>
+  <ul
+    class="post-carousel__track"
+    role="list"
+    aria-label="{{ 'Imagens' if count > 1 else 'Imagem' }} da publicação de {{ post.author.name }}"
+    {% if count > 1 %}tabindex="0" data-carousel-track{% endif %}
+  >
+    {%- for item in post.media %}
+    <li class="post-carousel__slide" data-carousel-slide>
+      <img
+        src="{{ item.url }}"
+        alt="{{ item.alt or ('Imagem ' ~ loop.index ~ ' de ' ~ count ~ ' publicada por ' ~ post.author.name if count > 1 else 'Publicação de ' ~ post.author.name) }}"
+        loading="lazy"
+        style="object-position: {{ item.focusX }}% {{ item.focusY }}%;"
+      >
+    </li>
+    {%- endfor %}
+  </ul>
+  {% if link and count == 1 %}
+  <a class="feed-card__media-link" href="{{ link }}" aria-label="{{ link_label or ('Abrir publicação de ' ~ post.author.name) }}"></a>
+  {% endif %}
+  {% if count > 1 %}
+  <button type="button" class="post-carousel__nav post-carousel__nav--prev" data-carousel-prev aria-label="Imagem anterior">{{ icon('chevron-left') }}</button>
+  <button type="button" class="post-carousel__nav post-carousel__nav--next" data-carousel-next aria-label="Próxima imagem">{{ icon('chevron-right') }}</button>
+  <span class="post-carousel__count" data-carousel-count aria-live="polite">1 de {{ count }}</span>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro like_button(post) -%}
+{%- set liked = post.likedByMe -%}
+<form
+  class="post-like"
+  method="post"
+  action="{{ url_for('posts.toggle_like', post_id=post.id) }}"
+  data-like-form
+>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="liked" value="{{ 'false' if liked else 'true' }}" data-like-next>
+  <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+  <button
+    type="submit"
+    class="post-action{% if liked %} is-active{% endif %}"
+    aria-pressed="{{ 'true' if liked else 'false' }}"
+    data-like-button
+    data-post-id="{{ post.id }}"
+    {% if not current_user.is_authenticated %}data-login-url="{{ url_for('auth.login', next=request.full_path.rstrip('?')) }}"{% endif %}
+  >
+    <span class="icon-state icon-state--off" aria-hidden="true">{{ icon('heart') }}</span>
+    <span class="icon-state icon-state--on" aria-hidden="true">{{ icon('heart-filled') }}</span>
+    <span class="sr-only">Curtir</span>
+    <span class="post-action__count" data-like-count>{{ post.likesCount }}</span>
+  </button>
+</form>
+{%- endmacro %}
+
+{% macro comments_link(post) -%}
+<a class="post-action" href="{{ url_for('posts.detail', post_id=post.id) }}#comentarios">
+  {{ icon('message-circle') }}
+  <span class="sr-only">Comentários:</span>
+  <span class="post-action__count">{{ post.commentsCount }}</span>
+</a>
+{%- endmacro %}
+
+{#
+  Menu ⋯: Denunciar para quem vê; Remover para a autoria do post
+  (D-SOC-09, DEC-ID-232). Visitante vai ao login para denunciar.
+#}
+{% macro post_menu(post) -%}
+{%- set mine = post.mine -%}
+<div class="post-menu" data-post-menu>
+  <button
+    type="button"
+    class="post-action post-menu__trigger"
+    aria-expanded="false"
+    aria-controls="post-menu-{{ post.id }}"
+    data-post-menu-trigger
+  >
+    {{ icon('more') }}
+    <span class="sr-only">Mais opções da publicação</span>
+  </button>
+  <div id="post-menu-{{ post.id }}" class="feed-account-menu post-menu__panel" hidden data-post-menu-panel>
+    {% if mine %}
+    <button type="button" data-post-remove-ask>{{ icon('x') }} Remover publicação</button>
+    <form method="post" action="{{ url_for('posts.remove', post_id=post.id) }}" class="post-menu__confirm" hidden data-post-remove-confirm>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <p>Remover esta publicação? Ela sai do feed e as imagens são apagadas.</p>
+      <button type="submit" class="btn btn-sm btn--ds-destructive">Remover</button>
+    </form>
+    {% elif current_user.is_authenticated %}
+    <button
+      type="button"
+      data-report-open
+      data-target-type="post"
+      data-target-id="{{ post.id }}"
+    >{{ icon('flag') }} Denunciar publicação</button>
+    {% else %}
+    <a href="{{ url_for('auth.login', next=request.full_path.rstrip('?')) }}">{{ icon('flag') }} Entrar para denunciar</a>
+    {% endif %}
+  </div>
+</div>
+{%- endmacro %}

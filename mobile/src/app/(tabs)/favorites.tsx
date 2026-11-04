@@ -427,9 +427,12 @@ export default function FavoritesScreen() {
               ]}
             >
               <Image
-                source={{
-                  uri: post.image,
-                }}
+                // Post só de texto não tem imagem (PR 3).
+                source={
+                  post.image
+                    ? { uri: post.image }
+                    : undefined
+                }
                 style={
                   styles.postImage
                 }

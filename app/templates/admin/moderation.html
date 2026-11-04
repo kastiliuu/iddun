@@ -1,0 +1,90 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{#
+  Moderação de publicações (PR 3; DEC-ID-231, 276, D-SOC-10/11). Só a
+  equipe IDDUN. Uma linha por alvo com todas as denúncias abertas; a
+  decisão vale para todas e fica no histórico. O denunciante não aparece.
+#}
+{% block admin_title %}Moderação{% endblock %}
+{% block styles %}{{ super() }}<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head">
+  <div>
+    <span class="admin-eyebrow">SEGURANÇA</span>
+    <h1>Moderação</h1>
+    <p>Denúncias de publicações e comentários. Denunciar não apaga nada: a decisão é sua.</p>
+  </div>
+</header>
+
+<nav class="moderation-tabs" aria-label="Moderação">
+  <a href="{{ url_for('posts.moderation') }}" {% if tab != 'decididas' %}aria-current="page"{% endif %}>Abertas</a>
+  <a href="{{ url_for('posts.moderation', aba='decididas') }}" {% if tab == 'decididas' %}aria-current="page"{% endif %}>Decididas</a>
+</nav>
+
+{% if tab != 'decididas' %}
+  {% if groups %}
+  <div class="moderation-list">
+    {% for group in groups %}
+    {% set lead = group.lead %}
+    <article class="moderation-item">
+      <header>
+        <strong>{{ 'Comentário' if group.target_type == targets.COMMENT else 'Publicação' }}</strong>
+        {% if group.post %}
+        <a href="{{ url_for('posts.detail', post_id=group.post.id) }}">Abrir publicação #{{ group.post.id }}</a>
+        {% endif %}
+        <span>{{ group.reports|length }} denúncia{{ 's' if group.reports|length != 1 }}</span>
+      </header>
+      <blockquote>{{ group.excerpt or '(sem texto)' }}</blockquote>
+      <ul class="moderation-item__categories">
+        {% for label, total in group.categories.items() %}<li>{{ label }} · {{ total }}</li>{% endfor %}
+      </ul>
+      {% set descriptions = group.reports|selectattr('description')|list %}
+      {% if descriptions %}
+      <details>
+        <summary>Descrições enviadas ({{ descriptions|length }})</summary>
+        <ul>{% for item in descriptions %}<li>{{ item.description }}</li>{% endfor %}</ul>
+      </details>
+      {% endif %}
+      <form method="post" action="{{ url_for('posts.moderation_decide', report_id=lead.id) }}" class="moderation-item__form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="note-{{ lead.id }}">Motivo da decisão</label>
+        <textarea id="note-{{ lead.id }}" name="note" rows="2" maxlength="500"></textarea>
+        <div class="moderation-item__actions">
+          <button type="submit" name="action" value="{{ actions.HIDE }}">{{ 'Remover comentário' if group.target_type == targets.COMMENT else 'Ocultar publicação' }}</button>
+          <button type="submit" name="action" value="{{ actions.DISMISS }}">Descartar denúncia</button>
+        </div>
+      </form>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="admin-empty"><span>{{ icon('shield-check') }}</span><h3>Nenhuma denúncia aberta.</h3><p>Quando alguém denunciar uma publicação ou comentário, aparece aqui.</p></div>
+  {% endif %}
+{% else %}
+  {% if history %}
+  <div class="moderation-list">
+    {% for action in history %}
+    <article class="moderation-item">
+      <header>
+        <strong>{{ {'hide': 'Publicação ocultada', 'restore': 'Restaurado', 'remove_comment': 'Comentário removido', 'dismiss': 'Denúncia descartada'}[action.action] }}</strong>
+        <span>{{ action.created_at.strftime('%d/%m/%Y %H:%M') }} · {{ action.moderator.name if action.moderator else 'Equipe' }}</span>
+      </header>
+      {% if action.note %}<p>{{ action.note }}</p>{% endif %}
+      {% if action.post_id %}<a href="{{ url_for('posts.detail', post_id=action.post_id) }}">Abrir publicação #{{ action.post_id }}</a>{% endif %}
+      {% if action.action in [actions.HIDE, actions.REMOVE_COMMENT] and action.report_id %}
+      <form method="post" action="{{ url_for('posts.moderation_decide', report_id=action.report_id) }}" class="moderation-item__form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aba" value="decididas">
+        <label for="restore-note-{{ action.id }}">Motivo para restaurar</label>
+        <textarea id="restore-note-{{ action.id }}" name="note" rows="2" maxlength="500"></textarea>
+        <button type="submit" name="action" value="{{ actions.RESTORE }}">Restaurar</button>
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="admin-empty"><span>{{ icon('clock') }}</span><h3>Nenhuma decisão ainda.</h3></div>
+  {% endif %}
+{% endif %}
+{% endblock %}

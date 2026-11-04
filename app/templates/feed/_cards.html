@@ -1,29 +1,10 @@
 {% from 'components/icon.html' import icon %}
-{% for post in feed_items %}
-{% set author_id = post.authorId|int %}
-{% set post_id = post.id|int %}
-{% set is_following = (post.authorKind, author_id) in followed_keys %}
-{% set is_saved = ('work_post', post_id) in saved_keys %}
-<article
-  id="post-{{ post.id }}"
-  class="feed-card"
-  data-feed-card
-  data-post-id="{{ post.id }}"
->
-  <div class="feed-card__media">
-    <img
-      src="{{ post.image }}"
-      alt="{{ post.caption or ('Trabalho publicado por ' ~ post.author.name) }}"
-      loading="lazy"
-      style="object-position: {{ post.imageFocusX }}% {{ post.imageFocusY }}%;"
-    >
-
-    <a
-      class="feed-card__media-link"
-      href="{% if post.service %}{{ url_for('public.experience_detail', slug=post.service.id) }}{% elif post.author.kind == 'professional' %}{{ url_for('public.professional_detail', slug=post.author.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}{% endif %}"
-      aria-label="{% if post.service %}Ver serviço {{ post.service.name }}{% else %}Conhecer perfil de {{ post.author.name }}{% endif %}"
-    ></a>
-
+{% from 'posts/_parts.html' import author_href, author_role, carousel, like_button, comments_link, post_menu with context %}
+{#
+  Cartão do feed (PR 3; D-SOC-11): carrossel ou só texto, Curtir,
+  Comentar, salvar, compartilhar e menu ⋯.
+#}
+{% macro save_button(post, is_saved) -%}
     <button
       class="feed-save-button{% if is_saved %} is-active{% endif %}"
       type="button"
@@ -35,6 +16,34 @@
     >
       {{ icon('bookmark') }}
     </button>
+{%- endmacro %}
+{% for post in feed_items %}
+{% set author_id = post.authorId|int %}
+{% set post_id = post.id|int %}
+{% set is_following = (post.authorKind, author_id) in followed_keys %}
+{% set is_saved = ('work_post', post_id) in saved_keys %}
+{% set detail_url = url_for('posts.detail', post_id=post.id) %}
+{% set profile_url = author_href(post) %}
+
+<article
+  id="post-{{ post.id }}"
+  class="feed-card{% if not post.media %} feed-card--text{% endif %}"
+  data-feed-card
+  data-post-id="{{ post.id }}"
+>
+  {% if post.media %}
+  <div class="feed-card__media">
+    {# A imagem leva ao serviço ou ao perfil, como antes; sem perfil
+       público (Cliente), à página da publicação. #}
+    {% if post.service %}
+    {{ carousel(post, url_for('public.experience_detail', slug=post.service.id), link_label='Ver serviço ' ~ post.service.name) }}
+    {% elif profile_url %}
+    {{ carousel(post, profile_url, link_label='Conhecer perfil de ' ~ post.author.name) }}
+    {% else %}
+    {{ carousel(post, detail_url) }}
+    {% endif %}
+
+    {{ save_button(post, is_saved) }}
 
     {% if post.service %}
     <a
@@ -46,13 +55,15 @@
     </a>
     {% endif %}
   </div>
+  {% endif %}
 
   <div class="feed-card__body">
     <div class="feed-card__author-row">
-      <a
-        class="feed-card__author"
-        href="{% if post.author.kind == 'professional' %}{{ url_for('public.professional_detail', slug=post.author.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}{% endif %}"
-      >
+      {% if profile_url %}
+      <a class="feed-card__author" href="{{ profile_url }}">
+      {% else %}
+      <span class="feed-card__author">
+      {% endif %}
         <span
           class="feed-card__avatar{% if post.author.avatar %} has-image{% endif %}"
           {% if post.author.avatar %}style="background-image:url('{{ post.author.avatar }}')"{% endif %}
@@ -61,12 +72,13 @@
         </span>
         <span>
           <strong>{{ post.author.name }}</strong>
-          <small>{{ post.author.specialty or ('Profissional' if post.author.kind == 'professional' else 'Estabelecimento') }}</small>
+          <small>{{ author_role(post) }}</small>
         </span>
-      </a>
+      {% if profile_url %}</a>{% else %}</span>{% endif %}
 
-      {# D-SOC-06: sem Seguir no próprio perfil ou na própria empresa. #}
-      {% if not graph_owns(post.authorKind, author_id) %}
+      {# D-SOC-06: sem Seguir no próprio perfil ou na própria empresa.
+         Cliente não é seguida (DEC-ID-035). #}
+      {% if post.authorKind != 'client' and not graph_owns(post.authorKind, author_id) %}
       <button
         class="feed-follow-button{% if is_following %} is-active{% endif %}"
         type="button"
@@ -81,7 +93,11 @@
     </div>
 
     {% if post.caption %}
+    {% if post.media %}
     <p class="feed-card__caption">{{ post.caption }}</p>
+    {% else %}
+    <a class="feed-card__text" href="{{ detail_url }}">{{ post.caption }}</a>
+    {% endif %}
     {% endif %}
 
     {% if post.author.rating %}
@@ -109,35 +125,37 @@
     </a>
     {% endif %}
 
-    <div class="feed-card__actions">
-      {% if post.service %}
-      <a
-        class="feed-card__primary-action"
-        href="{{ url_for('public.experience_detail', slug=post.service.id) }}"
-      >
-        Ver experiência
-        {{ icon('chevron-right') }}
-      </a>
-      {% else %}
-      <a
-        class="feed-card__primary-action"
-        href="{% if post.author.kind == 'professional' %}{{ url_for('public.professional_detail', slug=post.author.routeId) }}{% else %}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}{% endif %}"
-      >
-        Conhecer perfil
-        {{ icon('chevron-right') }}
-      </a>
-      {% endif %}
+    {% if post.service %}
+    <a
+      class="feed-card__primary-action"
+      href="{{ url_for('public.experience_detail', slug=post.service.id) }}"
+    >
+      Ver experiência
+      {{ icon('chevron-right') }}
+    </a>
+    {% elif profile_url %}
+    <a class="feed-card__primary-action" href="{{ profile_url }}">
+      Conhecer perfil
+      {{ icon('chevron-right') }}
+    </a>
+    {% endif %}
 
+    <div class="feed-card__actions post-actions">
+      {{ like_button(post) }}
+      {{ comments_link(post) }}
+      <span class="post-actions__spacer"></span>
+      {% if not post.media %}{{ save_button(post, is_saved) }}{% endif %}
       <button
         class="feed-card__share"
         type="button"
         data-share-button
         data-share-title="{{ post.author.name }}"
-        data-share-url="{% if post.service %}{{ url_for('public.experience_detail', slug=post.service.id, _external=True) }}{% elif post.author.kind == 'professional' %}{{ url_for('public.professional_detail', slug=post.author.routeId, _external=True) }}{% else %}{{ url_for('public.establishment_detail', slug=post.author.routeId, _external=True) }}{% endif %}"
+        data-share-url="{{ url_for('posts.detail', post_id=post.id, _external=True) }}"
         aria-label="Compartilhar"
       >
         {{ icon('share') }}
       </button>
+      {{ post_menu(post) }}
     </div>
   </div>
 </article>

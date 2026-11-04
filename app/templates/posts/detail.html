@@ -1,0 +1,154 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'posts/_parts.html' import author_href, author_role, carousel, like_button, post_menu with context %}
+{% from 'components/graph-buttons.html' import follow_button, save_attrs with context %}
+{#
+  Página pública da publicação (PR 3; D-SOC-11, DEC-ID-229, 230): conteúdo,
+  autoria, curtir, salvar, compartilhar, denunciar e comentários com
+  respostas em um nível. Ocultada pela moderação, só a equipe vê.
+#}
+
+{% block title %}Publicação de {{ post.author.name }} | IDDUN{% endblock %}
+{% block body_class %}client-feed-page post-page{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+{% endblock %}
+
+{% macro comment_item(item, is_reply=False) -%}
+<li class="post-comment{% if is_reply %} post-comment--reply{% endif %}" id="comentario-{{ item.id }}">
+  <span class="feed-avatar{% if item.author.avatar %} has-image{% endif %}" {% if item.author.avatar %}style="background-image:url('{{ item.author.avatar }}')"{% endif %} aria-hidden="true">
+    {% if not item.author.avatar %}{{ item.author.name|initials }}{% endif %}
+  </span>
+  <div class="post-comment__body">
+    <p><strong>{{ item.author.name }}</strong> {{ item.body }}</p>
+    <div class="post-comment__actions">
+      {% if not is_reply and current_user.is_authenticated %}
+      <details class="post-comment__reply">
+        <summary>Responder</summary>
+        <form method="post" action="{{ url_for('posts.comment', post_id=post.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="parent_id" value="{{ item.id }}">
+          <label class="sr-only" for="reply-{{ item.id }}">Responder a {{ item.author.name }}</label>
+          <textarea id="reply-{{ item.id }}" name="body" rows="2" maxlength="1000" required></textarea>
+          <button type="submit" class="btn btn--ds-primary btn-sm">Responder</button>
+        </form>
+      </details>
+      {% endif %}
+      {% if item.canDelete %}
+      <form method="post" action="{{ url_for('posts.delete_own_comment', comment_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Apagar</button>
+      </form>
+      {% elif item.canHide %}
+      <form method="post" action="{{ url_for('posts.hide_post_comment', comment_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Ocultar</button>
+      </form>
+      {% endif %}
+      {% if current_user.is_authenticated and not item.mine %}
+      <button type="button" data-report-open data-target-type="comment" data-target-id="{{ item.id }}">Denunciar</button>
+      {% endif %}
+    </div>
+    {% if item.replies %}
+    <ul class="post-comments__replies" role="list">
+      {% for reply in item.replies %}{{ comment_item(reply, True) }}{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</li>
+{%- endmacro %}
+
+{% block content %}
+{% set profile_url = author_href(post) %}
+<div class="container post-detail">
+  {% if under_review %}
+  <p class="post-detail__notice" role="status">{{ icon('alert-circle') }} Publicação ocultada pela moderação. Só a equipe do IDDUN vê esta página.</p>
+  {% endif %}
+
+  <article class="post-detail__card" data-post-id="{{ post.id }}">
+    {% if post.media %}
+    <div class="post-detail__media">{{ carousel(post, None, True) }}</div>
+    {% endif %}
+
+    <div class="post-detail__body">
+      <div class="feed-card__author-row">
+        {% if profile_url %}<a class="feed-card__author" href="{{ profile_url }}">{% else %}<span class="feed-card__author">{% endif %}
+          <span class="feed-card__avatar{% if post.author.avatar %} has-image{% endif %}" {% if post.author.avatar %}style="background-image:url('{{ post.author.avatar }}')"{% endif %}>
+            {% if not post.author.avatar %}{{ post.author.name[:1]|upper }}{% endif %}
+          </span>
+          <span>
+            <strong>{{ post.author.name }}</strong>
+            <small>{{ author_role(post) }}</small>
+          </span>
+        {% if profile_url %}</a>{% else %}</span>{% endif %}
+        {% if post.authorKind != 'client' %}
+        {{ follow_button(post.authorKind, post.authorId, post.author.name, 'feed-follow-button') }}
+        {% endif %}
+      </div>
+
+      {% if post.caption %}
+      <h1 class="post-detail__caption{% if not post.media %} post-detail__caption--text{% endif %}">{{ post.caption }}</h1>
+      {% else %}
+      <h1 class="sr-only">Publicação de {{ post.author.name }}</h1>
+      {% endif %}
+
+      {% if post.service %}
+      <a class="feed-card__service" href="{{ url_for('public.experience_detail', slug=post.service.id) }}">
+        <span>
+          <small>{{ post.service.category|replace('-', ' ')|title if post.service.category else 'Experiência' }}</small>
+          <strong>{{ post.service.name }}</strong>
+        </span>
+        <span class="feed-card__price">R$ {{ '%.2f'|format(post.service.price)|replace('.', ',') }}</span>
+      </a>
+      {% endif %}
+
+      {% if not under_review %}
+      <div class="post-actions">
+        {{ like_button(post) }}
+        <a class="post-action" href="#comentarios">{{ icon('message-circle') }}<span class="sr-only">Comentários:</span><span class="post-action__count">{{ comments.total }}</span></a>
+        <span class="post-actions__spacer"></span>
+        <button type="button" class="post-action" data-pop {{ save_attrs('work_post', post.id, 'publicação de ' ~ post.author.name) }}>
+          <span class="icon-state icon-state--off" aria-hidden="true">{{ icon('bookmark') }}</span>
+          <span class="icon-state icon-state--on" aria-hidden="true">{{ icon('bookmark') }}</span>
+        </button>
+        <button class="feed-card__share" type="button" data-share-button data-share-title="{{ post.author.name }}" data-share-url="{{ url_for('posts.detail', post_id=post.id, _external=True) }}" aria-label="Compartilhar">{{ icon('share') }}</button>
+        {{ post_menu(post) }}
+      </div>
+      {% endif %}
+    </div>
+  </article>
+
+  {% if not under_review %}
+  <section class="post-comments" id="comentarios" aria-labelledby="comments-title">
+    <h2 id="comments-title">Comentários ({{ comments.total }})</h2>
+
+    {% if current_user.is_authenticated %}
+    <form class="post-comments__form" method="post" action="{{ url_for('posts.comment', post_id=post.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="sr-only" for="comment-body">Escreva um comentário</label>
+      <textarea id="comment-body" name="body" rows="2" maxlength="1000" required placeholder="Escreva um comentário…"></textarea>
+      <button type="submit" class="btn btn--ds-primary btn-sm">Enviar</button>
+    </form>
+    {% else %}
+    <p class="post-comments__login"><a href="{{ url_for('auth.login', next=request.path ~ '#comentarios') }}">Entre para comentar</a></p>
+    {% endif %}
+
+    {% if comments['items'] %}
+    <ul class="post-comments__list" role="list">
+      {% for item in comments['items'] %}{{ comment_item(item) }}{% endfor %}
+    </ul>
+    {% else %}
+    <p class="post-comments__empty">Ainda não há comentários.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+<div class="feed-toast" role="status" aria-live="polite" hidden data-feed-toast></div>
+{% include 'posts/_report_dialog.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/posts.js') }}" defer></script>
+{% endblock %}
