@@ -818,3 +818,14 @@ input[type="file"]:focus-visible + small,
   background: transparent;
   color: var(--color-plum);
 }
+
+/* Nome de quem comentou leva à página da Cliente (PR 4). */
+.post-comment__author {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.post-comment__author:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}

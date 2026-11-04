@@ -1,0 +1,39 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{#
+  Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): foto, nome e publicações
+  públicas. Sem cidade, salvos, reservas nem seguidores.
+#}
+{% block title %}{{ client.user.name }} | IDDUN{% endblock %}
+{% block body_class %}client-feed-page profile-posts-page{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profiles-social.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container profile-posts">
+  <header class="client-profile-head">
+    <span class="feed-avatar client-profile-head__avatar{% if client.avatar_url %} has-image{% endif %}" {% if client.avatar_url %}style="background-image:url('{{ client.avatar_url|media_url }}')"{% endif %} aria-hidden="true">
+      {% if not client.avatar_url %}{{ client.user.name|initials }}{% endif %}
+    </span>
+    <div>
+      <h1>{{ client.user.name }}</h1>
+      <p>Cliente IDDUN · {{ posts.total }} publicaç{{ 'ão' if posts.total == 1 else 'ões' }}</p>
+    </div>
+  </header>
+
+  <section aria-labelledby="client-posts-title">
+    <h2 id="client-posts-title" class="profile-posts__title">Publicações</h2>
+    {% set page_url = url_for('public.client_detail', profile_id=client.id) %}
+    {% set empty_text = 'Ainda não há publicações.' %}
+    {% include 'posts/_post_list.html' %}
+  </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/posts.js') }}" defer></script>
+{% endblock %}

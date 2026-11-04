@@ -15,7 +15,15 @@ from app.models.establishment import (
     EstablishmentGalleryItem,
     EstablishmentUserAccess,
 )
+from datetime import date
+
 from app.models.experience import Experience, ExperienceStatus
+from app.models.professional_experience import (
+    ProfessionalExperience,
+    ProfessionalExperienceVerification,
+)
+from app.models.work_post import WorkPost, WorkPostAuthorType, WorkPostStatus
+from app.services.time_service import utcnow
 from app.models.professional import ProfessionalPortfolioItem, ProfessionalProfile
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
@@ -28,6 +36,9 @@ E2E_PASSWORD = "QA-browser-only-password-123!"
 E2E_PRO_EMAIL = "qa-browser-pro@example.com"
 # Business page owned by the professional account (contrast journeys, PR-3).
 E2E_BUSINESS_SLUG = "espaco-qa-navegador"
+# Perfil Pro só de leitura para a ordem das seções (PR 4a, D-SOC-12).
+# Nenhuma jornada edita ou desativa este perfil.
+E2E_PROFILE_SLUG = "pro-perfil-social-navegador"
 
 
 def main():
@@ -123,6 +134,36 @@ def main():
                 status=ExperienceStatus.PUBLISHED,
             )
         )
+        social = ProfessionalProfile(
+            display_name="Pro Perfil Social",
+            slug=E2E_PROFILE_SLUG,
+            primary_specialty="Hair stylist",
+            bio="Perfil descartável do CI para a ordem das seções. " * 8,
+            city="Curitiba",
+            state="PR",
+            is_active=True,
+        )
+        db.session.add(social)
+        db.session.flush()
+        db.session.add(
+            ProfessionalExperience(
+                professional_id=social.id,
+                company_name="Salão Declarado QA",
+                role_title="Colorista",
+                started_at=date(2020, 1, 1),
+                verification_status=ProfessionalExperienceVerification.UNVERIFIED,
+            )
+        )
+        for index in range(7):
+            db.session.add(
+                WorkPost(
+                    author_type=WorkPostAuthorType.PROFESSIONAL,
+                    professional_id=social.id,
+                    status=WorkPostStatus.PUBLISHED,
+                    published_at=utcnow(),
+                    caption=f"Trabalho QA {index + 1}",
+                )
+            )
         db.session.commit()
 
 

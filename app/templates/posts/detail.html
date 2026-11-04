@@ -21,7 +21,8 @@
     {% if not item.author.avatar %}{{ item.author.name|initials }}{% endif %}
   </span>
   <div class="post-comment__body">
-    <p><strong>{{ item.author.name }}</strong> {{ item.body }}</p>
+    {# PR 4: o nome leva à página da Cliente quando ela existe (D-SOC-13). #}
+    <p>{% if item.author.profileId %}<a class="post-comment__author" href="{{ url_for('public.client_detail', profile_id=item.author.profileId|int) }}">{{ item.author.name }}</a>{% else %}<strong>{{ item.author.name }}</strong>{% endif %} {{ item.body }}</p>
     <div class="post-comment__actions">
       {% if not is_reply and current_user.is_authenticated %}
       <details class="post-comment__reply">

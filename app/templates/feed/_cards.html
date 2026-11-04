@@ -37,7 +37,7 @@
        público (Cliente), à página da publicação. #}
     {% if post.service %}
     {{ carousel(post, url_for('public.experience_detail', slug=post.service.id), link_label='Ver serviço ' ~ post.service.name) }}
-    {% elif profile_url %}
+    {% elif profile_url and post.authorKind != 'client' %}
     {{ carousel(post, profile_url, link_label='Conhecer perfil de ' ~ post.author.name) }}
     {% else %}
     {{ carousel(post, detail_url) }}
