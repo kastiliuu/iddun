@@ -1,10 +1,13 @@
 {#
   Explorar reúne Serviços, Profissionais e Estabelecimentos (PR 1; DEC-ID-180
-  antecipado só como navegação). A página de resultados unificados vem na PR 5.
+  antecipado só como navegação). PR 5a (D-SOC-18): "Todos" leva aos
+  resultados unificados de /explorar; as abas dos catálogos continuam como
+  estavam.
 #}
 {% set explore_endpoint = request.endpoint or '' %}
 <nav class="explore-tabs" aria-label="Explorar">
   <div class="container explore-tabs__inner">
+    <a href="{{ url_for('public.explore') }}">Todos</a>
     <a href="{{ url_for('public.experiences') }}" {% if explore_endpoint == 'public.experiences' %}aria-current="page"{% endif %}>Serviços</a>
     <a href="{{ url_for('public.professionals') }}" {% if explore_endpoint == 'public.professionals' %}aria-current="page"{% endif %}>Profissionais</a>
     <a href="{{ url_for('public.establishments') }}" {% if explore_endpoint == 'public.establishments' %}aria-current="page"{% endif %}>Estabelecimentos</a>

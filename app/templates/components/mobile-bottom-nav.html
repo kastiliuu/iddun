@@ -32,9 +32,9 @@
        context until the web receives a richer discovery hub.
        ====================================================== -->
   <a
-    href="{{ url_for('public.experiences') }}"
-    class="mobile-bottom-nav__item{% if current_page in ['experiences', 'establishments', 'professionals'] %} is-active{% endif %}"
-    {% if current_page in ['experiences', 'establishments', 'professionals'] %}
+    href="{{ url_for('public.explore') }}"
+    class="mobile-bottom-nav__item{% if current_page in ['explore', 'experiences', 'establishments', 'professionals'] %} is-active{% endif %}"
+    {% if current_page in ['explore', 'experiences', 'establishments', 'professionals'] %}
       aria-current="page"
     {% endif %}
     aria-label="Explorar serviços, profissionais e estabelecimentos"

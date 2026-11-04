@@ -189,8 +189,9 @@
     }
 
     if (item.kind === 'post') {
+      // Página pública do post (PR 3); o post pode não estar no feed.
       return (
-        '/feed#post-'
+        '/publicacoes/'
         + encodeURIComponent(
           item.routeId,
         )
@@ -204,11 +205,22 @@
     const labels = {
       professional: 'Profissional',
       establishment: 'Estabelecimento',
-      experience: 'Experiência',
+      experience: 'Serviço',
       post: 'Publicação',
     };
 
     return labels[kind] || 'IDDUN';
+  };
+
+  // PR 5a (DEC-ID-179): depois das sugestões, a página completa.
+  const allResultsLink = () => {
+    const query = searchInput ? searchInput.value.trim() : '';
+    const link = document.createElement('a');
+    link.className = 'feed-search-results__all';
+    link.href = '/explorar?q=' + encodeURIComponent(query);
+    link.setAttribute('role', 'option');
+    link.textContent = 'Ver todos os resultados para “' + query + '”';
+    return link;
   };
 
   const renderSearchResults = (
@@ -231,8 +243,9 @@
       empty.textContent =
         'Nenhum resultado real encontrado.';
 
-      searchResults.appendChild(
+      searchResults.append(
         empty,
+        allResultsLink(),
       );
 
       searchResults.hidden = false;
@@ -313,6 +326,10 @@
           link,
         );
       });
+
+    searchResults.appendChild(
+      allResultsLink(),
+    );
 
     searchResults.hidden = false;
 

@@ -1,3 +1,5 @@
+from decimal import Decimal, InvalidOperation
+
 from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
 from flask_login import current_user
 
@@ -312,6 +314,124 @@ def how_it_works():
 # ============================================================
 # DISCOVERY / EXPERIENCES
 # ============================================================
+
+
+# ============================================================
+# EXPLORAR — resultados unificados (PR 5a; D-SOC-18)
+# ============================================================
+
+EXPLORE_TABS = {
+    "todos": (None, "Todos"),
+    "servicos": ("experience", "Serviços"),
+    "profissionais": ("professional", "Profissionais"),
+    "estabelecimentos": ("establishment", "Estabelecimentos"),
+    "publicacoes": ("post", "Publicações"),
+}
+EXPLORE_SORT_LABELS = {
+    "recommended": "Relevância",
+    "lowest_price": "Menor preço",
+    "highest_rating": "Melhor avaliação",
+    "newest": "Mais recentes",
+}
+EXPLORE_PAGE = 12
+EXPLORE_PREVIEW = 4
+EXPLORE_MAX_PAGES = 8
+
+
+def _explore_price(name):
+    raw = (request.args.get(name) or "").strip().replace(",", ".")
+    if not raw:
+        return None, ""
+    try:
+        value = Decimal(raw)
+    except InvalidOperation:
+        return None, ""
+    if not value.is_finite() or value < 0 or value > Decimal("100000"):
+        return None, ""
+    return value, raw
+
+
+@public_bp.get("/explorar")
+def explore():
+    from app.routes.api_profiles import explore_results
+
+    tab = request.args.get("tipo", "todos")
+    if tab not in EXPLORE_TABS:
+        tab = "todos"
+    kind = EXPLORE_TABS[tab][0]
+    query = request.args.get("q", "").strip()[:120]
+    category = request.args.get("categoria", "").strip()[:80]
+    location = request.args.get("local", "").strip()[:120]
+    price_min, price_min_raw = _explore_price("preco_min")
+    price_max, price_max_raw = _explore_price("preco_max")
+    available = request.args.get("disponivel") == "1"
+    sort = request.args.get("ordem", "recommended")
+    if sort not in EXPLORE_SORT_LABELS:
+        sort = "recommended"
+    pages = max(1, min(request.args.get("mais", 1, type=int) or 1, EXPLORE_MAX_PAGES))
+
+    filters = {
+        "q": query,
+        "tipo": tab,
+        "categoria": category,
+        "local": location,
+        "preco_min": price_min_raw,
+        "preco_max": price_max_raw,
+        "disponivel": "1" if available else "",
+        "ordem": sort,
+    }
+    result = explore_results(
+        query=query,
+        category=category,
+        location=location,
+        price_min=price_min,
+        price_max=price_max,
+        available=available,
+        sort=sort,
+        kind=kind,
+        offset=0,
+        limit=EXPLORE_PAGE * pages if kind else EXPLORE_PREVIEW,
+    )
+
+    service_filters = bool(price_min_raw or price_max_raw or available)
+    has_filters = bool(category or location or service_filters or sort != "recommended")
+    suggestions = []
+    if result["counts"]["total"] == 0 and (query or has_filters):
+        # DEC-ID-186: só categorias que têm resultado de verdade para a
+        # mesma busca, sem os outros filtros.
+        for item in CATEGORIES:
+            counts = explore_results(query=query, category=item["value"], limit=1)["counts"]
+            if counts["total"]:
+                suggestions.append({**item, "count": counts["total"]})
+
+    def explore_url(**changes):
+        """Mesmo endereço com mudanças; valores padrão saem da URL."""
+        params = {**filters, **changes}
+        params = {
+            key: value
+            for key, value in params.items()
+            if value not in (None, "", "todos", "recommended", 1)
+        }
+        return url_for("public.explore", **params)
+
+    return render_template(
+        "public/explore.html",
+        tabs=EXPLORE_TABS,
+        tab=tab,
+        kind=kind,
+        result=result,
+        filters=filters,
+        has_filters=has_filters,
+        service_filters=service_filters,
+        sort_labels=EXPLORE_SORT_LABELS,
+        categories=CATEGORIES,
+        locations=list_locations(),
+        suggestions=suggestions,
+        pages=pages,
+        max_pages=EXPLORE_MAX_PAGES,
+        explore_url=explore_url,
+        current_page="explore",
+    )
 
 @public_bp.get("/experiencias")
 def experiences():
