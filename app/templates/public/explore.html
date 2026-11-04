@@ -1,0 +1,169 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{#
+  Explorar (PR 5a; DEC-ID-040, 179–187; D-SOC-18): uma busca, abas por tipo
+  com contagens reais e "Ver mais". Preço e "Com horário disponível" valem
+  só para serviços. Sem resultados, nada é inventado: limpar filtros e
+  categorias que têm resultado de verdade.
+#}
+
+{% block title %}{% if filters.q %}{{ filters.q }} · {% endif %}Explorar | IDDUN{% endblock %}
+{% block body_class %}explore-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/explore.css') }}">{% endblock %}
+
+{% set section_titles = {'experiences': 'Serviços', 'professionals': 'Profissionais', 'establishments': 'Estabelecimentos', 'posts': 'Publicações'} %}
+{% set section_tabs = {'experiences': 'servicos', 'professionals': 'profissionais', 'establishments': 'estabelecimentos', 'posts': 'publicacoes'} %}
+{% set kind_labels = {'experience': 'Serviço', 'professional': 'Profissional', 'establishment': 'Estabelecimento', 'post': 'Publicação'} %}
+
+{% macro result_href(item) -%}
+  {%- if item.kind == 'experience' -%}{{ url_for('public.experience_detail', slug=item.routeId) }}
+  {%- elif item.kind == 'professional' -%}{{ url_for('public.professional_detail', slug=item.routeId) }}
+  {%- elif item.kind == 'establishment' -%}{{ url_for('public.establishment_detail', slug=item.routeId) }}
+  {%- else -%}{{ url_for('posts.detail', post_id=item.routeId) }}{%- endif -%}
+{%- endmacro %}
+
+{% macro result_card(item, index=0) -%}
+<li{% if index %} id="explore-card-{{ index }}" tabindex="-1"{% endif %}>
+  <a class="explore-card explore-card--{{ item.kind }}" href="{{ result_href(item) }}">
+    <span class="explore-card__media" aria-hidden="true">
+      {%- if item.image -%}<img src="{{ item.image }}" alt="" loading="lazy">
+      {%- else -%}<span class="explore-card__initials">{{ item.title|initials }}</span>{%- endif -%}
+    </span>
+    <span class="explore-card__body">
+      <span class="explore-card__type">{{ kind_labels[item.kind] }}</span>
+      <strong class="explore-card__title">{{ item.title }}</strong>
+      {% if item.subtitle %}<span class="explore-card__subtitle">{{ item.subtitle|truncate(110) }}</span>{% endif %}
+      <span class="explore-card__meta">
+        {% if item.location and item.kind != 'post' %}<span>{{ icon('map-pin') }} {{ item.location }}</span>{% endif %}
+        {% if item.reviewsCount %}<span>{{ icon('star') }} {{ '%.1f'|format(item.rating)|replace('.', ',') }} ({{ item.reviewsCount }})</span>{% endif %}
+        {% if item.kind == 'experience' %}
+          {% if item.price %}<span>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</span>{% endif %}
+          {# DEC-ID-183: só o próximo horário real; sem slot, nada de "disponível". #}
+          {% if item.nextAvailableLabel %}<span class="explore-card__slot">{{ icon('calendar') }} {{ item.nextAvailableLabel }}</span>
+          {% else %}<span>Sem horário disponível</span>{% endif %}
+        {% endif %}
+      </span>
+    </span>
+  </a>
+</li>
+{%- endmacro %}
+
+{% block content %}
+<div class="explore">
+  <div class="container explore__inner">
+    <header class="explore__head">
+      <h1>Explorar</h1>
+      <p>Serviços, profissionais, estabelecimentos e publicações do IDDUN.</p>
+    </header>
+
+    <form class="explore-filters" method="get" action="{{ url_for('public.explore') }}" role="search" aria-label="Buscar no Explorar">
+      {% if filters.tipo != 'todos' %}<input type="hidden" name="tipo" value="{{ filters.tipo }}">{% endif %}
+      <div class="explore-filters__search">
+        <label class="sr-only" for="explore-q">Buscar</label>
+        <span class="explore-filters__search-icon" aria-hidden="true">{{ icon('search') }}</span>
+        <input id="explore-q" name="q" type="search" value="{{ filters.q }}" maxlength="120" placeholder="Estilo, serviço, profissional ou lugar" autocomplete="off">
+        <button class="btn btn-primary" type="submit">Buscar</button>
+      </div>
+
+      <div class="explore-filters__row">
+        <label class="explore-field">
+          <span>Categoria</span>
+          <select name="categoria">
+            <option value="">Todas</option>
+            {% for item in categories %}<option value="{{ item.value }}" {% if filters.categoria == item.value %}selected{% endif %}>{{ item.label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="explore-field">
+          <span>Cidade ou bairro</span>
+          <input name="local" type="text" value="{{ filters.local }}" maxlength="120" list="explore-locations" placeholder="Ex.: Curitiba">
+          <datalist id="explore-locations">{% for item in locations %}<option value="{{ item }}">{% endfor %}</datalist>
+        </label>
+        <fieldset class="explore-field explore-field--price">
+          <legend>Preço do serviço (R$)</legend>
+          <label><span class="sr-only">Preço mínimo</span><input name="preco_min" type="number" inputmode="decimal" min="0" step="1" value="{{ filters.preco_min }}" placeholder="Mín."></label>
+          <label><span class="sr-only">Preço máximo</span><input name="preco_max" type="number" inputmode="decimal" min="0" step="1" value="{{ filters.preco_max }}" placeholder="Máx."></label>
+        </fieldset>
+        <label class="explore-check">
+          <input type="checkbox" name="disponivel" value="1" {% if filters.disponivel %}checked{% endif %}>
+          <span>Com horário disponível</span>
+        </label>
+      </div>
+
+      <details class="explore-more" {% if filters.ordem != 'recommended' %}open{% endif %}>
+        <summary>Mais filtros</summary>
+        <label class="explore-field">
+          <span>Ordenar serviços por</span>
+          <select name="ordem">
+            {% for value, label in sort_labels.items() %}<option value="{{ value }}" {% if filters.ordem == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+      </details>
+
+      <div class="explore-filters__actions">
+        <button class="btn btn-outline btn-outline--light btn-sm" type="submit">Aplicar filtros</button>
+        {% if has_filters %}<a class="explore-clear" href="{{ explore_url(categoria='', local='', preco_min='', preco_max='', disponivel='', ordem='') }}">Limpar filtros</a>{% endif %}
+      </div>
+    </form>
+
+    <nav class="explore-tabs-nav" aria-label="Tipos de resultado">
+      <ul role="list">
+        {% for key, (item_kind, label) in tabs.items() %}
+        {% set count = result.counts.total if key == 'todos' else result.counts[{'servicos': 'experiences', 'profissionais': 'professionals', 'estabelecimentos': 'establishments', 'publicacoes': 'posts'}[key]] %}
+        <li><a href="{{ explore_url(tipo=key, mais='') }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }} <span class="explore-tabs-nav__count">{{ count }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    {% if service_filters and tab not in ('todos', 'servicos') %}
+    <p class="explore-note">{{ icon('info') }} Preço e horário disponível valem só para serviços.</p>
+    {% endif %}
+
+    {% if result.counts.total == 0 %}
+    <section class="explore-empty" aria-labelledby="explore-empty-title">
+      <h2 id="explore-empty-title">{% if filters.q or has_filters %}Nada encontrado com esta busca.{% else %}Ainda não há nada publicado por aqui.{% endif %}</h2>
+      {% if has_filters %}<p>Os filtros podem estar restringindo demais. Tente limpar os filtros.</p>
+      <a class="btn btn-primary btn-sm" href="{{ explore_url(categoria='', local='', preco_min='', preco_max='', disponivel='', ordem='') }}">Limpar filtros</a>{% endif %}
+      {% if suggestions %}
+      <p>Categorias com resultados{% if filters.q %} para “{{ filters.q }}”{% endif %}:</p>
+      <ul class="explore-suggestions" role="list">
+        {% for item in suggestions %}<li><a href="{{ explore_url(categoria=item.value, local='', preco_min='', preco_max='', disponivel='', ordem='') }}">{{ item.label }} <span>{{ item.count }}</span></a></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </section>
+
+    {% elif kind is none %}
+      {% for key, items in result.sections.items() if items %}
+      <section class="explore-section" aria-labelledby="explore-{{ key }}">
+        <header class="explore-section__head">
+          <h2 id="explore-{{ key }}">{{ section_titles[key] }} <span>{{ result.counts[key] }}</span></h2>
+          {% if result.counts[key] > items|length %}<a href="{{ explore_url(tipo=section_tabs[key], mais='') }}">Ver {{ 'todas' if key == 'posts' else 'todos' }} {{ icon('chevron-right') }}</a>{% endif %}
+        </header>
+        <ul class="explore-grid" role="list">{% for item in items %}{{ result_card(item) }}{% endfor %}</ul>
+      </section>
+      {% endfor %}
+
+    {% else %}
+      {% set key = {'experience': 'experiences', 'professional': 'professionals', 'establishment': 'establishments', 'post': 'posts'}[kind] %}
+      {% set items = result.sections[key] %}
+      <section class="explore-section" aria-labelledby="explore-results-title">
+        <header class="explore-section__head">
+          <h2 id="explore-results-title">{{ section_titles[key] }} <span>{{ result.counts[key] }}</span></h2>
+        </header>
+        {% if items %}
+        <ul class="explore-grid" role="list">{% for item in items %}{{ result_card(item, loop.index) }}{% endfor %}</ul>
+        {% if result.page.nextOffset and pages < max_pages %}
+        <p class="explore-more-results"><a class="btn btn-outline btn-outline--light" href="{{ explore_url(mais=pages + 1) }}#explore-card-{{ items|length + 1 }}">Ver mais</a></p>
+        {% elif result.page.nextOffset %}
+        <p class="explore-note">Mostrando {{ items|length }} de {{ result.counts[key] }}. Refine a busca para ver outros resultados.</p>
+        {% endif %}
+        {% else %}
+        <div class="explore-empty">
+          <p>Nenhum resultado deste tipo com esta busca.</p>
+          <a class="btn btn-outline btn-outline--light btn-sm" href="{{ explore_url(tipo='todos', mais='') }}">Ver todos os tipos</a>
+        </div>
+        {% endif %}
+      </section>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

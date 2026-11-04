@@ -310,3 +310,21 @@ button.pro-header__account:focus-visible {
   height: 1rem;
   color: var(--color-text-on-light-muted);
 }
+
+/* PR 5a (DEC-ID-179): última opção das sugestões leva à busca completa. */
+.feed-search-results__all {
+  min-height: var(--control-action-size);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  display: flex;
+  align-items: center;
+  border-top: 0.0625rem solid var(--color-border-light);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.feed-search-results__all:hover,
+.feed-search-results__all:focus-visible {
+  background: var(--color-off-white);
+}

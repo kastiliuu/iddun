@@ -11,7 +11,7 @@
 {% set endpoint = request.endpoint or '' %}
 {% set header_active = (
   'home' if endpoint == 'feed.home'
-  else 'explore' if endpoint in ['public.experiences', 'public.experience_detail', 'public.professionals', 'public.professional_detail', 'public.establishments', 'public.establishment_detail']
+  else 'explore' if endpoint in ['public.explore', 'public.experiences', 'public.experience_detail', 'public.professionals', 'public.professional_detail', 'public.establishments', 'public.establishment_detail']
   else 'bookings' if endpoint.startswith('bookings.')
   else 'favorites' if endpoint == 'feed.favorites'
   else ''
@@ -44,7 +44,7 @@
 
     <form
       class="feed-search"
-      action="{{ url_for('public.experiences') }}"
+      action="{{ url_for('public.explore') }}"
       method="get"
       role="search"
       data-feed-search
@@ -86,7 +86,7 @@
       </a>
       <a
         class="feed-header__nav-item{% if header_active == 'explore' %} is-active{% endif %}"
-        href="{{ url_for('public.experiences') }}"
+        href="{{ url_for('public.explore') }}"
         {% if header_active == 'explore' %}aria-current="page"{% endif %}
       >
         {{ icon('compass') }}
