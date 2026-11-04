@@ -4,7 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import unicodedata
 
 from flask import current_app
-from sqlalchemy import func, or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import selectinload
 
 from app.data.mock_marketplace import EXPERIENCE_CATALOG, LOCATIONS
@@ -1200,6 +1200,9 @@ def list_database_experiences_page(
     sort="recommended",
     offset=0,
     limit=20,
+    price_min=None,
+    price_max=None,
+    only_available=False,
 ):
     """
     Página de experiências reais para API.
@@ -1291,6 +1294,32 @@ def list_database_experiences_page(
             )
         )
 
+    # Explorar (PR 5a; DEC-ID-181, 183): preço e "Com horário
+    # disponível" só valem para serviços. O horário é lido dos slots
+    # reais, sem reservar nada; a reserva revalida tudo.
+    if price_min is not None:
+        query = query.where(Experience.price >= price_min)
+
+    if price_max is not None:
+        query = query.where(Experience.price <= price_max)
+
+    now = utcnow()
+
+    release_expired_holds(
+        now=now,
+    )
+
+    if only_available:
+        query = query.where(
+            exists(
+                select(ExperienceSlot.id).where(
+                    ExperienceSlot.experience_id == Experience.id,
+                    ExperienceSlot.starts_at > now,
+                    ExperienceSlot.status == SlotStatus.AVAILABLE,
+                )
+            )
+        )
+
     total_query = (
         select(
             func.count()
@@ -1310,12 +1339,6 @@ def list_database_experiences_page(
             total_query
         )
         or 0
-    )
-
-    now = utcnow()
-
-    release_expired_holds(
-        now=now,
     )
 
     query = (

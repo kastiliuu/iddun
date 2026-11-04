@@ -1,4 +1,5 @@
 import unicodedata
+from decimal import Decimal, InvalidOperation
 from flask import Blueprint, request, url_for
 from flask_login import current_user
 from sqlalchemy import func, or_, select
@@ -19,6 +20,7 @@ from app.services.api_contract import (
     pagination_payload,
 )
 from app.services.feed_service import (
+    _public_post_query,
     author_post_count,
     author_posts_page,
     public_client_profile,
@@ -30,6 +32,7 @@ from app.services.experience_service import (
     list_database_experiences_page,
     real_works_api_fields,
 )
+from app.services.onboarding_steps import BUSINESS_CATEGORIES
 from app.services.media_storage import (
     resolve_image_url,
 )
@@ -287,35 +290,14 @@ def _discovery_post_query(
     search,
     location="",
 ):
-    query = select(
-        WorkPost
-    ).where(
-        WorkPost.status
-        == WorkPostStatus.PUBLISHED,
-        WorkPost.published_at.is_not(
-            None
-        ),
+    # D-SOC-19 (PR 5a; TC-DISC-042): a mesma regra pública do feed —
+    # autor Pro ou empresa ativos, Cliente com conta ativa. Antes, posts
+    # de perfis desativados ou em rascunho apareciam na busca.
+    query = _public_post_query().outerjoin(
+        Experience,
+        WorkPost.experience_id
+        == Experience.id,
     )
-
-    if search or location:
-        query = (
-            query
-            .outerjoin(
-                ProfessionalProfile,
-                WorkPost.professional_id
-                == ProfessionalProfile.id,
-            )
-            .outerjoin(
-                Establishment,
-                WorkPost.establishment_id
-                == Establishment.id,
-            )
-            .outerjoin(
-                Experience,
-                WorkPost.experience_id
-                == Experience.id,
-            )
-        )
 
     if search:
         needle = (
@@ -431,6 +413,13 @@ def _global_experience_payload(
             )
             or 0
         ),
+        # Próximo horário real (DEC-ID-183); nulo sem slot futuro, em vez
+        # do texto "Novos horários em breve", que não é um horário.
+        "nextAvailableLabel": (
+            item.get("next_available_label")
+            if int(item.get("available_slots_count") or 0) > 0
+            else None
+        ),
     }
 
 
@@ -443,7 +432,14 @@ def _global_profile_payload(
         item,
         kind=kind,
     )
-
+    # D11 (PR 5a): sem foto enviada, nada de foto de estoque no lugar da
+    # pessoa ou da empresa; quem mostra usa as iniciais.
+    uploaded = item.cover_url or (
+        item.avatar_url if kind == "professional" else item.logo_url
+    )
+    subtitle = payload["specialty"]
+    if kind == "establishment":
+        subtitle = BUSINESS_CATEGORIES.get(item.category, subtitle)
     return {
         "id": payload["id"],
         "routeId": payload[
@@ -453,17 +449,8 @@ def _global_profile_payload(
         "title": payload[
             "name"
         ],
-        "subtitle": payload[
-            "specialty"
-        ],
-        "image": (
-            payload[
-                "cover"
-            ]
-            or payload[
-                "avatar"
-            ]
-        ),
+        "subtitle": subtitle,
+        "image": _media(uploaded) if uploaded else None,
         "location": payload[
             "location"
         ],
@@ -539,6 +526,125 @@ def _global_post_payload(
     }
 
 
+# ------------------------------------------------------------------
+# Explorar (PR 5a; DEC-ID-040, 179–187; D-SOC-18). Uma fonte para a API
+# e para a página /explorar: resultados por tipo, contagens reais e
+# paginação por tipo. Preço e horário disponível valem só para serviços.
+
+EXPLORE_KINDS = ("experience", "professional", "establishment", "post")
+EXPLORE_SECTION_KEYS = {
+    "experience": "experiences",
+    "professional": "professionals",
+    "establishment": "establishments",
+    "post": "posts",
+}
+EXPLORE_SORTS = ("recommended", "lowest_price", "highest_rating", "newest")
+
+
+def _explore_kind(kind, *, query, category, location, price_min, price_max,
+                  available, sort, offset, limit):
+    if kind == "experience":
+        items, total = list_database_experiences_page(
+            search=query,
+            category=category,
+            location=location,
+            sort=sort,
+            offset=offset,
+            limit=limit,
+            price_min=price_min,
+            price_max=price_max,
+            only_available=available,
+        )
+        return [_global_experience_payload(item) for item in items], total
+
+    if kind in ("professional", "establishment"):
+        items, total = _list_profiles(
+            kind=kind,
+            search=query,
+            category=category,
+            city=location,
+            offset=offset,
+            limit=limit,
+        )
+        return [_global_profile_payload(item, kind=kind) for item in items], total
+
+    post_query = _discovery_post_query(query, location)
+    total = db.session.scalar(
+        select(func.count()).select_from(
+            post_query.order_by(None).with_only_columns(WorkPost.id).subquery()
+        )
+    ) or 0
+    posts = db.session.scalars(post_query.offset(offset).limit(limit)).all()
+    return [_global_post_payload(item) for item in posts], total
+
+
+def explore_results(*, query="", category="", location="", price_min=None,
+                    price_max=None, available=False, sort="recommended",
+                    kind=None, offset=0, limit=8):
+    """Resultados do Explorar.
+
+    Sem ``kind`` (aba Todos): até ``limit`` itens de cada tipo. Com
+    ``kind``: só aquele tipo, a partir de ``offset``. As contagens vêm
+    sempre de todos os tipos, para as abas.
+    """
+    filters = {
+        "query": query,
+        "category": category,
+        "location": location,
+        "price_min": price_min,
+        "price_max": price_max,
+        "available": available,
+        "sort": sort if sort in EXPLORE_SORTS else "recommended",
+    }
+    sections = {}
+    counts = {}
+    for item_kind in EXPLORE_KINDS:
+        key = EXPLORE_SECTION_KEYS[item_kind]
+        if kind is None or kind == item_kind:
+            items, total = _explore_kind(
+                item_kind,
+                offset=offset if kind else 0,
+                limit=limit,
+                **filters,
+            )
+            sections[key] = items
+        else:
+            # Só a contagem; a lista desta aba não é carregada.
+            _, total = _explore_kind(item_kind, offset=0, limit=1, **filters)
+            sections[key] = []
+        counts[key] = total
+    counts["total"] = sum(counts[key] for key in EXPLORE_SECTION_KEYS.values())
+
+    page = None
+    if kind is not None:
+        total = counts[EXPLORE_SECTION_KEYS[kind]]
+        next_offset = offset + limit
+        page = {
+            "offset": offset,
+            "limit": limit,
+            "total": total,
+            "nextOffset": next_offset if next_offset < total else None,
+        }
+    return {"sections": sections, "counts": counts, "page": page}
+
+
+def _query_price(name):
+    raw = (request.args.get(name) or "").strip().replace(",", ".")
+    if not raw:
+        return None, None
+    try:
+        value = Decimal(raw)
+    except InvalidOperation:
+        value = None
+    if value is None or not value.is_finite() or value < 0 or value > Decimal("100000"):
+        return None, api_error(
+            "invalid_query_parameter",
+            f"Parâmetro de consulta inválido: {name}.",
+            400,
+        )
+    return value, None
+
+
 @api_profiles_bp.get(
     "/search"
 )
@@ -572,134 +678,64 @@ def global_search():
     if error is not None:
         return error
 
-    professionals, _ = (
-        _list_profiles(
-            kind="professional",
-            search=query,
-            category=category,
-            city=location,
-            offset=0,
-            limit=limit,
+    # PR 5a (D-SOC-18): parâmetros novos, todos opcionais.
+    kind = (request.args.get("type") or "").strip() or None
+    if kind is not None and kind not in EXPLORE_KINDS:
+        return api_error(
+            "invalid_query_parameter",
+            "Parâmetro de consulta inválido: type.",
+            400,
         )
+    offset, error = _query_int("offset", 0, minimum=0, maximum=10000)
+    if error is not None:
+        return error
+    price_min, error = _query_price("priceMin")
+    if error is not None:
+        return error
+    price_max, error = _query_price("priceMax")
+    if error is not None:
+        return error
+    sort = (request.args.get("sort") or "recommended").strip()
+    if sort not in EXPLORE_SORTS:
+        return api_error(
+            "invalid_query_parameter",
+            "Parâmetro de consulta inválido: sort.",
+            400,
+        )
+    available = request.args.get("available") in ("1", "true")
+
+    result = explore_results(
+        query=query,
+        category=category,
+        location=location,
+        price_min=price_min,
+        price_max=price_max,
+        available=available,
+        sort=sort,
+        kind=kind,
+        offset=offset,
+        limit=limit,
     )
+    sections = result["sections"]
 
-    establishments, _ = (
-        _list_profiles(
-            kind="establishment",
-            search=query,
-            category=category,
-            city=location,
-            offset=0,
-            limit=limit,
-        )
-    )
-
-    experiences, _ = (
-        list_database_experiences_page(
-            search=query,
-            category=category,
-            location=location,
-            offset=0,
-            limit=limit,
-        )
-    )
-
-    posts = db.session.scalars(
-        _discovery_post_query(
-            query,
-            location,
-        ).limit(limit)
-    ).all()
-
-    professional_items = [
-        _global_profile_payload(
-            item,
-            kind="professional",
-        )
-        for item
-        in professionals
-    ]
-
-    establishment_items = [
-        _global_profile_payload(
-            item,
-            kind="establishment",
-        )
-        for item
-        in establishments
-    ]
-
-    experience_items = [
-        _global_experience_payload(
-            item
-        )
-        for item
-        in experiences
-    ]
-
-    post_items = [
-        _global_post_payload(
-            item
-        )
-        for item
-        in posts
-    ]
-
-    sections = {
-        "professionals":
-            professional_items,
-        "establishments":
-            establishment_items,
-        "experiences":
-            experience_items,
-        "posts":
-            post_items,
-    }
-
+    # "items" intercala os tipos, como antes (sugestões do cabeçalho).
     ordered = []
-
-    longest = max(
-        (
-            len(items)
-            for items
-            in sections.values()
-        ),
-        default=0,
-    )
-
-    for index in range(
-        longest
-    ):
-        for key in (
-            "experiences",
-            "professionals",
-            "establishments",
-            "posts",
-        ):
-            items = sections[
-                key
-            ]
-
-            if index < len(
-                items
-            ):
-                ordered.append(
-                    items[index]
-                )
+    longest = max((len(items) for items in sections.values()), default=0)
+    for index in range(longest):
+        for key in ("experiences", "professionals", "establishments", "posts"):
+            items = sections[key]
+            if index < len(items):
+                ordered.append(items[index])
 
     return api_json(
         {
             "query": query,
-            "location":
-                location,
-            "category":
-                category,
-            "items":
-                ordered[
-                    : limit * 4
-                ],
-            "sections":
-                sections,
+            "location": location,
+            "category": category,
+            "items": ordered[: limit * 4],
+            "sections": sections,
+            "counts": result["counts"],
+            "page": result["page"],
         },
         cache_control=(
             "public, max-age=30"
