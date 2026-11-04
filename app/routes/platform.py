@@ -51,6 +51,7 @@ from app.models.booking import (
 from app.models.certification import ProfessionalCertification
 from app.models.establishment import (
     Establishment,
+    EstablishmentAccessRole,
     EstablishmentAccessStatus,
     EstablishmentGalleryItem,
     EstablishmentUserAccess,
@@ -157,6 +158,80 @@ def _theme_for_business(category):
     return "beauty"
 
 
+# D-SOC-15 (PR 4b): o editor do perfil é dividido nas seções do perfil
+# público. Cada seção envia "section" e altera só os próprios campos.
+PRO_EDIT_SECTIONS = {
+    "identidade": (
+        "avatar_file", "cover_file",
+        "avatar_focus_x", "avatar_focus_y", "cover_focus_x", "cover_focus_y",
+        "display_name", "primary_specialty", "city", "state", "visual_theme",
+    ),
+    "sobre": ("headline", "specialties_text", "bio"),
+    "contato": ("phone", "whatsapp_enabled", "instagram"),
+    "atendimento": ("attendance_modalities",),
+    "portfolio": ("portfolio_files",),
+}
+PRO_EDIT_SECTION_LABELS = {
+    "identidade": "Identidade",
+    "sobre": "Sobre",
+    "contato": "Contato",
+    "atendimento": "Atendimento",
+    "portfolio": "Portfólio",
+}
+
+
+def _modalities_list(profile):
+    value = profile.attendance_modalities or ""
+    return value.split(",") if value else []
+
+
+def _section_is_valid(form, fields):
+    """Valida o formulário, mas só os campos da seção enviada contam.
+
+    Sem seção (formulário completo antigo), vale a validação de sempre.
+    O token CSRF conta sempre.
+    """
+    valid = form.validate()
+    if fields is None:
+        return valid
+    return not any(
+        name == "csrf_token" or name in fields
+        for name in form.errors
+    )
+
+
+def _section_error_field(section, default, fields):
+    """Campo que recebe erros de upload ou de gravação da seção."""
+    if fields is None:
+        return default
+    for name in fields:
+        if name.endswith("_file") or name.endswith("_files"):
+            return name
+    return fields[0]
+
+
+def _merge_section_form(pristine, submitted, fields):
+    """Leva para o formulário limpo só o que foi enviado na seção."""
+    for name in fields:
+        target = pristine[name]
+        source = submitted[name]
+        target.data = source.data
+        target.raw_data = source.raw_data
+        target.errors = list(source.errors)
+    csrf_errors = submitted.errors.get("csrf_token")
+    if csrf_errors:
+        pristine.form_errors = list(csrf_errors)
+    return pristine
+
+
+def _section_saved_message(label, was_active, is_active):
+    message = f"{label}: alterações salvas."
+    if was_active and not is_active:
+        # Mesma regra de antes: sem os mínimos, o perfil sai do ar.
+        return f"{message} O perfil saiu do ar: complete os campos obrigatórios para publicar de novo."
+    return message
+
+
 def _focus_value(value):
     """Normalize media focal points when an older client omits the field."""
     try:
@@ -190,6 +265,49 @@ def _managed_establishment(slug):
         abort(403)
 
     return establishment, access
+
+
+def _owned_business(slug):
+    """Página da empresa: só o dono edita (D-SOC-16, DEC-ID-250).
+
+    Gestor ativo continua no painel, mas recebe 403 na edição até existir
+    permissão específica.
+    """
+    establishment, access = _managed_establishment(slug)
+    if access.role != EstablishmentAccessRole.OWNER:
+        abort(403)
+    return establishment, access
+
+
+BUSINESS_EDIT_SECTIONS = {
+    "identidade": (
+        "logo_file", "cover_file",
+        "logo_focus_x", "logo_focus_y", "cover_focus_x", "cover_focus_y",
+        "name", "category",
+    ),
+    "sobre": ("description",),
+    "atendimento": ("operation_mode",),
+    "funcionamento": (
+        "business_hours_mode",
+        *(f"{day}_{edge}" for day in (
+            "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        ) for edge in ("start", "end")),
+    ),
+    "localizacao": ("address_line1", "address_line2", "neighborhood", "city", "state", "postal_code"),
+    "contatos": ("phone", "whatsapp_enabled", "email", "instagram"),
+    "galeria": ("gallery_files",),
+}
+BUSINESS_EDIT_SECTION_LABELS = {
+    "identidade": "Identidade",
+    "sobre": "Sobre",
+    "atendimento": "Atendimento",
+    "funcionamento": "Funcionamento",
+    "localizacao": "Localização",
+    "contatos": "Contatos",
+    "galeria": "Galeria",
+}
+# Seções salvas pelo mesmo serviço do cadastro por etapas.
+BUSINESS_DRAFT_SECTIONS = {"atendimento": "atendimento", "funcionamento": "funcionamento"}
 
 
 def _record_upload_failure(
@@ -1369,80 +1487,73 @@ def edit_profile():
 
     form = ProfessionalEditForm(obj=profile)
     if request.method == 'GET':
-        form.attendance_modalities.data = (profile.attendance_modalities or '').split(',') if profile.attendance_modalities else []
+        form.attendance_modalities.data = _modalities_list(profile)
 
-    if form.validate_on_submit():
+    # D-SOC-15 (PR 4b): cada seção do editor salva só os próprios campos.
+    # Sem "section" (formulário antigo), o comportamento é o de sempre.
+    section = request.form.get("section") if request.method == "POST" else None
+    if section is not None and section not in PRO_EDIT_SECTIONS:
+        abort(400)
+    fields = PRO_EDIT_SECTIONS.get(section)
+
+    def changes(name):
+        return fields is None or name in fields
+
+    if form.is_submitted() and _section_is_valid(form, fields):
         replaced_media = []
+        was_active = profile.is_active
+        error_field = form[_section_error_field(section, "portfolio_files", fields)]
 
         try:
             with UploadBatch() as uploads:
                 avatar_url = uploads.save_image(
                     form.avatar_file.data,
                     "professionals",
-                )
+                ) if changes("avatar_file") else None
                 cover_url = uploads.save_image(
                     form.cover_file.data,
                     "professionals/covers",
-                )
+                ) if changes("cover_file") else None
                 new_portfolio = (
                     uploads.save_many_images(
                         form.portfolio_files.data,
                         "professionals/portfolio",
                         max_files=8,
                     )
-                )
+                ) if changes("portfolio_files") else []
 
-                profile.display_name = (
-                    form.display_name.data.strip()
-                )
-                profile.headline = (
-                    form.headline.data or ""
-                ).strip() or None
-                profile.primary_specialty = (
-                    form.primary_specialty.data.strip()
-                )
-                profile.specialties_text = (
-                    form.specialties_text.data or ""
-                ).strip() or None
-                profile.bio = form.bio.data.strip()
-                profile.phone = (
-                    form.phone.data or ""
-                ).strip() or None
-                profile.whatsapp_enabled = bool(
-                    form.whatsapp_enabled.data
-                    and profile.phone
-                )
-                profile.instagram = (
-                    form.instagram.data or ""
-                ).strip() or None
-                profile.city = form.city.data.strip()
-                profile.state = (
-                    form.state.data.strip().upper()
-                )
-                profile.visual_theme = (
-                    form.visual_theme.data
-                )
-                profile.attendance_modalities = ",".join(form.attendance_modalities.data)
-                profile.avatar_focus_x = (
-                    _focus_value(
-                        form.avatar_focus_x.data
+                if changes("display_name"):
+                    profile.display_name = form.display_name.data.strip()
+                if changes("headline"):
+                    profile.headline = (form.headline.data or "").strip() or None
+                if changes("primary_specialty"):
+                    profile.primary_specialty = form.primary_specialty.data.strip()
+                if changes("specialties_text"):
+                    profile.specialties_text = (form.specialties_text.data or "").strip() or None
+                if changes("bio"):
+                    profile.bio = form.bio.data.strip()
+                if changes("phone"):
+                    profile.phone = (form.phone.data or "").strip() or None
+                if changes("whatsapp_enabled"):
+                    profile.whatsapp_enabled = bool(
+                        form.whatsapp_enabled.data
+                        and profile.phone
                     )
-                )
-                profile.avatar_focus_y = (
-                    _focus_value(
-                        form.avatar_focus_y.data
-                    )
-                )
-                profile.cover_focus_x = (
-                    _focus_value(
-                        form.cover_focus_x.data
-                    )
-                )
-                profile.cover_focus_y = (
-                    _focus_value(
-                        form.cover_focus_y.data
-                    )
-                )
+                if changes("instagram"):
+                    profile.instagram = (form.instagram.data or "").strip() or None
+                if changes("city"):
+                    profile.city = form.city.data.strip()
+                if changes("state"):
+                    profile.state = form.state.data.strip().upper()
+                if changes("visual_theme"):
+                    profile.visual_theme = form.visual_theme.data
+                if changes("attendance_modalities"):
+                    profile.attendance_modalities = ",".join(form.attendance_modalities.data)
+                if changes("avatar_focus_x"):
+                    profile.avatar_focus_x = _focus_value(form.avatar_focus_x.data)
+                    profile.avatar_focus_y = _focus_value(form.avatar_focus_y.data)
+                    profile.cover_focus_x = _focus_value(form.cover_focus_x.data)
+                    profile.cover_focus_y = _focus_value(form.cover_focus_y.data)
 
                 if avatar_url:
                     replaced_media.append(
@@ -1500,13 +1611,13 @@ def edit_profile():
 
         except ValueError as exc:
             db.session.rollback()
-            form.portfolio_files.errors.append(
+            error_field.errors.append(
                 str(exc)
             )
 
         except (OSError, SQLAlchemyError):
             _record_upload_failure(
-                form.portfolio_files,
+                error_field,
                 (
                     "Não foi possível atualizar seu "
                     "perfil agora. Tente novamente."
@@ -1520,13 +1631,31 @@ def edit_profile():
         else:
             delete_uploaded_files(replaced_media)
 
+            if section is None:
+                flash(
+                    "Perfil profissional atualizado.",
+                    "success",
+                )
+                return redirect(
+                    url_for("professional.dashboard")
+                )
+
             flash(
-                "Perfil profissional atualizado.",
+                _section_saved_message(
+                    PRO_EDIT_SECTION_LABELS[section], was_active, profile.is_active
+                ),
                 "success",
             )
             return redirect(
-                url_for("professional.dashboard")
+                url_for("professional.edit_profile", _anchor=section)
             )
+
+    if form.is_submitted() and fields is not None:
+        # As outras seções voltam com o que está salvo; só a seção enviada
+        # mostra o que a pessoa digitou e os erros dela.
+        pristine = ProfessionalEditForm(formdata=None, obj=profile)
+        pristine.attendance_modalities.data = _modalities_list(profile)
+        form = _merge_section_form(pristine, form, fields)
 
     editing_experience = None
     editing_id = request.args.get("experiencia", type=int)
@@ -1546,17 +1675,17 @@ def edit_profile():
         experience_form=ProfessionalWorkExperienceForm(obj=editing_experience),
         editing_experience=editing_experience,
         profile=profile,
+        active_section=section,
         current_page="professional-dashboard",
     )
 
 
 def _invalid_work_experience_response(profile, experience_form, editing_experience=None):
     """Reexibe os valores enviados sem alterar o contrato visual do editor."""
-    profile_form = ProfessionalEditForm(obj=profile)
-    profile_form.attendance_modalities.data = (
-        (profile.attendance_modalities or "").split(",")
-        if profile.attendance_modalities else []
-    )
+    # formdata=None: o envio é da experiência; as seções do perfil
+    # mostram o que está salvo (antes, o WhatsApp aparecia desmarcado).
+    profile_form = ProfessionalEditForm(formdata=None, obj=profile)
+    profile_form.attendance_modalities.data = _modalities_list(profile)
     return render_template(
         "platform/professional-edit.html",
         form=profile_form,
@@ -2658,192 +2787,205 @@ def insights(slug):
 )
 @login_required
 def edit(slug):
-    establishment, access = (
-        _managed_establishment(slug)
-    )
-    form = BusinessEditForm(
-        obj=establishment
-    )
+    # D-SOC-16: até existir permissão de gestor (DEC-ID-250), só o dono
+    # edita a página da empresa.
+    establishment, access = _owned_business(slug)
+    form = BusinessEditForm(obj=establishment)
+    # Quem já escolheu não volta a "Definir depois"; sem escolha salva, a
+    # opção vazia continua para não mostrar um valor que não existe.
+    if establishment.operation_mode:
+        form.operation_mode.choices = [c for c in form.operation_mode.choices if c[0]]
+    if establishment.business_hours_mode:
+        form.business_hours_mode.choices = [c for c in form.business_hours_mode.choices if c[0]]
+    if request.method == "GET":
+        _biz_prefill(form, establishment, "funcionamento")
 
-    if form.validate_on_submit():
-        replaced_media = []
+    # D-SOC-15 (PR 4b): cada seção salva só os próprios campos.
+    section = request.form.get("section") if request.method == "POST" else None
+    if section is not None and section not in BUSINESS_EDIT_SECTIONS:
+        abort(400)
+    fields = BUSINESS_EDIT_SECTIONS.get(section)
+    section_error = None
 
-        try:
-            with UploadBatch() as uploads:
-                logo_url = uploads.save_image(
-                    form.logo_file.data,
-                    "establishments/logos",
-                )
-                cover_url = uploads.save_image(
-                    form.cover_file.data,
-                    "establishments/covers",
-                )
-                gallery_urls = (
-                    uploads.save_many_images(
-                        form.gallery_files.data,
-                        "establishments/gallery",
-                        max_files=10,
+    def changes(name):
+        return fields is None or name in fields
+
+    if form.is_submitted() and _section_is_valid(form, fields):
+        if section in BUSINESS_DRAFT_SECTIONS:
+            # Atendimento e funcionamento usam as mesmas regras do cadastro
+            # por etapas (serviço do dono; não mexe na publicação).
+            step = BUSINESS_DRAFT_SECTIONS[section]
+            step_changes = _biz_changes(form, step)
+            hours_ok = True
+            if step == "funcionamento" and step_changes["business_hours_mode"] == "fixed_hours":
+                hours_ok = valid_business_hours(step_changes["business_hours"])
+                if not hours_ok:
+                    form.business_hours_mode.errors.append(
+                        "Informe abertura e fechamento válidos (HH:MM) em pelo menos um dia."
                     )
+            if hours_ok:
+                try:
+                    update_establishment_draft(
+                        user=current_user,
+                        establishment_id=establishment.id,
+                        changes=step_changes,
+                    )
+                except MobileOnboardingError as exc:
+                    section_error = str(exc)
+                else:
+                    flash(
+                        _section_saved_message(BUSINESS_EDIT_SECTION_LABELS[section], False, False),
+                        "success",
+                    )
+                    return redirect(url_for("business.edit", slug=slug, _anchor=section))
+        else:
+            replaced_media = []
+            error_field = form[_section_error_field(section, "gallery_files", fields)]
+
+            try:
+                with UploadBatch() as uploads:
+                    logo_url = uploads.save_image(
+                        form.logo_file.data,
+                        "establishments/logos",
+                    ) if changes("logo_file") else None
+                    cover_url = uploads.save_image(
+                        form.cover_file.data,
+                        "establishments/covers",
+                    ) if changes("cover_file") else None
+                    gallery_urls = (
+                        uploads.save_many_images(
+                            form.gallery_files.data,
+                            "establishments/gallery",
+                            max_files=10,
+                        )
+                    ) if changes("gallery_files") else []
+
+                    if changes("name"):
+                        establishment.name = form.name.data.strip()
+                    if changes("category"):
+                        establishment.category = form.category.data
+                        establishment.visual_theme = _theme_for_business(form.category.data)
+                    if changes("description"):
+                        establishment.description = form.description.data.strip()
+                    if changes("phone"):
+                        establishment.phone = (form.phone.data or "").strip() or None
+                    if changes("whatsapp_enabled"):
+                        establishment.whatsapp_enabled = bool(
+                            form.whatsapp_enabled.data
+                            and establishment.phone
+                        )
+                    if changes("email"):
+                        establishment.email = (form.email.data or "").strip().lower() or None
+                    if changes("instagram"):
+                        establishment.instagram = (form.instagram.data or "").strip() or None
+                    if changes("address_line1"):
+                        establishment.address_line1 = form.address_line1.data.strip()
+                    if changes("address_line2"):
+                        establishment.address_line2 = (form.address_line2.data or "").strip() or None
+                    if changes("neighborhood"):
+                        establishment.neighborhood = (form.neighborhood.data or "").strip() or None
+                    if changes("city"):
+                        establishment.city = form.city.data.strip()
+                    if changes("state"):
+                        establishment.state = form.state.data.strip().upper()
+                    if changes("postal_code"):
+                        establishment.postal_code = (form.postal_code.data or "").strip() or None
+                    if changes("logo_focus_x"):
+                        establishment.logo_focus_x = _focus_value(form.logo_focus_x.data)
+                        establishment.logo_focus_y = _focus_value(form.logo_focus_y.data)
+                        establishment.cover_focus_x = _focus_value(form.cover_focus_x.data)
+                        establishment.cover_focus_y = _focus_value(form.cover_focus_y.data)
+
+                    if logo_url:
+                        replaced_media.append(establishment.logo_url)
+                        establishment.logo_url = logo_url
+
+                    if cover_url:
+                        replaced_media.append(establishment.cover_url)
+                        establishment.cover_url = cover_url
+
+                    start_order = len(establishment.gallery_items)
+
+                    for offset, image_url in enumerate(gallery_urls):
+                        db.session.add(
+                            EstablishmentGalleryItem(
+                                establishment=establishment,
+                                image_url=image_url,
+                                sort_order=start_order + offset,
+                            )
+                        )
+
+                    db.session.flush()
+
+                    establishment.onboarding_completed = (
+                        establishment.ready_to_publish
+                    )
+
+                    # Rascunho só vai ao ar por publicação explícita (F1).
+                    if (
+                        establishment.is_active
+                        and establishment.onboarding_completed
+                        and establishment.published_at is None
+                    ):
+                        establishment.published_at = utcnow()
+
+                    db.session.commit()
+                    uploads.commit()
+
+            except ValueError as exc:
+                db.session.rollback()
+                error_field.errors.append(str(exc))
+
+            except (OSError, SQLAlchemyError):
+                _record_upload_failure(
+                    error_field,
+                    (
+                        "Não foi possível atualizar a "
+                        "página da empresa agora. "
+                        "Tente novamente."
+                    ),
+                    (
+                        "Falha ao atualizar o "
+                        "estabelecimento."
+                    ),
                 )
 
-                establishment.name = (
-                    form.name.data.strip()
-                )
-                establishment.category = (
-                    form.category.data
-                )
-                establishment.visual_theme = (
-                    _theme_for_business(
-                        form.category.data
-                    )
-                )
-                establishment.description = (
-                    form.description.data.strip()
-                )
-                establishment.phone = (
-                    form.phone.data or ""
-                ).strip() or None
-                establishment.whatsapp_enabled = bool(
-                    form.whatsapp_enabled.data
-                    and establishment.phone
-                )
-                establishment.email = (
-                    form.email.data or ""
-                ).strip().lower() or None
-                establishment.instagram = (
-                    form.instagram.data or ""
-                ).strip() or None
-                establishment.address_line1 = (
-                    form.address_line1.data.strip()
-                )
-                establishment.address_line2 = (
-                    form.address_line2.data or ""
-                ).strip() or None
-                establishment.neighborhood = (
-                    form.neighborhood.data or ""
-                ).strip() or None
-                establishment.city = (
-                    form.city.data.strip()
-                )
-                establishment.state = (
-                    form.state.data.strip().upper()
-                )
-                establishment.postal_code = (
-                    form.postal_code.data or ""
-                ).strip() or None
-                establishment.logo_focus_x = (
-                    _focus_value(
-                        form.logo_focus_x.data
-                    )
-                )
-                establishment.logo_focus_y = (
-                    _focus_value(
-                        form.logo_focus_y.data
-                    )
-                )
-                establishment.cover_focus_x = (
-                    _focus_value(
-                        form.cover_focus_x.data
-                    )
-                )
-                establishment.cover_focus_y = (
-                    _focus_value(
-                        form.cover_focus_y.data
-                    )
-                )
+            else:
+                delete_uploaded_files(replaced_media)
 
-                if logo_url:
-                    replaced_media.append(
-                        establishment.logo_url
+                if section is None:
+                    flash(
+                        "Página da empresa atualizada.",
+                        "success",
                     )
-                    establishment.logo_url = logo_url
-
-                if cover_url:
-                    replaced_media.append(
-                        establishment.cover_url
-                    )
-                    establishment.cover_url = (
-                        cover_url
-                    )
-
-                start_order = len(
-                    establishment.gallery_items
-                )
-
-                for offset, image_url in enumerate(
-                    gallery_urls
-                ):
-                    db.session.add(
-                        EstablishmentGalleryItem(
-                            establishment=(
-                                establishment
-                            ),
-                            image_url=image_url,
-                            sort_order=(
-                                start_order + offset
-                            ),
+                    return redirect(
+                        url_for(
+                            "business.dashboard",
+                            slug=slug,
                         )
                     )
 
-                db.session.flush()
-
-                establishment.onboarding_completed = (
-                    establishment.ready_to_publish
+                flash(
+                    _section_saved_message(BUSINESS_EDIT_SECTION_LABELS[section], False, False),
+                    "success",
                 )
+                return redirect(url_for("business.edit", slug=slug, _anchor=section))
 
-                # Rascunho só vai ao ar por publicação explícita (F1).
-                if (
-                    establishment.is_active
-                    and establishment.onboarding_completed
-                    and establishment.published_at
-                    is None
-                ):
-                    establishment.published_at = (
-                        utcnow()
-                    )
-
-                db.session.commit()
-                uploads.commit()
-
-        except ValueError as exc:
-            db.session.rollback()
-            form.gallery_files.errors.append(
-                str(exc)
-            )
-
-        except (OSError, SQLAlchemyError):
-            _record_upload_failure(
-                form.gallery_files,
-                (
-                    "Não foi possível atualizar a "
-                    "página da empresa agora. "
-                    "Tente novamente."
-                ),
-                (
-                    "Falha ao atualizar o "
-                    "estabelecimento."
-                ),
-            )
-
-        else:
-            delete_uploaded_files(replaced_media)
-
-            flash(
-                "Página da empresa atualizada.",
-                "success",
-            )
-            return redirect(
-                url_for(
-                    "business.dashboard",
-                    slug=slug,
-                )
-            )
+    if form.is_submitted() and fields is not None:
+        pristine = BusinessEditForm(formdata=None, obj=establishment)
+        pristine.operation_mode.choices = form.operation_mode.choices
+        pristine.business_hours_mode.choices = form.business_hours_mode.choices
+        _biz_prefill(pristine, establishment, "funcionamento")
+        form = _merge_section_form(pristine, form, fields)
+        if section_error:
+            form.form_errors = [section_error]
 
     return render_template(
         "platform/business-edit.html",
         form=form,
         establishment=establishment,
         access=access,
+        active_section=section,
         current_page="business-dashboard",
     )
 
@@ -2900,9 +3042,8 @@ def remove_gallery_item(
     slug,
     item_id,
 ):
-    establishment, access = (
-        _managed_establishment(slug)
-    )
+    # D-SOC-16: a galeria faz parte da página da empresa; só o dono edita.
+    establishment, access = _owned_business(slug)
     item = db.session.get(
         EstablishmentGalleryItem,
         item_id,

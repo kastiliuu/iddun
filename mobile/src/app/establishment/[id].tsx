@@ -29,14 +29,20 @@ import { Avatar } from "@/components/Avatar";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { FollowButton } from "@/components/FollowButton";
+import {
+  FollowButton,
+  ownsFollowTarget,
+} from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
+import { store, useStoreVersion } from "@/store/local";
 import {
   BusinessAbout,
+  openWebEditor,
+  OwnerBanner,
   Placeholder,
   PortfolioStrip,
   ProfileSection,
@@ -145,6 +151,9 @@ export default function EstablishmentProfileScreen() {
 
   const establishment =
     remoteData?.establishment;
+
+  // D-SOC-15/16: só o dono vê os atalhos de edição.
+  useStoreVersion();
 
   const [activeTab, setActiveTab] =
     useState<EstablishmentTab>("inicio");
@@ -280,6 +289,13 @@ export default function EstablishmentProfileScreen() {
       },
     );
   };
+
+  // D-SOC-16: dono (não gestor). Sem editor publicado no app, os atalhos
+  // abrem o editor da Web na seção.
+  const isOwner = ownsFollowTarget(store.getUser(), "establishment", establishment.id);
+  const editSlug = isOwner ? establishment.routeId ?? params.id : null;
+  const ownerEdit = (path: string, label?: string) =>
+    isOwner ? { label, onPress: () => openWebEditor(path) } : undefined;
 
   const aboutText =
     establishment.bio ||
@@ -734,6 +750,14 @@ export default function EstablishmentProfileScreen() {
           </Text>
         </View>
 
+        {isOwner ? (
+          <OwnerBanner
+            message="Você está vendo a página da sua empresa como o público vê."
+            actionLabel="Editar página"
+            onPress={() => openWebEditor(`/business/${editSlug}/editar`)}
+          />
+        ) : null}
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={
@@ -801,17 +825,26 @@ export default function EstablishmentProfileScreen() {
           {/* D-SOC-12: Início, Serviços, Equipe, Publicações e Sobre. */}
           {activeTab === "inicio" ? (
             <>
-              <ProfileSection kicker="SOBRE A MARCA" title="Um lugar para descobrir.">
+              <ProfileSection
+                kicker="SOBRE A MARCA"
+                title="Um lugar para descobrir."
+                edit={ownerEdit(`/business/${editSlug}/editar#sobre`)}
+              >
                 <ReadMoreText text={aboutText} />
               </ProfileSection>
 
-              <ProfileSection kicker="GALERIA" title="Conheça o espaço">
+              <ProfileSection
+                kicker="GALERIA"
+                title="Conheça o espaço"
+                edit={ownerEdit(`/business/${editSlug}/editar#galeria`)}
+              >
                 <PortfolioStrip items={remoteData?.gallery ?? []} ownerName={establishment.name} />
               </ProfileSection>
 
               <ProfileSection
                 kicker="SERVIÇOS"
                 title="Disponíveis neste estabelecimento"
+                edit={ownerEdit(`/business/${editSlug}/servicos`, "Gerenciar")}
                 action={
                   services.length > 3 ? (
                     <SectionLink
@@ -827,6 +860,7 @@ export default function EstablishmentProfileScreen() {
               <ProfileSection
                 kicker="PUBLICAÇÕES"
                 title={`Novidades de ${establishment.name}`}
+                edit={isOwner ? { label: "Publicar", onPress: () => router.push("/create-post") } : undefined}
                 action={
                   postsTotal > 3 ? (
                     <SectionLink
@@ -840,11 +874,23 @@ export default function EstablishmentProfileScreen() {
               </ProfileSection>
             </>
           ) : activeTab === "servicos" ? (
-            <ProfileSection kicker="SERVIÇOS" title="Disponíveis neste estabelecimento">
+            <ProfileSection
+              kicker="SERVIÇOS"
+              title="Disponíveis neste estabelecimento"
+              edit={ownerEdit(`/business/${editSlug}/servicos`, "Gerenciar")}
+            >
               {renderServices(services)}
             </ProfileSection>
           ) : activeTab === "equipe" ? (
-            <ProfileSection kicker="EQUIPE" title="Profissionais deste lugar">
+            <ProfileSection
+              kicker="EQUIPE"
+              title="Profissionais deste lugar"
+              edit={
+                isOwner
+                  ? { label: "Gerenciar", onPress: () => router.push(`/establishment-team/${establishment.id}`) }
+                  : undefined
+              }
+            >
               {team.length > 0 ? (
                 <View style={styles.teamList}>
                   {team.map((professional) => (
@@ -867,16 +913,24 @@ export default function EstablishmentProfileScreen() {
               )}
             </ProfileSection>
           ) : activeTab === "publicacoes" ? (
-            <ProfileSection kicker="PUBLICAÇÕES" title={`Publicações de ${establishment.name}`}>
+            <ProfileSection
+              kicker="PUBLICAÇÕES"
+              title={`Publicações de ${establishment.name}`}
+              edit={isOwner ? { label: "Publicar", onPress: () => router.push("/create-post") } : undefined}
+            >
               {renderPosts(posts)}
             </ProfileSection>
           ) : (
             <>
-              <ProfileSection kicker="SOBRE" title={establishment.name}>
+              <ProfileSection
+                kicker="SOBRE"
+                title={establishment.name}
+                edit={ownerEdit(`/business/${editSlug}/editar#sobre`)}
+              >
                 <Text style={styles.aboutText}>{aboutText}</Text>
               </ProfileSection>
 
-              <BusinessAbout about={remoteData?.about} />
+              <BusinessAbout about={remoteData?.about} editSlug={editSlug} />
 
               <ProfileSection
                 kicker="AVALIAÇÕES & RECOMENDAÇÕES"

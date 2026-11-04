@@ -18,6 +18,10 @@
 >
 <link
   rel="stylesheet"
+  href="{{ url_for('static', filename='css/profile-editor.css') }}"
+>
+<link
+  rel="stylesheet"
   href="{{ url_for('static', filename='css/media-cropper.css') }}"
 >
 {% endblock %}
@@ -48,419 +52,226 @@
       </p>
     </header>
 
-    <form
-      class="platform-editor-form"
-      method="post"
-      enctype="multipart/form-data"
-      novalidate
-    >
-      {{ form.hidden_tag() }}
+{#
+  D-SOC-15 (PR 4b): as seções da página pública, cada uma com Salvar
+  próprio. D-SOC-16: só o dono chega aqui. Equipe e serviços ficam nos
+  módulos de gestão (DEC-ID-250).
+#}
+{% macro error_summary(form) -%}
+  {% if form.errors %}
+  <div class="platform-panel profile-editor__alert" role="alert" aria-live="assertive" id="business-validation-errors" tabindex="-1">
+    <h2>Não foi possível salvar</h2>
+    <p>Revise os campos abaixo antes de tentar novamente:</p>
+    <ul>
+      {% for field_name, messages in form.errors.items() %}
+        {% for message in messages %}
+          <li>{{ form[field_name].label.text if field_name in form else 'Formulário' }}: {{ message }}</li>
+        {% endfor %}
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+{%- endmacro %}
 
-      <section class="platform-panel">
+{% macro section_form(key, kicker, title, lead=None, button='Salvar') -%}
+  <section class="platform-panel profile-editor__section" id="{{ key }}" tabindex="-1" data-focus-on-hash aria-labelledby="{{ key }}-title">
+    <form class="platform-editor-form" method="post" action="{{ url_for('business.edit', slug=establishment.slug) }}" enctype="multipart/form-data" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="section" value="{{ key }}">
+      <header class="platform-panel__head">
+        <div>
+          <span class="platform-kicker">{{ kicker }}</span>
+          <h2 id="{{ key }}-title">{{ title }}</h2>
+          {% if lead %}<p>{{ lead }}</p>{% endif %}
+        </div>
+      </header>
+      {% if active_section == key %}{{ error_summary(form) }}{% endif %}
+      {{ caller() }}
+      <div class="platform-editor-actions">
+        <button class="btn btn-primary" type="submit">{{ button }}</button>
+      </div>
+    </form>
+  </section>
+{%- endmacro %}
+
+{% macro text_field(field, wide=False) -%}
+  <div class="platform-field{% if wide %} platform-field--wide{% endif %}">
+    {{ field.label(class_='platform-label') }}
+    {{ field(class_='platform-input', **kwargs) }}
+    {{ field_errors(field) }}
+  </div>
+{%- endmacro %}
+
+    <div class="profile-editor">
+      <nav class="profile-editor__index" aria-label="Seções da página">
+        <p class="profile-editor__index-title">Seções</p>
+        <ol>
+          <li><a href="#identidade">Identidade</a></li>
+          <li><a href="#sobre">Sobre</a></li>
+          <li><a href="#atendimento">Atendimento</a></li>
+          <li><a href="#funcionamento">Funcionamento</a></li>
+          <li><a href="#localizacao">Localização</a></li>
+          <li><a href="#contatos">Contatos</a></li>
+          <li><a href="#galeria">Galeria</a></li>
+          <li><a href="{{ url_for('business.services', slug=establishment.slug) }}">Serviços {{ icon('chevron-right') }}</a></li>
+          <li><a href="{{ url_for('business.dashboard', slug=establishment.slug) }}#business-team">Equipe {{ icon('chevron-right') }}</a></li>
+        </ol>
+        <a class="btn btn-outline btn-outline--light btn-sm profile-editor__public" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">Ver página pública</a>
+      </nav>
+
+      <div class="profile-editor__sections">
+      {% if active_section is none %}{{ error_summary(form) }}{% endif %}
+
+      {% call section_form('identidade', 'TOPO DA PÁGINA', 'Identidade', 'Logo, capa, nome e tipo de estabelecimento.', 'Salvar identidade') %}
         <div class="platform-form-grid">
           <div class="platform-field">
-            {{
-              form.logo_file.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              media_upload(
-                form.logo_file,
-                form.logo_focus_x,
-                form.logo_focus_y,
-                'logo',
-                establishment.logo_url,
-                'Trocar logo',
-                'JPG, PNG ou WEBP · até 5 MB'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.logo_file
-              )
-            }}
+            {{ form.logo_file.label(class_='platform-label') }}
+            {{ media_upload(form.logo_file, form.logo_focus_x, form.logo_focus_y, 'logo', establishment.logo_url, 'Trocar logo', 'JPG, PNG ou WEBP · até 5 MB') }}
+            {{ field_errors(form.logo_file) }}
           </div>
-
           <div class="platform-field">
-            {{
-              form.cover_file.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              media_upload(
-                form.cover_file,
-                form.cover_focus_x,
-                form.cover_focus_y,
-                'cover',
-                establishment.cover_url,
-                'Trocar capa',
-                'Ajuste o enquadramento sem recortar o original'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.cover_file
-              )
-            }}
+            {{ form.cover_file.label(class_='platform-label') }}
+            {{ media_upload(form.cover_file, form.cover_focus_x, form.cover_focus_y, 'cover', establishment.cover_url, 'Trocar capa', 'Ajuste o enquadramento sem recortar o original') }}
+            {{ field_errors(form.cover_file) }}
           </div>
-
+          {{ text_field(form.name) }}
           <div class="platform-field">
-            {{
-              form.name.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.name(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.name
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.category.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.category(
-                class_='platform-select'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.category
-              )
-            }}
-          </div>
-
-          <div
-            class="platform-field platform-field--wide"
-          >
-            {{
-              form.description.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.description(
-                class_='platform-textarea',
-                rows='6'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.description
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.phone.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.phone(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.phone
-              )
-            }}
-          </div>
-
-          <div
-            class="platform-field platform-field--wide platform-checkbox-field"
-          >
-            {{
-              form.whatsapp_enabled()
-            }}
-
-            {{
-              form.whatsapp_enabled.label(
-                class_='platform-label'
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.email.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.email(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.email
-              )
-            }}
-          </div>
-
-          <div
-            class="platform-field platform-field--wide"
-          >
-            {{
-              form.instagram.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.instagram(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.instagram
-              )
-            }}
-          </div>
-
-          <div
-            class="platform-field platform-field--wide"
-          >
-            {{
-              form.address_line1.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.address_line1(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.address_line1
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.address_line2.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.address_line2(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.address_line2
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.neighborhood.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.neighborhood(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.neighborhood
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.city.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.city(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.city
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.state.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.state(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.state
-              )
-            }}
-          </div>
-
-          <div class="platform-field">
-            {{
-              form.postal_code.label(
-                class_='platform-label'
-              )
-            }}
-
-            {{
-              form.postal_code(
-                class_='platform-input'
-              )
-            }}
-
-            {{
-              field_errors(
-                form.postal_code
-              )
-            }}
+            {{ form.category.label(class_='platform-label') }}
+            {{ form.category(class_='platform-select') }}
+            {{ field_errors(form.category) }}
           </div>
         </div>
-      </section>
+      {% endcall %}
+
+      {% call section_form('sobre', 'APRESENTAÇÃO', 'Sobre', 'Abre a aba Início e a aba Sobre. Acima de 280 caracteres, a página mostra "Ler mais".', 'Salvar apresentação') %}
+        <div class="platform-form-grid">
+          <div class="platform-field platform-field--wide">
+            {{ form.description.label(class_='platform-label') }}
+            {{ form.description(class_='platform-textarea', rows='6', maxlength='2000') }}
+            {{ field_errors(form.description) }}
+          </div>
+        </div>
+      {% endcall %}
+
+      {% call section_form('atendimento', 'MODALIDADE', 'Atendimento', 'O endereço comercial só é pedido para quem recebe clientes no próprio espaço.', 'Salvar atendimento') %}
+        <div class="platform-form-grid">
+          <div class="platform-field">
+            {{ form.operation_mode.label(class_='platform-label') }}
+            {{ form.operation_mode(class_='platform-select') }}
+            {{ field_errors(form.operation_mode) }}
+          </div>
+        </div>
+      {% endcall %}
+
+      {% call section_form('funcionamento', 'HORÁRIOS', 'Funcionamento', None, 'Salvar funcionamento') %}
+        <div class="platform-form-grid">
+          <div class="platform-field">
+            {{ form.business_hours_mode.label(class_='platform-label') }}
+            {{ form.business_hours_mode(class_='platform-select') }}
+            {{ field_errors(form.business_hours_mode) }}
+          </div>
+          {# Sem JavaScript a grade fica sempre visível; com JavaScript aparece
+             só para "Horários fixos". #}
+          <fieldset class="platform-field platform-field--wide platform-hours" data-hours-panel>
+            <legend class="platform-label">Horários de funcionamento</legend>
+            <p class="platform-help">Preencha abertura e fechamento dos dias em que atende e deixe em branco os dias fechados.</p>
+            {% for day, name in [('monday', 'Segunda'), ('tuesday', 'Terça'), ('wednesday', 'Quarta'), ('thursday', 'Quinta'), ('friday', 'Sexta'), ('saturday', 'Sábado'), ('sunday', 'Domingo')] %}
+            {% set opens = form[day ~ '_start'] %}
+            {% set closes = form[day ~ '_end'] %}
+            <div class="platform-hours__row" role="group" aria-labelledby="hours-{{ day }}">
+              <span class="platform-hours__day" id="hours-{{ day }}">{{ name }}</span>
+              <label class="platform-hours__time">
+                <span class="platform-hours__caption">Abertura</span>
+                {{ opens(class_="platform-input", type="time", step="60", **{"aria-label": opens.label.text}) }}
+              </label>
+              <label class="platform-hours__time">
+                <span class="platform-hours__caption">Fechamento</span>
+                {{ closes(class_="platform-input", type="time", step="60", **{"aria-label": closes.label.text}) }}
+              </label>
+            </div>
+            {% endfor %}
+          </fieldset>
+        </div>
+      {% endcall %}
+
+      {% call section_form('localizacao', 'ONDE FICA', 'Localização', 'O endereço comercial aparece na aba Sobre.', 'Salvar localização') %}
+        <div class="platform-form-grid">
+          {{ text_field(form.address_line1, wide=True, autocomplete='address-line1') }}
+          {{ text_field(form.address_line2, autocomplete='address-line2') }}
+          {{ text_field(form.neighborhood) }}
+          {{ text_field(form.city, autocomplete='address-level2') }}
+          {{ text_field(form.state, maxlength='2', autocomplete='address-level1') }}
+          {{ text_field(form.postal_code, autocomplete='postal-code', inputmode='numeric') }}
+        </div>
+      {% endcall %}
+
+      {% call section_form('contatos', 'CONTATOS', 'Contatos', 'O número não aparece escrito na página: ele só é usado pelo botão do WhatsApp, quando você liga a opção.', 'Salvar contatos') %}
+        <div class="platform-form-grid">
+          {{ text_field(form.phone, autocomplete='tel') }}
+          {{ text_field(form.email, autocomplete='email') }}
+          {{ text_field(form.instagram) }}
+          <div class="platform-field platform-field--wide platform-checkbox-field">
+            {{ form.whatsapp_enabled() }}
+            {{ form.whatsapp_enabled.label(class_='platform-label') }}
+          </div>
+        </div>
+      {% endcall %}
 
       {% set images = establishment.gallery_items|length %}
       <section
-        class="platform-panel"
+        class="platform-panel profile-editor__section"
         id="galeria"
         tabindex="-1"
         data-focus-on-hash
         aria-labelledby="galeria-title"
       >
-        <header class="platform-panel__head">
-          <div>
-            <span class="platform-kicker">
-              GALERIA
-            </span>
-
-            <h2 id="galeria-title">
-              {{ images }} {{ 'imagem' if images == 1 else 'imagens' }}
-            </h2>
-          </div>
-        </header>
-
-        {% if images %}
-        <div class="platform-manage-gallery">
-          {% for item in establishment.gallery_items %}
-            <div
-              class="platform-manage-gallery__item"
-            >
-              <img
-                src="{{ item.image_url|media_url }}"
-                alt="Imagem {{ loop.index }} da galeria"
-              >
-
-              <button
-                type="submit"
-                form="remove-gallery-{{ item.id }}"
-                aria-label="Remover imagem {{ loop.index }} de {{ images }}"
-              >
-                {{ icon('x') }}
-              </button>
+        <form class="platform-editor-form" method="post" action="{{ url_for('business.edit', slug=establishment.slug) }}" enctype="multipart/form-data" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="section" value="galeria">
+          <header class="platform-panel__head">
+            <div>
+              <span class="platform-kicker">GALERIA</span>
+              <h2 id="galeria-title">
+                {{ images }} {{ 'imagem' if images == 1 else 'imagens' }}
+              </h2>
             </div>
-          {% endfor %}
-        </div>
-        {% else %}
-        <p class="platform-manage-gallery__empty">
-          Nenhuma imagem na galeria ainda. Mostre o espaço, a equipe e o atendimento.
-        </p>
-        {% endif %}
+          </header>
+          {% if active_section == 'galeria' %}{{ error_summary(form) }}{% endif %}
 
-        <div class="platform-field">
-          {{
-            form.gallery_files.label(
-              class_='platform-label'
-            )
-          }}
+          {% if images %}
+          <div class="platform-manage-gallery">
+            {% for item in establishment.gallery_items %}
+              <div class="platform-manage-gallery__item">
+                <img src="{{ item.image_url|media_url }}" alt="Imagem {{ loop.index }} da galeria">
+                <button
+                  type="submit"
+                  form="remove-gallery-{{ item.id }}"
+                  aria-label="Remover imagem {{ loop.index }} de {{ images }}"
+                >
+                  {{ icon('x') }}
+                </button>
+              </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="platform-manage-gallery__empty">
+            Nenhuma imagem na galeria ainda. Mostre o espaço, a equipe e o atendimento.
+          </p>
+          {% endif %}
 
-          {{
-            multi_upload(
-              form.gallery_files,
-              'Adicionar imagens à galeria',
-              'Até 10 imagens por envio · até 5 MB cada',
-              establishment.gallery_items|length
-            )
-          }}
+          <div class="platform-field">
+            {{ form.gallery_files.label(class_='platform-label') }}
+            {{ multi_upload(form.gallery_files, 'Adicionar imagens à galeria', 'Até 10 imagens por envio · até 5 MB cada', establishment.gallery_items|length) }}
+            {{ field_errors(form.gallery_files) }}
+          </div>
 
-          {{
-            field_errors(
-              form.gallery_files
-            )
-          }}
-        </div>
+          <div class="platform-editor-actions">
+            <button class="btn btn-primary" type="submit">Salvar galeria</button>
+          </div>
+        </form>
       </section>
-
-      <div class="platform-editor-actions">
-        {{
-          form.submit(
-            class_='btn btn-primary'
-          )
-        }}
-
-        <a
-          class="btn btn-outline"
-          href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Ver página pública
-        </a>
       </div>
-    </form>
+    </div>
 
     {% for item in establishment.gallery_items %}
       <form

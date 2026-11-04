@@ -321,3 +321,64 @@
 .public-profile-main > * {
   min-width: 0;
 }
+
+/* ------------------------------------- modo dono (PR 4b, D-SOC-15) */
+
+.profile-owner-bar-wrap {
+  padding-top: var(--ds-space-6);
+}
+
+.profile-owner-bar {
+  padding: var(--ds-space-3) var(--ds-space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.profile-owner-bar p {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  font-size: var(--ds-type-secondary);
+}
+
+.profile-edit-link {
+  margin: 0 0 var(--ds-space-2);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--ds-space-3);
+}
+
+.profile-edit-link a {
+  min-height: var(--control-action-size);
+  padding: 0 var(--ds-space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  border-radius: var(--ds-radius-sm);
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.profile-edit-link a:hover {
+  color: var(--color-ink);
+}
+
+.profile-edit-link a:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.profile-edit-link .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}

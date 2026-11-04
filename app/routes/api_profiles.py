@@ -1616,6 +1616,8 @@ def client_profile(profile_id):
             "posts": posts["items"],
             "postsCount": posts["total"],
             "nextCursor": posts["nextCursor"],
+            # D-SOC-15: o app mostra o atalho de edição só para a dona.
+            "mine": bool(viewer is not None and viewer.id == profile.user_id),
         },
         cache_control=(
             "private, no-store" if viewer is not None else "public, max-age=30"

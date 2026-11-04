@@ -27,6 +27,7 @@ import {
   touch,
   useTheme,
 } from "@/theme";
+import { openWebEditor } from "@/components/ProfileSections";
 
 type MenuItemProps = {
   icon: IconName;
@@ -448,11 +449,13 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.menuCard}>
+            {/* D-SOC-17: nome e foto da Cliente se editam no site até
+                existir o endpoint do app. */}
             <MenuItem
               icon="user"
               title="Editar perfil"
-              subtitle="Edição completa em preparação"
-              disabled
+              subtitle="Nome, foto e cidade · abre no site"
+              onPress={() => openWebEditor("/minha-conta/editar")}
             />
 
             <View style={styles.menuDivider} />

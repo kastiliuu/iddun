@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from "react";
 
@@ -20,6 +21,7 @@ import {
 } from "expo-image";
 
 import {
+  useLocalSearchParams,
   useRouter,
 } from "expo-router";
 
@@ -238,6 +240,21 @@ export default function ProfessionalOnboardingScreen() {
 
   const router =
     useRouter();
+
+  // PR 4b (D-SOC-15): "Editar" no perfil abre esta tela já na seção.
+  const params =
+    useLocalSearchParams<{ section?: string }>();
+  const scrollRef =
+    useRef<ScrollView>(null);
+  const scrolledToSection =
+    useRef(false);
+  const scrollToSection = (key: string, y: number) => {
+    if (params.section !== key || scrolledToSection.current) {
+      return;
+    }
+    scrolledToSection.current = true;
+    scrollRef.current?.scrollTo({ y: Math.max(y - 16, 0), animated: true });
+  };
 
   const toast =
     useToast();
@@ -873,6 +890,7 @@ export default function ProfessionalOnboardingScreen() {
       }
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={
           styles.content
         }
@@ -1109,6 +1127,7 @@ export default function ProfessionalOnboardingScreen() {
           style={
             styles.section
           }
+          onLayout={(event) => scrollToSection("media", event.nativeEvent.layout.y)}
         >
           <Text
             style={
@@ -1785,6 +1804,7 @@ export default function ProfessionalOnboardingScreen() {
           style={
             styles.section
           }
+          onLayout={(event) => scrollToSection("experience", event.nativeEvent.layout.y)}
         >
           <Text
             style={

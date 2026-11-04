@@ -27,6 +27,7 @@ import { CommentsSheet } from "@/components/CommentsSheet";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
+import { openWebEditor, OwnerBanner } from "@/components/ProfileSections";
 import {
   fonts,
   makeStyles,
@@ -168,6 +169,15 @@ export default function ClientProfileScreen() {
           </Text>
           <Text style={styles.meta}>{`Cliente IDDUN · ${countLabel}`}</Text>
         </View>
+
+        {profile.mine ? (
+          // D-SOC-17: nome e foto da Cliente se editam no site por enquanto.
+          <OwnerBanner
+            message="Você está vendo seu perfil como o público vê."
+            actionLabel="Editar no site"
+            onPress={() => openWebEditor("/minha-conta/editar")}
+          />
+        ) : null}
 
         <View style={styles.posts}>
           {posts.map((post) => (

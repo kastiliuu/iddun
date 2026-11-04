@@ -1,0 +1,19 @@
+{% from 'components/icon.html' import icon %}
+{#
+  Modo dono nos perfis públicos (PR 4b; D-SOC-15, DEC-ID-242). Só quem é
+  dono vê: um aviso de que está vendo como o público e um link Editar por
+  seção, que abre o editor separado já na seção. Nenhum campo editável na
+  visualização.
+#}
+{% macro owner_banner(message, edit_url, label='Editar perfil') -%}
+<div class="container profile-owner-bar-wrap">
+  <div class="profile-owner-bar" role="note">
+    <p>{{ icon('user') }} {{ message }}</p>
+    <a class="btn btn-primary btn-sm" href="{{ edit_url }}">{{ icon('edit') }} {{ label }}</a>
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro edit_link(url, section, text='Editar') -%}
+<p class="profile-edit-link"><a href="{{ url }}">{{ icon('edit') }} {{ text }}<span class="sr-only"> {{ section }}</span></a></p>
+{%- endmacro %}

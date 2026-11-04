@@ -1,0 +1,101 @@
+/*
+ * Editor do perfil por seção (PR 4b; D-SOC-15). Índice fixo ao lado das
+ * seções no desktop; no celular, o índice vira uma faixa rolável no topo.
+ * Só tokens do DS.
+ */
+
+.profile-editor {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+
+.profile-editor__sections {
+  display: grid;
+  gap: var(--ds-space-6);
+  min-width: 0;
+}
+
+.profile-editor__section {
+  scroll-margin-top: var(--ds-space-12);
+}
+
+.profile-editor__section:focus {
+  outline: none;
+}
+
+.profile-editor__section:focus-visible {
+  outline: 0.125rem solid var(--color-plum);
+  outline-offset: var(--ds-space-1);
+}
+
+.profile-editor__index {
+  display: grid;
+  gap: var(--ds-space-3);
+  align-content: start;
+}
+
+.profile-editor__index-title {
+  margin: 0;
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.profile-editor__index ol {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: var(--ds-space-2);
+  overflow-x: auto;
+  list-style: none;
+}
+
+.profile-editor__index a {
+  min-height: var(--control-action-size);
+  padding: 0 var(--ds-space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-1);
+  border-radius: var(--ds-radius-sm);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.profile-editor__index a:hover {
+  background: var(--color-white);
+}
+
+.profile-editor__index a:focus-visible {
+  outline: 0.125rem solid var(--color-plum);
+  outline-offset: 0.125rem;
+}
+
+.profile-editor__index .icon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.profile-editor__public {
+  justify-self: start;
+}
+
+@media (min-width: 60em) {
+  .profile-editor {
+    grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .profile-editor__index {
+    position: sticky;
+    top: var(--ds-space-12);
+  }
+
+  .profile-editor__index ol {
+    flex-direction: column;
+    overflow: visible;
+  }
+}

@@ -29,13 +29,19 @@ import { Avatar } from "@/components/Avatar";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { FollowButton } from "@/components/FollowButton";
+import {
+  FollowButton,
+  ownsFollowTarget,
+} from "@/components/FollowButton";
 import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
+import { store, useStoreVersion } from "@/store/local";
 import {
   ExperienceAndTraining,
+  openWebEditor,
+  OwnerBanner,
   PlaceList,
   Placeholder,
   PortfolioStrip,
@@ -127,6 +133,9 @@ export default function ProfessionalProfileScreen() {
 
   const profile =
     remoteData?.professional;
+
+  // D-SOC-15: o dono vê os atalhos de edição; atualiza ao entrar ou sair.
+  useStoreVersion();
 
   const scrollRef =
     useRef<ScrollView>(null);
@@ -247,6 +256,10 @@ export default function ProfessionalProfileScreen() {
 
   const firstService =
     services[0];
+
+  const isOwner = ownsFollowTarget(store.getUser(), "professional", profile.id);
+  const ownerEdit = (onPress: () => void, label?: string) =>
+    isOwner ? { label, onPress } : undefined;
 
   const openComments = (
     postId: string,
@@ -609,6 +622,14 @@ export default function ProfessionalProfileScreen() {
 
         {/* D-SOC-12: Sobre, Portfólio, Serviços, Publicações, Experiência
             e formação, Avaliações e Onde atende — a mesma ordem do Web. */}
+        {isOwner ? (
+          <OwnerBanner
+            message="Você está vendo seu perfil como o público vê."
+            actionLabel="Editar perfil"
+            onPress={() => router.push("/professional-onboarding")}
+          />
+        ) : null}
+
         <View style={styles.heroActions}>
           {services.length > 0 ? (
             <Pressable
@@ -633,17 +654,29 @@ export default function ProfessionalProfileScreen() {
         </View>
 
         {profile.bio ? (
-          <ProfileSection kicker="SOBRE" title={`Conheça ${profile.name}`}>
+          <ProfileSection
+            kicker="SOBRE"
+            title={`Conheça ${profile.name}`}
+            edit={ownerEdit(() => openWebEditor("/pro/perfil/editar#sobre"))}
+          >
             <ReadMoreText text={profile.bio} />
           </ProfileSection>
         ) : null}
 
-        <ProfileSection kicker="PORTFÓLIO" title="Trabalhos recentes">
+        <ProfileSection
+          kicker="PORTFÓLIO"
+          title="Trabalhos recentes"
+          edit={ownerEdit(() => router.push({ pathname: "/professional-onboarding", params: { section: "media" } }))}
+        >
           <PortfolioStrip items={remoteData?.portfolio ?? []} ownerName={profile.name} />
         </ProfileSection>
 
         <View onLayout={(event) => setServicesY(event.nativeEvent.layout.y)}>
-          <ProfileSection kicker="SERVIÇOS" title="Experiências para agendar">
+          <ProfileSection
+            kicker="SERVIÇOS"
+            title="Experiências para agendar"
+            edit={ownerEdit(() => router.push("/manage-services"), "Gerenciar")}
+          >
             {services.length > 0 ? (
               <View style={styles.serviceList}>
                 {services.map((service) => (
@@ -670,6 +703,7 @@ export default function ProfessionalProfileScreen() {
         <ProfileSection
           kicker="PUBLICAÇÕES"
           title="No feed"
+          edit={ownerEdit(() => router.push("/create-post"), "Publicar")}
           action={
             postsTotal > visiblePosts.length ? (
               <SectionLink
@@ -720,7 +754,23 @@ export default function ProfessionalProfileScreen() {
           )}
         </ProfileSection>
 
-        <ProfileSection kicker="EXPERIÊNCIA & FORMAÇÃO" title="Trajetória e conhecimento">
+        <ProfileSection
+          kicker="EXPERIÊNCIA & FORMAÇÃO"
+          title="Trajetória e conhecimento"
+          edit={
+            isOwner
+              ? [
+                  {
+                    label: "Editar experiência",
+                    onPress: () =>
+                      router.push({ pathname: "/professional-onboarding", params: { section: "experience" } }),
+                  },
+                  // O app ainda não tem editor de certificações.
+                  { label: "Editar formação", onPress: () => openWebEditor("/pro/certificacoes") },
+                ]
+              : undefined
+          }
+        >
           <ExperienceAndTraining
             experiences={remoteData?.experiences ?? []}
             certifications={remoteData?.certifications ?? []}
@@ -745,7 +795,11 @@ export default function ProfessionalProfileScreen() {
           />
         </ProfileSection>
 
-        <ProfileSection kicker="ONDE ATENDE" title="Locais conectados ao perfil">
+        <ProfileSection
+          kicker="ONDE ATENDE"
+          title="Locais conectados ao perfil"
+          edit={ownerEdit(() => openWebEditor("/pro/perfil/editar#atendimento"))}
+        >
           <PlaceList places={remoteData?.places ?? []} />
         </ProfileSection>
 

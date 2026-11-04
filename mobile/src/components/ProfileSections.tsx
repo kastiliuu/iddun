@@ -16,6 +16,7 @@ import type {
   ProfileReview,
 } from "@/api/professionals";
 import type { EstablishmentAbout } from "@/api/establishments";
+import { API_URL } from "@/api/client";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import {
@@ -36,21 +37,59 @@ import {
 
 const READ_MORE_LIMIT = 280;
 
+export type SectionEdit = {
+  /** Texto visível; padrão "Editar". */
+  label?: string;
+  onPress: () => void;
+};
+
+/**
+ * Editor da Web na seção certa (PR 4b; D-SOC-15). Usado quando o app ainda
+ * não tem editor para aquela parte do perfil.
+ */
+export function openWebEditor(path: string) {
+  void Linking.openURL(`${API_URL}${path}`);
+}
+
 export function ProfileSection({
   kicker,
   title,
   children,
   action,
+  edit,
 }: {
   kicker: string;
   title: string;
   children: React.ReactNode;
   action?: React.ReactNode;
+  /** Modo dono: atalho para editar esta seção (só para quem é dono). */
+  edit?: SectionEdit | SectionEdit[];
 }) {
   const styles = useStyles();
+  const { colors } = useTheme();
+  const edits = edit ? (Array.isArray(edit) ? edit : [edit]) : [];
 
   return (
     <View style={styles.section}>
+      {edits.length > 0 ? (
+        <View style={styles.editRow}>
+          {edits.map((item) => {
+            const label = item.label ?? "Editar";
+            return (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                accessibilityLabel={`${label}: ${title}`}
+                onPress={item.onPress}
+                style={({ pressed }) => [styles.editLink, pressed && styles.pressed]}
+              >
+                <Icon name="edit-2" size={14} color={colors.onSurfaceSecondary} />
+                <Text style={styles.editLinkText}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
       <View style={styles.sectionHead}>
         <View style={styles.sectionTitles}>
           <Text style={styles.kicker}>{kicker}</Text>
@@ -61,6 +100,37 @@ export function ProfileSection({
         {action}
       </View>
       {children}
+    </View>
+  );
+}
+
+/** Aviso do modo dono, com o atalho principal de edição. */
+export function OwnerBanner({
+  message,
+  actionLabel,
+  onPress,
+}: {
+  message: string;
+  actionLabel: string;
+  onPress: () => void;
+}) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+
+  return (
+    <View style={styles.ownerBanner} accessibilityRole="summary">
+      <View style={styles.inlineRow}>
+        <Icon name="user" size={14} color={colors.onSurfaceSecondary} />
+        <Text style={styles.ownerText}>{message}</Text>
+      </View>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onPress}
+        style={({ pressed }) => [styles.outlineButton, pressed && styles.pressed]}
+      >
+        <Icon name="edit-2" size={16} color={colors.onSurface} />
+        <Text style={styles.outlineButtonText}>{actionLabel}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -361,7 +431,18 @@ export function WhatsAppButton({ url, label = "WhatsApp" }: { url: string; label
 }
 
 /** Aba Sobre da empresa: funcionamento, contatos e localização. */
-export function BusinessAbout({ about }: { about?: EstablishmentAbout }) {
+export function BusinessAbout({
+  about,
+  editSlug,
+}: {
+  about?: EstablishmentAbout;
+  /** Modo dono (D-SOC-15/16): slug para abrir o editor da Web na seção. */
+  editSlug?: string | null;
+}) {
+  const web = (anchor: string, label?: string) =>
+    editSlug
+      ? { label, onPress: () => openWebEditor(`/business/${editSlug}/editar#${anchor}`) }
+      : undefined;
   const styles = useStyles();
 
   const hasOperation = Boolean(about?.operationLabel || about?.hours);
@@ -369,7 +450,15 @@ export function BusinessAbout({ about }: { about?: EstablishmentAbout }) {
 
   return (
     <View style={styles.stack}>
-      <ProfileSection kicker="FUNCIONAMENTO" title="Como atende">
+      <ProfileSection
+        kicker="FUNCIONAMENTO"
+        title="Como atende"
+        edit={
+          editSlug
+            ? [web("atendimento", "Editar modalidade")!, web("funcionamento", "Editar horários")!]
+            : undefined
+        }
+      >
         {hasOperation ? (
           <View style={styles.stack}>
             {about?.operationLabel ? (
@@ -400,7 +489,7 @@ export function BusinessAbout({ about }: { about?: EstablishmentAbout }) {
         )}
       </ProfileSection>
 
-      <ProfileSection kicker="CONTATOS" title="Fale com a empresa">
+      <ProfileSection kicker="CONTATOS" title="Fale com a empresa" edit={web("contatos")}>
         {hasContacts ? (
           <View style={styles.stack}>
             {about?.whatsappUrl ? <WhatsAppButton url={about.whatsappUrl} /> : null}
@@ -411,7 +500,7 @@ export function BusinessAbout({ about }: { about?: EstablishmentAbout }) {
         )}
       </ProfileSection>
 
-      <ProfileSection kicker="LOCALIZAÇÃO" title={about?.city ?? "Localização"}>
+      <ProfileSection kicker="LOCALIZAÇÃO" title={about?.city ?? "Localização"} edit={web("localizacao")}>
         {about?.address || about?.city ? (
           <Text style={styles.body}>{[about?.address, about?.city].filter(Boolean).join("\n")}</Text>
         ) : (
@@ -427,6 +516,39 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
     gap: spacing.md,
+  },
+  editRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.md,
+  },
+  editLink: {
+    minHeight: touch.minimum,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  editLinkText: {
+    color: colors.onSurfaceSecondary,
+    fontFamily: fonts.sansSemiBold,
+    fontSize: typography.bodySmall,
+    textDecorationLine: "underline",
+  },
+  ownerBanner: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    gap: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  ownerText: {
+    flex: 1,
+    color: colors.onSurface,
+    fontFamily: fonts.sans,
+    fontSize: typography.bodySmall,
   },
   sectionHead: {
     flexDirection: "row",
