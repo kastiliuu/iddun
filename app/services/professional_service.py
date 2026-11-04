@@ -244,4 +244,47 @@ def get_establishment_public_view(slug):
         "reputation": reputation,
         "review_items": [item for item in establishment.reviews_received if item.is_visible],
         "whatsapp_available": bool(establishment.whatsapp_enabled and establishment.phone),
+        # PR 4 (aba Sobre): funcionamento e modalidade com os dados reais.
+        "operation_label": OPERATION_LABELS.get(establishment.operation_mode),
+        "hours": business_hours_rows(establishment),
     }
+
+
+OPERATION_LABELS = {
+    "physical": "No estabelecimento",
+    "mobile": "No endereço do cliente",
+    "hybrid": "No estabelecimento e no endereço do cliente",
+}
+
+WEEKDAY_ROWS = (
+    ("monday", "Segunda"),
+    ("tuesday", "Terça"),
+    ("wednesday", "Quarta"),
+    ("thursday", "Quinta"),
+    ("friday", "Sexta"),
+    ("saturday", "Sábado"),
+    ("sunday", "Domingo"),
+)
+
+
+def business_hours_rows(establishment):
+    """
+    Funcionamento como a empresa cadastrou: "Sob agendamento" ou os horários
+    fixos por dia. Sem dado, nada é mostrado (sem horário inventado).
+    """
+    mode = establishment.business_hours_mode
+    if mode == "scheduled":
+        return {"mode": "scheduled", "label": "Sob agendamento", "days": []}
+    if mode != "fixed_hours" or not isinstance(establishment.business_hours, dict):
+        return None
+
+    days = []
+    for key, label in WEEKDAY_ROWS:
+        intervals = establishment.business_hours.get(key) or []
+        ranges = [
+            f"{item.get('start')}–{item.get('end')}"
+            for item in intervals
+            if isinstance(item, dict) and item.get("start") and item.get("end")
+        ]
+        days.append({"label": label, "ranges": ranges})
+    return {"mode": "fixed_hours", "label": "Horários fixos", "days": days}

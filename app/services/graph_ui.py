@@ -84,3 +84,9 @@ def template_helpers(user):
         "graph_owns": owns,
         "graph_follower_count": follower_count,
     }
+
+
+def card_keys(user):
+    """Chaves de Seguir e Salvar para os cartões de publicação (PR 4)."""
+    state = _viewer(user)
+    return state["follows"], state["saves"]

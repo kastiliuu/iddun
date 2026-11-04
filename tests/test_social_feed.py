@@ -90,7 +90,8 @@ def test_client_publishes_text_only_and_it_appears_in_the_feed(app, client):
     assert item["author"]["kind"] == "client"
     assert item["author"]["name"] == "Creator Test"
     # DEC-ID-227: nenhuma cidade ou dado privado da Cliente.
-    assert item["author"]["routeId"] is None
+    # D-SOC-13 (PR 4): quem tem post público tem página, pelo id do perfil.
+    assert item["author"]["routeId"] == item["authorId"]
     assert "location" not in item["author"]
     assert item["likesCount"] == 0 and item["commentsCount"] == 0
 
