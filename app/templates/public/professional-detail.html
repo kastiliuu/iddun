@@ -2,12 +2,15 @@
 {% from 'components/icon.html' import icon %}
 {% from 'components/graph-buttons.html' import follow_button, follower_count with context %}
 {% from 'posts/_tiles.html' import post_tiles %}
+{% from 'components/owner-edit.html' import owner_banner, edit_link %}
 
 {% block title %}{{ professional.name }} | IDDUN{% endblock %}
 {% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% if selected_service %} has-service-bar{% endif %}{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-profile.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/profiles-social.css') }}">{% endblock %}
 
 {% block content %}
+{# D-SOC-15: modo dono — só quem é dono vê os atalhos de edição. #}
+{% set is_owner = professional.source == 'database' and graph_owns('professional', professional.profile.id) %}
 <section class="public-profile-hero" data-profile-theme="{{ professional.theme }}">
   <div class="public-profile-hero__cover">
     {% if professional.cover %}<img src="{{ professional.cover|media_url }}" alt="Capa de {{ professional.name }}" style="object-position:{{ professional.cover_position or '50% 50%' }}">{% else %}<div class="public-profile-hero__cover-fallback" aria-hidden="true"></div>{% endif %}
@@ -39,10 +42,12 @@
   </div>
 </section>
 
+{% if is_owner %}{{ owner_banner('Você está vendo seu perfil como o público vê.', url_for('professional.edit_profile', _anchor='identidade')) }}{% endif %}
 <section class="public-profile-content">
   <div class="container public-profile-layout">
     <main class="public-profile-main">
       <section class="public-profile-section" id="sobre" data-reveal>
+        {% if is_owner %}{{ edit_link(url_for('professional.edit_profile', _anchor='sobre'), 'Sobre') }}{% endif %}
         <span class="public-profile-section__kicker">SOBRE</span>
         <h2>Conheça {{ professional.name.split()[0] }}.</h2>
         {% set bio = professional.bio or 'Este profissional está construindo sua apresentação no IDDUN.' %}
@@ -59,17 +64,20 @@
       </section>
 
       <section class="public-profile-section" id="portfolio" data-reveal>
+        {% if is_owner %}{{ edit_link(url_for('professional.edit_profile', _anchor='portfolio'), 'Portfólio') }}{% endif %}
         <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">PORTFÓLIO</span><h2>Trabalhos recentes</h2></div>{% if professional.portfolio|length > 1 %}<div class="public-profile-gallery-nav"><button type="button" data-gallery-prev aria-label="Trabalho anterior">‹</button><button type="button" data-gallery-next aria-label="Próximo trabalho">›</button></div>{% endif %}</div>
         {% if professional.portfolio %}<div class="public-profile-portfolio" data-gallery-track tabindex="0" aria-label="Galeria de trabalhos de {{ professional.name }}">{% for item in professional.portfolio %}<figure><img src="{{ item.image_url|media_url }}" alt="Trabalho {{ loop.index }} de {{ professional.name }}" loading="lazy">{% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">O portfólio deste perfil será publicado em breve.</div>{% endif %}
       </section>
 
       <section class="public-profile-section" id="experiencias" data-reveal>
+        {% if is_owner %}{{ edit_link(url_for('professional.services'), 'Serviços', 'Gerenciar') }}{% endif %}
         <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">SERVIÇOS</span><h2>O que você pode reservar</h2></div></div>
         {% if professional.experiences %}<div class="public-profile-experience-list">{% for item in professional.experiences %}<a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="public-profile-experience"><div>{% if item.image_url %}<img src="{{ item.image_url|media_url }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="public-profile-experience__placeholder">{{ icon('sparkles') }}</span>{% endif %}</div><span><small>{{ item.category_label }}</small><strong>{{ item.title }}</strong><em>{{ item.duration_minutes }} min</em></span><span class="public-profile-experience__price">R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} {{ icon('chevron-right') }}</span></a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Nenhuma experiência publicada por enquanto.</div>{% endif %}
       </section>
 
       {% if professional.source == 'database' %}
       <section class="public-profile-section" id="publicacoes" data-reveal>
+        {% if is_owner %}{{ edit_link(url_for('feed.home', _anchor='post-composer'), 'Publicações', 'Publicar') }}{% endif %}
         <div class="public-profile-section__head">
           <div><span class="public-profile-section__kicker">PUBLICAÇÕES</span><h2>O que {{ professional.name.split()[0] }} compartilhou</h2></div>
           {% if posts.total > posts['items']|length %}<a class="profile-see-all" href="{{ url_for('public.professional_posts', slug=professional.slug) }}">Ver todas ({{ posts.total }}) {{ icon('chevron-right') }}</a>{% endif %}
@@ -79,6 +87,7 @@
       {% endif %}
 
       <section class="public-profile-section" id="experiencia" data-reveal>
+        {% if is_owner %}<p class="profile-edit-link"><a href="{{ url_for('professional.edit_profile', _anchor='experiencia-profissional') }}">{{ icon('edit') }} Editar experiência</a><a href="{{ url_for('professional.certifications') }}">{{ icon('edit') }} Editar formação</a></p>{% endif %}
         <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">EXPERIÊNCIA & FORMAÇÃO</span><h2>Trajetória e conhecimento</h2></div></div>
         {% if professional.professional_experiences %}
         <h3 class="profile-subhead">Experiência profissional</h3>
@@ -134,6 +143,7 @@
       </section>
 
       <section class="public-profile-section" data-reveal>
+        {% if is_owner %}{{ edit_link(url_for('professional.edit_profile', _anchor='atendimento'), 'Onde atende') }}{% endif %}
         <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">ONDE ATENDE</span><h2>Locais conectados ao perfil</h2></div></div>
         {% if professional.workplaces %}<div class="public-profile-workplaces">{% for establishment in professional.workplaces %}<a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" class="public-profile-workplace"><span class="public-profile-workplace__logo {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{% if not establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill" aria-hidden="true">{{ establishment.name|initials }}</span>{% endif %}</span><span><strong>{{ establishment.name }}</strong><small>{{ establishment.neighborhood or establishment.category|title }}{% if establishment.city %} · {{ establishment.city }}{% endif %}</small></span>{{ icon('chevron-right') }}</a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Atendimento independente ou local ainda não informado.</div>{% endif %}
       </section>
