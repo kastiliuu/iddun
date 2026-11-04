@@ -362,6 +362,8 @@ export type ClientPublicProfile = {
   posts: WorkPost[];
   postsCount: number;
   nextCursor: string | null;
+  /** A conta é a dona desta página (D-SOC-15). */
+  mine?: boolean;
 };
 
 /** Página pública da Cliente (D-SOC-03, 13): nome, foto e publicações. */
