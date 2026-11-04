@@ -34,7 +34,8 @@
         <a href="{{ dashboard_url }}#business-reputation">{{ icon('star') }} Avaliações</a>
         <a href="{{ dashboard_url }}#business-gallery">{{ icon('store') }} Galeria</a>
         <a href="{{ url_for('business.insights', slug=establishment.slug) }}" {% if request.endpoint == 'business.insights' %}aria-current="page"{% endif %}>{{ icon('star') }} Indicadores</a>
-        <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa</a>
+        {# D-SOC-16: só o dono edita a página da empresa. #}
+        {% if access is not defined or access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa</a>{% endif %}
         <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('compass') }} Ver como cliente</a>
         <a href="{{ url_for('feed.home') }}">{{ icon('arrow-left') }} Voltar ao Cliente</a>
       </div>

@@ -19,7 +19,7 @@
     </div>
     <div class="platform-dashboard-hero__actions">
       <a class="btn btn-outline" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" target="_blank">Ver como cliente {{ icon('chevron-right') }}</a>
-      <a class="btn btn-primary" href="{{ url_for('business.edit', slug=establishment.slug) }}">Editar empresa</a>
+      {% if access.role == 'owner' %}<a class="btn btn-primary" href="{{ url_for('business.edit', slug=establishment.slug) }}">Editar empresa</a>{% endif %}
     </div>
   </div>
 </section>
@@ -158,7 +158,7 @@
         {% if establishment.reviews_received %}<div class="platform-review-list">{% for review in establishment.reviews_received[:3] %}{% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda o estabelecimento{% else %}sem recomendação{% endif %}</small></article>{% endif %}{% endfor %}</div>{% else %}<div class="platform-empty">As avaliações da empresa aparecerão depois de atendimentos concluídos.</div>{% endif %}
       </section>
       <section class="platform-panel" id="business-gallery" data-reveal>
-        <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>O espaço em imagens</h2></div><a href="{{ url_for('business.edit', slug=establishment.slug) }}">Gerenciar</a></header>
+        <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>O espaço em imagens</h2></div>{% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}#galeria">Gerenciar</a>{% endif %}</header>
         {% if establishment.gallery_items %}
         <div class="platform-portfolio-strip">
           {% for item in establishment.gallery_items[:6] %}<img src="{{ item.image_url|media_url }}" alt="{{ establishment.name }}" loading="lazy">{% endfor %}
@@ -170,7 +170,7 @@
     <aside class="platform-dashboard-side">
       <section class="platform-panel platform-panel--dark">
         <span class="platform-kicker">ATALHOS</span>
-        <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa {{ icon('chevron-right') }}</a>
+        {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa {{ icon('chevron-right') }}</a>{% endif %}
         <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }} Página pública {{ icon('chevron-right') }}</a>
         <a href="{{ url_for('public.professionals') }}">{{ icon('users') }} Encontrar profissionais {{ icon('chevron-right') }}</a>
       </section>
@@ -184,7 +184,7 @@
 <nav class="platform-mobile-nav" aria-label="IDDUN Business">
   <a class="is-active" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('home') }}<span>Visão geral</span></a>
   <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }}<span>Empresa</span></a>
-  <a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar</span></a>
+  {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar</span></a>{% endif %}
   <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Cliente</span></a>
 </nav>
 {% endblock %}
