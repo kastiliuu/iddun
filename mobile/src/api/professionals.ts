@@ -38,10 +38,57 @@ export type ProfessionalSearchParams = {
   limit?: number;
 };
 
+/** Avaliação verificada de atendimento concluído (só o primeiro nome). */
+export type ProfileReview = {
+  id: string;
+  author: string;
+  rating: number;
+  comment: string | null;
+  recommended: boolean;
+};
+
+export type ProfileExperience = {
+  id: string;
+  role: string;
+  company: string;
+  startYear: number | null;
+  endYear: number | null;
+  current: boolean;
+  description: string | null;
+  /** D-SOC-12: false = "Declarado pelo profissional". */
+  verified: boolean;
+};
+
+export type ProfileCertification = {
+  id: string;
+  title: string;
+  issuer: string | null;
+  year: number | null;
+  credentialId: string | null;
+  verificationUrl: string | null;
+};
+
+export type ProfilePlace = {
+  id: string;
+  routeId: string;
+  name: string;
+  subtitle: string | null;
+  logo: string | null;
+};
+
 export type ProfessionalProfileResponse = {
   professional: Professional;
   services: Service[];
   posts: WorkPost[];
+  /** Seções do perfil, as mesmas do Web (PR 4a; D-SOC-12). */
+  postsCount?: number;
+  portfolio?: { url: string | null; caption: string | null }[];
+  experiences?: ProfileExperience[];
+  certifications?: ProfileCertification[];
+  reviews?: ProfileReview[];
+  recommendationLabel?: string | null;
+  places?: ProfilePlace[];
+  whatsappUrl?: string | null;
 };
 
 export type FollowResponse = {

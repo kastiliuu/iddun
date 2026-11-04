@@ -35,6 +35,16 @@ import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
+import {
+  BusinessAbout,
+  Placeholder,
+  PortfolioStrip,
+  ProfileSection,
+  ReadMoreText,
+  ReviewList,
+  ReviewSummary,
+  SectionLink,
+} from "@/components/ProfileSections";
 
 import {
   fonts,
@@ -46,31 +56,22 @@ import {
 } from "@/theme";
 
 type EstablishmentTab =
-  | "work"
-  | "services"
-  | "team"
-  | "reviews";
+  | "inicio"
+  | "servicos"
+  | "equipe"
+  | "publicacoes"
+  | "sobre";
 
+/** D-SOC-12: as mesmas abas do Web. */
 const tabs: {
   id: EstablishmentTab;
   label: string;
 }[] = [
-  {
-    id: "work",
-    label: "Trabalhos",
-  },
-  {
-    id: "services",
-    label: "Serviços",
-  },
-  {
-    id: "team",
-    label: "Equipe",
-  },
-  {
-    id: "reviews",
-    label: "Avaliações",
-  },
+  { id: "inicio", label: "Início" },
+  { id: "servicos", label: "Serviços" },
+  { id: "equipe", label: "Equipe" },
+  { id: "publicacoes", label: "Publicações" },
+  { id: "sobre", label: "Sobre" },
 ];
 
 export default function EstablishmentProfileScreen() {
@@ -146,7 +147,7 @@ export default function EstablishmentProfileScreen() {
     remoteData?.establishment;
 
   const [activeTab, setActiveTab] =
-    useState<EstablishmentTab>("work");
+    useState<EstablishmentTab>("inicio");
 
   const commentsRef =
     useRef<BottomSheetModal>(null);
@@ -155,37 +156,11 @@ export default function EstablishmentProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () =>
-      (
-        remoteData?.posts ??
-        []
-      ).map(
-        (post) => ({
-          id: post.id,
-          authorId:
-            post.authorId,
-          image:
-            post.image,
-          caption:
-            post.caption,
-          rating:
-            post.author
-              .rating ??
-            undefined,
-          commentsCount:
-            post.commentsCount,
-          serviceId:
-            post.service?.id ??
-            undefined,
-          createdAt:
-            post.publishedAt ??
-            "",
-        }),
-      ),
-    [
-      remoteData,
-    ],
+    () => remoteData?.posts ?? [],
+    [remoteData],
   );
+
+  const postsTotal = remoteData?.postsCount ?? posts.length;
 
   const services = useMemo(
     () =>
@@ -305,6 +280,73 @@ export default function EstablishmentProfileScreen() {
       },
     );
   };
+
+  const aboutText =
+    establishment.bio ||
+    "Esta empresa está construindo sua apresentação no IDDUN.";
+
+  const renderServices = (items: typeof services) =>
+    items.length > 0 ? (
+      <View style={styles.serviceList}>
+        {items.map((service) => (
+          <ServiceCard
+            key={service.id}
+            id={service.id}
+            name={service.name}
+            image={service.image}
+            category={service.category}
+            professionalName={establishment.name}
+            location={service.location}
+            durationMinutes={service.durationMinutes}
+            price={service.price}
+            availableLabel={service.availabilityLabel}
+          />
+        ))}
+      </View>
+    ) : (
+      <Placeholder>Os serviços deste espaço aparecerão aqui.</Placeholder>
+    );
+
+  const renderPosts = (items: typeof posts) =>
+    items.length > 0 ? (
+      <View style={styles.posts}>
+        {items.map((post) => (
+          <PostCard
+            key={post.id}
+            id={post.id}
+            author={{
+              id: establishment.id,
+              routeId: establishment.routeId ?? params.id,
+              name: establishment.name,
+              avatar: establishment.avatar,
+              kind: "establishment",
+              specialty: establishment.specialty,
+            }}
+            image={post.image}
+            media={post.media}
+            likesCount={post.likesCount}
+            likedByMe={post.likedByMe}
+            mine={post.mine}
+            caption={post.caption}
+            commentsCount={post.commentsCount}
+            showFollow={false}
+            service={
+              post.service
+                ? {
+                    id: post.service.id,
+                    name: post.service.name,
+                    price: post.service.price,
+                    availabilityLabel: post.service.availabilityLabel ?? undefined,
+                  }
+                : undefined
+            }
+            onCommentsPress={() => openComments(post.id)}
+          />
+        ))}
+      </View>
+    ) : (
+      <Placeholder>Ainda não há publicações.</Placeholder>
+    );
 
   return (
     <View style={styles.container}>
@@ -556,16 +598,6 @@ export default function EstablishmentProfileScreen() {
             </View>
           </View>
 
-          {establishment.bio ? (
-            <Text
-              style={
-                styles.bio
-              }
-            >
-              {establishment.bio}
-            </Text>
-          ) : null}
-
           <View
             style={
               styles.categories
@@ -766,355 +798,104 @@ export default function EstablishmentProfileScreen() {
             styles.tabContent
           }
         >
-          {activeTab ===
-          "work" ? (
-            posts.length >
-            0 ? (
-              <View
-                style={
-                  styles.posts
-                }
-              >
-                {posts.map(
-                  (post) => {
-                    const service =
-                      services.find(
-                        (item) =>
-                          item.id ===
-                          post.serviceId,
-                      );
+          {/* D-SOC-12: Início, Serviços, Equipe, Publicações e Sobre. */}
+          {activeTab === "inicio" ? (
+            <>
+              <ProfileSection kicker="SOBRE A MARCA" title="Um lugar para descobrir.">
+                <ReadMoreText text={aboutText} />
+              </ProfileSection>
 
-                    return (
-                      <PostCard
-                        key={
-                          post.id
-                        }
-                        id={
-                          post.id
-                        }
-                        author={{
-                          id:
-                            establishment.id,
-                          routeId:
-                            establishment.routeId ??
-                            params.id,
-                          name:
-                            establishment.name,
-                          avatar:
-                            establishment.avatar,
-                          kind:
-                            "establishment",
-                          specialty:
-                            establishment.specialty,
-                        }}
-                        image={
-                          post.image
-                        }
-                        caption={
-                          post.caption
-                        }
-                        rating={
-                          post.rating
-                        }
-                        commentsCount={
-                          post.commentsCount
-                        }
-                        showFollow={
-                          false
-                        }
-                        service={
-                          service
-                            ? {
-                                id:
-                                  service.id,
-                                name:
-                                  service.name,
-                                price:
-                                  service.price,
-                                availabilityLabel:
-                                  service.availabilityLabel,
-                              }
-                            : undefined
-                        }
-                        onCommentsPress={() =>
-                          openComments(
-                            post.id,
-                          )
-                        }
-                      />
-                    );
-                  },
-                )}
-              </View>
-            ) : (
-              <EmptyState
-                title="Nenhum trabalho publicado"
-                description="Os trabalhos deste estabelecimento aparecerão aqui."
-                compact
-              />
-            )
-          ) : activeTab ===
-            "services" ? (
-            services.length >
-            0 ? (
-              <View
-                style={
-                  styles.serviceList
-                }
-              >
-                {services.map(
-                  (service) => (
-                    <ServiceCard
-                      key={
-                        service.id
-                      }
-                      id={
-                        service.id
-                      }
-                      name={
-                        service.name
-                      }
-                      image={
-                        service.image
-                      }
-                      category={
-                        service.category
-                      }
-                      professionalName={
-                        establishment.name
-                      }
-                      location={
-                        service.location
-                      }
-                      durationMinutes={
-                        service.durationMinutes
-                      }
-                      price={
-                        service.price
-                      }
-                      availableLabel={
-                        service.availabilityLabel
-                      }
+              <ProfileSection kicker="GALERIA" title="Conheça o espaço">
+                <PortfolioStrip items={remoteData?.gallery ?? []} ownerName={establishment.name} />
+              </ProfileSection>
+
+              <ProfileSection
+                kicker="SERVIÇOS"
+                title="Disponíveis neste estabelecimento"
+                action={
+                  services.length > 3 ? (
+                    <SectionLink
+                      label={`Ver todos (${services.length})`}
+                      onPress={() => setActiveTab("servicos")}
                     />
-                  ),
-                )}
-              </View>
-            ) : (
-              <EmptyState
-                title="Nenhum serviço cadastrado"
-                description="Os serviços deste espaço aparecerão aqui."
-                compact
-              />
-            )
-          ) : activeTab ===
-            "team" ? (
-            team.length >
-            0 ? (
-              <View
-                style={
-                  styles.teamSection
+                  ) : undefined
                 }
               >
-                <Text
-                  style={
-                    styles.teamIntro
-                  }
-                >
-                  Conheça os profissionais vinculados a este estabelecimento.
-                </Text>
+                {renderServices(services.slice(0, 3))}
+              </ProfileSection>
 
-                <View
-                  style={
-                    styles.teamList
-                  }
-                >
-                  {team.map(
-                    (professional) => (
-                      <ProfessionalCard
-                        key={
-                          professional.id
-                        }
-                        id={
-                          professional.id
-                        }
-                        routeId={
-                          professional.routeId
-                        }
-                        name={
-                          professional.name
-                        }
-                        avatar={
-                          professional.avatar
-                        }
-                        specialty={
-                          professional.specialty
-                        }
-                        location={
-                          professional.location
-                        }
-                        rating={
-                          professional.rating
-                        }
-                        reviewsCount={
-                          professional.reviewsCount
-                        }
-                        routeType="professional"
-                      />
-                    ),
-                  )}
+              <ProfileSection
+                kicker="PUBLICAÇÕES"
+                title={`Novidades de ${establishment.name}`}
+                action={
+                  postsTotal > 3 ? (
+                    <SectionLink
+                      label={`Ver todas (${postsTotal})`}
+                      onPress={() => setActiveTab("publicacoes")}
+                    />
+                  ) : undefined
+                }
+              >
+                {renderPosts(posts.slice(0, 3))}
+              </ProfileSection>
+            </>
+          ) : activeTab === "servicos" ? (
+            <ProfileSection kicker="SERVIÇOS" title="Disponíveis neste estabelecimento">
+              {renderServices(services)}
+            </ProfileSection>
+          ) : activeTab === "equipe" ? (
+            <ProfileSection kicker="EQUIPE" title="Profissionais deste lugar">
+              {team.length > 0 ? (
+                <View style={styles.teamList}>
+                  {team.map((professional) => (
+                    <ProfessionalCard
+                      key={professional.id}
+                      id={professional.id}
+                      routeId={professional.routeId}
+                      name={professional.name}
+                      avatar={professional.avatar}
+                      specialty={professional.specialty}
+                      location={professional.location}
+                      rating={professional.rating}
+                      reviewsCount={professional.reviewsCount}
+                      routeType="professional"
+                    />
+                  ))}
                 </View>
-              </View>
-            ) : (
-              <EmptyState
-                title="Nenhum profissional vinculado"
-                description="A equipe deste estabelecimento aparecerá aqui."
-                compact
-              />
-            )
+              ) : (
+                <Placeholder>A equipe deste estabelecimento aparecerá aqui.</Placeholder>
+              )}
+            </ProfileSection>
+          ) : activeTab === "publicacoes" ? (
+            <ProfileSection kicker="PUBLICAÇÕES" title={`Publicações de ${establishment.name}`}>
+              {renderPosts(posts)}
+            </ProfileSection>
           ) : (
-            <View
-              style={
-                styles.reviewsSection
-              }
-            >
-              <View
-                style={
-                  styles.reviewSummary
+            <>
+              <ProfileSection kicker="SOBRE" title={establishment.name}>
+                <Text style={styles.aboutText}>{aboutText}</Text>
+              </ProfileSection>
+
+              <BusinessAbout about={remoteData?.about} />
+
+              <ProfileSection
+                kicker="AVALIAÇÕES & RECOMENDAÇÕES"
+                title="O que clientes verificados dizem"
+                action={
+                  <ReviewSummary
+                    rating={establishment.rating}
+                    count={establishment.reviewsCount}
+                    label={remoteData?.recommendationLabel}
+                  />
                 }
               >
-                <Text
-                  style={
-                    styles.reviewScore
-                  }
-                >
-                  {establishment.rating.toFixed(
-                    1,
-                  )}
-                </Text>
-
-                <Rating
-                  value={
-                    establishment.rating
-                  }
+                <ReviewList
+                  reviews={remoteData?.reviews ?? []}
+                  subject="estabelecimento"
+                  emptyText="As avaliações do estabelecimento aparecem depois de atendimentos concluídos no IDDUN."
                 />
-
-                <Text
-                  style={
-                    styles.reviewCount
-                  }
-                >
-                  Baseado em{" "}
-                  {
-                    establishment.reviewsCount
-                  }{" "}
-                  avaliações
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.reviewCard
-                }
-              >
-                <View
-                  style={
-                    styles.reviewHeader
-                  }
-                >
-                  <Avatar
-                    name="Juliana Ramos"
-                    size={36}
-                  />
-
-                  <View
-                    style={
-                      styles.reviewAuthorArea
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.reviewAuthor
-                      }
-                    >
-                      Juliana Ramos
-                    </Text>
-
-                    <Rating
-                      value={5}
-                      small
-                    />
-                  </View>
-
-                  <Text
-                    style={
-                      styles.reviewDate
-                    }
-                  >
-                    3d
-                  </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.reviewText
-                  }
-                >
-                  Espaço lindo, atendimento organizado e ótima experiência do início ao fim.
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.reviewCard
-                }
-              >
-                <View
-                  style={
-                    styles.reviewHeader
-                  }
-                >
-                  <Avatar
-                    name="Fernanda Luz"
-                    size={36}
-                  />
-
-                  <View
-                    style={
-                      styles.reviewAuthorArea
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.reviewAuthor
-                      }
-                    >
-                      Fernanda Luz
-                    </Text>
-
-                    <Rating
-                      value={5}
-                      small
-                    />
-                  </View>
-
-                  <Text
-                    style={
-                      styles.reviewDate
-                    }
-                  >
-                    1 sem
-                  </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.reviewText
-                  }
-                >
-                  Gostei muito do ambiente e da equipe. Voltaria com certeza.
-                </Text>
-              </View>
-            </View>
+              </ProfileSection>
+            </>
           )}
         </View>
 
@@ -1168,7 +949,7 @@ export default function EstablishmentProfileScreen() {
             accessibilityLabel={`Ver serviços de ${establishment.name}`}
             onPress={() =>
               setActiveTab(
-                "services",
+                "servicos",
               )
             }
             style={({ pressed }) => [
@@ -1224,6 +1005,13 @@ export default function EstablishmentProfileScreen() {
 
 const useStyles = makeStyles(
   (colors) => ({
+    aboutText: {
+      color: colors.onSurfaceSecondary,
+      fontFamily: fonts.sans,
+      fontSize: 14,
+      lineHeight: 21,
+    },
+
     container: {
       flex: 1,
       backgroundColor:
@@ -1471,21 +1259,6 @@ const useStyles = makeStyles(
       lineHeight: 14,
     },
 
-    bio: {
-      maxWidth: 360,
-
-      marginTop:
-        spacing.lg,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 13,
-      lineHeight: 20,
-    },
 
     categories: {
       marginTop:
@@ -1721,135 +1494,21 @@ const useStyles = makeStyles(
       gap: spacing.sm,
     },
 
-    teamSection: {
-      paddingHorizontal:
-        spacing.lg,
-    },
 
-    teamIntro: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-      lineHeight: 17,
-
-      marginBottom:
-        spacing.lg,
-    },
 
     teamList: {
       gap: spacing.sm,
     },
 
-    reviewsSection: {
-      paddingHorizontal:
-        spacing.lg,
 
-      gap: spacing.md,
-    },
 
-    reviewSummary: {
-      alignItems:
-        "center",
 
-      paddingVertical:
-        spacing.xl,
-    },
 
-    reviewScore: {
-      color:
-        colors.onSurface,
 
-      fontFamily:
-        fonts.display,
 
-      fontSize: 42,
-      lineHeight: 48,
-    },
 
-    reviewCount: {
-      marginTop:
-        spacing.sm,
 
-      color:
-        colors.muted,
 
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-    },
-
-    reviewCard: {
-      padding:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    reviewHeader: {
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-    },
-
-    reviewAuthorArea: {
-      flex: 1,
-
-      marginLeft:
-        spacing.sm,
-    },
-
-    reviewAuthor: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 12,
-      lineHeight: 16,
-
-      marginBottom: 2,
-    },
-
-    reviewDate: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-    },
-
-    reviewText: {
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 12,
-      lineHeight: 18,
-    },
 
     stickyBar: {
       position: "absolute",

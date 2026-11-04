@@ -34,6 +34,18 @@ import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { Rating } from "@/components/Rating";
 import { ServiceCard } from "@/components/ServiceCard";
+import {
+  ExperienceAndTraining,
+  PlaceList,
+  Placeholder,
+  PortfolioStrip,
+  ProfileSection,
+  ReadMoreText,
+  ReviewList,
+  ReviewSummary,
+  SectionLink,
+  WhatsAppButton,
+} from "@/components/ProfileSections";
 
 import {
   fonts,
@@ -43,29 +55,6 @@ import {
   touch,
   useTheme,
 } from "@/theme";
-
-type ProfileTab =
-  | "work"
-  | "services"
-  | "reviews";
-
-const tabs: {
-  id: ProfileTab;
-  label: string;
-}[] = [
-  {
-    id: "work",
-    label: "Trabalhos",
-  },
-  {
-    id: "services",
-    label: "Serviços",
-  },
-  {
-    id: "reviews",
-    label: "Avaliações",
-  },
-];
 
 export default function ProfessionalProfileScreen() {
   const styles = useStyles();
@@ -139,8 +128,14 @@ export default function ProfessionalProfileScreen() {
   const profile =
     remoteData?.professional;
 
-  const [activeTab, setActiveTab] =
-    useState<ProfileTab>("work");
+  const scrollRef =
+    useRef<ScrollView>(null);
+
+  const [servicesY, setServicesY] =
+    useState(0);
+
+  const [showAllPosts, setShowAllPosts] =
+    useState(false);
 
   const commentsRef =
     useRef<BottomSheetModal>(null);
@@ -149,37 +144,13 @@ export default function ProfessionalProfileScreen() {
     useState<string | null>(null);
 
   const posts = useMemo(
-    () =>
-      (
-        remoteData?.posts ??
-        []
-      ).map(
-        (post) => ({
-          id: post.id,
-          authorId:
-            post.authorId,
-          image:
-            post.image,
-          caption:
-            post.caption,
-          rating:
-            post.author
-              .rating ??
-            undefined,
-          commentsCount:
-            post.commentsCount,
-          serviceId:
-            post.service?.id ??
-            undefined,
-          createdAt:
-            post.publishedAt ??
-            "",
-        }),
-      ),
-    [
-      remoteData,
-    ],
+    () => remoteData?.posts ?? [],
+    [remoteData],
   );
+
+  // D-SOC-12: as 6 mais recentes; "Ver todas" abre a lista inteira.
+  const visiblePosts = showAllPosts ? posts : posts.slice(0, 6);
+  const postsTotal = remoteData?.postsCount ?? posts.length;
 
   const services = useMemo(
     () =>
@@ -298,6 +269,7 @@ export default function ProfessionalProfileScreen() {
       }
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={
           styles.content
         }
@@ -517,16 +489,6 @@ export default function ProfessionalProfileScreen() {
             </View>
           </View>
 
-          {profile.bio ? (
-            <Text
-              style={
-                styles.bio
-              }
-            >
-              {profile.bio}
-            </Text>
-          ) : null}
-
           <View
             style={
               styles.categories
@@ -645,355 +607,147 @@ export default function ProfessionalProfileScreen() {
           </View>
         </View>
 
-        <View
-          style={
-            styles.tabs
-          }
-        >
-          {tabs.map(
-            (tab) => {
-              const active =
-                activeTab ===
-                tab.id;
-
-              return (
-                <Pressable
-                  key={
-                    tab.id
-                  }
-                  accessibilityRole="button"
-                  accessibilityState={{
-                    selected:
-                      active,
-                  }}
-                  onPress={() =>
-                    setActiveTab(
-                      tab.id,
-                    )
-                  }
-                  style={
-                    styles.tab
-                  }
-                >
-                  <Text
-                    style={[
-                      styles.tabText,
-
-                      active &&
-                        styles.tabTextActive,
-                    ]}
-                  >
-                    {
-                      tab.label
-                    }
-                  </Text>
-
-                  {active ? (
-                    <View
-                      style={
-                        styles.tabIndicator
-                      }
-                    />
-                  ) : null}
-                </Pressable>
-              );
-            },
-          )}
-        </View>
-
-        <View
-          style={
-            styles.tabContent
-          }
-        >
-          {activeTab ===
-          "work" ? (
-            posts.length >
-            0 ? (
-              <View
-                style={
-                  styles.posts
-                }
-              >
-                {posts.map(
-                  (post) => {
-                    const service =
-                      services.find(
-                        (item) =>
-                          item.id ===
-                          post.serviceId,
-                      );
-
-                    return (
-                      <PostCard
-                        key={
-                          post.id
-                        }
-                        id={
-                          post.id
-                        }
-                        author={{
-                          id:
-                            profile.id,
-                          routeId:
-                            profile.routeId ??
-                            params.id,
-                          name:
-                            profile.name,
-                          avatar:
-                            profile.avatar,
-                          kind:
-                            profile.kind,
-                          specialty:
-                            profile.specialty,
-                        }}
-                        image={
-                          post.image
-                        }
-                        caption={
-                          post.caption
-                        }
-                        rating={
-                          post.rating
-                        }
-                        commentsCount={
-                          post.commentsCount
-                        }
-                        showFollow={
-                          false
-                        }
-                        service={
-                          service
-                            ? {
-                                id:
-                                  service.id,
-                                name:
-                                  service.name,
-                                price:
-                                  service.price,
-                                availabilityLabel:
-                                  service.availabilityLabel,
-                              }
-                            : undefined
-                        }
-                        onCommentsPress={() =>
-                          openComments(
-                            post.id,
-                          )
-                        }
-                      />
-                    );
-                  },
-                )}
-              </View>
-            ) : (
-              <EmptyState
-                title="Nenhum trabalho publicado"
-                description="Os trabalhos desse profissional aparecerão aqui."
-                compact
-              />
-            )
-          ) : activeTab ===
-            "services" ? (
-            services.length >
-            0 ? (
-              <View
-                style={
-                  styles.serviceList
-                }
-              >
-                {services.map(
-                  (
-                    service,
-                  ) => (
-                    <ServiceCard
-                      key={
-                        service.id
-                      }
-                      id={
-                        service.id
-                      }
-                      name={
-                        service.name
-                      }
-                      image={
-                        service.image
-                      }
-                      category={
-                        service.category
-                      }
-                      professionalName={
-                        profile.name
-                      }
-                      location={
-                        service.location
-                      }
-                      durationMinutes={
-                        service.durationMinutes
-                      }
-                      price={
-                        service.price
-                      }
-                      availableLabel={
-                        service.availabilityLabel
-                      }
-                    />
-                  ),
-                )}
-              </View>
-            ) : (
-              <EmptyState
-                title="Nenhum serviço cadastrado"
-                description="Os serviços disponíveis aparecerão aqui."
-                compact
-              />
-            )
-          ) : (
-            <View
-              style={
-                styles.reviewsSection
+        {/* D-SOC-12: Sobre, Portfólio, Serviços, Publicações, Experiência
+            e formação, Avaliações e Onde atende — a mesma ordem do Web. */}
+        <View style={styles.heroActions}>
+          {services.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() =>
+                scrollRef.current?.scrollTo({
+                  y: Math.max(servicesY - 12, 0),
+                  animated: true,
+                })
               }
+              style={({ pressed }) => [
+                styles.heroPrimary,
+                pressed && styles.bookButtonPressed,
+              ]}
             >
-              <View
-                style={
-                  styles.reviewSummary
-                }
-              >
-                <Text
-                  style={
-                    styles.reviewScore
-                  }
-                >
-                  {profile.rating.toFixed(
-                    1,
-                  )}
-                </Text>
-
-                <Rating
-                  value={
-                    profile.rating
-                  }
-                />
-
-                <Text
-                  style={
-                    styles.reviewCount
-                  }
-                >
-                  Baseado em{" "}
-                  {
-                    profile.reviewsCount
-                  }{" "}
-                  avaliações
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.reviewCard
-                }
-              >
-                <View
-                  style={
-                    styles.reviewHeader
-                  }
-                >
-                  <Avatar
-                    name="Marina Silva"
-                    size={36}
-                  />
-
-                  <View
-                    style={
-                      styles.reviewAuthorArea
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.reviewAuthor
-                      }
-                    >
-                      Marina Silva
-                    </Text>
-
-                    <Rating
-                      value={5}
-                      small
-                    />
-                  </View>
-
-                  <Text
-                    style={
-                      styles.reviewDate
-                    }
-                  >
-                    2d
-                  </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.reviewText
-                  }
-                >
-                  Atendimento excelente, cuidado em cada detalhe e resultado impecável.
-                </Text>
-              </View>
-
-              <View
-                style={
-                  styles.reviewCard
-                }
-              >
-                <View
-                  style={
-                    styles.reviewHeader
-                  }
-                >
-                  <Avatar
-                    name="Ana Costa"
-                    size={36}
-                  />
-
-                  <View
-                    style={
-                      styles.reviewAuthorArea
-                    }
-                  >
-                    <Text
-                      style={
-                        styles.reviewAuthor
-                      }
-                    >
-                      Ana Costa
-                    </Text>
-
-                    <Rating
-                      value={5}
-                      small
-                    />
-                  </View>
-
-                  <Text
-                    style={
-                      styles.reviewDate
-                    }
-                  >
-                    5d
-                  </Text>
-                </View>
-
-                <Text
-                  style={
-                    styles.reviewText
-                  }
-                >
-                  Experiência muito boa. Ambiente agradável e atendimento super profissional.
-                </Text>
-              </View>
-            </View>
-          )}
+              <Text style={styles.bookText}>Ver serviços</Text>
+            </Pressable>
+          ) : null}
+          {remoteData?.whatsappUrl ? (
+            <WhatsAppButton url={remoteData.whatsappUrl} />
+          ) : null}
         </View>
+
+        {profile.bio ? (
+          <ProfileSection kicker="SOBRE" title={`Conheça ${profile.name}`}>
+            <ReadMoreText text={profile.bio} />
+          </ProfileSection>
+        ) : null}
+
+        <ProfileSection kicker="PORTFÓLIO" title="Trabalhos recentes">
+          <PortfolioStrip items={remoteData?.portfolio ?? []} ownerName={profile.name} />
+        </ProfileSection>
+
+        <View onLayout={(event) => setServicesY(event.nativeEvent.layout.y)}>
+          <ProfileSection kicker="SERVIÇOS" title="Experiências para agendar">
+            {services.length > 0 ? (
+              <View style={styles.serviceList}>
+                {services.map((service) => (
+                  <ServiceCard
+                    key={service.id}
+                    id={service.id}
+                    name={service.name}
+                    image={service.image}
+                    category={service.category}
+                    professionalName={profile.name}
+                    location={service.location}
+                    durationMinutes={service.durationMinutes}
+                    price={service.price}
+                    availableLabel={service.availabilityLabel}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Placeholder>Os serviços disponíveis aparecerão aqui.</Placeholder>
+            )}
+          </ProfileSection>
+        </View>
+
+        <ProfileSection
+          kicker="PUBLICAÇÕES"
+          title="No feed"
+          action={
+            postsTotal > visiblePosts.length ? (
+              <SectionLink
+                label={`Ver todas (${postsTotal})`}
+                onPress={() => setShowAllPosts(true)}
+              />
+            ) : undefined
+          }
+        >
+          {visiblePosts.length > 0 ? (
+            <View style={styles.posts}>
+              {visiblePosts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  id={post.id}
+                  author={{
+                    id: profile.id,
+                    routeId: profile.routeId ?? params.id,
+                    name: profile.name,
+                    avatar: profile.avatar,
+                    kind: profile.kind,
+                    specialty: profile.specialty,
+                  }}
+                  image={post.image}
+                  media={post.media}
+                  likesCount={post.likesCount}
+                  likedByMe={post.likedByMe}
+                  mine={post.mine}
+                  caption={post.caption}
+                  commentsCount={post.commentsCount}
+                  showFollow={false}
+                  service={
+                    post.service
+                      ? {
+                          id: post.service.id,
+                          name: post.service.name,
+                          price: post.service.price,
+                          availabilityLabel: post.service.availabilityLabel ?? undefined,
+                        }
+                      : undefined
+                  }
+                  onCommentsPress={() => openComments(post.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Placeholder>As publicações desse profissional aparecerão aqui.</Placeholder>
+          )}
+        </ProfileSection>
+
+        <ProfileSection kicker="EXPERIÊNCIA & FORMAÇÃO" title="Trajetória e conhecimento">
+          <ExperienceAndTraining
+            experiences={remoteData?.experiences ?? []}
+            certifications={remoteData?.certifications ?? []}
+          />
+        </ProfileSection>
+
+        <ProfileSection
+          kicker="AVALIAÇÕES & RECOMENDAÇÕES"
+          title="Experiências verificadas"
+          action={
+            <ReviewSummary
+              rating={profile.rating}
+              count={profile.reviewsCount}
+              label={remoteData?.recommendationLabel}
+            />
+          }
+        >
+          <ReviewList
+            reviews={remoteData?.reviews ?? []}
+            subject="profissional"
+            emptyText="As avaliações aparecem aqui depois de atendimentos concluídos pelo IDDUN."
+          />
+        </ProfileSection>
+
+        <ProfileSection kicker="ONDE ATENDE" title="Locais conectados ao perfil">
+          <PlaceList places={remoteData?.places ?? []} />
+        </ProfileSection>
 
         <View
           style={
@@ -1100,6 +854,23 @@ export default function ProfessionalProfileScreen() {
 
 const useStyles = makeStyles(
   (colors) => ({
+    heroActions: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.lg,
+    },
+
+    heroPrimary: {
+      minHeight: touch.minimum,
+      paddingHorizontal: spacing.xl,
+      borderRadius: radius.pill,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.brandPrimary,
+    },
+
     container: {
       flex: 1,
       backgroundColor:
@@ -1301,21 +1072,6 @@ const useStyles = makeStyles(
       lineHeight: 14,
     },
 
-    bio: {
-      maxWidth: 360,
-
-      marginTop:
-        spacing.lg,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 13,
-      lineHeight: 20,
-    },
 
     categories: {
       marginTop:
@@ -1427,73 +1183,11 @@ const useStyles = makeStyles(
         colors.divider,
     },
 
-    tabs: {
-      marginTop:
-        spacing.xxl,
 
-      paddingHorizontal:
-        spacing.lg,
 
-      minHeight: 50,
 
-      flexDirection:
-        "row",
 
-      borderBottomWidth: 1,
 
-      borderBottomColor:
-        colors.divider,
-    },
-
-    tab: {
-      flex: 1,
-
-      minHeight: 50,
-
-      alignItems:
-        "center",
-
-      justifyContent:
-        "center",
-
-      position: "relative",
-    },
-
-    tabText: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sansMedium,
-
-      fontSize: 12,
-      lineHeight: 16,
-    },
-
-    tabTextActive: {
-      color:
-        colors.onSurface,
-    },
-
-    tabIndicator: {
-      position: "absolute",
-
-      left: 18,
-      right: 18,
-      bottom: -1,
-
-      height: 2,
-
-      borderRadius: 1,
-
-      backgroundColor:
-        colors.plum,
-    },
-
-    tabContent: {
-      marginTop:
-        spacing.lg,
-    },
 
     posts: {
       gap:
@@ -1507,112 +1201,15 @@ const useStyles = makeStyles(
       gap: spacing.sm,
     },
 
-    reviewsSection: {
-      paddingHorizontal:
-        spacing.lg,
 
-      gap: spacing.md,
-    },
 
-    reviewSummary: {
-      alignItems:
-        "center",
 
-      paddingVertical:
-        spacing.xl,
-    },
 
-    reviewScore: {
-      color:
-        colors.onSurface,
 
-      fontFamily:
-        fonts.display,
 
-      fontSize: 42,
-      lineHeight: 48,
-    },
 
-    reviewCount: {
-      marginTop:
-        spacing.sm,
 
-      color:
-        colors.muted,
 
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 11,
-    },
-
-    reviewCard: {
-      padding:
-        spacing.md,
-
-      borderRadius:
-        radius.md,
-
-      backgroundColor:
-        colors.surfaceSecondary,
-
-      borderWidth: 1,
-
-      borderColor:
-        colors.glassBorder,
-    },
-
-    reviewHeader: {
-      flexDirection:
-        "row",
-
-      alignItems:
-        "center",
-    },
-
-    reviewAuthorArea: {
-      flex: 1,
-
-      marginLeft:
-        spacing.sm,
-    },
-
-    reviewAuthor: {
-      color:
-        colors.onSurface,
-
-      fontFamily:
-        fonts.sansSemiBold,
-
-      fontSize: 12,
-      lineHeight: 16,
-
-      marginBottom: 2,
-    },
-
-    reviewDate: {
-      color:
-        colors.muted,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 10,
-    },
-
-    reviewText: {
-      marginTop:
-        spacing.md,
-
-      color:
-        colors.onSurfaceSecondary,
-
-      fontFamily:
-        fonts.sans,
-
-      fontSize: 12,
-      lineHeight: 18,
-    },
 
     stickyBar: {
       position: "absolute",

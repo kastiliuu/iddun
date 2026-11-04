@@ -23,6 +23,10 @@ import type {
   WorkPost,
 } from "@/api/feed";
 
+import type {
+  ProfileReview,
+} from "@/api/professionals";
+
 export type EstablishmentListResponse = {
   items: Professional[];
   nextOffset?: number | null;
@@ -43,11 +47,29 @@ export type EstablishmentSearchParams = {
   limit?: number;
 };
 
+export type EstablishmentAbout = {
+  operationLabel: string | null;
+  hours: {
+    label: string;
+    days: { label: string; ranges: string[] }[];
+  } | null;
+  address: string | null;
+  city: string | null;
+  instagram: string | null;
+  whatsappUrl: string | null;
+};
+
 export type EstablishmentProfileResponse = {
   establishment: Professional;
   services: Service[];
   posts: WorkPost[];
   team: Professional[];
+  /** Abas Início, Serviços, Equipe, Publicações e Sobre (PR 4a; D-SOC-12). */
+  postsCount?: number;
+  reviews?: ProfileReview[];
+  recommendationLabel?: string | null;
+  about?: EstablishmentAbout;
+  gallery?: { url: string | null; caption: string | null }[];
 };
 
 export type EstablishmentTeamResponse = {

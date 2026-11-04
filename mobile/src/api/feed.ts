@@ -1,3 +1,5 @@
+import type { Href } from "expo-router";
+
 import {
   api,
   ApiError,
@@ -38,7 +40,10 @@ export type WorkPostStatus =
 
 export type WorkPostAuthor = {
   id: string;
-  /** Nulo para Cliente, que ainda não tem perfil público (PR 4). */
+  /**
+   * Endereço do perfil. Para Cliente é o id do perfil de Cliente, que só
+   * tem página com publicação pública (D-SOC-13).
+   */
   routeId: string | null;
   kind: WorkPostAuthorKind;
   name: string;
@@ -333,6 +338,49 @@ export async function getFeed(
 }
 
 
+/** Rota do perfil de quem publicou (D-SOC-12); nula quando não há página. */
+export function authorRoute(
+  author: Pick<WorkPostAuthor, "id" | "kind"> & { routeId?: string | null },
+): Href | null {
+  const routeId = author.routeId ?? (author.kind === "client" ? null : author.id);
+  if (!routeId) {
+    return null;
+  }
+  if (author.kind === "client") {
+    return `/client/${routeId}`;
+  }
+  return author.kind === "establishment"
+    ? `/establishment/${routeId}`
+    : `/professional/${routeId}`;
+}
+
+export type ClientPublicProfile = {
+  id: string;
+  kind: "client";
+  name: string;
+  avatar: string | null;
+  posts: WorkPost[];
+  postsCount: number;
+  nextCursor: string | null;
+};
+
+/** Página pública da Cliente (D-SOC-03, 13): nome, foto e publicações. */
+export async function getClientProfile(
+  profileId: string,
+  cursor?: string | null,
+) {
+  const token =
+    await getAccessToken();
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : "";
+
+  return api.get<ClientPublicProfile>(
+    `/api/v1/clients/${encodeURIComponent(profileId)}${query}`,
+    token
+      ? { token }
+      : undefined,
+  );
+}
+
 export async function getPost(
   postId: string,
 ) {
@@ -506,6 +554,8 @@ export type PostComment = {
   author: {
     name: string;
     avatar?: string | null;
+    /** Perfil de Cliente com página pública (D-SOC-13); nulo sem página. */
+    profileId?: string | null;
   };
   createdAt: string | null;
   parentId: string | null;

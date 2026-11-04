@@ -21,6 +21,7 @@ import {
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 
 import {
+  authorRoute,
   deletePost,
   getPost,
   replacePostImage,
@@ -256,17 +257,12 @@ export default function PostDetailScreen() {
   }
 
   const openAuthor = () => {
-    // Cliente ainda não tem perfil público (PR 4).
-    if (author.kind === "client" || !author.routeId) {
+    const route = authorRoute(author);
+    if (!route) {
       return;
     }
 
-    router.push(
-      author.kind ===
-        "establishment"
-        ? `/establishment/${author.routeId}`
-        : `/professional/${author.routeId}`,
-    );
+    router.push(route);
   };
 
   const openComments = () => {
@@ -750,7 +746,9 @@ export default function PostDetailScreen() {
                 {author.kind ===
                 "establishment"
                   ? "Estabelecimento"
-                  : author.specialty}
+                  : author.kind === "client"
+                    ? "Cliente IDDUN"
+                    : author.specialty}
               </Text>
             </View>
           </Pressable>
