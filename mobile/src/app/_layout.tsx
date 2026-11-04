@@ -288,6 +288,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="client/[id]"
+              />
+
+              <Stack.Screen
                 name="booking/[serviceId]"
               />
             </Stack>

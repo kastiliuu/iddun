@@ -36,7 +36,10 @@ from app.models.work_post import (
     WorkPostStatus,
     utcnow,
 )
-from app.services.feed_service import public_post_record
+from app.services.feed_service import (
+    clients_with_public_posts,
+    public_post_record,
+)
 from app.services.media_storage import resolve_image_url
 
 
@@ -149,21 +152,27 @@ def _clean_body(value):
     return clean
 
 
-def _author_payload(user):
+def _author_payload(user, linked_profiles=frozenset()):
     profile = user.client_profile
     avatar = profile.avatar_url if profile is not None else None
     return {
         "name": user.name,
         "avatar": resolve_image_url(avatar, external=True) if avatar else None,
+        # PR 4: o nome leva à página da Cliente quando ela existe (D-SOC-13).
+        "profileId": (
+            str(profile.id)
+            if profile is not None and profile.id in linked_profiles
+            else None
+        ),
     }
 
 
-def serialize_comment(comment, viewer=None, can_moderate=False, replies=None):
+def serialize_comment(comment, viewer=None, can_moderate=False, replies=None, linked_profiles=frozenset()):
     mine = viewer is not None and getattr(viewer, "is_authenticated", False) and viewer.id == comment.user_id
     payload = {
         "id": str(comment.id),
         "body": comment.body,
-        "author": _author_payload(comment.user),
+        "author": _author_payload(comment.user, linked_profiles),
         "createdAt": comment.created_at.isoformat() if comment.created_at else None,
         "parentId": str(comment.parent_id) if comment.parent_id else None,
         "mine": bool(mine),
@@ -189,6 +198,9 @@ def list_comments(post_id, viewer=None):
         .order_by(WorkPostComment.created_at.asc(), WorkPostComment.id.asc())
     ).all()
 
+    linked = clients_with_public_posts(
+        [item.user.client_profile.id for item in rows if item.user.client_profile]
+    )
     top = [item for item in rows if item.parent_id is None]
     replies = {}
     for item in rows:
@@ -202,9 +214,10 @@ def list_comments(post_id, viewer=None):
                 viewer,
                 can_moderate,
                 replies=[
-                    serialize_comment(reply, viewer, can_moderate)
+                    serialize_comment(reply, viewer, can_moderate, linked_profiles=linked)
                     for reply in replies.get(item.id, [])
                 ],
+                linked_profiles=linked,
             )
             for item in top
         ],

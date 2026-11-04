@@ -201,9 +201,10 @@ def _author_payload(post):
     if post.author_type == WorkPostAuthorType.CLIENT:
         # DEC-ID-227: só nome e foto; nada de cidade ou dados privados.
         profile = post.client_profile
+        # D-SOC-13: quem tem post público tem página (/clientes/<id>).
         return {
             "id": str(profile.id),
-            "routeId": None,
+            "routeId": str(profile.id),
             "kind": "client",
             "name": profile.user.name,
             "avatar": _media_url(profile.avatar_url),
@@ -660,3 +661,82 @@ def public_post(
         post,
         counts=interaction_counts([post.id], viewer),
     )
+
+
+
+def _author_filter(author_type, author_id):
+    column = {
+        WorkPostAuthorType.CLIENT: WorkPost.client_profile_id,
+        WorkPostAuthorType.PROFESSIONAL: WorkPost.professional_id,
+        WorkPostAuthorType.ESTABLISHMENT: WorkPost.establishment_id,
+    }[author_type]
+    return and_(WorkPost.author_type == author_type, column == author_id)
+
+
+def author_post_count(author_type, author_id):
+    """Publicações públicas de um perfil (PR 4)."""
+    return db.session.scalar(
+        select(func.count()).select_from(
+            _public_post_query()
+            .where(_author_filter(author_type, author_id))
+            .subquery()
+        )
+    ) or 0
+
+
+def author_posts_page(author_type, author_id, *, viewer=None, cursor=None, limit=12):
+    """Publicações públicas de um perfil, da mais nova para a mais antiga."""
+    parsed_limit = max(1, min(int(limit), 50))
+    cursor_id = _parse_cursor(cursor)
+    query = _public_post_query().where(_author_filter(author_type, author_id))
+    if cursor_id is not None:
+        query = query.where(WorkPost.id < cursor_id)
+
+    rows = db.session.scalars(
+        query.order_by(WorkPost.id.desc()).limit(parsed_limit + 1)
+    ).all()
+    has_more = len(rows) > parsed_limit
+    page = rows[:parsed_limit]
+    public_ids = _public_experience_ids()
+    counts = interaction_counts([item.id for item in page], viewer)
+
+    return {
+        "items": [
+            serialize_work_post(item, public_experience_ids=public_ids, counts=counts)
+            for item in page
+        ],
+        "nextCursor": _cursor(page[-1].id) if has_more and page else None,
+        "total": author_post_count(author_type, author_id),
+    }
+
+
+def clients_with_public_posts(profile_ids):
+    """Clientes (por perfil) que têm ao menos uma publicação pública."""
+    profile_ids = [item for item in set(profile_ids) if item]
+    if not profile_ids:
+        return set()
+    return set(
+        db.session.scalars(
+            _public_post_query()
+            .with_only_columns(WorkPost.client_profile_id)
+            .where(
+                WorkPost.author_type == WorkPostAuthorType.CLIENT,
+                WorkPost.client_profile_id.in_(profile_ids),
+            )
+            .distinct()
+        )
+    )
+
+
+def public_client_profile(profile_id):
+    """
+    D-SOC-03 e 13: a página da Cliente só existe com conta ativa e ao menos
+    uma publicação pública. Mostra nome e foto; nada de cidade, salvos ou
+    reservas.
+    """
+    profile = db.session.get(ClientProfile, profile_id)
+    if profile is None or profile.user is None or not profile.user.is_active:
+        return None
+    if profile.id not in clients_with_public_posts([profile.id]):
+        return None
+    return profile

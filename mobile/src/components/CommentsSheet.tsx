@@ -15,7 +15,9 @@ import {
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetTextInput,
+  useBottomSheetModal,
 } from "@gorhom/bottom-sheet";
+import { useRouter } from "expo-router";
 
 import {
   addPostComment,
@@ -89,6 +91,14 @@ export const CommentsSheet =
     const [sending, setSending] = useState(false);
     const [report, setReport] = useState<ReportTarget | null>(null);
     const signedIn = Boolean(store.getUser());
+    const router = useRouter();
+    const { dismiss } = useBottomSheetModal();
+
+    // D-SOC-12: o nome de quem comentou leva à página da Cliente, quando há.
+    const openCommentAuthor = (profileId: string) => {
+      dismiss();
+      router.push(`/client/${profileId}`);
+    };
 
     const load = useCallback(async () => {
       if (!postId) {
@@ -167,8 +177,22 @@ export const CommentsSheet =
       >
         <Avatar name={item.author.name} uri={item.author.avatar} size={isReply ? 28 : 34} />
         <View style={styles.commentBody}>
+          {item.author.profileId ? (
+            <Pressable
+              accessibilityRole="link"
+              accessibilityLabel={`Abrir perfil de ${item.author.name}`}
+              onPress={() => openCommentAuthor(item.author.profileId as string)}
+              style={styles.authorLink}
+            >
+              <Text style={[styles.commentText, styles.commentAuthor, styles.authorLinkText]}>
+                {item.author.name}
+              </Text>
+            </Pressable>
+          ) : null}
           <Text style={styles.commentText}>
-            <Text style={styles.commentAuthor}>{item.author.name} </Text>
+            {item.author.profileId ? null : (
+              <Text style={styles.commentAuthor}>{item.author.name} </Text>
+            )}
             {item.body}
           </Text>
           <View style={styles.commentActions}>
@@ -359,6 +383,16 @@ const useStyles = makeStyles((colors) => ({
 
   commentAuthor: {
     fontFamily: fonts.sansSemiBold,
+  },
+
+  authorLink: {
+    alignSelf: "flex-start",
+    minHeight: touch.minimum,
+    justifyContent: "center",
+  },
+
+  authorLinkText: {
+    textDecorationLine: "underline",
   },
 
   commentActions: {

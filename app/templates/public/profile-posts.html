@@ -1,0 +1,25 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{# Todas as publicações de um perfil Pro (PR 4; D-SOC-12). #}
+{% block title %}Publicações de {{ owner_name }} | IDDUN{% endblock %}
+{% block body_class %}client-feed-page profile-posts-page{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feed.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profiles-social.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container profile-posts">
+  <a class="profile-posts__back" href="{{ owner_url }}">{{ icon('arrow-left') }} Voltar ao perfil</a>
+  <h1 class="profile-posts__heading">Publicações de {{ owner_name }}</h1>
+  <p class="profile-posts__lead">{{ posts.total }} publicaç{{ 'ão' if posts.total == 1 else 'ões' }}</p>
+  {% set empty_text = 'Ainda não há publicações.' %}
+  {% include 'posts/_post_list.html' %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/feed.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/posts.js') }}" defer></script>
+{% endblock %}

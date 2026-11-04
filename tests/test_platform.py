@@ -344,7 +344,14 @@ def test_business_onboarding_creates_owner_access_and_public_page(
 
     assert public_response.status_code == 200
     assert "Studio Aurora" in public_html
-    assert "Profissionais deste lugar" in public_html
+
+    # D-SOC-12 (PR 4a): a equipe tem aba própria, com endereço.
+    team_html = client.get(
+        f"/estabelecimentos/{slug}/equipe"
+    ).get_data(
+        as_text=True
+    )
+    assert "Profissionais deste lugar" in team_html
 
 
 @pytest.mark.filterwarnings(
@@ -624,8 +631,9 @@ def test_business_invitation_requires_professional_acceptance(
 
         membership_id = membership.id
 
+    # D-SOC-12 (PR 4a): a equipe tem aba própria.
     public_before_acceptance = client.get(
-        f"/estabelecimentos/{slug}"
+        f"/estabelecimentos/{slug}/equipe"
     ).get_data(as_text=True)
 
     # Só a seção Equipe importa aqui: o cabeçalho único mostra o nome de
@@ -668,8 +676,9 @@ def test_business_invitation_requires_professional_acceptance(
             == MembershipStatus.ACTIVE
         )
 
+    # D-SOC-12 (PR 4a): a equipe tem aba própria.
     public_after_acceptance = client.get(
-        f"/estabelecimentos/{slug}"
+        f"/estabelecimentos/{slug}/equipe"
     ).get_data(as_text=True)
 
     team_after_acceptance = public_after_acceptance.split(

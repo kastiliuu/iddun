@@ -1,0 +1,30 @@
+{% from 'components/icon.html' import icon %}
+{#
+  Publicações em grade compacta dentro dos perfis (PR 4; D-SOC-12): imagem
+  ou trecho do texto, com os números reais. Cada uma abre a página do post.
+#}
+{% macro post_tiles(items, author_name) -%}
+<ul class="post-tiles" role="list">
+  {% for post in items %}
+  <li>
+    <a class="post-tile{% if not post.media %} post-tile--text{% endif %}" href="{{ url_for('posts.detail', post_id=post.id) }}">
+      {% if post.media %}
+      <img
+        src="{{ post.media[0].url }}"
+        alt="{{ post.media[0].alt or ('Publicação de ' ~ author_name) }}"
+        loading="lazy"
+        style="object-position: {{ post.media[0].focusX }}% {{ post.media[0].focusY }}%;"
+      >
+      {% if post.media|length > 1 %}<span class="post-tile__count">1 de {{ post.media|length }}</span>{% endif %}
+      {% else %}
+      <span class="post-tile__text">{{ post.caption|truncate(180) }}</span>
+      {% endif %}
+      <span class="post-tile__meta">
+        <span>{{ icon('heart') }} <span class="sr-only">Curtidas:</span>{{ post.likesCount }}</span>
+        <span>{{ icon('message-circle') }} <span class="sr-only">Comentários:</span>{{ post.commentsCount }}</span>
+      </span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{%- endmacro %}

@@ -23,6 +23,7 @@ import {
 } from "@/components/ReportModal";
 import { useToast } from "@/components/Toast";
 import {
+  authorRoute,
   deletePost,
   setPostLike,
 } from "@/api/feed";
@@ -47,7 +48,7 @@ type PostCardProps = {
 
   author: {
     id: string;
-    /** Cliente ainda não tem perfil público (PR 4). */
+    /** Cliente: id do perfil com página pública (D-SOC-13). */
     routeId?: string | null;
     name: string;
     avatar?: string | null;
@@ -281,7 +282,8 @@ export function PostCard({
         ? [{ url: image }]
         : [];
 
-  const hasProfile = author.kind !== "client" && Boolean(author.routeId ?? author.id);
+  const profileRoute = authorRoute(author);
+  const hasProfile = Boolean(profileRoute);
 
   const removePost = () => {
     setMenuOpen(false);
@@ -330,15 +332,11 @@ export function PostCard({
   };
 
   const openAuthor = () => {
-    if (!hasProfile) {
+    if (!profileRoute) {
       return;
     }
 
-    router.push(
-      author.kind === "establishment"
-        ? `/establishment/${author.routeId ?? author.id}`
-        : `/professional/${author.routeId ?? author.id}`,
-    );
+    router.push(profileRoute);
   };
 
   const openPost = () => {

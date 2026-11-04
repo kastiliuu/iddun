@@ -1,0 +1,20 @@
+{#
+  Lista completa de publicações de um perfil (PR 4): cartões do feed e
+  "Ver mais" por cursor. Espera `posts`, `page_url`, `empty_text`,
+  `followed_keys` e `saved_keys` no contexto.
+#}
+{% if posts['items'] %}
+<div class="feed-masonry profile-posts__grid">
+  {% set feed_items = posts['items'] %}
+  {% include 'feed/_cards.html' %}
+</div>
+{% if posts.nextCursor %}
+<p class="profile-posts__more">
+  <a class="btn btn-outline btn-outline--light" href="{{ page_url }}?cursor={{ posts.nextCursor }}">Ver mais publicações</a>
+</p>
+{% endif %}
+{% else %}
+<div class="public-profile-placeholder">{{ empty_text }}</div>
+{% endif %}
+<div class="feed-toast" role="status" aria-live="polite" hidden data-feed-toast></div>
+{% include 'posts/_report_dialog.html' %}

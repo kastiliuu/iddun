@@ -709,10 +709,7 @@ def _profile_saved_payload(
     if kind == SaveTarget.PROFESSIONAL:
         name = item.display_name
         route_id = item.slug
-        avatar = (
-            item.avatar_url
-            or "img/category-hair.jpg"
-        )
+        avatar = item.avatar_url
         specialty = (
             item.primary_specialty
             or "Profissional de beleza"
@@ -724,10 +721,7 @@ def _profile_saved_payload(
     else:
         name = item.name
         route_id = item.slug
-        avatar = (
-            item.logo_url
-            or "img/category-hair.jpg"
-        )
+        avatar = item.logo_url
         specialty = (
             item.category
             or "Espaço de beleza"
@@ -743,9 +737,15 @@ def _profile_saved_payload(
         "routeId": route_id,
         "kind": kind,
         "name": name,
-        "avatar": resolve_image_url(
-            avatar,
-            external=True,
+        # D11 / D-VIS-04: sem foto enviada, nada de foto de estoque; o app
+        # e a Web mostram as iniciais (achado da PR 2, corrigido na PR 4).
+        "avatar": (
+            resolve_image_url(
+                avatar,
+                external=True,
+            )
+            if avatar
+            else None
         ),
         "specialty": specialty,
         "location": (

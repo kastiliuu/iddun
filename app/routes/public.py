@@ -1,4 +1,9 @@
-from flask import Blueprint, abort, current_app, redirect, render_template, request
+from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
+from flask_login import current_user
+
+from app.models.work_post import ReportCategory
+from app.services.feed_service import author_posts_page, public_client_profile
+from app.services.graph_ui import card_keys
 
 from app.data.mock_marketplace import CATEGORIES
 from app.services.booking_service import grouped_available_slots
@@ -551,10 +556,23 @@ def professional_detail(slug):
         else None
     )
 
+    # PR 4: últimas publicações do Pro no perfil (D-SOC-12).
+    posts = (
+        author_posts_page(
+            "professional",
+            professional["profile"].id,
+            viewer=current_user if current_user.is_authenticated else None,
+            limit=6,
+        )
+        if professional.get("source") == "database"
+        else {"items": [], "total": 0, "nextCursor": None}
+    )
+
     return render_template(
         "public/professional-detail.html",
         professional=professional,
         selected_service=selected_service,
+        posts=posts,
         current_page="professionals",
     )
 
@@ -615,7 +633,14 @@ def establishments():
 @public_bp.get(
     "/estabelecimentos/<slug>"
 )
-def establishment_detail(slug):
+def establishment_detail(slug, tab="inicio"):
+    """
+    Página da empresa com abas endereçáveis (PR 4; D-SOC-12): Início,
+    Serviços, Equipe, Publicações e Sobre.
+    """
+    if tab not in BUSINESS_TABS:
+        abort(404)
+
     business = (
         get_establishment_public_view(
             slug
@@ -625,14 +650,101 @@ def establishment_detail(slug):
     if business is None:
         abort(404)
 
+    establishment = business["establishment"]
+    viewer = current_user if current_user.is_authenticated else None
+    posts = author_posts_page(
+        "establishment",
+        establishment.id,
+        viewer=viewer,
+        cursor=request.args.get("cursor") if tab == "publicacoes" else None,
+        limit=12 if tab == "publicacoes" else 3,
+    )
+    followed_keys, saved_keys = card_keys(current_user)
+
     return render_template(
         "public/establishment-detail.html",
         business=business,
+        tab=tab,
+        tabs=BUSINESS_TABS,
+        posts=posts,
+        followed_keys=followed_keys,
+        saved_keys=saved_keys,
+        report_categories=ReportCategory.LABELS,
 
         # Important:
         # This used to be "professionals", which caused the
         # wrong navigation item to be highlighted.
         current_page="establishments",
+    )
+
+
+BUSINESS_TABS = {
+    "inicio": "Início",
+    "servicos": "Serviços",
+    "equipe": "Equipe",
+    "publicacoes": "Publicações",
+    "sobre": "Sobre",
+}
+
+
+@public_bp.get(
+    "/estabelecimentos/<slug>/<any(servicos, equipe, publicacoes, sobre):tab>"
+)
+def establishment_tab(slug, tab):
+    return establishment_detail(slug, tab)
+
+
+@public_bp.get(
+    "/profissionais/<slug>/publicacoes"
+)
+def professional_posts(slug):
+    """Todas as publicações do Pro (PR 4), com "Ver mais"."""
+    professional = get_professional_public_view(slug)
+    if professional is None or professional.get("source") != "database":
+        abort(404)
+
+    profile = professional["profile"]
+    viewer = current_user if current_user.is_authenticated else None
+    followed_keys, saved_keys = card_keys(current_user)
+    return render_template(
+        "public/profile-posts.html",
+        owner_name=professional["name"],
+        owner_url=url_for("public.professional_detail", slug=slug),
+        page_url=url_for("public.professional_posts", slug=slug),
+        posts=author_posts_page(
+            "professional", profile.id, viewer=viewer, cursor=request.args.get("cursor")
+        ),
+        followed_keys=followed_keys,
+        saved_keys=saved_keys,
+        report_categories=ReportCategory.LABELS,
+        current_page="professionals",
+    )
+
+
+@public_bp.get(
+    "/clientes/<int:profile_id>"
+)
+def client_detail(profile_id):
+    """
+    Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): foto, nome e publicações
+    públicas. Sem publicação pública ou com conta inativa, 404.
+    """
+    profile = public_client_profile(profile_id)
+    if profile is None:
+        abort(404)
+
+    viewer = current_user if current_user.is_authenticated else None
+    followed_keys, saved_keys = card_keys(current_user)
+    return render_template(
+        "public/client-detail.html",
+        client=profile,
+        posts=author_posts_page(
+            "client", profile.id, viewer=viewer, cursor=request.args.get("cursor")
+        ),
+        followed_keys=followed_keys,
+        saved_keys=saved_keys,
+        report_categories=ReportCategory.LABELS,
+        current_page="feed",
     )
 
 

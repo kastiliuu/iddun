@@ -1,5 +1,6 @@
 import unicodedata
-from flask import Blueprint, request
+from flask import Blueprint, request, url_for
+from flask_login import current_user
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
@@ -11,12 +12,16 @@ from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
 )
+from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
     api_error,
     api_json,
     pagination_payload,
 )
 from app.services.feed_service import (
+    author_post_count,
+    author_posts_page,
+    public_client_profile,
     interaction_counts,
     serialize_work_post,
 )
@@ -66,6 +71,139 @@ def _rating(reputation):
         if value is not None
         else 0.0
     )
+
+
+# PR 4a (D-SOC-12): o app mostra as mesmas seções do Web, com os mesmos
+# dados. Campos novos são aditivos; nenhum campo antigo muda.
+
+
+def _first_name(user):
+    name = (getattr(user, "name", None) or "").strip()
+    return name.split()[0] if name else "Cliente"
+
+
+def _reviews_payload(view, limit=6):
+    """Só avaliações visíveis de atendimentos concluídos (DEC de reputação)."""
+    items = []
+    for review in (view.get("review_items") or [])[:limit]:
+        client = getattr(review, "client", None)
+        items.append(
+            {
+                "id": str(review.id),
+                "author": _first_name(getattr(client, "user", None)),
+                "rating": int(review.rating),
+                "comment": review.comment or None,
+                "recommended": bool(review.recommended),
+            }
+        )
+    return items
+
+
+def _year(value):
+    return value.year if value is not None else None
+
+
+def _professional_sections(view):
+    profile = view["profile"]
+    experiences = [
+        {
+            "id": str(item.id),
+            "role": item.role_title,
+            "company": item.company_name,
+            "startYear": _year(item.started_at),
+            "endYear": _year(item.ended_at),
+            "current": bool(item.is_current),
+            "description": item.description or None,
+            # D-SOC-12: declarado ≠ verificado.
+            "verified": bool(item.verified),
+        }
+        for item in view.get("professional_experiences") or []
+    ]
+    certifications = [
+        {
+            "id": str(item.id),
+            "title": item.title,
+            "issuer": item.issuer or None,
+            "year": _year(item.issued_at),
+            "credentialId": item.credential_id or None,
+            "verificationUrl": item.verification_url or None,
+        }
+        for item in view.get("certifications") or []
+    ]
+    places = [
+        {
+            "id": str(item.id),
+            "routeId": item.slug,
+            "name": item.name,
+            "subtitle": " · ".join(
+                part
+                for part in (
+                    item.neighborhood or (item.category or "").title(),
+                    item.city,
+                )
+                if part
+            )
+            or None,
+            "logo": _media(item.logo_url),
+        }
+        for item in view.get("workplaces") or []
+    ]
+    return {
+        "portfolio": [
+            {"url": _media(item.image_url), "caption": item.caption or None}
+            for item in view.get("portfolio") or []
+        ],
+        "experiences": experiences,
+        "certifications": certifications,
+        "reviews": _reviews_payload(view),
+        "recommendationLabel": view["reputation"].get("recommendation_label"),
+        "places": places,
+        "whatsappUrl": (
+            url_for("public.professional_whatsapp", slug=profile.slug, _external=True)
+            if view.get("whatsapp_available")
+            else None
+        ),
+    }
+
+
+def _establishment_about(view):
+    establishment = view["establishment"]
+    hours = view.get("hours")
+    address = ", ".join(
+        part
+        for part in (establishment.address_line1, establishment.address_line2)
+        if part
+    )
+    return {
+        "operationLabel": view.get("operation_label"),
+        "hours": (
+            {
+                "label": hours["label"],
+                "days": [
+                    {"label": day["label"], "ranges": list(day["ranges"])}
+                    for day in hours["days"]
+                ],
+            }
+            if hours
+            else None
+        ),
+        "address": address or None,
+        "city": " · ".join(
+            part for part in (establishment.city, establishment.state) if part
+        )
+        or None,
+        "instagram": establishment.instagram or None,
+        "whatsappUrl": (
+            url_for(
+                "public.establishment_whatsapp",
+                slug=establishment.slug,
+                _external=True,
+            )
+            if view.get("whatsapp_available")
+            else None
+        ),
+    }
+
 
 
 def _service_payload(
@@ -1193,6 +1331,12 @@ def professional_profile(
         ]
     ]
 
+    posts = _posts(
+        professional_id=(
+            profile.id
+        )
+    )
+
     return api_json(
         {
             "professional":
@@ -1200,11 +1344,15 @@ def professional_profile(
             "services":
                 services,
             "posts":
-                _posts(
-                    professional_id=(
-                        profile.id
-                    )
+                posts,
+            "postsCount":
+                author_post_count(
+                    "professional",
+                    profile.id,
                 ),
+            **_professional_sections(
+                view
+            ),
         },
         cache_control=(
             "public, max-age=30"
@@ -1395,8 +1543,81 @@ def establishment_profile(
                 ),
             "team":
                 team,
+            "postsCount":
+                author_post_count(
+                    "establishment",
+                    establishment.id,
+                ),
+            "reviews":
+                _reviews_payload(
+                    view
+                ),
+            "recommendationLabel":
+                reputation.get(
+                    "recommendation_label"
+                ),
+            "about":
+                _establishment_about(
+                    view
+                ),
+            "gallery": [
+                {
+                    "url": _media(item.image_url),
+                    "caption": item.caption or None,
+                }
+                for item in establishment.gallery_items
+            ],
         },
         cache_control=(
             "public, max-age=30"
+        ),
+    )
+
+
+
+@api_profiles_bp.get(
+    "/clients/<int:profile_id>"
+)
+def client_profile(profile_id):
+    """
+    Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): nome, foto e publicações
+    públicas. Sem publicação pública ou com conta inativa, 404.
+    """
+    profile = public_client_profile(profile_id)
+    if profile is None:
+        return api_error(
+            "client_not_found",
+            "Perfil não encontrado.",
+            404,
+        )
+
+    viewer = None
+    authorization = request.headers.get("Authorization", "")
+    if authorization.lower().startswith("bearer "):
+        viewer = get_user_by_access_token(authorization.split(None, 1)[1])
+    elif current_user.is_authenticated:
+        viewer = current_user
+
+    posts = author_posts_page(
+        "client",
+        profile.id,
+        viewer=viewer,
+        cursor=request.args.get("cursor"),
+        limit=request.args.get("limit", 12, type=int),
+    )
+    avatar = profile.avatar_url
+
+    return api_json(
+        {
+            "id": str(profile.id),
+            "kind": "client",
+            "name": profile.user.name,
+            "avatar": resolve_image_url(avatar, external=True) if avatar else None,
+            "posts": posts["items"],
+            "postsCount": posts["total"],
+            "nextCursor": posts["nextCursor"],
+        },
+        cache_control=(
+            "private, no-store" if viewer is not None else "public, max-age=30"
         ),
     )

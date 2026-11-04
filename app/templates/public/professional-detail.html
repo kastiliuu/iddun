@@ -1,10 +1,11 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 {% from 'components/graph-buttons.html' import follow_button, follower_count with context %}
+{% from 'posts/_tiles.html' import post_tiles %}
 
 {% block title %}{{ professional.name }} | IDDUN{% endblock %}
 {% block body_class %}public-profile-page public-profile-page--{{ professional.theme }}{% if selected_service %} has-service-bar{% endif %}{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-profile.css') }}">{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/public-profile.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/profiles-social.css') }}">{% endblock %}
 
 {% block content %}
 <section class="public-profile-hero" data-profile-theme="{{ professional.theme }}">
@@ -33,7 +34,7 @@
     <div class="public-profile-hero__actions">
       {% if professional.source == 'database' %}{{ follow_button('professional', professional.profile.id, professional.name) }}{% endif %}
       {% if professional.whatsapp_available %}<a class="btn btn-whatsapp" href="{{ url_for('public.professional_whatsapp', slug=professional.slug) }}" target="_blank" rel="noopener">{{ icon('message-circle') }} WhatsApp</a>{% endif %}
-      {% if professional.experiences %}<a class="btn btn-primary" href="#experiencias">Ver experiências</a>{% else %}<a class="btn btn-primary" href="#portfolio">Ver trabalho</a>{% endif %}
+      {% if professional.experiences %}<a class="btn btn-primary" href="#experiencias">Ver serviços</a>{% else %}<a class="btn btn-primary" href="#portfolio">Ver trabalho</a>{% endif %}
     </div>
   </div>
 </section>
@@ -41,22 +42,46 @@
 <section class="public-profile-content">
   <div class="container public-profile-layout">
     <main class="public-profile-main">
-      <section class="public-profile-section" data-reveal>
+      <section class="public-profile-section" id="sobre" data-reveal>
         <span class="public-profile-section__kicker">SOBRE</span>
         <h2>Conheça {{ professional.name.split()[0] }}.</h2>
-        <p>{{ professional.bio or 'Este profissional está construindo sua apresentação no IDDUN.' }}</p>
+        {% set bio = professional.bio or 'Este profissional está construindo sua apresentação no IDDUN.' %}
+        {% if bio|length > 280 %}
+        {# D-SOC-12: Sobre curto com "Ler mais". #}
+        <details class="profile-read-more">
+          <summary><span class="profile-read-more__preview">{{ bio[:280]|trim }}…</span> <span class="profile-read-more__toggle">Ler mais</span></summary>
+          <p>{{ bio }}</p>
+        </details>
+        {% else %}
+        <p>{{ bio }}</p>
+        {% endif %}
         {% if professional.specialties %}<div class="public-profile-tags">{% for item in professional.specialties %}<span>{{ item }}</span>{% endfor %}</div>{% endif %}
       </section>
 
-      {% if professional.professional_experiences %}
-      <section class="public-profile-section" data-reveal>
-        <div class="public-profile-section__head">
-          <div>
-            <span class="public-profile-section__kicker">TRAJETÓRIA</span>
-            <h2>Experiência profissional</h2>
-          </div>
-        </div>
+      <section class="public-profile-section" id="portfolio" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">PORTFÓLIO</span><h2>Trabalhos recentes</h2></div>{% if professional.portfolio|length > 1 %}<div class="public-profile-gallery-nav"><button type="button" data-gallery-prev aria-label="Trabalho anterior">‹</button><button type="button" data-gallery-next aria-label="Próximo trabalho">›</button></div>{% endif %}</div>
+        {% if professional.portfolio %}<div class="public-profile-portfolio" data-gallery-track tabindex="0" aria-label="Galeria de trabalhos de {{ professional.name }}">{% for item in professional.portfolio %}<figure><img src="{{ item.image_url|media_url }}" alt="Trabalho {{ loop.index }} de {{ professional.name }}" loading="lazy">{% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">O portfólio deste perfil será publicado em breve.</div>{% endif %}
+      </section>
 
+      <section class="public-profile-section" id="experiencias" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">SERVIÇOS</span><h2>O que você pode reservar</h2></div></div>
+        {% if professional.experiences %}<div class="public-profile-experience-list">{% for item in professional.experiences %}<a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="public-profile-experience"><div>{% if item.image_url %}<img src="{{ item.image_url|media_url }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="public-profile-experience__placeholder">{{ icon('sparkles') }}</span>{% endif %}</div><span><small>{{ item.category_label }}</small><strong>{{ item.title }}</strong><em>{{ item.duration_minutes }} min</em></span><span class="public-profile-experience__price">R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} {{ icon('chevron-right') }}</span></a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Nenhuma experiência publicada por enquanto.</div>{% endif %}
+      </section>
+
+      {% if professional.source == 'database' %}
+      <section class="public-profile-section" id="publicacoes" data-reveal>
+        <div class="public-profile-section__head">
+          <div><span class="public-profile-section__kicker">PUBLICAÇÕES</span><h2>O que {{ professional.name.split()[0] }} compartilhou</h2></div>
+          {% if posts.total > posts['items']|length %}<a class="profile-see-all" href="{{ url_for('public.professional_posts', slug=professional.slug) }}">Ver todas ({{ posts.total }}) {{ icon('chevron-right') }}</a>{% endif %}
+        </div>
+        {% if posts['items'] %}{{ post_tiles(posts['items'], professional.name) }}{% else %}<div class="public-profile-placeholder">Ainda não há publicações.</div>{% endif %}
+      </section>
+      {% endif %}
+
+      <section class="public-profile-section" id="experiencia" data-reveal>
+        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">EXPERIÊNCIA & FORMAÇÃO</span><h2>Trajetória e conhecimento</h2></div></div>
+        {% if professional.professional_experiences %}
+        <h3 class="profile-subhead">Experiência profissional</h3>
         <div class="public-profile-certifications">
           {% for item in professional.professional_experiences %}
           <article>
@@ -76,32 +101,22 @@
               {% if item.description %}
                 <em>{{ item.description }}</em>
               {% endif %}
+              {# D-SOC-12: declarado ≠ verificado. #}
               {% if item.verified %}
-                <em>{{ icon('shield-check') }} Vínculo verificado no IDDUN</em>
+                <em class="profile-badge profile-badge--verified">{{ icon('shield-check') }} Vínculo verificado no IDDUN</em>
+              {% else %}
+                <em class="profile-badge">Declarado pelo profissional</em>
               {% endif %}
             </div>
           </article>
           {% endfor %}
         </div>
-      </section>
-      {% endif %}
-
-      <section class="public-profile-section" id="portfolio" data-reveal>
-        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">PORTFÓLIO</span><h2>Trabalhos recentes</h2></div>{% if professional.portfolio|length > 1 %}<div class="public-profile-gallery-nav"><button type="button" data-gallery-prev aria-label="Trabalho anterior">‹</button><button type="button" data-gallery-next aria-label="Próximo trabalho">›</button></div>{% endif %}</div>
-        {% if professional.portfolio %}<div class="public-profile-portfolio" data-gallery-track tabindex="0" aria-label="Galeria de trabalhos de {{ professional.name }}">{% for item in professional.portfolio %}<figure><img src="{{ item.image_url|media_url }}" alt="Trabalho {{ loop.index }} de {{ professional.name }}" loading="lazy">{% if item.caption %}<figcaption>{{ item.caption }}</figcaption>{% endif %}</figure>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">O portfólio deste perfil será publicado em breve.</div>{% endif %}
-      </section>
-
-      <section class="public-profile-section" id="experiencias" data-reveal>
-        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">EXPERIÊNCIAS</span><h2>O que você pode reservar</h2></div></div>
-        {% if professional.experiences %}<div class="public-profile-experience-list">{% for item in professional.experiences %}<a href="{{ url_for('public.experience_detail', slug=item.slug) }}" class="public-profile-experience"><div>{% if item.image_url %}<img src="{{ item.image_url|media_url }}" alt="{{ item.title }}" loading="lazy">{% else %}<span class="public-profile-experience__placeholder">{{ icon('sparkles') }}</span>{% endif %}</div><span><small>{{ item.category_label }}</small><strong>{{ item.title }}</strong><em>{{ item.duration_minutes }} min</em></span><span class="public-profile-experience__price">R$ {{ '%.2f'|format(item.price)|replace('.', ',') }} {{ icon('chevron-right') }}</span></a>{% endfor %}</div>{% else %}<div class="public-profile-placeholder">Nenhuma experiência publicada por enquanto.</div>{% endif %}
-      </section>
-
-      <section class="public-profile-section" data-reveal>
-        <div class="public-profile-section__head"><div><span class="public-profile-section__kicker">FORMAÇÃO & CERTIFICAÇÕES</span><h2>Conhecimento que acompanha o trabalho</h2></div></div>
+        {% endif %}
+        <h3 class="profile-subhead">Formação e certificações</h3>
         {% if professional.certifications %}
           <div class="public-profile-certifications">
             {% for item in professional.certifications %}
-            <article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small>{% if item.credential_id %}<em>Credencial {{ item.credential_id }}</em>{% endif %}</div>{% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% elif item.document_url %}<a href="{{ item.document_url|media_file_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}</article>
+            <article><span>{{ icon('award') }}</span><div><strong>{{ item.title }}</strong><small>{{ item.issuer }}{% if item.issued_at %} · {{ item.issued_at.strftime('%Y') }}{% endif %}</small>{% if item.credential_id %}<em>Credencial {{ item.credential_id }}</em>{% endif %}<em class="profile-badge">Declarado pelo profissional</em></div>{% if item.verification_url %}<a href="{{ item.verification_url }}" target="_blank" rel="noopener">Verificar</a>{% elif item.document_url %}<a href="{{ item.document_url|media_file_url }}" target="_blank" rel="noopener">Comprovante</a>{% endif %}</article>
             {% endfor %}
           </div>
         {% else %}<div class="public-profile-placeholder">Este profissional ainda não publicou certificações.</div>{% endif %}

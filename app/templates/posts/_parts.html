@@ -7,6 +7,7 @@
 {% macro author_href(post) -%}
 {%- if post.author.kind == 'professional' -%}{{ url_for('public.professional_detail', slug=post.author.routeId) }}
 {%- elif post.author.kind == 'establishment' -%}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}
+{%- elif post.author.kind == 'client' and post.author.routeId -%}{{ url_for('public.client_detail', profile_id=post.author.routeId|int) }}
 {%- endif -%}
 {%- endmacro %}
 
