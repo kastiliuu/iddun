@@ -5,7 +5,7 @@
   color: var(--ds-text-primary);
 }
 .pro-services-page .platform-editor,
-.pro-service-form-page .platform-editor { padding-block: var(--ds-space-8) var(--ds-space-12); }
+.pro-service-form-page .platform-editor { background: var(--ds-surface-canvas); color: var(--ds-text-primary); padding-block: var(--ds-space-8) var(--ds-space-12); }
 .pro-services-page .platform-editor__layout,
 .pro-service-form-page .platform-editor__layout { gap: var(--ds-space-8); max-width: var(--container-compact); }
 .pro-catalog-heading { display: grid; align-content: start; gap: var(--ds-space-3); max-width: none; }
