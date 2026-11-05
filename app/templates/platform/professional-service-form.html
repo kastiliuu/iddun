@@ -3,31 +3,37 @@
 {% from 'auth/_macros.html' import field_errors %}
 
 {% block title %}{{ 'Editar serviço' if service is defined else 'Novo serviço' }} | IDDUN Pro{% endblock %}
-{% block body_class %}platform-page platform-editor-page{% endblock %}
+{% block body_class %}platform-page platform-editor-page pro-service-form-page{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block styles_after %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-service-catalog.css') }}">{% endblock %}
 
 {% block content %}
 <section class="platform-editor" aria-labelledby="new-service-title">
   <div class="container platform-editor__layout">
-    <header class="platform-editor__head">
+    <header class="platform-editor__head pro-catalog-heading">
       <a class="platform-back-link" href="{{ url_for('professional.services') }}">{{ icon('arrow-left') }} Meus serviços</a>
       <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
       <h1 id="new-service-title">{{ "Editar serviço" if service is defined else "Criar serviço" }}</h1>
       {% if service is defined %}<p>Atualize as informações do serviço. O status {{ service.status_label|lower }} e o endereço do serviço serão preservados.</p>{% else %}<p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>{% endif %}
     </header>
-    <section class="platform-panel">
+    <section class="platform-panel pro-service-form-panel">
       <form method="post" enctype="multipart/form-data" class="platform-editor-form">
         {{ form.hidden_tag() }}
-        <div class="platform-field">
+        <section class="pro-service-form-section" aria-label="Imagem do serviço">
+          <div class="pro-service-form-section__head"><h2>01 · Apresentação visual</h2><p>Uma imagem ajuda a mostrar seu trabalho. O envio é opcional.</p></div>
+          <div class="platform-field">
           {{ form.image_file.label(class_='platform-label') }}
           {% if service is defined and service.image_url %}
-            <img src="{{ service.image_url|media_url }}" alt="Capa atual do serviço" loading="lazy" style="width:100%;max-width:320px;aspect-ratio:16/9;object-fit:cover;border-radius:12px;">
+            <img src="{{ service.image_url|media_url }}" alt="Capa atual do serviço" loading="lazy" class="pro-service-form-image">
             <p class="platform-help">Envie uma nova imagem para substituir a atual ou deixe vazio para manter.</p>
           {% endif %}
           {{ form.image_file(class_='platform-input', accept='.jpg,.jpeg,.png,.webp') }}
           <small class="platform-help">JPG, PNG ou WEBP · até 5 MB.</small>
           {{ field_errors(form.image_file) }}
-        </div>
+          </div>
+        </section>
+        <section class="pro-service-form-section" aria-label="Dados e valores do serviço">
+          <div class="pro-service-form-section__head"><h2>02 · Detalhes do serviço</h2><p>Organize as informações que ajudam o cliente a decidir.</p></div>
         <div class="platform-form-grid">
           {% for field in [form.title, form.category, form.establishment_id, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
           <div class="platform-field{% if field.name in ['short_description', 'description'] %} platform-field--wide{% endif %}">
@@ -40,6 +46,7 @@
           </div>
           {% endfor %}
         </div>
+        </section>
         <div class="platform-editor-actions">
           <button class="btn btn-primary" type="submit">{{ 'Salvar alterações' if service is defined else 'Salvar rascunho' }}</button>
           <a class="btn btn-outline" href="{{ url_for('professional.services') }}">Cancelar</a>
