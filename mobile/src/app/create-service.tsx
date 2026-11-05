@@ -116,7 +116,10 @@ export default function CreateServiceScreen() {
       </Pressable>
       <Text style={styles.heading}>{editId ? "Editar serviço" : "Novo serviço"}</Text>
       <Text style={styles.description}>{editId ? "Atualize seu rascunho ou serviço pausado." : "Crie um rascunho privado. Você poderá completar e publicar depois."}</Text>
-      <Text style={styles.label}>Nome do serviço *</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>01 · Informações do serviço</Text>
+        <Text style={styles.sectionDescription}>Nome, categoria e local de atendimento.</Text>
+        <Text style={styles.label}>Nome do serviço *</Text>
       <TextInput accessibilityLabel="Nome do serviço" value={name} onChangeText={setName}
         maxLength={160} placeholder="Ex.: Banho de gel" placeholderTextColor={colors.muted} style={styles.input} />
       <Text style={styles.label}>Categoria *</Text>
@@ -145,7 +148,11 @@ export default function CreateServiceScreen() {
           </Pressable>
         ))}
       </View>
-      <Text style={styles.label}>Descrição resumida *</Text>
+      </View>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>02 · Descrição e valores</Text>
+        <Text style={styles.sectionDescription}>Ajude o cliente a entender o procedimento antes de reservar.</Text>
+        <Text style={styles.label}>Descrição resumida *</Text>
       <TextInput accessibilityLabel="Descrição resumida" value={shortDescription}
         onChangeText={setShortDescription} maxLength={220} multiline
         placeholder="Conte o que está incluído" placeholderTextColor={colors.muted}
@@ -156,30 +163,37 @@ export default function CreateServiceScreen() {
       <Text style={styles.label}>Duração em minutos *</Text>
       <TextInput accessibilityLabel="Duração em minutos" value={duration} onChangeText={setDuration}
         keyboardType="number-pad" placeholder="60" placeholderTextColor={colors.muted} style={styles.input} />
+      </View>
+      <View style={styles.actions}>
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       {saving ? <ActivityIndicator accessibilityLabel="Salvando rascunho" /> : null}
       {fetching ? <ActivityIndicator accessibilityLabel="Carregando serviço" /> : null}
       <Button title={editId ? "Salvar alterações" : "Salvar rascunho"} fullWidth disabled={saving || fetching || (Boolean(editId) && !editable)} onPress={() => { void submit(); }} />
+      </View>
     </ScrollView>
   );
 }
 
 const useStyles = makeStyles((colors) => ({
   container: { flex: 1, backgroundColor: colors.surface },
-  content: { paddingTop: 54, paddingHorizontal: spacing.lg, paddingBottom: 48, gap: spacing.md },
+  content: { paddingTop: spacing.xxxl, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
   backButton: { width: touch.minimum, height: touch.minimum, alignItems: "center" as const,
     justifyContent: "center" as const },
-  heading: { color: colors.onSurface, fontSize: 28, fontWeight: "700" as const },
-  description: { color: colors.muted, fontSize: 14, lineHeight: 21 },
-  label: { color: colors.onSurface, fontSize: 14, fontWeight: "600" as const },
-  input: { minHeight: 50, color: colors.onSurface, borderColor: colors.glassBorder,
-    borderWidth: 1, backgroundColor: colors.surfaceSecondary, borderRadius: 12,
+  heading: { color: colors.onSurface, fontSize: 24, fontWeight: "700" as const },
+  description: { color: colors.muted, fontSize: 16, lineHeight: 24 },
+  section: { padding: spacing.xl, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, borderRadius: 16, gap: spacing.md },
+  sectionTitle: { color: colors.onSurface, fontSize: 20, fontWeight: "700" as const },
+  sectionDescription: { color: colors.onSurfaceSecondary, fontSize: 14, lineHeight: 24 },
+  actions: { gap: spacing.lg, paddingTop: spacing.md },
+  label: { color: colors.onSurface, fontSize: 16, fontWeight: "600" as const, marginTop: spacing.sm },
+  input: { minHeight: touch.minimum, color: colors.onSurface, fontSize: 16, borderColor: colors.border,
+    borderWidth: 1, backgroundColor: colors.surface, borderRadius: 12,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  multiline: { minHeight: 90, textAlignVertical: "top" as const },
+  multiline: { minHeight: 96, textAlignVertical: "top" as const },
   categories: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: spacing.sm },
-  chip: { borderWidth: 1, borderColor: colors.glassBorder, borderRadius: 20,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  chip: { minHeight: touch.minimum, justifyContent: "center" as const, borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+    paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   chipSelected: { borderColor: colors.plum, backgroundColor: colors.plumSoft },
-  chipText: { color: colors.onSurface },
+  chipText: { color: colors.onSurface, fontSize: 16 },
   error: { color: colors.error, fontSize: 13 },
 }));
