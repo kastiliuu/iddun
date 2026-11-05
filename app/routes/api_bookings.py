@@ -28,6 +28,8 @@ from app.services.booking_service import (
     cancel_booking,
     confirm_booking,
     hold_slot,
+    is_self_booking,
+    SELF_BOOKING_MESSAGE,
     release_expired_holds,
 )
 from app.services.google_calendar_service import (
@@ -483,6 +485,14 @@ def hold_experience_slot(
             "slot_not_found",
             "Horário não encontrado para esta experiência.",
             404,
+        )
+
+    # Existing pending holds must not bypass the executor identity rule.
+    if is_self_booking(client, slot.professional):
+        return api_error(
+            "slot_unavailable",
+            SELF_BOOKING_MESSAGE,
+            409,
         )
 
     existing = db.session.scalar(
