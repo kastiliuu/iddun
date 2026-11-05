@@ -18,31 +18,17 @@
     </header>
 
     {% if notifications %}
+    {# PR 6a (D-SOC-22): abrir marca como lida e revalida o destino no
+       servidor; as 5 mais recentes aqui, todas na central. #}
+    {% set kind_icons = {'booking': 'calendar', 'iddun_now': 'clock', 'follow': 'users', 'like': 'heart', 'comment': 'message-circle', 'membership': 'briefcase', 'review': 'star'} %}
     <div class="feed-notification-list">
       {% for notification in notifications %}
-        {% if notification.action_type == 'experience' and notification.action_id %}
-          {% set notification_url = url_for('public.experience_detail', slug=notification.action_id) %}
-        {% elif notification.action_type == 'booking' %}
-          {% set notification_url = url_for('bookings.mine') %}
-        {% else %}
-          {% set notification_url = url_for('feed.home') %}
-        {% endif %}
         <a
-          href="{{ notification_url }}"
+          href="{{ url_for('notifications.open_notification', notification_id=notification.id) }}"
           class="feed-notification-item{% if not notification.is_read %} is-unread{% endif %}"
-          data-notification-link
-          data-notification-id="{{ notification.id }}"
         >
           <span class="feed-notification-item__icon">
-            {% if notification.kind == 'booking' %}
-              {{ icon('calendar') }}
-            {% elif notification.kind == 'iddun_now' %}
-              {{ icon('clock') }}
-            {% elif notification.kind == 'follow' %}
-              {{ icon('users') }}
-            {% else %}
-              {{ icon('sparkles') }}
-            {% endif %}
+            {{ icon(kind_icons.get(notification.kind, 'sparkles')) }}
           </span>
           <span>
             <strong>{{ notification.title }}</strong>
@@ -58,4 +44,5 @@
       <span>Reservas, horários e novidades relevantes aparecem aqui.</span>
     </div>
     {% endif %}
+    <a class="feed-notification-panel__all" href="{{ url_for('notifications.center') }}">Ver todas as notificações</a>
   </div>

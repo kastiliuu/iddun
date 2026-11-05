@@ -120,7 +120,9 @@ def test_notification_preferences_roundtrip_and_read_all(app, client):
     })
     assert result.status_code == 200
     preferences = result.get_json()["preferences"]
-    assert preferences["bookingEnabled"] is False
+    # D-SOC-22 (PR 6a): aviso de reserva é essencial e não se desliga.
+    assert preferences["bookingEnabled"] is True
+    assert preferences["bookingEssential"] is True
     assert preferences["followEnabled"] is True
 
     first_read_all = client.put(BASE + "/read-all", json={})

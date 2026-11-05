@@ -540,7 +540,7 @@ def client_feed_context(
     notifications, _, unread_count = (
         list_notifications(
             user,
-            limit=6,
+            limit=5,  # D-SOC-22: as 5 mais recentes no sino
         )
     )
 

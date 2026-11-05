@@ -328,3 +328,22 @@ button.pro-header__account:focus-visible {
 .feed-search-results__all:focus-visible {
   background: var(--color-off-white);
 }
+
+/* PR 6a (D-SOC-22): do sino para a central completa. */
+.feed-notification-panel__all {
+  min-height: var(--control-action-size);
+  padding: var(--ds-space-2) var(--ds-space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 0.0625rem solid var(--color-border-light);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.feed-notification-panel__all:hover,
+.feed-notification-panel__all:focus-visible {
+  background: var(--color-off-white);
+}

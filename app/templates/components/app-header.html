@@ -14,6 +14,7 @@
   else 'explore' if endpoint in ['public.explore', 'public.experiences', 'public.experience_detail', 'public.professionals', 'public.professional_detail', 'public.establishments', 'public.establishment_detail']
   else 'bookings' if endpoint.startswith('bookings.')
   else 'favorites' if endpoint == 'feed.favorites'
+  else 'notifications' if endpoint.startswith('notifications.')
   else ''
 ) %}
 {% set header_avatar = current_user.client_profile.avatar_url if current_user.client_profile else None %}
@@ -131,9 +132,10 @@
       >
       {% else %}
       <a
-        class="feed-header__nav-item feed-notification-trigger"
-        href="{{ url_for('feed.home') }}#feed-notification-panel"
+        class="feed-header__nav-item feed-notification-trigger{% if header_active == 'notifications' %} is-active{% endif %}"
+        href="{{ url_for('notifications.center') }}"
         aria-label="{{ unread_label }}"
+        {% if header_active == 'notifications' %}aria-current="page"{% endif %}
       >
       {% endif %}
         <span class="feed-header__icon-wrap">
@@ -171,7 +173,7 @@
 
     <a
       class="feed-header__mobile-bell"
-      href="{{ url_for('feed.home') }}#feed-notification-panel"
+      href="{{ url_for('notifications.center') }}"
       aria-label="{{ unread_label }}"
     >
       {{ icon('bell') }}

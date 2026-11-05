@@ -1,0 +1,115 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{#
+  Central de notificações (PR 6a; DEC-ID-215–223; D-SOC-22). Abrir um aviso
+  marca como lido e revalida o acesso ao destino. Abrir esta página não
+  marca nada como lido. Reservas são essenciais e não se desligam.
+#}
+
+{% block title %}Notificações | IDDUN{% endblock %}
+{% block body_class %}notifications-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/notifications.css') }}">{% endblock %}
+
+{% set kind_icons = {'booking': 'calendar', 'iddun_now': 'clock', 'follow': 'users', 'like': 'heart', 'comment': 'message-circle', 'membership': 'briefcase', 'review': 'star', 'system': 'info'} %}
+
+{% block content %}
+<div class="notifications">
+  <div class="container notifications__inner">
+    <header class="notifications__head">
+      <div>
+        <h1>Notificações</h1>
+        <p>{% if unread_count %}{{ unread_count }} não lida{{ 's' if unread_count != 1 }}{% else %}Nada novo por enquanto{% endif %}</p>
+      </div>
+      {% if unread_count %}
+      <form method="post" action="{{ url_for('notifications.mark_all_read') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="aba" value="{{ tab }}">
+        {% if unread_only %}<input type="hidden" name="nao_lidas" value="1">{% endif %}
+        <button class="btn btn-outline btn-outline--light btn-sm" type="submit">Marcar todas como lidas</button>
+      </form>
+      {% endif %}
+    </header>
+
+    <nav class="notifications-tabs" aria-label="Categorias de notificação">
+      <ul role="list">
+        {% for key, (category, label) in tabs.items() %}
+        <li><a href="{{ center_url(aba=key, mais='') }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }} <span class="notifications-tabs__count">{{ counts[key] }}</span></a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+
+    <p class="notifications-filter">
+      {% if unread_only %}
+      <a href="{{ center_url(nao_lidas='', mais='') }}" aria-pressed="true">{{ icon('check') }} Só não lidas</a>
+      {% else %}
+      <a href="{{ center_url(nao_lidas='1', mais='') }}" aria-pressed="false">Só não lidas</a>
+      {% endif %}
+    </p>
+
+    {% if items %}
+    <ol class="notifications-list" role="list">
+      {% for entry in items %}
+      {% set item = entry.notification %}
+      <li class="notification{% if not item.is_read %} is-unread{% endif %}" id="notificacao-{{ item.id }}">
+        <span class="notification__icon" aria-hidden="true">{{ icon(kind_icons.get(item.kind, 'info')) }}</span>
+        <div class="notification__body">
+          <a class="notification__link" href="{{ url_for('notifications.open_notification', notification_id=item.id) }}">
+            {% if not item.is_read %}<span class="sr-only">Não lida: </span>{% endif %}
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.body }}</span>
+          </a>
+          <p class="notification__meta">
+            <time datetime="{{ item.created_at.isoformat() }}">{{ entry.when }}</time>
+            {% if entry.context %}<span class="notification__context">{{ entry.context }}</span>{% endif %}
+          </p>
+          {% if item.context_type in ('professional', 'establishment') and entry.context %}
+          {# DEC-ID-221: troca de contexto explícita, nunca silenciosa. #}
+          <a class="notification__switch" href="{{ url_for('notifications.open_notification', notification_id=item.id) }}">Abrir como {{ entry.context }} {{ icon('chevron-right') }}</a>
+          {% endif %}
+        </div>
+        {% if not item.is_read %}
+        <form class="notification__read" method="post" action="{{ url_for('notifications.mark_read', notification_id=item.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="aba" value="{{ tab }}">
+          {% if unread_only %}<input type="hidden" name="nao_lidas" value="1">{% endif %}
+          <button type="submit" class="notification__read-button" aria-label="Marcar como lida: {{ item.title }}">{{ icon('check') }}</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if has_more %}
+    <p class="notifications-more"><a class="btn btn-outline btn-outline--light" href="{{ center_url(mais=pages + 1) }}#notificacao-{{ items[-1].notification.id }}">Ver mais</a></p>
+    {% endif %}
+    {% else %}
+    <section class="notifications-empty">
+      {{ icon('bell') }}
+      <h2>{% if unread_only %}Nenhuma notificação não lida aqui.{% else %}Nada por aqui ainda.{% endif %}</h2>
+      <p>Reservas, novos seguidores, curtidas, comentários e convites aparecem aqui quando acontecem.</p>
+    </section>
+    {% endif %}
+
+    <section class="notifications-preferences" id="preferencias" aria-labelledby="preferencias-title">
+      <h2 id="preferencias-title">Preferências</h2>
+      <form method="post" action="{{ url_for('notifications.preferences') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <ul role="list">
+          <li>
+            <span><strong>Reservas</strong><small>Sempre ativas: confirmações, cancelamentos e pedidos são essenciais. Também chegam por e-mail.</small></span>
+            <span class="notifications-preferences__fixed">{{ icon('check') }} Ativas</span>
+          </li>
+          <li>
+            <label for="pref-social"><strong>Social</strong><small>Novos seguidores, curtidas e comentários.</small></label>
+            <input id="pref-social" type="checkbox" name="social" value="1" {% if preference.social_enabled %}checked{% endif %}>
+          </li>
+          <li>
+            <label for="pref-profissional"><strong>Profissional e Empresa</strong><small>Convites de vínculo e avaliações recebidas.</small></label>
+            <input id="pref-profissional" type="checkbox" name="profissional" value="1" {% if preference.work_enabled %}checked{% endif %}>
+          </li>
+        </ul>
+        <button class="btn btn-primary btn-sm" type="submit">Salvar preferências</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -133,8 +133,9 @@ def test_phone_has_bell_avatar_and_five_destinations(page: Page):
     expect(page.locator("[data-mobile-bottom-nav] [aria-current='page']")).to_contain_text("Reservas")
     assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 0
     bell.click()
-    expect(page).to_have_url(re.compile(r"/feed#feed-notification-panel$"))
-    expect(page.locator("[data-notification-panel]")).to_be_visible()
+    # PR 6a (D-SOC-22): no celular o sino abre a central de notificações.
+    expect(page).to_have_url(re.compile(r"/notificacoes$"))
+    expect(page.get_by_role("heading", name="Notificações", level=1)).to_be_visible()
 
 
 def test_cookie_json_calls_need_the_csrf_token(page: Page):
