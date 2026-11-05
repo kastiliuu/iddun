@@ -914,3 +914,56 @@ def test_rebook_actions_are_consistent_and_owner_scoped(app, client):
     data = result.get_json()
     assert data["canRebook"] is (data["rebookExperienceSlug"] is not None)
     assert isinstance(data["rescheduleSlots"], list)
+
+
+
+# QA-002: the same account must not consume a slot it executes.
+def test_api_rejects_self_booking_before_creating_hold(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    profile_id, headers = _authenticated_client(app, email="api-self-booking@example.com")
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        slot.professional.user_id = profile.user_id
+        db.session.commit()
+
+    response = client.post(
+        f"/api/v1/experiences/experiencia-mobile/slots/{slot_ids[0]}/hold",
+        headers=headers,
+    )
+    assert response.status_code == 409
+    assert response.get_json()["error"]["code"] == "slot_unavailable"
+    assert "você mesmo realiza" in response.get_json()["error"]["message"]
+    with app.app_context():
+        assert db.session.scalar(
+            select(Booking).where(Booking.client_id == profile_id)
+        ) is None
+        assert db.session.get(ExperienceSlot, slot_ids[0]).status == SlotStatus.AVAILABLE
+
+
+def test_api_rejects_reuse_and_confirmation_of_legacy_self_hold(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    profile_id, headers = _authenticated_client(app, email="api-old-self-booking@example.com")
+    path = f"/api/v1/experiences/experiencia-mobile/slots/{slot_ids[0]}/hold"
+    held = client.post(path, headers=headers)
+    assert held.status_code == 201
+    booking_id = held.get_json()["booking"]["id"]
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        db.session.get(ExperienceSlot, slot_ids[0]).professional.user_id = profile.user_id
+        db.session.commit()
+
+    reused = client.post(path, headers=headers)
+    assert reused.status_code == 409
+    assert reused.get_json()["error"]["code"] == "slot_unavailable"
+
+    confirmed = client.post(f"/api/v1/bookings/{booking_id}/confirm", headers=headers)
+    assert confirmed.status_code == 409
+    assert confirmed.get_json()["error"]["code"] == "booking_state_conflict"
+
+    with app.app_context():
+        booking = db.session.get(Booking, int(booking_id))
+        assert booking.status != BookingStatus.CONFIRMED
+        assert booking.slot.status != SlotStatus.BOOKED

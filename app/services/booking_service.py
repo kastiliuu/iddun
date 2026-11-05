@@ -31,6 +31,21 @@ class BookingStateError(ValueError):
     pass
 
 
+SELF_BOOKING_MESSAGE = (
+    "Você não pode reservar um serviço que você mesmo realiza. "
+    "Para gerenciar horários, acesse sua agenda profissional."
+)
+
+
+def is_self_booking(client_profile, professional):
+    """Compare account identities, not Client/Professional profile IDs or roles."""
+    return (
+        client_profile.user_id is not None
+        and professional.user_id is not None
+        and client_profile.user_id == professional.user_id
+    )
+
+
 def effective_cutoff_for_experience(experience, slot_override=None):
     if slot_override is not None:
         return slot_override
@@ -299,6 +314,10 @@ def hold_slot(slot_id, client_profile, now=None):
         db.session.rollback()
         raise SlotUnavailableError("Horário não encontrado.")
 
+    if is_self_booking(client_profile, slot.professional):
+        db.session.rollback()
+        raise SlotUnavailableError(SELF_BOOKING_MESSAGE)
+
     refresh_slot(slot, now=now)
     if slot.experience.status != ExperienceStatus.PUBLISHED:
         db.session.rollback()
@@ -379,6 +398,11 @@ def confirm_booking(booking_id, client_profile, now=None):
         return booking
     if booking.status != BookingStatus.PENDING:
         raise BookingStateError("Esta reserva não pode mais ser confirmada.")
+
+    if is_self_booking(client_profile, booking.professional):
+        _cancel_pending_booking(booking, now, "Autoagendamento não permitido")
+        db.session.commit()
+        raise BookingStateError(SELF_BOOKING_MESSAGE)
 
     slot = booking.slot
     refresh_slot(slot, now=now)

@@ -2292,3 +2292,87 @@ def test_book_state_01_published_service_remains_discoverable_after_cutoff(app):
         assert matching[0]["next_available_label"] == "Novos horários em breve"
         assert db.session.get(Experience, experience_id).status == ExperienceStatus.PUBLISHED
         assert db.session.get(ExperienceSlot, slot_ids[0]).status == SlotStatus.EXPIRED
+
+
+
+# QA-002: same account is both the client and the actual executor.
+def test_professional_cannot_hold_own_slot_and_no_booking_is_created(app):
+    import pytest
+
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "self-booking@example.com")
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        slot.professional.user_id = user_id
+        db.session.commit()
+
+        profile = db.session.get(ClientProfile, profile_id)
+        with pytest.raises(SlotUnavailableError, match="você mesmo realiza"):
+            hold_slot(slot_ids[0], profile)
+
+        db.session.expire_all()
+        assert db.session.scalar(
+            select(Booking).where(Booking.client_id == profile_id)
+        ) is None
+        assert db.session.get(ExperienceSlot, slot_ids[0]).status == SlotStatus.AVAILABLE
+
+
+def test_professional_cannot_confirm_preexisting_self_booking_hold(app):
+    import pytest
+    from app.services.booking_service import BookingStateError
+
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "old-self-hold@example.com")
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        booking_id = hold_slot(slot_ids[0], profile).id
+        db.session.get(ExperienceSlot, slot_ids[0]).professional.user_id = user_id
+        db.session.commit()
+
+        with pytest.raises(BookingStateError, match="você mesmo realiza"):
+            confirm_booking(booking_id, profile)
+
+        db.session.expire_all()
+        assert db.session.get(Booking, booking_id).status != BookingStatus.CONFIRMED
+        assert db.session.get(ExperienceSlot, slot_ids[0]).status != SlotStatus.BOOKED
+
+
+def test_owner_of_establishment_can_hold_service_of_different_executor(app):
+    from app.models.establishment import EstablishmentAccessRole, EstablishmentUserAccess
+
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "salon-owner-client@example.com")
+
+    with app.app_context():
+        slot = db.session.get(ExperienceSlot, slot_ids[0])
+        db.session.add(EstablishmentUserAccess(
+            user_id=user_id,
+            establishment_id=slot.establishment_id,
+            role=EstablishmentAccessRole.OWNER,
+        ))
+        db.session.commit()
+
+        profile = db.session.get(ClientProfile, profile_id)
+        held = hold_slot(slot_ids[0], profile)
+        assert held.status == BookingStatus.PENDING
+        assert held.professional.user_id != user_id
+
+
+def test_web_rejects_own_service_booking_with_feedback(app, client):
+    _, slot_ids = _catalog(app, slot_count=1)
+    user_id, profile_id = _client_user(app, "web-self-booking@example.com")
+    with app.app_context():
+        db.session.get(ExperienceSlot, slot_ids[0]).professional.user_id = user_id
+        db.session.commit()
+    _login_session(client, user_id)
+
+    response = client.post(
+        f"/experiencias/hair-experience-booking/slots/{slot_ids[0]}/reservar",
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    assert "você mesmo realiza" in response.get_data(as_text=True)
+    with app.app_context():
+        assert db.session.scalar(select(Booking).where(Booking.client_id == profile_id)) is None
