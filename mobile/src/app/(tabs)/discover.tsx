@@ -29,9 +29,9 @@ import {
   type DiscoveryResponse,
 } from "@/api/discovery";
 import {
-  globalSearch,
-  type GlobalSearchItem,
-} from "@/api/search";
+  ExploreResults,
+  type ExploreCategory,
+} from "@/components/ExploreResults";
 
 import {
   fonts,
@@ -61,6 +61,11 @@ const CATEGORY_CODES: Record<string, string> = {
   Estética: "estetica",
 };
 
+// Identidade estável: o ExploreResults busca de novo quando a lista muda.
+const EXPLORE_CATEGORIES: ExploreCategory[] = categories
+  .filter((label) => CATEGORY_CODES[label])
+  .map((label) => ({ label, code: CATEGORY_CODES[label] }));
+
 export default function DiscoverScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -73,21 +78,6 @@ export default function DiscoverScreen() {
     useState("Todos");
   const [location, setLocation] =
     useState("");
-  const [
-    globalResults,
-    setGlobalResults,
-  ] =
-    useState<GlobalSearchItem[]>([]);
-  const [
-    globalSearchLoading,
-    setGlobalSearchLoading,
-  ] = useState(false);
-
-  const [globalSearchError, setGlobalSearchError] =
-    useState(false);
-  const [searchRetry, setSearchRetry] =
-    useState(0);
-
   const [realExperiences, setRealExperiences] =
     useState<CatalogExperience[]>([]);
   const [realLoading, setRealLoading] =
@@ -192,73 +182,6 @@ export default function DiscoverScreen() {
     };
   }, [search, selectedCategory, location, discoveryRetry]);
 
-  useEffect(() => {
-    const normalizedSearch =
-      search.trim();
-
-    if (!normalizedSearch) {
-      return;
-    }
-
-    const controller =
-      new AbortController();
-    const timer = setTimeout(() => {
-      // State updates belong to the scheduled asynchronous search,
-      // not synchronously to the effect setup.
-      setGlobalResults([]);
-      setGlobalSearchError(false);
-      setGlobalSearchLoading(true);
-      globalSearch(
-        {
-          query: normalizedSearch,
-          category:
-            CATEGORY_CODES[
-              selectedCategory
-            ],
-          location,
-          limit: 8,
-        },
-        controller.signal,
-      )
-        .then((response) => {
-          if (!controller.signal.aborted) {
-            setGlobalResults(response.items);
-            setGlobalSearchError(false);
-          }
-        })
-        .catch(
-          (error: unknown) => {
-            if (
-              error instanceof Error &&
-              error.name ===
-                "AbortError"
-            ) {
-              return;
-            }
-
-            if (!controller.signal.aborted) {
-              setGlobalResults([]);
-              setGlobalSearchError(true);
-            }
-          },
-        )
-        .finally(() => {
-          if (
-            !controller.signal
-              .aborted
-          ) {
-            setGlobalSearchLoading(
-              false,
-            );
-          }
-        });
-    }, 250);
-
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [search, selectedCategory, location, searchRetry]);
 
   const openRealExperience = (
     experience: CatalogExperience,
@@ -347,48 +270,8 @@ export default function DiscoverScreen() {
     [discovery],
   );
 
-  const visibleDiscoveryItems =
-    useMemo(
-      () => {
-        if (!search.trim()) {
-          return discoveryItems;
-        }
-
-        return globalResults.map(
-          (item, index) => ({
-            id:
-              `${item.kind}-${item.id}`,
-            sourceId:
-              item.routeId,
-            type:
-              item.kind === "experience"
-                ? ("service" as const)
-                : item.kind,
-            title:
-              item.title,
-            subtitle:
-              item.subtitle
-              ?? undefined,
-            image:
-              item.image,
-            rating:
-              item.rating,
-            location:
-              item.location
-              ?? undefined,
-            height:
-              index % 2 === 0
-                ? 280
-                : 240,
-          }),
-        );
-      },
-      [
-        discoveryItems,
-        globalResults,
-        search,
-      ],
-    );
+  // PR 5b: com busca, os resultados vêm do ExploreResults (abas por tipo).
+  const visibleDiscoveryItems = discoveryItems;
 
   const leftColumn =
     visibleDiscoveryItems.filter(
@@ -475,7 +358,7 @@ export default function DiscoverScreen() {
               styles.eyebrow
             }
           >
-            DESCOBRIR
+            EXPLORAR
           </Text>
 
           <Text
@@ -703,6 +586,21 @@ export default function DiscoverScreen() {
           </>
         ) : null}
 
+        {search.trim() ? (
+          // PR 5b (D-SOC-18): resultados por tipo, com contagens reais.
+          <ExploreResults
+            query={search.trim()}
+            category={CATEGORY_CODES[selectedCategory]}
+            location={location}
+            categories={EXPLORE_CATEGORIES}
+            onSelectCategory={setSelectedCategory}
+            onClearFilters={() => {
+              setSelectedCategory("Todos");
+              setLocation("");
+            }}
+          />
+        ) : (
+        <>
         <View
           style={
             styles.sectionHeaderWrap
@@ -715,37 +613,13 @@ export default function DiscoverScreen() {
                 ? "Inspiração visual"
                 : selectedCategory
             }
-            subtitle={
-              search
-                ? `Resultados para "${search}"`
-                : "Trabalhos, profissionais e espaços reais"
-            }
+            subtitle="Trabalhos, profissionais e espaços reais"
           />
         </View>
 
-        {globalSearchLoading &&
-        search.trim() ? (
-          <View
-            style={
-              styles.searchLoading
-            }
-          >
-            <ActivityIndicator
-              color={
-                colors.plum
-              }
-            />
-          </View>
-        ) : search.trim() && globalSearchError ? (
-          <EmptyState
-            title="Não foi possível carregar a busca"
-            description="Confira sua conexão e tente novamente. Seus filtros foram preservados."
-            actionLabel="Tentar novamente"
-            onActionPress={() => setSearchRetry((value) => value + 1)}
-          />
-        ) : !search.trim() && discoveryLoading ? (
+        {discoveryLoading ? (
           <ActivityIndicator color={colors.plum} />
-        ) : !search.trim() && discoveryError ? (
+        ) : discoveryError ? (
           <EmptyState
             title="Não foi possível carregar as inspirações"
             description="Confira sua conexão e tente novamente. Seus filtros foram preservados."
@@ -852,6 +726,8 @@ export default function DiscoverScreen() {
               setLocation("");
             }}
           />
+        )}
+        </>
         )}
 
         {!search &&
