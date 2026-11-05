@@ -109,6 +109,17 @@ export default function ManageServicesScreen() {
           />
         </Pressable>
       </View>
+      <View style={styles.titleRow}>
+        <View style={styles.titleCopy}>
+          <Text style={styles.title}>Meus serviços</Text>
+          <Text style={styles.subtitle}>Gerencie seu catálogo, publicações e horários.</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Criar serviço"
+          onPress={() => router.push("/create-service")} style={styles.createButton}>
+          <Icon name="plus" size={18} color={colors.onBrand} />
+          <Text style={styles.createText}>Criar</Text>
+        </Pressable>
+      </View>
 
       {loading ? (
         <ActivityIndicator accessibilityLabel="Carregando serviços" style={{ marginTop: 40 }} />
@@ -123,30 +134,21 @@ export default function ManageServicesScreen() {
         <EmptyState
           title="Você ainda não possui serviços"
           description="O catálogo está vazio. Seus serviços reais aparecerão aqui assim que forem cadastrados."
-          actionLabel="Voltar"
-          onActionPress={() => router.back()}
+          actionLabel="Criar primeiro serviço"
+          onActionPress={() => router.push("/create-service")}
         />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
-          <Text style={{ color: colors.onSurface, fontSize: 20, fontWeight: "700" }}>
-            Seus serviços ({items.length})
-          </Text>
+        <ScrollView contentContainerStyle={styles.list}>
+          <Text style={styles.count}>{items.length} {items.length === 1 ? "serviço cadastrado" : "serviços cadastrados"}</Text>
           {items.map(item => (
-            <View key={item.id} style={{
-              padding: spacing.md,
-              borderWidth: 1,
-              borderColor: colors.glassBorder,
-              borderRadius: 12,
-              backgroundColor: colors.glassSoft,
-              gap: spacing.xs,
-            }}>
-              <Text style={{ color: colors.onSurface, fontWeight: "700", fontSize: 16 }}>{item.title}</Text>
-              <Text style={{ color: colors.muted }}>{item.category} · {item.durationMinutes} min · R$ {item.price.toFixed(2).replace(".", ",")}</Text>
+            <View key={item.id} style={styles.card}>
+              <Text style={styles.cardTitle}>{item.title}</Text>
+              <Text style={styles.cardMeta}>{item.category} · {item.durationMinutes} min · R$ {item.price.toFixed(2).replace(".", ",")}</Text>
               {(item.status === "draft" || item.status === "paused") ? (
                 <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${item.title}`}
                   onPress={() => router.push({ pathname: "/create-service", params: { editId: String(item.id) } })}
-                  style={{ paddingVertical: spacing.sm }}>
-                  <Text style={{ color: colors.plum, fontWeight: "600" }}>Editar serviço</Text>
+                  style={styles.actionButton}>
+                  <Text style={styles.actionText}>Editar serviço</Text>
                 </Pressable>
               ) : null}
               {item.status !== "archived" ? (
@@ -155,8 +157,8 @@ export default function ManageServicesScreen() {
                   accessibilityState={{ disabled: pendingId !== null }}
                   disabled={pendingId !== null}
                   onPress={() => setStatus(item, item.status === "published" ? "pause" : "publish")}
-                  style={{ paddingVertical: spacing.sm }}>
-                  <Text style={{ color: colors.plum, fontWeight: "600" }}>
+                  style={styles.actionButton}>
+                  <Text style={styles.actionText}>
                     {pendingId === item.id ? "Salvando..." : item.status === "published" ? "Pausar serviço" : "Publicar serviço"}
                   </Text>
                 </Pressable>
@@ -164,10 +166,10 @@ export default function ManageServicesScreen() {
               <Pressable accessibilityRole="button"
                 accessibilityLabel={`Gerenciar horários de ${item.title}`}
                 onPress={() => router.push({ pathname: "/service-availability", params: { serviceId: String(item.id) } })}
-                style={{ paddingVertical: spacing.sm }}>
-                <Text style={{ color: colors.onSurface, fontWeight: "600" }}>Ver horários</Text>
+                style={styles.actionButton}>
+                <Text style={styles.actionText}>Ver horários</Text>
               </Pressable>
-              <Text style={{ color: colors.plum }}>
+              <Text style={styles.status}>
                 {item.status === "published" ? "Publicado" : item.status === "draft" ? "Rascunho" : item.status === "paused" ? "Pausado" : "Arquivado"}
               </Text>
             </View>
@@ -186,11 +188,21 @@ const useStyles = makeStyles(
         colors.surface,
     },
 
-    header: {
-      paddingTop: 54,
-      paddingHorizontal:
-        spacing.lg,
-    },
+    header: { paddingTop: spacing.xxxl, paddingHorizontal: spacing.lg },
+    titleRow: { padding: spacing.lg, gap: spacing.lg, flexDirection: "row" as const, alignItems: "center" as const, justifyContent: "space-between" as const },
+    titleCopy: { flex: 1, gap: spacing.sm },
+    title: { color: colors.onSurface, fontSize: 24, fontWeight: "700" as const },
+    subtitle: { color: colors.onSurfaceSecondary, fontSize: 14, lineHeight: 24 },
+    createButton: { minHeight: touch.minimum, flexDirection: "row" as const, alignItems: "center" as const, gap: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: 12, backgroundColor: colors.brand },
+    createText: { color: colors.onBrand, fontSize: 16, fontWeight: "600" as const },
+    list: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
+    count: { color: colors.onSurfaceSecondary, fontSize: 14 },
+    card: { padding: spacing.xl, gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surfaceSecondary },
+    cardTitle: { color: colors.onSurface, fontSize: 20, fontWeight: "700" as const },
+    cardMeta: { color: colors.onSurfaceSecondary, fontSize: 16, lineHeight: 24 },
+    actionButton: { minHeight: touch.minimum, justifyContent: "center" as const, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg },
+    actionText: { color: colors.onSurface, fontSize: 16, fontWeight: "600" as const },
+    status: { color: colors.onSurfaceSecondary, fontSize: 14, fontWeight: "600" as const },
 
     backButton: {
       width:
