@@ -1,0 +1,38 @@
+name: PR224 temporary Expo lockfile refresh
+on:
+  push:
+    branches:
+      - be/soc-06a-notifications
+permissions:
+  contents: write
+jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: be/soc-06a-notifications
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Regenerate lockfile for Expo SDK 57
+        working-directory: mobile
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Confirm reproducibility and SDK compatibility
+        working-directory: mobile
+        run: |
+          npm ci --ignore-scripts --no-fund
+          npx expo install --check
+          npm run typecheck
+          npm run lint
+      - name: Commit validated lockfile
+        run: |
+          if ! git diff --quiet -- mobile/package-lock.json; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add mobile/package-lock.json
+            git commit -m "chore(expo): regenerate SDK 57 compatible lockfile"
+            git push origin HEAD:be/soc-06a-notifications
+          fi
