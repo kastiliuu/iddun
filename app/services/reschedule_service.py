@@ -6,6 +6,7 @@ from app.models.experience import ExperienceStatus
 from app.models.reschedule_request import RescheduleRequest
 from app.services.booking_service import BookingStateError, booking_deadline
 from app.services.time_service import as_utc, utcnow
+from app.services import notification_events
 
 
 def pending_reschedule(booking_id):
@@ -61,6 +62,8 @@ def request_reschedule(booking, user, slot_id, reason=None):
     )
     db.session.add(record)
     db.session.commit()
+    # PR 6a: o Pro executor fica sabendo do pedido.
+    notification_events.reschedule_requested(record)
     return record
 
 
@@ -96,6 +99,7 @@ def resolve_reschedule(booking_id, user, *, approve, reason=None):
         record.resolved_by_user_id = user.id
         record.resolution_reason = (reason or "").strip()[:255] or None
         db.session.commit()
+        notification_events.reschedule_resolved(record)
         return record
 
     target = db.session.scalar(
@@ -145,4 +149,5 @@ def resolve_reschedule(booking_id, user, *, approve, reason=None):
     record.resolved_by_user_id = user.id
     record.resolution_reason = (reason or "").strip()[:255] or None
     db.session.commit()
+    notification_events.reschedule_resolved(record)
     return record

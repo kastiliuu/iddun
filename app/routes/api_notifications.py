@@ -10,6 +10,8 @@ from app.services.api_contract import (
     api_json,
     pagination_payload,
 )
+from app.models.notification import NotificationCategory
+from app.services.notification_center import category_counts, context_label
 from app.services.notification_service import (
     NotificationError,
     list_notifications,
@@ -183,23 +185,44 @@ def notifications():
 
     offset, limit = page
 
+    # PR 6a (DEC-ID-216): abas por categoria; sem categoria = Todas.
+    category = (request.args.get("category") or "").strip() or None
+    if category is not None and category not in NotificationCategory.VALUES:
+        return api_error(
+            "invalid_query_parameter",
+            "Categoria de notificação inválida.",
+            400,
+        )
+
     rows, total, unread_count = (
         list_notifications(
             user,
             offset=offset,
             limit=limit,
             unread_only=unread_only,
+            category=category,
         )
     )
+
+    counts = category_counts(user, unread_only=unread_only)
 
     return api_json(
         {
             "items": [
-                serialize_notification(
-                    item
-                )
+                {
+                    **serialize_notification(item),
+                    "contextLabel": context_label(user, item),
+                }
                 for item in rows
             ],
+            # Total por aba com o mesmo filtro de lidas (bookings, social,
+            # work e all).
+            "counts": {
+                "all": counts["todas"],
+                "bookings": counts["reservas"],
+                "social": counts["social"],
+                "work": counts["profissional"],
+            },
             "unreadCount":
                 unread_count,
             "pagination":

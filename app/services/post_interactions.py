@@ -128,6 +128,11 @@ def set_like(user, post_id, liked):
         except IntegrityError:
             # Outra requisição da mesma pessoa gravou primeiro.
             db.session.rollback()
+        else:
+            # PR 6a (DEC-ID-219): curtidas do mesmo post viram um aviso só.
+            from app.services import notification_events
+
+            notification_events.post_liked(post, user, like_count(post.id))
     elif not liked and existing is not None:
         db.session.delete(existing)
         db.session.commit()
@@ -258,6 +263,9 @@ def add_comment(user, post_id, body, parent_id=None):
     )
     db.session.add(comment)
     db.session.commit()
+    from app.services import notification_events
+
+    notification_events.comment_added(comment, post)
     return comment
 
 
