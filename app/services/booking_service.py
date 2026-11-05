@@ -9,10 +9,7 @@ from app.extensions import db
 from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
 from app.models.experience import Experience, ExperienceStatus
 from app.services.time_service import as_utc, local_naive_to_utc, to_local, utcnow
-from app.services.notification_service import (
-    notify_booking_cancelled,
-    notify_booking_confirmed,
-)
+from app.services import notification_events
 
 
 HOLD_MINUTES = 8
@@ -409,9 +406,8 @@ def confirm_booking(booking_id, client_profile, now=None):
     slot.hold_expires_at = None
     db.session.commit()
 
-    notify_booking_confirmed(
-        booking
-    )
+    # PR 6a: Cliente e Pro avisados; falha ao avisar não desfaz a reserva.
+    notification_events.booking_confirmed(booking)
 
     return booking
 
@@ -442,9 +438,7 @@ def cancel_booking(booking, reason="Cancelada pelo cliente", now=None, *, commit
         db.session.commit()
 
     if commit and was_confirmed:
-        notify_booking_cancelled(
-            booking
-        )
+        notification_events.booking_cancelled(booking)
 
     return booking
 
@@ -491,6 +485,9 @@ def complete_booking(
     booking.completed_at = now
 
     db.session.commit()
+
+    # DEC-ID-026: concluído pelo executor, a Cliente é convidada a avaliar.
+    notification_events.booking_completed(booking)
 
     return booking
 

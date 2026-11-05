@@ -160,6 +160,11 @@ def save_booking_reviews(
 
     db.session.commit()
 
+    # PR 6a: avaliação recebida avisa o Pro e os donos da empresa.
+    from app.services import notification_events
+
+    notification_events.reviews_saved(booking)
+
 
 def reputation_summary(reviews):
     visible = [review for review in (reviews or []) if review.is_visible]

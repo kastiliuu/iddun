@@ -269,6 +269,11 @@ def invite_professional(
 
     db.session.commit()
 
+    # PR 6a: o Pro convidado fica sabendo.
+    from app.services import notification_events
+
+    notification_events.membership_invited(membership)
+
     return membership
 
 
@@ -341,6 +346,10 @@ def accept_invitation(
 
     db.session.commit()
 
+    from app.services import notification_events
+
+    notification_events.membership_answered(membership)
+
     return membership
 
 
@@ -368,6 +377,10 @@ def reject_invitation(
     membership.ended_at = datetime.now().date()
 
     db.session.commit()
+
+    from app.services import notification_events
+
+    notification_events.membership_answered(membership)
 
     return membership
 

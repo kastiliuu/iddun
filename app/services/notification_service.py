@@ -1,8 +1,12 @@
+from flask import current_app
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models.notification import (
     Notification,
+    NotificationCategory,
+    NotificationContext,
     NotificationKind,
     NotificationPreference,
     utcnow,
@@ -47,15 +51,19 @@ def preference_allows(
     preference,
     kind,
 ):
+    """Reservas são essenciais e não se desligam (DEC-ID-218, D-SOC-22)."""
     if kind == NotificationKind.BOOKING:
-        return preference.booking_enabled
+        return True
     if kind == NotificationKind.IDDUN_NOW:
         return preference.iddun_now_enabled
     if kind == NotificationKind.FOLLOW:
-        return preference.follow_enabled
+        return preference.social_enabled and preference.follow_enabled
+    if kind in (NotificationKind.LIKE, NotificationKind.COMMENT):
+        return preference.social_enabled
+    if kind in (NotificationKind.MEMBERSHIP, NotificationKind.REVIEW):
+        return preference.work_enabled
     if kind == NotificationKind.SYSTEM:
         return preference.system_enabled
-
     return False
 
 
@@ -67,14 +75,27 @@ def create_notification(
     body,
     action_type=None,
     action_id=None,
+    context_type=None,
+    context_id=None,
+    dedupe_key=None,
+    group_key=None,
     commit=True,
 ):
+    """Cria um aviso in-app (PR 6a; D-SOC-21, DEC-ID-219).
+
+    - ``dedupe_key``: o mesmo evento nunca avisa duas vezes a mesma pessoa;
+      a segunda chamada devolve o aviso existente.
+    - ``group_key``: avisos parecidos ainda não lidos viram um só, com
+      ``group_count``; ``title`` pode ser uma função do total.
+    """
     _require_user(user)
 
     if kind not in NotificationKind.VALUES:
         raise NotificationError(
             "Tipo de notificação inválido."
         )
+    if context_type is not None and context_type not in NotificationContext.VALUES:
+        raise NotificationError("Contexto de notificação inválido.")
 
     preference = notification_preferences(
         user
@@ -86,12 +107,38 @@ def create_notification(
     ):
         return None
 
-    clean_title = str(
-        title or ""
-    ).strip()
-    clean_body = str(
-        body or ""
-    ).strip()
+    if dedupe_key:
+        existing = db.session.scalar(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.dedupe_key == dedupe_key,
+            )
+        )
+        if existing is not None:
+            return existing
+
+    if group_key:
+        grouped = db.session.scalar(
+            select(Notification)
+            .where(
+                Notification.user_id == user.id,
+                Notification.group_key == group_key,
+                Notification.read_at.is_(None),
+            )
+            .order_by(Notification.id.desc())
+            .limit(1)
+        )
+        if grouped is not None:
+            grouped.group_count += 1
+            grouped.title = _clean(title(grouped.group_count) if callable(title) else title, 180)
+            grouped.body = _clean(body, 600)
+            grouped.created_at = utcnow()
+            if commit:
+                db.session.commit()
+            return grouped
+
+    clean_title = _clean(title(1) if callable(title) else title, 180)
+    clean_body = _clean(body, 600)
 
     if not clean_title or not clean_body:
         raise NotificationError(
@@ -101,8 +148,9 @@ def create_notification(
     notification = Notification(
         user=user,
         kind=kind,
-        title=clean_title[:180],
-        body=clean_body[:600],
+        category=NotificationCategory.BY_KIND[kind],
+        title=clean_title,
+        body=clean_body,
         action_type=(
             str(action_type).strip()[:40]
             if action_type
@@ -113,16 +161,35 @@ def create_notification(
             if action_id
             else None
         ),
+        context_type=context_type,
+        context_id=context_id,
+        dedupe_key=(dedupe_key or None) and str(dedupe_key)[:160],
+        group_key=(group_key or None) and str(group_key)[:160],
     )
 
-    db.session.add(
-        notification
-    )
+    if not commit:
+        db.session.add(notification)
+        return notification
 
-    if commit:
+    # Corrida entre duas entregas do mesmo evento: a chave única decide.
+    try:
+        with db.session.begin_nested():
+            db.session.add(notification)
         db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return db.session.scalar(
+            select(Notification).where(
+                Notification.user_id == user.id,
+                Notification.dedupe_key == dedupe_key,
+            )
+        )
 
     return notification
+
+
+def _clean(value, maximum):
+    return str(value or "").strip()[:maximum]
 
 
 def list_notifications(
@@ -131,6 +198,7 @@ def list_notifications(
     offset=0,
     limit=30,
     unread_only=False,
+    category=None,
 ):
     _require_user(user)
 
@@ -138,6 +206,12 @@ def list_notifications(
         Notification.user_id
         == user.id
     ]
+
+    # Abas da central (DEC-ID-216); Todas = sem categoria.
+    if category:
+        if category not in NotificationCategory.VALUES:
+            raise NotificationError("Categoria de notificação inválida.")
+        filters.append(Notification.category == category)
 
     if unread_only:
         filters.append(
@@ -270,6 +344,10 @@ def update_notification_preferences(
             "system_enabled",
         "pushEnabled":
             "push_enabled",
+        "socialEnabled":
+            "social_enabled",
+        "workEnabled":
+            "work_enabled",
     }
 
     for key, attribute in mapping.items():
@@ -301,8 +379,8 @@ def serialize_preference(
     preference,
 ):
     return {
-        "bookingEnabled":
-            preference.booking_enabled,
+        # Essencial (DEC-ID-218): o aviso de reserva não se desliga.
+        "bookingEnabled": True,
         "iddunNowEnabled":
             preference.iddun_now_enabled,
         "followEnabled":
@@ -311,6 +389,12 @@ def serialize_preference(
             preference.system_enabled,
         "pushEnabled":
             preference.push_enabled,
+        "socialEnabled":
+            preference.social_enabled,
+        "workEnabled":
+            preference.work_enabled,
+        # Reservas são essenciais (DEC-ID-218): sempre ativas.
+        "bookingEssential": True,
     }
 
 
@@ -343,65 +427,34 @@ def serialize_notification(
         "createdAt":
             notification.created_at
             .isoformat(),
+        # PR 6a (D-SOC-21/22).
+        "category": notification.category,
+        "contextType": notification.context_type,
+        "contextId": (
+            str(notification.context_id)
+            if notification.context_id is not None
+            else None
+        ),
+        "groupCount": notification.group_count,
     }
 
 
-def notify_booking_confirmed(
-    booking,
-):
-    user = getattr(
-        booking.client,
-        "user",
-        None,
-    )
-
-    if user is None:
-        return None
-
-    return create_notification(
-        user=user,
-        kind=NotificationKind.BOOKING,
-        title="Reserva confirmada",
-        body=(
-            f"{booking.experience.title} "
-            f"com {booking.professional.display_name} "
-            "está confirmada."
-        ),
-        action_type="booking",
-        action_id=str(
-            booking.id
-        ),
-    )
-
-
-def notify_booking_cancelled(
-    booking,
-):
-    user = getattr(
-        booking.client,
-        "user",
-        None,
-    )
-
-    if user is None:
-        return None
-
-    return create_notification(
-        user=user,
-        kind=NotificationKind.BOOKING,
-        title="Reserva cancelada",
-        body=(
-            f"{booking.experience.title} "
-            "foi cancelada."
-        ),
-        action_type="booking",
-        action_id=str(
-            booking.id
-        ),
-    )
-
-
 def notify_iddun_now_followers(
+    slot,
+):
+    """Seguidores avisados de um horário novo (IDDUN Now).
+
+    PR 6a: uma falha ao avisar nunca desfaz o horário já criado.
+    """
+    try:
+        return _notify_iddun_now_followers(slot)
+    except Exception:  # noqa: BLE001 — registrar e seguir (D-SOC-21)
+        db.session.rollback()
+        current_app.logger.exception("Falha ao avisar seguidores do IDDUN Now")
+        return 0
+
+
+def _notify_iddun_now_followers(
     slot,
 ):
     from app.models.beauty_graph import (
@@ -484,6 +537,8 @@ def notify_iddun_now_followers(
                 action_id=(
                     slot.experience.slug
                 ),
+                context_type="client",
+                dedupe_key=f"iddun_now:slot:{slot.id}",
             )
         )
 

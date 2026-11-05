@@ -381,6 +381,10 @@ def follow_target(
 
         raise
 
+    # PR 6a: novo seguidor avisa o Pro ou os donos da empresa.
+    from app.services import notification_events
+
+    notification_events.new_follower(item)
     return item
 
 

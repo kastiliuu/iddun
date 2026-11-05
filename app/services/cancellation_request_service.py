@@ -4,7 +4,7 @@ from app.extensions import db
 from app.models.booking import BookingStatus
 from app.models.cancellation_request import CancellationRequest
 from app.services.booking_service import BookingStateError, cancel_booking
-from app.services.notification_service import notify_booking_cancelled
+from app.services import notification_events
 from app.services.time_service import as_utc, utcnow
 
 
@@ -36,6 +36,8 @@ def request_cancellation(booking, user, reason=None):
     )
     db.session.add(item)
     db.session.commit()
+    # PR 6a: o Pro executor fica sabendo do pedido.
+    notification_events.cancellation_requested(item)
     return item
 
 
@@ -69,5 +71,5 @@ def execute_cancellation(booking, user, reason):
     item.resolved_by_user_id = user.id
     item.resolution_reason = reason[:255]
     db.session.commit()
-    notify_booking_cancelled(booking)
+    notification_events.booking_cancelled(booking)
     return item
