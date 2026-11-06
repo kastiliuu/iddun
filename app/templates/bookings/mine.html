@@ -305,15 +305,15 @@ my-bookings-page visual-v2-page
             <div class="booking-sharing" aria-label="Calendário e compartilhamento seguro">
               <div class="booking-sharing__actions">
               <a href="{{ url_for('bookings.export_booking_calendar', booking_id=item.id) }}"
-                 download="iddun-reserva-{{ item.id }}.ics" class="booking-sharing__action">{{ icon('calendar-plus') }} <span>Adicionar ao calendário (.ics)</span></a>
+                 download="iddun-reserva-{{ item.id }}.ics" class="booking-sharing__action">{{ icon('calendar') }} <span>Adicionar ao calendário (.ics)</span></a>
               <a href="{{ url_for('bookings.share_booking', booking_id=item.id) }}"
-                 target="_blank" rel="noopener noreferrer" class="booking-sharing__action">{{ icon('share-2') }} <span>Compartilhar reserva</span></a>
+                 target="_blank" rel="noopener noreferrer" class="booking-sharing__action">{{ icon('share') }} <span>Compartilhar reserva</span></a>
               </div>
               <small class="booking-sharing__hint">O arquivo contém o horário atual. Após reagendar, atualize seu calendário.</small>
             </div>
             {% endif %}
             <details class="booking-detail" id="detalhes-reserva-{{ item.id }}">
-              <summary><span class="booking-detail__trigger-icon" aria-hidden="true">{{ icon('list-collapse') }}</span><span class="booking-detail__trigger-copy"><strong>Detalhes da reserva</strong><small>Informações e histórico de eventos</small></span><span class="booking-detail__chevron" aria-hidden="true">{{ icon('chevron-down') }}</span></summary>
+              <summary><span class="booking-detail__trigger-icon" aria-hidden="true">{{ icon('calendar') }}</span><span class="booking-detail__trigger-copy"><strong>Detalhes da reserva</strong><small>Informações e histórico de eventos</small></span><span class="booking-detail__chevron" aria-hidden="true">{{ icon('chevron-down') }}</span></summary>
               <div class="booking-detail__content">
                 <section class="booking-detail__section" aria-label="Dados da reserva">
                   <h3>Informações da reserva</h3>
