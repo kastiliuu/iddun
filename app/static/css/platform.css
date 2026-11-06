@@ -679,9 +679,11 @@
 }
 
 .platform-metric-grid strong {
-  font-family: var(--font-display);
-  font-size: 1.8rem;
-  font-weight: 500;
+  font-family: var(--font-body);
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  font-weight: var(--weight-semibold);
 }
 
 .platform-metric-grid small {
@@ -726,6 +728,15 @@
   font-family: var(--font-display);
   font-size: 1.55rem;
   font-weight: 500;
+}
+
+/* DS-TYPO-001: contagens dos indicadores são dados, não títulos editoriais. */
+.platform-panel .platform-field > h3 {
+  font-family: var(--font-body);
+  font-size: var(--ds-type-heading-md);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .platform-panel > p {

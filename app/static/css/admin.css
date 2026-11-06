@@ -385,6 +385,8 @@
 .admin-opportunity-card__head small, .admin-booking-card__head small { color: #6f6961; font-size: .55rem; }
 .admin-opportunity-card__time, .admin-booking-card__date { display: flex; align-items: baseline; gap: 9px; margin-top: 15px; }
 .admin-opportunity-card__time strong, .admin-booking-card__date strong { color: #f0d394; font-family: var(--font-display); font-size: 2rem; font-weight: 500; }
+/* DS-TYPO-001: horário é dado operacional — Inter com algarismos tabulares. */
+.admin-opportunity-card__time strong, .admin-booking-card__date strong { font-family: var(--font-body); font-size: var(--text-2xl); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .admin-opportunity-card__time span, .admin-booking-card__date span { color: #928a80; font-size: .61rem; }
 .admin-opportunity-card__copy, .admin-booking-card__copy { margin-top: 10px; }
 .admin-opportunity-card__copy h2, .admin-booking-card__copy h2 { margin: 0; color: #eee9e0; font-family: var(--font-display); font-size: 1.1rem; font-weight: 500; }

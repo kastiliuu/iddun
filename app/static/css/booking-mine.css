@@ -332,8 +332,11 @@
 
 .booking-card__datetime strong {
   color: var(--color-deep-violet);
-  font-family: var(--font-display);
-  font-size: 1.65rem;
+  font-family: var(--font-body);
+  font-size: var(--ds-type-heading-md);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  font-weight: var(--weight-semibold);
   line-height: 1;
 }
 
@@ -355,9 +358,11 @@
 
 .booking-card__price strong {
   color: var(--color-deep-violet);
-  font-family: var(--font-display);
-  font-size: 1.08rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  font-weight: var(--weight-semibold);
 }
 
 .booking-card__foot button {
