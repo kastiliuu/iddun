@@ -214,7 +214,7 @@ booking-confirm-page visual-v2-page
             </dt>
 
             <dd>
-              R$ {{ booking.price_at_booking }}
+              R$ {{ '%.2f'|format(booking.price_at_booking)|replace('.', ',') }}
             </dd>
 
           </div>
