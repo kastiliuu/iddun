@@ -953,7 +953,7 @@
   content: "";
   position: absolute;
   top: var(--ds-space-2);
-  left: calc(-1 * var(--ds-space-6) - var(--ds-space-1));
+  left: calc(0px - var(--ds-space-6) - var(--ds-space-1));
   width: var(--ds-space-2);
   height: var(--ds-space-2);
   border-radius: 50%;
