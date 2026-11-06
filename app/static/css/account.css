@@ -374,9 +374,11 @@
 
 .account-activity-card__value {
   color: var(--color-deep-violet);
-  font-family: var(--font-display);
-  font-size: 1.5rem;
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-size: var(--ds-type-heading-md);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  font-weight: var(--weight-semibold);
   line-height: 1;
 }
 
@@ -727,8 +729,11 @@
 
 .account-completion-card__top > strong {
   color: var(--color-plum);
-  font-family: var(--font-display);
-  font-size: 2rem;
+  font-family: var(--font-body);
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  font-weight: var(--weight-semibold);
   line-height: 1;
 }
 

@@ -290,7 +290,7 @@
 .landing-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; background: var(--ds-surface-default); border: 1px solid var(--ds-border-subtle); border-radius: var(--ds-radius-xl); }
 .landing-stats li { display: flex; flex-direction: column; gap: var(--ds-space-2); padding: var(--ds-space-8) var(--ds-space-6); border-right: 1px solid var(--ds-border-subtle); }
 .landing-stats li:last-child { border-right: 0; }
-.landing-stats strong { font-family: var(--font-display); font-size: var(--landing-display-lg); font-weight: 500; line-height: 1; color: var(--ds-text-primary); }
+.landing-stats strong { font-family: var(--font-body); font-size: var(--landing-display-lg); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; letter-spacing: 0; line-height: 1; color: var(--ds-text-primary); }
 .landing-stats span { font-size: var(--ds-type-secondary); color: var(--ds-text-secondary); }
 
 /* ---------- Directories ---------- */

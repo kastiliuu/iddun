@@ -2173,12 +2173,13 @@ div > span {
   color:
     var(--color-white);
 
-  font-family:
-    var(--font-display);
+  font-family: var(--font-body);
 
-  font-size: 1.55rem;
+  font-size: var(--ds-type-heading-md);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 
   line-height: 1;
 }

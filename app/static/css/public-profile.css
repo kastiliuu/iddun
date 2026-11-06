@@ -151,11 +151,11 @@
 .public-profile-gallery-nav button { width:38px;height:38px;border:1px solid rgba(20,19,17,.12);border-radius:50%;background:#faf5ed;color:#5f4b34;font-size:1.25rem;cursor:pointer;transition:transform .18s ease,background .18s ease; }
 .public-profile-gallery-nav button:hover { transform:translateY(-1px);background:#f1e3cf; }
 .public-profile-score { display:grid;grid-template-columns:auto auto;align-items:center;gap:2px 8px;text-align:right; }
-.public-profile-score strong { font-family:var(--font-display);font-size:2rem;font-weight:500;line-height:1; }
+.public-profile-score strong { font-family:var(--font-body);font-size:var(--text-2xl);font-weight:var(--weight-semibold);font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1; }
 .public-profile-score > span { color:var(--profile-accent);font-size:1rem; }
 .public-profile-score small { grid-column:1/-1;color:#766d62;font-size:.58rem; }
 .public-profile-mini-reputation { display:grid;gap:3px;margin:16px 0;padding:14px;border-radius:14px;background:#f6efe4; }
-.public-profile-mini-reputation strong { font-family:var(--font-display);font-size:1.45rem;font-weight:500; }
+.public-profile-mini-reputation strong { font-family:var(--font-body);font-size:var(--ds-type-heading-md);font-weight:var(--weight-semibold);font-variant-numeric:tabular-nums;letter-spacing:0; }
 .public-profile-mini-reputation span,.public-profile-mini-reputation small { color:#756b5f;font-size:.6rem; }
 .public-profile-certifications { display:grid;gap:10px; }
 .public-profile-certifications article { min-height:70px;display:grid;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 14px;border:1px solid rgba(20,19,17,.08);border-radius:15px;background:#faf6ef; }

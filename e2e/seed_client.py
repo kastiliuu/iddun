@@ -39,6 +39,12 @@ E2E_BUSINESS_SLUG = "espaco-qa-navegador"
 # Perfil Pro só de leitura para a ordem das seções (PR 4a, D-SOC-12).
 # Nenhuma jornada edita ou desativa este perfil.
 E2E_PROFILE_SLUG = "pro-perfil-social-navegador"
+# Tipografia de dados (DS-TYPO-001): serviço com horários às 16:30 e uma
+# reserva confirmada de uma cliente própria. Nomes sem "QA" para não mudar a
+# ordem das buscas por "QA" de outras jornadas.
+E2E_TYPO_SERVICE_SLUG = "escova-tipografia-navegador"
+E2E_TYPO_CLIENT_EMAIL = "typo-browser-client@example.com"
+E2E_TYPO_ADMIN_EMAIL = "typo-browser-admin@example.com"
 
 
 def main():
@@ -165,6 +171,66 @@ def main():
                 )
             )
         db.session.commit()
+        _seed_typography()
+
+
+def _seed_typography():
+    """Reserva confirmada às 16:30 (horário local) daqui a dois dias.
+
+    Serviço sem estabelecimento para não entrar nas buscas por "QA".
+    """
+    from datetime import datetime, timedelta
+
+    from app.models.booking import ExperienceSlot, SlotStatus
+    from app.services.booking_service import confirm_booking, hold_slot
+    from app.services.time_service import local_naive_to_utc, to_local
+
+    profile = ProfessionalProfile(
+        display_name="Pro Tipografia",
+        slug="pro-tipografia-navegador",
+        primary_specialty="Escovista",
+        city="Curitiba",
+        state="PR",
+        is_active=True,
+    )
+    db.session.add(profile)
+    service = Experience(
+        professional=profile,
+        title="Escova Tipografia",
+        slug=E2E_TYPO_SERVICE_SLUG,
+        category="cabelo",
+        short_description="Serviço descartável do CI para a tipografia de dados.",
+        regular_price="180.00",
+        price="150.00",
+        duration_minutes=60,
+        status=ExperienceStatus.PUBLISHED,
+    )
+    db.session.add(service)
+    today = to_local(utcnow()).date()
+    slots = []
+    for days in range(2, 6):
+        start = local_naive_to_utc(datetime.combine(today + timedelta(days=days), datetime.min.time()).replace(hour=16, minute=30))
+        slot = ExperienceSlot(
+            experience=service,
+            professional=profile,
+            starts_at=start,
+            ends_at=start + timedelta(hours=1),
+            status=SlotStatus.AVAILABLE,
+        )
+        db.session.add(slot)
+        slots.append(slot)
+
+    client = User(name="Cliente Tipografia", email=E2E_TYPO_CLIENT_EMAIL, role=UserRole.CLIENT)
+    client.set_password(E2E_PASSWORD)
+    admin = User(name="Admin Tipografia", email=E2E_TYPO_ADMIN_EMAIL, role=UserRole.ADMIN)
+    admin.set_password(E2E_PASSWORD)
+    db.session.add_all([client, admin])
+    db.session.flush()
+    client_profile = ClientProfile(user=client)
+    db.session.add(client_profile)
+    db.session.commit()
+
+    confirm_booking(hold_slot(slots[0].id, client_profile).id, client_profile)
 
 
 if __name__ == "__main__":
