@@ -12,7 +12,23 @@ export type NotificationKind =
   | "booking"
   | "iddun_now"
   | "follow"
+  | "like"
+  | "comment"
+  | "membership"
+  | "review"
   | "system";
+
+/** Abas da central (PR 6a/6b; DEC-ID-216). */
+export type NotificationCategory =
+  | "bookings"
+  | "social"
+  | "work"
+  | "system";
+
+export type NotificationContextType =
+  | "client"
+  | "professional"
+  | "establishment";
 
 export type NotificationItem = {
   id: string;
@@ -24,6 +40,35 @@ export type NotificationItem = {
   read: boolean;
   readAt?: string | null;
   createdAt: string;
+  category?: NotificationCategory;
+  contextType?: NotificationContextType | null;
+  contextId?: string | null;
+  groupCount?: number;
+  /** Nome do contexto (ex.: a empresa) só quando o acesso ainda vale. */
+  contextLabel?: string | null;
+};
+
+/** Destino autorizado pelo servidor ao abrir (DEC-ID-220, 221). */
+export type NotificationTarget = {
+  type:
+    | "booking"
+    | "review_booking"
+    | "pro_booking"
+    | "experience"
+    | "post"
+    | "professional"
+    | "establishment"
+    | "membership"
+    | "business_team";
+  id: string | null;
+  webPath: string;
+};
+
+export type NotificationCounts = {
+  all: number;
+  bookings: number;
+  social: number;
+  work: number;
 };
 
 export type NotificationPreferences = {
@@ -32,10 +77,15 @@ export type NotificationPreferences = {
   followEnabled: boolean;
   systemEnabled: boolean;
   pushEnabled: boolean;
+  socialEnabled: boolean;
+  workEnabled: boolean;
+  /** Reservas são essenciais: sempre ativas (DEC-ID-218). */
+  bookingEssential?: boolean;
 };
 
 export type NotificationListResponse = {
   items: NotificationItem[];
+  counts?: NotificationCounts;
   unreadCount: number;
   pagination: {
     offset: number;
@@ -87,6 +137,7 @@ export function getNotifications(
     offset?: number;
     limit?: number;
     unreadOnly?: boolean;
+    category?: Exclude<NotificationCategory, "system">;
   } = {},
 ) {
   const query =
@@ -112,6 +163,13 @@ export function getNotifications(
     );
   }
 
+  if (options.category) {
+    query.set(
+      "category",
+      options.category,
+    );
+  }
+
   return withAuthenticatedRequest(
     (token) =>
       api.get<NotificationListResponse>(
@@ -131,6 +189,25 @@ export function markNotificationRead(
           NotificationItem;
       }>(
         `/api/v1/notifications/${notificationId}/read`,
+        undefined,
+        { token },
+      ),
+  );
+}
+
+/** Marca como lida e recebe o destino só se o acesso vale agora. */
+export function openNotification(
+  notificationId: string,
+) {
+  return withAuthenticatedRequest(
+    (token) =>
+      api.put<{
+        notification:
+          NotificationItem;
+        target:
+          NotificationTarget | null;
+      }>(
+        `/api/v1/notifications/${notificationId}/open`,
         undefined,
         { token },
       ),

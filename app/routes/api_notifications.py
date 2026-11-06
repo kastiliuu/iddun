@@ -11,7 +11,7 @@ from app.services.api_contract import (
     pagination_payload,
 )
 from app.models.notification import NotificationCategory
-from app.services.notification_center import category_counts, context_label
+from app.services.notification_center import api_target, category_counts, context_label
 from app.services.notification_service import (
     NotificationError,
     list_notifications,
@@ -271,6 +271,47 @@ def read_notification(
                 serialize_notification(
                     notification
                 )
+        },
+        cache_control=(
+            "private, no-store"
+        ),
+    )
+
+
+@api_notifications_bp.put(
+    "/<int:notification_id>/open"
+)
+@csrf.exempt
+@limiter.limit("240 per hour")
+def open_notification(
+    notification_id,
+):
+    """PR 6b (DEC-ID-220, 221): abrir marca como lido e devolve o destino
+    só se o acesso vale agora; sem acesso, target é null."""
+    user, error = _require_user()
+
+    if error is not None:
+        return error
+
+    try:
+        notification = mark_notification_read(
+            user,
+            notification_id,
+        )
+    except NotificationError as exc:
+        return api_error(
+            "notification_not_found",
+            str(exc),
+            404,
+        )
+
+    return api_json(
+        {
+            "notification": {
+                **serialize_notification(notification),
+                "contextLabel": context_label(user, notification),
+            },
+            "target": api_target(user, notification),
         },
         cache_control=(
             "private, no-store"
