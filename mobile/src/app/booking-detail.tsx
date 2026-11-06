@@ -10,7 +10,7 @@ import {
 } from "@/api/bookings";
 import { Button } from "@/components/Button";
 import { syncNativeBookingCalendar, removeNativeBookingCalendar } from "@/services/nativeBookingCalendar";
-import { fonts, makeStyles, spacing, radius, useTheme } from "@/theme";
+import { fonts, makeStyles, spacing, radius, designScale, useTheme } from "@/theme";
 
 export default function BookingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -78,26 +78,31 @@ export default function BookingDetailScreen() {
         <>
           <View style={styles.card}>
             <Text style={styles.subtitle}>{booking.experience.title}</Text>
-            <Text style={styles.text}>Status: {booking.status}</Text>
-            <Text style={styles.text}>Profissional: {booking.professional.name}</Text>
-            {booking.establishment ? <Text style={styles.text}>Estabelecimento: {booking.establishment.name}</Text> : null}
-            <Text style={styles.text}>Data: {booking.slot.localDate} às {booking.slot.localTime}</Text>
-            <Text style={styles.text}>Fuso: {booking.slot.timezone}</Text>
-            <Text style={styles.text}>Duração: {booking.experience.durationMinutes} minutos</Text>
-            <Text style={styles.text}>Valor registrado: R$ {booking.price.toFixed(2).replace(".", ",")}</Text>
-            <Text style={styles.text}>Esta é uma confirmação de agendamento, não um comprovante de pagamento.</Text>
-          </View>
-          <Text style={styles.subtitle}>Linha do tempo</Text>
-          {timeline.map((event, index) => (
-            <View key={`${event.at}-${index}`} style={styles.event}>
-              <Text style={styles.text}>{new Date(event.at).toLocaleString("pt-BR")}</Text>
-              <Text style={styles.text}>{event.label}</Text>
+            <Text style={styles.sectionHint}>Informações da reserva</Text>
+            <View style={styles.detailGrid}>
+              <View style={styles.detailRow}><Text style={styles.detailLabel}>Status</Text><Text style={styles.detailValue}>{booking.status}</Text></View>
+              <View style={styles.detailRow}><Text style={styles.detailLabel}>Profissional</Text><Text style={styles.detailValue}>{booking.professional.name}</Text></View>
+              {booking.establishment ? <View style={styles.detailRow}><Text style={styles.detailLabel}>Local</Text><Text style={styles.detailValue}>{booking.establishment.name}</Text></View> : null}
+              <View style={styles.detailRow}><Text style={styles.detailLabel}>Horário</Text><Text style={styles.detailValue}>{booking.slot.localDate} às {booking.slot.localTime}</Text></View>
+              <View style={styles.detailRow}><Text style={styles.detailLabel}>Duração</Text><Text style={styles.detailValue}>{booking.experience.durationMinutes} minutos</Text></View>
+              <View style={styles.detailRow}><Text style={styles.detailLabel}>Valor</Text><Text style={styles.detailValue}>R$ {booking.price.toFixed(2).replace(".", ",")}</Text></View>
             </View>
-          ))}
+            <Text style={styles.helper}>Esta é uma confirmação de agendamento, não um comprovante de pagamento.</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.subtitle}>Histórico de eventos</Text>
+            {timeline.length === 0 ? <Text style={styles.helper}>Nenhum evento registrado até agora.</Text> : null}
+            {timeline.map((event, index) => (
+              <View key={`${event.at}-${index}`} style={styles.event}>
+                <Text style={styles.eventTime}>{new Date(event.at).toLocaleString("pt-BR")}</Text>
+                <Text style={styles.eventLabel}>{event.label}</Text>
+              </View>
+            ))}
+          </View>
           {(booking.status === "confirmed" || booking.status === "completed") ? (
             <View style={styles.card}>
               <Text style={styles.subtitle}>Calendário e compartilhamento</Text>
-              <Text style={styles.text}>Adicione um evento ao Google Calendar ou compartilhe apenas os detalhes mínimos. Dados de contato, links autenticados e endereços privados não são enviados.</Text>
+              <Text style={styles.helper}>Salve o horário no seu calendário ou compartilhe apenas as informações essenciais da reserva.</Text>
               <Button title="Salvar/atualizar no calendário do dispositivo" compact variant="secondary"
                 loading={busy} onPress={() => {
                   if (!id || busy) return;
@@ -129,7 +134,7 @@ export default function BookingDetailScreen() {
                     caught instanceof Error ? caught.message : "Tente novamente."))
                   .finally(() => setBusy(false));
               }} />
-              <Text style={styles.text}>Se a reserva mudar, abra novamente esta tela e gere um novo evento. Eventos adicionados anteriormente não são alterados automaticamente.</Text>
+              <Text style={styles.helper}>Se houver reagendamento, atualize seu calendário. Eventos antigos não são alterados automaticamente.</Text>
             </View>
           ) : null}
           {booking.status === "cancelled" ? (
@@ -253,11 +258,19 @@ export default function BookingDetailScreen() {
 const useStyles = makeStyles((colors) => ({
   container: { flex: 1, backgroundColor: colors.surface },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.xxl, paddingBottom: 100, gap: spacing.md },
-  heading: { fontFamily: fonts.display, fontSize: 28, color: colors.onSurface },
-  subtitle: { fontFamily: fonts.sansSemiBold, fontSize: 17, color: colors.onSurface },
-  text: { fontFamily: fonts.sans, fontSize: 13, color: colors.onSurfaceSecondary },
-  card: { backgroundColor: colors.surfaceSecondary, padding: spacing.lg, borderRadius: radius.md, gap: spacing.sm },
-  event: { borderLeftWidth: 2, borderLeftColor: colors.plum, paddingLeft: spacing.md, gap: spacing.xs },
+  heading: { fontFamily: fonts.display, fontSize: designScale.typography.headingMedium, color: colors.onSurface },
+  subtitle: { fontFamily: fonts.sansSemiBold, fontSize: designScale.typography.headingSmall, color: colors.onSurface },
+  text: { fontFamily: fonts.sans, fontSize: designScale.typography.secondary, lineHeight: 24, color: colors.onSurfaceSecondary },
+  sectionHint: { fontFamily: fonts.sansSemiBold, fontSize: designScale.typography.secondary, color: colors.onSurfaceSecondary },
+  card: { backgroundColor: colors.surfaceSecondary, padding: spacing.xl, borderRadius: designScale.radius.lg, gap: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  detailGrid: { gap: spacing.md },
+  detailRow: { gap: spacing.xs },
+  detailLabel: { fontFamily: fonts.sansMedium, fontSize: designScale.typography.secondary, color: colors.onSurfaceSecondary },
+  detailValue: { fontFamily: fonts.sans, fontSize: designScale.typography.body, lineHeight: 24, color: colors.onSurface },
+  helper: { fontFamily: fonts.sans, fontSize: designScale.typography.secondary, lineHeight: 24, color: colors.onSurfaceSecondary },
+  event: { borderLeftWidth: 2, borderLeftColor: colors.plum, paddingLeft: spacing.lg, gap: spacing.xs },
+  eventTime: { fontFamily: fonts.sans, fontSize: designScale.typography.captionLarge, color: colors.onSurfaceSecondary },
+  eventLabel: { fontFamily: fonts.sansSemiBold, fontSize: designScale.typography.body, color: colors.onSurface },
   slot: { marginTop: spacing.xs },
   ratingRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
   input: { borderWidth: 1, borderColor: colors.glassBorder, color: colors.onSurface, backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, minHeight: 48 },

@@ -1955,7 +1955,9 @@ def test_my_bookings_sections_filters_and_details_are_scoped(app, client):
     assert "Solicitações (0)" in html
     assert f'detalhes-reserva-{confirmed_id}' in html
     assert f'detalhes-reserva-{completed_id}' not in html
-    assert "Detalhes e linha do tempo" in html
+    assert "Detalhes da reserva" in html
+    assert "Histórico de eventos" in html
+    assert 'class="booking-detail__content"' in html
     assert "Reserva confirmada" in html
     assert "America/Sao_Paulo" in html
     history = client.get("/minhas-reservas?aba=historico")

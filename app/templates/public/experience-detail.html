@@ -308,14 +308,14 @@ experience-detail-page visual-v2-page
             {% if experience.regular_price > experience.price %}
 
               <del>
-                R$ {{ experience.regular_price }}
+                R$ {{ '%.2f'|format(experience.regular_price)|replace('.', ',') }}
               </del>
 
             {% endif %}
 
 
             <strong>
-              R$ {{ experience.price }}
+              R$ {{ '%.2f'|format(experience.price)|replace('.', ',') }}
             </strong>
 
           </div>
@@ -785,13 +785,13 @@ experience-detail-page visual-v2-page
           {% if experience.regular_price > experience.price %}
 
             <del>
-              R$ {{ experience.regular_price }}
+              R$ {{ '%.2f'|format(experience.regular_price)|replace('.', ',') }}
             </del>
 
           {% endif %}
 
           <strong>
-            R$ {{ experience.price }}
+            R$ {{ '%.2f'|format(experience.price)|replace('.', ',') }}
           </strong>
 
         </div>
@@ -874,7 +874,7 @@ experience-detail-page visual-v2-page
       </span>
 
       <strong>
-        R$ {{ experience.price }}
+        R$ {{ '%.2f'|format(experience.price)|replace('.', ',') }}
       </strong>
 
     </div>
