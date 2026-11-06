@@ -342,3 +342,66 @@ def test_bell_links_to_the_center(app, client, world):
     _login(client, world["pro_user"])
     html = client.get("/favoritos").get_data(as_text=True)
     assert 'href="/notificacoes"' in html
+
+
+# ------------------------------------------------- PR 6b: abrir pelo app
+
+
+def test_api_open_marks_read_and_returns_only_authorized_targets(app, client, world, monkeypatch):
+    """PR 6b (DEC-ID-220, 221): o app recebe o destino só se o acesso vale."""
+    monkeypatch.setattr(notification_events, "send_transactional_email", lambda **kw: True)
+    ids = _seed_notices(app, world)
+    booking_id = _confirmed_booking(app, world)
+    _login(client, world["pro_user"])
+
+    follow = client.put(f"/api/v1/notifications/{ids['follow']}/open", json={})
+    assert follow.status_code == 200
+    data = follow.get_json()
+    assert data["notification"]["read"] is True
+    assert data["notification"]["contextLabel"] == "Profissional"
+    assert data["target"] == {"type": "professional", "id": "marina-notif", "webPath": "/profissionais/marina-notif"}
+    assert follow.headers["Cache-Control"] == "private, no-store"
+
+    # Reserva de outra conta e empresa sem acesso: marca como lido, sem destino.
+    for key in ("booking", "team"):
+        response = client.put(f"/api/v1/notifications/{ids[key]}/open", json={})
+        assert response.status_code == 200
+        assert response.get_json()["target"] is None
+        assert response.get_json()["notification"]["read"] is True
+
+    # A Cliente abre a própria reserva confirmada pelo app.
+    _login(client, world["client_user"])
+    with app.app_context():
+        notice = db.session.scalar(select(Notification).where(
+            Notification.user_id == world["client_user"], Notification.action_type == "booking",
+        ))
+    opened = client.put(f"/api/v1/notifications/{notice.id}/open", json={}).get_json()
+    assert opened["target"]["type"] == "booking"
+    assert opened["target"]["id"] == str(booking_id)
+
+    # Aviso de outra pessoa: 404 e continua não lido para o dono.
+    denied = client.put(f"/api/v1/notifications/{ids['follow']}/open", json={})
+    assert denied.status_code == 404
+    assert denied.get_json()["error"]["code"] == "notification_not_found"
+
+
+def test_api_open_requires_login(client):
+    assert client.put("/api/v1/notifications/1/open", json={}).status_code == 401
+
+
+def test_api_open_gives_the_owner_the_business_team(app, client, world):
+    from app.services.notification_service import create_notification
+
+    with app.app_context():
+        owner = db.session.get(User, world["owner"])
+        notice = create_notification(
+            user=owner, kind="membership", title="Convite aceito", body="Marina aceitou.",
+            action_type="business_team", action_id="studio-notif",
+            context_type="establishment", context_id=world["business"],
+        ).id
+    _login(client, world["owner"])
+    data = client.put(f"/api/v1/notifications/{notice}/open", json={}).get_json()
+    assert data["notification"]["contextLabel"] == "Studio Notif"
+    assert data["target"]["type"] == "business_team"
+    assert data["target"]["id"] == "studio-notif"
+    assert data["target"]["webPath"].startswith("/business/studio-notif/")

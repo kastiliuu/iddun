@@ -73,10 +73,18 @@ def _int(value):
         return None
 
 
-def destination(user, notification):
-    """URL autorizada para o aviso, ou None quando não há (mais) acesso."""
+def resolve_target(user, notification):
+    """Destino autorizado do aviso, ou None quando não há (mais) acesso.
+
+    Devolve {"type", "id", "endpoint", "values"}: a Web monta a URL com
+    endpoint/values e o app abre a tela pelo type/id (PR 6b). A checagem de
+    acesso é a mesma para os dois (DEC-ID-220, 221).
+    """
     kind = notification.action_type
     action = notification.action_id
+
+    def target(type_, id_, endpoint, **values):
+        return {"type": type_, "id": str(id_) if id_ is not None else None, "endpoint": endpoint, "values": values}
 
     # Contexto de Pro ou empresa precisa valer agora (DEC-ID-221).
     if notification.context_type == NotificationContext.PROFESSIONAL:
@@ -92,42 +100,66 @@ def destination(user, notification):
         if booking is None or getattr(booking.client, "user_id", None) != user.id:
             return None
         if kind == "review_booking":
-            return url_for("bookings.review", booking_id=booking.id)
-        return url_for("bookings.mine", _anchor=f"booking-title-{booking.id}")
+            return target("review_booking", booking.id, "bookings.review", booking_id=booking.id)
+        return target("booking", booking.id, "bookings.mine", _anchor=f"booking-title-{booking.id}")
 
     if kind == "pro_booking":
         booking = db.session.get(Booking, _int(action))
         if booking is None or getattr(booking.professional, "user_id", None) != user.id:
             return None
-        return url_for("professional.dashboard")
+        return target("pro_booking", booking.id, "professional.dashboard")
 
     if kind == "experience" and action:
-        return url_for("public.experience_detail", slug=action)
+        return target("experience", action, "public.experience_detail", slug=action)
 
     if kind == "post":
         from app.services.feed_service import public_post_record
 
         if public_post_record(_int(action)) is None:
             return None
-        return url_for("posts.detail", post_id=_int(action))
+        return target("post", _int(action), "posts.detail", post_id=_int(action))
 
     if kind == "followers":
         if notification.context_type == NotificationContext.PROFESSIONAL:
             profile = db.session.get(ProfessionalProfile, notification.context_id)
-            return url_for("public.professional_detail", slug=profile.slug) if profile else None
+            if profile is None:
+                return None
+            return target("professional", profile.slug, "public.professional_detail", slug=profile.slug)
         business = db.session.get(Establishment, notification.context_id)
-        return url_for("public.establishment_detail", slug=business.slug) if business else None
+        if business is None:
+            return None
+        return target("establishment", business.slug, "public.establishment_detail", slug=business.slug)
 
     if kind == "membership":
-        return url_for("professional.dashboard")
+        return target("membership", action, "professional.dashboard")
 
     if kind == "business_team" and action:
-        return url_for("business.dashboard", slug=action, _anchor="business-team")
+        return target("business_team", action, "business.dashboard", slug=action, _anchor="business-team")
 
     if kind == "professional_reviews" and action:
-        return url_for("public.professional_detail", slug=action)
+        return target("professional", action, "public.professional_detail", slug=action)
 
     if kind == "business_reviews" and action:
-        return url_for("public.establishment_tab", slug=action, tab="sobre")
+        return target("establishment", action, "public.establishment_tab", slug=action, tab="sobre")
 
     return None
+
+
+def destination(user, notification):
+    """URL autorizada para o aviso na Web, ou None quando não há (mais) acesso."""
+    resolved = resolve_target(user, notification)
+    if resolved is None:
+        return None
+    return url_for(resolved["endpoint"], **resolved["values"])
+
+
+def api_target(user, notification):
+    """Destino para o app: tipo, id e o caminho equivalente na Web."""
+    resolved = resolve_target(user, notification)
+    if resolved is None:
+        return None
+    return {
+        "type": resolved["type"],
+        "id": resolved["id"],
+        "webPath": url_for(resolved["endpoint"], **resolved["values"]),
+    }

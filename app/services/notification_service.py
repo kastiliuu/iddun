@@ -145,8 +145,10 @@ def create_notification(
             "Título e mensagem são obrigatórios."
         )
 
+    # user_id (e não user=) para não pôr o aviso na coleção do usuário antes
+    # do add: o flush do savepoint avisaria "not in session" (SAWarning).
     notification = Notification(
-        user=user,
+        user_id=user.id,
         kind=kind,
         category=NotificationCategory.BY_KIND[kind],
         title=clean_title,
