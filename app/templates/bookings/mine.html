@@ -303,27 +303,37 @@ my-bookings-page visual-v2-page
 
             {% if item.status in [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] %}
             <div class="booking-sharing" aria-label="Calendário e compartilhamento seguro">
+              <div class="booking-sharing__actions">
               <a href="{{ url_for('bookings.export_booking_calendar', booking_id=item.id) }}"
-                 download="iddun-reserva-{{ item.id }}.ics">Adicionar ao calendário (.ics)</a>
+                 download="iddun-reserva-{{ item.id }}.ics" class="booking-sharing__action">{{ icon('calendar-plus') }} <span>Adicionar ao calendário (.ics)</span></a>
               <a href="{{ url_for('bookings.share_booking', booking_id=item.id) }}"
-                 target="_blank" rel="noopener noreferrer">Compartilhar informações essenciais</a>
-              <small>O calendário contém o horário atual. Após reagendar, baixe novamente o arquivo atualizado.</small>
+                 target="_blank" rel="noopener noreferrer" class="booking-sharing__action">{{ icon('share-2') }} <span>Compartilhar reserva</span></a>
+              </div>
+              <small class="booking-sharing__hint">O arquivo contém o horário atual. Após reagendar, atualize seu calendário.</small>
             </div>
             {% endif %}
             <details class="booking-detail" id="detalhes-reserva-{{ item.id }}">
-              <summary>Detalhes e linha do tempo</summary>
+              <summary><span class="booking-detail__trigger-icon" aria-hidden="true">{{ icon('list-collapse') }}</span><span class="booking-detail__trigger-copy"><strong>Detalhes da reserva</strong><small>Informações e histórico de eventos</small></span><span class="booking-detail__chevron" aria-hidden="true">{{ icon('chevron-down') }}</span></summary>
+              <div class="booking-detail__content">
+                <section class="booking-detail__section" aria-label="Dados da reserva">
+                  <h3>Informações da reserva</h3>
               <dl>
                 <dt>Serviço</dt><dd>{{ item.experience.title }}</dd>
-                <dt>Executor</dt><dd>{{ item.professional.display_name }}</dd>
+                <dt>Profissional</dt><dd>{{ item.professional.display_name }}</dd>
                 <dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Atendimento independente — consulte o profissional' }}</dd>
-                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }} ({{ item.professional.timezone }})</dd>
+                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }}</dd>
                 <dt>Duração</dt><dd>{{ item.experience.duration_minutes }} minutos</dd>
                 <dt>Preço</dt><dd>R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}</dd>
                 <dt>Status</dt><dd>{{ item.status_label }}</dd>
-                <dt>Cancelamento</dt><dd>O cliente solicita e o executor efetiva, conforme as regras da reserva.</dd>
-                <dt>Reagendamento</dt><dd>Sujeito à disponibilidade real e à confirmação do executor.</dd>
               </dl>
-              <h3>Histórico de eventos</h3>
+                </section>
+                <section class="booking-detail__section booking-detail__policies" aria-label="Condições de alteração">
+                  <h3>Alterações da reserva</h3>
+                  <p>Cancelamento: solicitação pelo cliente, efetivação pelo executor conforme as regras da reserva.</p>
+                  <p>Reagendamento: sujeito à disponibilidade real e à confirmação do executor.</p>
+                </section>
+                <section class="booking-detail__section" aria-label="Histórico de eventos">
+                  <h3>Histórico de eventos</h3>
               <ol class="booking-timeline">
                 {% for event in row.timeline %}
                 <li>
@@ -333,6 +343,8 @@ my-bookings-page visual-v2-page
                 </li>
                 {% endfor %}
               </ol>
+                </section>
+              </div>
             </details>
 
             <!-- ==============================================
@@ -348,7 +360,7 @@ my-bookings-page visual-v2-page
                 </small>
 
                 <strong>
-                  R$ {{ item.price_at_booking }}
+                  R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}
                 </strong>
 
               </div>
