@@ -65,7 +65,7 @@ def test_booking_details_use_scoped_tokens_and_touch_targets():
     assert "@media (max-width: 600px)" in scoped
     assert "focus-visible" in scoped
     import re
-    assert not re.search(r"#[0-9a-fA-F]{3,8}\\b", scoped)
+    assert not re.search(r"#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])", scoped)
     assert "!important" not in scoped
 
 
