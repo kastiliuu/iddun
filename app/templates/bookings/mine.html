@@ -321,7 +321,7 @@ my-bookings-page visual-v2-page
                 <dt>Serviço</dt><dd>{{ item.experience.title }}</dd>
                 <dt>Profissional</dt><dd>{{ item.professional.display_name }}</dd>
                 <dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Atendimento independente — consulte o profissional' }}</dd>
-                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }}</dd>
+                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }} ({{ item.professional.timezone }})</dd>
                 <dt>Duração</dt><dd>{{ item.experience.duration_minutes }} minutos</dd>
                 <dt>Preço</dt><dd>R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}</dd>
                 <dt>Status</dt><dd>{{ item.status_label }}</dd>
