@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from "react-native";
 
 export type ColorScheme = "dark" | "light";
 
@@ -211,8 +211,12 @@ export function useTheme() {
   };
 }
 
+// React Native 0.88 removes the exported StyleSheet.NamedStyles alias.
+// Keep the style factory strongly typed without casting away StyleSheet checks.
+type NamedStyles<T> = { [P in keyof T]: ViewStyle | TextStyle | ImageStyle };
+
 export function makeStyles<
-  T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>,
+  T extends NamedStyles<T>,
 >(factory: (themeColors: ThemeColors) => T) {
   return function useStyles() {
     return useMemo(

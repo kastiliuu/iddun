@@ -10,6 +10,7 @@ import {
   Alert,
   Pressable,
   ScrollView,
+  type ScrollViewInstance,
   Switch,
   Text,
   TextInput,
@@ -245,7 +246,7 @@ export default function ProfessionalOnboardingScreen() {
   const params =
     useLocalSearchParams<{ section?: string }>();
   const scrollRef =
-    useRef<ScrollView>(null);
+    useRef<ScrollViewInstance>(null);
   const scrolledToSection =
     useRef(false);
   const scrollToSection = (key: string, y: number) => {

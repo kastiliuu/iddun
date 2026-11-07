@@ -9,6 +9,7 @@ import {
   Pressable,
   Share,
   ScrollView,
+  type ScrollViewInstance,
   Text,
   View,
 } from "react-native";
@@ -138,7 +139,7 @@ export default function ProfessionalProfileScreen() {
   useStoreVersion();
 
   const scrollRef =
-    useRef<ScrollView>(null);
+    useRef<ScrollViewInstance>(null);
 
   const [servicesY, setServicesY] =
     useState(0);
