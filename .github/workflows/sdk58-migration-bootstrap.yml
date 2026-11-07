@@ -1,0 +1,50 @@
+name: SDK 58 migration bootstrap (temporary)
+# One-time migration generator. Removed by its own commit after generating the lockfile.
+on:
+  push:
+    branches:
+      - be/mobile-expo-sdk58
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: github.ref == 'refs/heads/be/mobile-expo-sdk58'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+      - name: Align dependencies with Expo SDK 58
+        working-directory: mobile
+        run: |
+          npm install expo@^58.0.0 --save
+          npx expo install --fix
+      - name: Commit atomic package and lockfile upgrade
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/sdk58-migration-bootstrap.yml
+          git add mobile/package.json mobile/package-lock.json
+          git diff --cached --check
+          git commit -m "chore(mobile): align Expo SDK 58 dependencies and lockfile"
+          git push origin HEAD:be/mobile-expo-sdk58
+      - name: Check migrated dependency tree
+        working-directory: mobile
+        run: |
+          npm ci
+          npx expo install --check
+          npx expo-doctor@latest
+      - name: TypeScript and lint
+        working-directory: mobile
+        run: |
+          npm run typecheck
+          npm run lint
