@@ -15,12 +15,12 @@ def test_calendar_does_not_recreate_on_update_failure():
     assert "catch {\n      // Evento foi removido" not in source
 
 
-def test_calendar_dependency_matches_expo_sdk_57():
+def test_calendar_dependency_matches_expo_sdk_58():
     package = json.loads((MOBILE / "package.json").read_text())
     lock = json.loads((MOBILE / "package-lock.json").read_text())
-    assert package["dependencies"]["expo-calendar"] == "~57.0.6"
+    assert package["dependencies"]["expo-calendar"] == "~58.0.6"
     assert lock["packages"][""]["dependencies"]["expo-calendar"] == package["dependencies"]["expo-calendar"]
     entry = lock["packages"]["node_modules/expo-calendar"]
-    assert entry["version"] == "57.0.6"
+    assert entry["version"] == "58.0.6"
     assert entry["integrity"].startswith("sha512-")
     assert entry["resolved"].startswith("https://registry.npmjs.org/expo-calendar/")
