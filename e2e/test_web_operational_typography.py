@@ -24,7 +24,7 @@ from e2e.test_web_platform_contrast import CONTRAST
 TEXT_2XL = 28.8          # --text-2xl
 HEADING_MD = 24          # --ds-type-heading-md
 HEADING_SM = 20          # --ds-type-heading-sm
-TEXT_LG = 17.28          # --text-lg
+BODY = 16                # --ds-type-body
 
 STYLE = """(selector) => [...document.querySelectorAll(selector)]
   .filter((el) => el.getBoundingClientRect().width > 0)
@@ -55,12 +55,13 @@ def _reveal(page: Page):
     )
 
 
-def _assert_data(page: Page, selector: str, size: float, text: str | None = None):
+def _assert_data(page: Page, selector: str, size: float, text: str | None = None, tabular: bool = True):
     items = page.evaluate(STYLE, selector)
     assert items, f"nenhum elemento visível para {selector}"
     for item in items:
         assert item["family"] == "Inter", (selector, item)
-        assert item["numeric"] == "tabular-nums", (selector, item)
+        if tabular:
+            assert item["numeric"] == "tabular-nums", (selector, item)
         assert item["weight"] == "600", (selector, item)
         assert item["size"] == pytest.approx(size, abs=0.1), (selector, item)
     if text is not None:
@@ -85,11 +86,12 @@ def test_client_booking_time_and_price(page: Page, viewport):
     _login(page, E2E_TYPO_CLIENT_EMAIL)
     page.goto("/minhas-reservas")
     _reveal(page)
-    _assert_data(page, ".booking-card__datetime strong", HEADING_MD, "16:30")
-    _assert_data(page, ".booking-card__price strong", TEXT_LG, "R$ 150,00")
-    # O título do serviço continua editorial.
-    title = page.locator(".booking-card__body h2", has_text="Escova Tipografia").first
-    expect(title).to_have_css("font-family", re.compile(r"^\"?Playfair Display"))
+    # UX-BOOKINGS-001: a reserva é uma linha; horário 20 px e preço 16 px.
+    _assert_data(page, ".booking-row__when strong", HEADING_SM, "16:30")
+    _assert_data(page, ".booking-row__money strong", BODY, "R$ 150,00")
+    # Na linha, o serviço é dado (Inter); a Playfair fica no título da página.
+    _assert_data(page, ".booking-row__title", BODY, "Escova Tipografia", tabular=False)
+    expect(page.locator(".my-bookings-hero h1")).to_have_css("font-family", re.compile(r"^\"?Playfair Display"))
     _no_side_scroll(page)
 
 
