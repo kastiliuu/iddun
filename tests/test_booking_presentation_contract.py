@@ -41,8 +41,11 @@ def test_booking_sharing_retains_real_owner_scoped_links():
 def test_booking_detail_retains_timeline_and_policies():
     content = (ROOT / TEMPLATES[0]).read_text(encoding="utf-8")
     for needle in (
+        # UX-BOOKINGS-001: cada reserva é uma linha recolhida (details/summary).
         'class="booking-detail"',
-        "booking-detail__trigger-copy",
+        'class="booking-row__summary"',
+        "booking-row__toggle",
+        "chevron-right",
         "booking-detail__content",
         "booking-detail__section",
         "booking-detail__policies",
@@ -60,9 +63,10 @@ def test_booking_details_use_scoped_tokens_and_touch_targets():
     css = (ROOT / "app/static/css/booking-mine.css").read_text(encoding="utf-8")
     scoped = css.split("/* QA-007/008")[1]
     assert ".my-bookings-page .booking-sharing__action" in scoped
-    assert ".my-bookings-page .booking-detail > summary" in scoped
+    assert ".my-bookings-page .booking-row > .booking-detail > summary" in scoped
     assert "var(--ds-control-min-target)" in scoped
-    assert "@media (max-width: 600px)" in scoped
+    assert "@media (max-width: 37.5em)" in scoped  # 600 px em em
+    assert "@media (prefers-reduced-motion: reduce)" in scoped
     assert "focus-visible" in scoped
     import re
     assert not re.search(r"#[0-9a-fA-F]{3,8}(?![0-9a-fA-F])", scoped)

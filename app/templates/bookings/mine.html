@@ -25,6 +25,11 @@ my-bookings-page visual-v2-page
 {% endblock %}
 
 
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/my-bookings.js') }}" defer></script>
+{% endblock %}
+
+
 {% block content %}
 
 <!-- ==========================================================
@@ -184,321 +189,222 @@ my-bookings-page visual-v2-page
            BOOKING LIST
            ==================================================== -->
 
-      <div
-        class="my-bookings-grid"
-        data-reveal-stagger
-      >
+      {#
+        UX-BOOKINGS-001 — cada reserva é uma linha recolhida (details/summary
+        nativo). Fechada: data, serviço, quem atende, status, pendências,
+        preço e código. Aberta: detalhes, histórico e as mesmas ações de
+        antes, com as mesmas regras. my-bookings.js só reabre a reserva
+        certa depois de âncoras e formulários; sem JS tudo funciona.
+      #}
+      {% set weekdays = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'] %}
+      <ol class="my-bookings-list" aria-label="Reservas" data-my-bookings>
 
         {% for row in rows %}
 
           {% set item = row.booking %}
+          {% set pending_request = pending_cancellations[item.id] %}
+          {% set reschedule_request = pending_reschedules[item.id] %}
+          {% set disputes = disputes_by_booking.get(item.id, []) %}
+          {% set open_dispute = disputes|selectattr('status', 'equalto', 'pending')|list %}
+          {% set flags = [] %}
+          {% if item.status == BookingStatus.PENDING %}{% set _ = flags.append('Confirmação pendente') %}{% endif %}
+          {% if item.status == BookingStatus.CONFIRMED and pending_request %}{% set _ = flags.append('Cancelamento solicitado') %}{% endif %}
+          {% if item.status == BookingStatus.CONFIRMED and reschedule_request %}{% set _ = flags.append('Reagendamento solicitado') %}{% endif %}
+          {% if item.status == BookingStatus.NO_SHOW and open_dispute %}{% set _ = flags.append('Contestação em análise') %}{% endif %}
+          {% if item.status == BookingStatus.COMPLETED and not row.has_professional_review %}{% set _ = flags.append('Avaliação pendente') %}{% endif %}
+          {% set price_label = 'R$ ' ~ ('%.2f'|format(item.price_at_booking)|replace('.', ',')) %}
 
-          <article
-            {% if confirmed_booking and item.id == confirmed_booking.id %}id="reserva-confirmada"{% endif %}
-            class="booking-card booking-card--{{ item.status }}"
-            aria-labelledby="booking-title-{{ item.id }}"
+          <li
+            id="{{ 'reserva-confirmada' if confirmed_booking and item.id == confirmed_booking.id else 'reserva-' ~ item.id }}"
+            class="booking-row booking-row--{{ item.status }}{% if flags %} booking-row--attention{% endif %}"
           >
+            <details class="booking-detail" id="detalhes-reserva-{{ item.id }}" data-booking-id="{{ item.id }}">
 
-            <!-- ==============================================
-                 STATUS
-                 ============================================== -->
+              <summary class="booking-row__summary">
 
-            <div class="booking-card__top">
-
-              <span
-                class="booking-status booking-status--{{ item.status }}"
-              >
-
-                <span aria-hidden="true"></span>
-
-                {{ item.status_label }}
-
-              </span>
-
-
-              <span class="booking-code">
-                Reserva #{{ '%04d'|format(item.id) }}
-              </span>
-
-            </div>
-
-
-            <!-- ==============================================
-                 MAIN INFORMATION
-                 ============================================== -->
-
-            <div class="booking-card__body">
-
-              <div class="booking-card__identity">
-
-                <span class="my-bookings-section-kicker">
-                  {{ item.experience.category_label }}
+                <span class="booking-row__when">
+                  <time datetime="{{ row.local_start.isoformat() }}">{{ weekdays[row.local_start.weekday()] }}, {{ row.local_start.strftime('%d/%m/%Y') }}</time>
+                  <strong><time datetime="{{ row.local_start.isoformat() }}">{{ row.local_start.strftime('%H:%M') }}</time></strong>
                 </span>
 
-
-                <h2 id="booking-title-{{ item.id }}">
-                  {{ item.experience.title }}
-                </h2>
-
-
-                <p>
-
-                  {{ icon('user') }}
-
-                  <span>
-                    {{ item.professional.display_name }}
-
-                    {% if item.establishment %}
-
-                      <span aria-hidden="true">
-                        ·
-                      </span>
-
-                      {{ item.establishment.name }}
-
-                    {% endif %}
+                <span class="booking-row__main">
+                  <strong class="booking-row__title" id="booking-title-{{ item.id }}">{{ item.experience.title }}</strong>
+                  <span class="booking-row__who">
+                    {{ item.professional.display_name }}{% if item.establishment %} · {{ item.establishment.name }}{% endif %}
                   </span>
-
-                </p>
-
-              </div>
-
-
-              <!-- ============================================
-                   DATE / TIME
-                   ============================================ -->
-
-              <div
-                class="booking-card__datetime"
-                aria-label="Data e horário da reserva"
-              >
-
-                <span>
-
-                  {{ icon('calendar') }}
-
-                  <time
-                    datetime="{{ row.local_start.isoformat() }}"
-                  >
-                    {{ row.local_start.strftime('%d/%m/%Y') }}
-                  </time>
-
                 </span>
 
+                <span class="booking-row__flags">
+                  <span class="booking-status booking-status--{{ item.status }}">
+                    <span aria-hidden="true"></span>
+                    {{ item.status_label }}
+                  </span>
+                  {% for flag in flags %}
+                  <span class="booking-row__flag">{{ icon('alert-circle') }} {{ flag }}</span>
+                  {% endfor %}
+                </span>
 
-                <strong>
+                <span class="booking-row__money">
+                  <strong>{{ price_label }}</strong>
+                  <small>Reserva #{{ '%04d'|format(item.id) }}</small>
+                </span>
 
-                  <time
-                    datetime="{{ row.local_start.isoformat() }}"
-                  >
-                    {{ row.local_start.strftime('%H:%M') }}
-                  </time>
+                <span class="booking-row__toggle" aria-hidden="true">{{ icon('chevron-right') }}</span>
 
-                </strong>
+              </summary>
 
-              </div>
-
-            </div>
-
-
-            {% if item.status in [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] %}
-            <div class="booking-sharing" aria-label="Calendário e compartilhamento seguro">
-              <div class="booking-sharing__actions">
-              <a href="{{ url_for('bookings.export_booking_calendar', booking_id=item.id) }}"
-                 download="iddun-reserva-{{ item.id }}.ics" class="booking-sharing__action">{{ icon('calendar') }} <span>Adicionar ao calendário (.ics)</span></a>
-              <a href="{{ url_for('bookings.share_booking', booking_id=item.id) }}"
-                 target="_blank" rel="noopener noreferrer" class="booking-sharing__action">{{ icon('share') }} <span>Compartilhar reserva</span></a>
-              </div>
-              <small class="booking-sharing__hint">O arquivo contém o horário atual. Após reagendar, atualize seu calendário.</small>
-            </div>
-            {% endif %}
-            <details class="booking-detail" id="detalhes-reserva-{{ item.id }}">
-              <summary><span class="booking-detail__trigger-icon" aria-hidden="true">{{ icon('calendar') }}</span><span class="booking-detail__trigger-copy"><strong>Detalhes da reserva</strong><small>Informações e histórico de eventos</small></span><span class="booking-detail__chevron" aria-hidden="true">{{ icon('chevron-down') }}</span></summary>
               <div class="booking-detail__content">
-                <section class="booking-detail__section" aria-label="Dados da reserva">
-                  <h3>Informações da reserva</h3>
-              <dl>
-                <dt>Serviço</dt><dd>{{ item.experience.title }}</dd>
-                <dt>Profissional</dt><dd>{{ item.professional.display_name }}</dd>
-                <dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Atendimento independente — consulte o profissional' }}</dd>
-                <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }} ({{ item.professional.timezone }})</dd>
-                <dt>Duração</dt><dd>{{ item.experience.duration_minutes }} minutos</dd>
-                <dt>Preço</dt><dd>R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}</dd>
-                <dt>Status</dt><dd>{{ item.status_label }}</dd>
-              </dl>
+
+                <div class="booking-row__info">
+                  <section class="booking-detail__section" aria-labelledby="dados-reserva-{{ item.id }}">
+                    <h3 id="dados-reserva-{{ item.id }}">Detalhes da reserva</h3>
+                    <dl>
+                      <dt>Serviço</dt><dd>{{ item.experience.title }}</dd>
+                      <dt>Categoria</dt><dd>{{ item.experience.category_label }}</dd>
+                      <dt>Profissional</dt><dd>{{ item.professional.display_name }}</dd>
+                      <dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Atendimento independente — consulte o profissional' }}</dd>
+                      <dt>Horário</dt><dd>{{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} até {{ row.local_end.strftime('%H:%M') }} ({{ item.professional.timezone }})</dd>
+                      <dt>Duração</dt><dd>{{ item.experience.duration_minutes }} minutos</dd>
+                      <dt>Preço</dt><dd>R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}</dd>
+                      <dt>Status</dt><dd>{{ item.status_label }}</dd>
+                    </dl>
+                  </section>
+                  <section class="booking-detail__section booking-detail__policies" aria-labelledby="alteracoes-reserva-{{ item.id }}">
+                    <h3 id="alteracoes-reserva-{{ item.id }}">Alterações da reserva</h3>
+                    <p>Cancelamento: solicitação pelo cliente, efetivação pelo executor conforme as regras da reserva.</p>
+                    <p>Reagendamento: sujeito à disponibilidade real e à confirmação do executor.</p>
+                  </section>
+                </div>
+
+                <section class="booking-row__actions" aria-labelledby="acoes-reserva-{{ item.id }}">
+                  <h3 id="acoes-reserva-{{ item.id }}">Ações</h3>
+
+                  {% if item.status in [BookingStatus.CONFIRMED, BookingStatus.COMPLETED] %}
+                  <div class="booking-sharing" aria-label="Calendário e compartilhamento seguro">
+                    <div class="booking-sharing__actions">
+                      <a href="{{ url_for('bookings.export_booking_calendar', booking_id=item.id) }}"
+                         download="iddun-reserva-{{ item.id }}.ics" class="booking-sharing__action">{{ icon('calendar') }} <span>Adicionar ao calendário (.ics)</span></a>
+                      <a href="{{ url_for('bookings.share_booking', booking_id=item.id) }}"
+                         target="_blank" rel="noopener noreferrer" class="booking-sharing__action">{{ icon('share') }} <span>Compartilhar reserva</span></a>
+                    </div>
+                    <small class="booking-sharing__hint">O arquivo contém o horário atual. Após reagendar, atualize seu calendário.</small>
+                  </div>
+                  {% endif %}
+
+                  {% if item.status == BookingStatus.PENDING %}
+                  <a
+                    class="booking-review-link"
+                    href="{{ url_for('bookings.confirm', booking_id=item.id) }}"
+                    aria-label="Continuar confirmação da reserva {{ item.experience.title }}"
+                  >
+                    {{ icon('check-circle') }}
+                    Continuar confirmação
+                  </a>
+                  {% endif %}
+
+                  {% if item.status == BookingStatus.CONFIRMED %}
+                    {% if reschedule_request %}
+                      <p class="booking-row__notice" role="status">Reagendamento solicitado. O horário atual permanece confirmado até a decisão.</p>
+                      <form class="booking-row__form" method="post" action="{{ url_for('bookings.withdraw_booking_reschedule', booking_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Retirar pedido de reagendamento</button>
+                      </form>
+                    {% elif available_reschedule_slots.get(item.id) %}
+                      <form class="booking-row__form" method="post" action="{{ url_for('bookings.request_booking_reschedule', booking_id=item.id) }}" aria-labelledby="pedir-horario-{{ item.id }}">
+                        <h4 id="pedir-horario-{{ item.id }}">Pedir outro horário</h4>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="new-slot-{{ item.id }}">Solicitar outro horário</label>
+                        <select name="slot_id" id="new-slot-{{ item.id }}" required>
+                          {% for alternative in available_reschedule_slots[item.id] %}
+                          <option value="{{ alternative.id }}">{{ local_alternative_labels[alternative.id] }} ({{ item.professional.timezone }})</option>
+                          {% endfor %}
+                        </select>
+                        <label for="reason-reschedule-{{ item.id }}">Motivo (opcional)</label>
+                        <input name="motivo" id="reason-reschedule-{{ item.id }}" maxlength="255">
+                        <button type="submit">Solicitar reagendamento</button>
+                      </form>
+                    {% endif %}
+
+                    {% if pending_request %}
+                      <p class="booking-row__notice" role="status">
+                        Cancelamento solicitado. A reserva permanece confirmada
+                        até o executor efetivar a solicitação.
+                      </p>
+                      <form class="booking-row__form" method="post" action="{{ url_for('bookings.withdraw_cancel_request', booking_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit">Retirar solicitação</button>
+                      </form>
+                    {% else %}
+                      <form class="booking-row__form" method="post" action="{{ url_for('bookings.cancel', booking_id=item.id) }}" aria-labelledby="pedir-cancelamento-{{ item.id }}">
+                        <h4 id="pedir-cancelamento-{{ item.id }}">Pedir cancelamento</h4>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="cancel-reason-{{ item.id }}">Motivo (opcional)</label>
+                        <input id="cancel-reason-{{ item.id }}" name="motivo" type="text" maxlength="255">
+                        <button class="booking-row__danger" type="submit">Solicitar cancelamento</button>
+                      </form>
+                    {% endif %}
+
+                  {% elif item.status == BookingStatus.NO_SHOW %}
+                    {% if open_dispute %}
+                      <p class="booking-row__notice" role="status">Contestação de ausência aguardando moderação.</p>
+                    {% else %}
+                      <form class="booking-row__form" method="post" action="{{ url_for('bookings.contest_no_show', booking_id=item.id) }}" aria-labelledby="contestar-{{ item.id }}">
+                        <h4 id="contestar-{{ item.id }}">Contestar ausência</h4>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <label for="justification-{{ item.id }}">Contestar ausência — justificativa</label>
+                        <textarea id="justification-{{ item.id }}" name="justificativa" minlength="10" maxlength="2000" required></textarea>
+                        <label for="evidence-{{ item.id }}">Referência de evidência (opcional, apenas texto privado)</label>
+                        <input id="evidence-{{ item.id }}" name="evidencia" maxlength="500" placeholder="Ex.: protocolo ou informação para análise">
+                        <button type="submit">Enviar contestação</button>
+                      </form>
+                    {% endif %}
+                    {% for dispute in disputes %}
+                      <p>Contestação #{{ dispute.id }}: {{ 'Aguardando análise' if dispute.status == 'pending' else ('Acolhida' if dispute.status == 'accepted' else 'Não acolhida') }}</p>
+                    {% endfor %}
+
+                  {% elif item.status == BookingStatus.COMPLETED %}
+                    <section class="booking-post-service" aria-labelledby="concluida-{{ item.id }}">
+                      <h4 id="concluida-{{ item.id }}">Experiência concluída</h4>
+                      <p>{{ item.experience.title }} com {{ item.professional.display_name }}.</p>
+                      <p>Realizada em {{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} ({{ item.professional.timezone }}).</p>
+                      <p>Valor registrado: R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}.</p>
+                      {% if row.rebook_offer %}
+                        <p>Uma nova reserva usará o preço e a disponibilidade atuais, não os valores históricos.</p>
+                        <a class="booking-review-link" href="{{ url_for('bookings.rebook', booking_id=item.id) }}">Reservar novamente</a>
+                      {% else %}
+                        <p>Sem novos horários disponíveis para esta oferta no momento.</p>
+                      {% endif %}
+                    </section>
+                    <a class="booking-review-link" href="{{ url_for('bookings.review', booking_id=item.id) }}">
+                      {{ icon('star') }}
+                      {% if row.has_professional_review %}Editar avaliação{% else %}Avaliar atendimento{% endif %}
+                    </a>
+
+                  {% elif item.status == BookingStatus.CANCELLED %}
+                    <p class="booking-row__empty">Nenhuma ação disponível para uma reserva cancelada.</p>
+                  {% endif %}
                 </section>
-                <section class="booking-detail__section booking-detail__policies" aria-label="Condições de alteração">
-                  <h3>Alterações da reserva</h3>
-                  <p>Cancelamento: solicitação pelo cliente, efetivação pelo executor conforme as regras da reserva.</p>
-                  <p>Reagendamento: sujeito à disponibilidade real e à confirmação do executor.</p>
+
+                <section class="booking-detail__section booking-row__history" aria-labelledby="historico-reserva-{{ item.id }}">
+                  <h3 id="historico-reserva-{{ item.id }}">Histórico de eventos</h3>
+                  <ol class="booking-timeline">
+                    {% for event in row.timeline %}
+                    <li>
+                      <time datetime="{{ event.local_at.isoformat() }}">{{ event.local_at.strftime('%d/%m/%Y %H:%M') }}</time>
+                      <strong>{{ event.kind }}</strong> — {{ event.description }}
+                      {% if event.reason %}<p>Motivo: {{ event.reason }}</p>{% endif %}
+                    </li>
+                    {% endfor %}
+                  </ol>
                 </section>
-                <section class="booking-detail__section" aria-label="Histórico de eventos">
-                  <h3>Histórico de eventos</h3>
-              <ol class="booking-timeline">
-                {% for event in row.timeline %}
-                <li>
-                  <time datetime="{{ event.local_at.isoformat() }}">{{ event.local_at.strftime('%d/%m/%Y %H:%M') }}</time>
-                  <strong>{{ event.kind }}</strong> — {{ event.description }}
-                  {% if event.reason %}<p>Motivo: {{ event.reason }}</p>{% endif %}
-                </li>
-                {% endfor %}
-              </ol>
-                </section>
+
               </div>
             </details>
-
-            <!-- ==============================================
-                 FOOTER / ACTION
-                 ============================================== -->
-
-            <div class="booking-card__foot">
-
-              <div class="booking-card__price">
-
-                <small>
-                  Valor da experiência
-                </small>
-
-                <strong>
-                  R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}
-                </strong>
-
-              </div>
-
-
-              <!-- ============================================
-                   PENDING / CONFIRMED
-                   ============================================ -->
-
-              {% if item.status in [
-                BookingStatus.PENDING,
-                BookingStatus.CONFIRMED
-              ] %}
-
-                {% if item.status == BookingStatus.PENDING %}
-                <a
-                  class="booking-review-link"
-                  href="{{ url_for('bookings.confirm', booking_id=item.id) }}"
-                  aria-label="Continuar confirmação da reserva {{ item.experience.title }}"
-                >
-                  {{ icon('check-circle') }}
-                  Continuar confirmação
-                </a>
-                {% endif %}
-
-                {% if item.status == BookingStatus.CONFIRMED %}
-                  {% set reschedule_request = pending_reschedules[item.id] %}
-                  {% if reschedule_request %}
-                    <p role="status">Reagendamento solicitado. O horário atual permanece confirmado até a decisão.</p>
-                    <form method="post" action="{{ url_for('bookings.withdraw_booking_reschedule', booking_id=item.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit">Retirar pedido de reagendamento</button>
-                    </form>
-                  {% elif available_reschedule_slots.get(item.id) %}
-                    <form method="post" action="{{ url_for('bookings.request_booking_reschedule', booking_id=item.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <label for="new-slot-{{ item.id }}">Solicitar outro horário</label>
-                      <select name="slot_id" id="new-slot-{{ item.id }}" required>
-                        {% for alternative in available_reschedule_slots[item.id] %}
-                        <option value="{{ alternative.id }}">{{ local_alternative_labels[alternative.id] }} ({{ item.professional.timezone }})</option>
-                        {% endfor %}
-                      </select>
-                      <label for="reason-reschedule-{{ item.id }}">Motivo (opcional)</label>
-                      <input name="motivo" id="reason-reschedule-{{ item.id }}" maxlength="255">
-                      <button type="submit">Solicitar reagendamento</button>
-                    </form>
-                  {% endif %}
-                {% endif %}
-
-                {% set pending_request = pending_cancellations[item.id] %}
-                {% if item.status == BookingStatus.CONFIRMED and pending_request %}
-                  <p role="status">
-                    Cancelamento solicitado. A reserva permanece confirmada
-                    até o executor efetivar a solicitação.
-                  </p>
-                  <form method="post" action="{{ url_for('bookings.withdraw_cancel_request', booking_id=item.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit">Retirar solicitação</button>
-                  </form>
-                {% elif item.status == BookingStatus.CONFIRMED %}
-                  <form method="post" action="{{ url_for('bookings.cancel', booking_id=item.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label for="cancel-reason-{{ item.id }}">Motivo (opcional)</label>
-                    <input id="cancel-reason-{{ item.id }}" name="motivo" type="text" maxlength="255">
-                    <button type="submit">Solicitar cancelamento</button>
-                  </form>
-                {% endif %}
-
-
-              <!-- ============================================
-                   COMPLETED
-                   ============================================ -->
-
-              {% elif item.status == BookingStatus.NO_SHOW %}
-                {% set disputes = disputes_by_booking.get(item.id, []) %}
-                {% set open_dispute = disputes|selectattr('status', 'equalto', 'pending')|list %}
-                {% if open_dispute %}
-                  <p role="status">Contestação de ausência aguardando moderação.</p>
-                {% else %}
-                  <form method="post" action="{{ url_for('bookings.contest_no_show', booking_id=item.id) }}">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <label for="justification-{{ item.id }}">Contestar ausência — justificativa</label>
-                    <textarea id="justification-{{ item.id }}" name="justificativa" minlength="10" maxlength="2000" required></textarea>
-                    <label for="evidence-{{ item.id }}">Referência de evidência (opcional, apenas texto privado)</label>
-                    <input id="evidence-{{ item.id }}" name="evidencia" maxlength="500" placeholder="Ex.: protocolo ou informação para análise">
-                    <button type="submit">Enviar contestação</button>
-                  </form>
-                {% endif %}
-                {% for dispute in disputes %}
-                  <p>Contestação #{{ dispute.id }}: {{ 'Aguardando análise' if dispute.status == 'pending' else ('Acolhida' if dispute.status == 'accepted' else 'Não acolhida') }}</p>
-                {% endfor %}
-              {% elif item.status == BookingStatus.COMPLETED %}
-                <section class="booking-post-service" aria-label="Resumo pós-atendimento">
-                  <h3>Experiência concluída</h3>
-                  <p>{{ item.experience.title }} com {{ item.professional.display_name }}.</p>
-                  <p>Realizada em {{ row.local_start.strftime('%d/%m/%Y às %H:%M') }} ({{ item.professional.timezone }}).</p>
-                  <p>Valor registrado: R$ {{ '%.2f'|format(item.price_at_booking)|replace('.', ',') }}.</p>
-                  {% if row.rebook_offer %}
-                    <p>Uma nova reserva usará o preço e a disponibilidade atuais, não os valores históricos.</p>
-                    <a class="booking-review-link" href="{{ url_for('bookings.rebook', booking_id=item.id) }}">Reservar novamente</a>
-                  {% else %}
-                    <p>Sem novos horários disponíveis para esta oferta no momento.</p>
-                  {% endif %}
-                </section>
-
-
-                <a
-                  class="booking-review-link"
-                  href="{{ url_for(
-                    'bookings.review',
-                    booking_id=item.id
-                  ) }}"
-                >
-
-                  {{ icon('star') }}
-
-
-                  {% if row.has_professional_review %}
-
-                    Editar avaliação
-
-                  {% else %}
-
-                    Avaliar atendimento
-
-                  {% endif %}
-
-                </a>
-
-              {% endif %}
-
-            </div>
-
-          </article>
+          </li>
 
         {% endfor %}
 
-      </div>
+      </ol>
     {% else %}
     <section class="bookings-filter-empty" role="status">
       <h2>Nenhuma reserva nesta seleção</h2>
