@@ -1,6 +1,6 @@
 # IDDUN Mobile
 
-Aplicativo React Native / Expo SDK 57 / Expo Router / TypeScript. O backend Flask neste repositório é a fonte de verdade para contas, serviços publicados, disponibilidade e reservas.
+Aplicativo React Native / Expo SDK 58 / Expo Router / TypeScript. O backend Flask neste repositório é a fonte de verdade para contas, serviços publicados, disponibilidade e reservas.
 
 ## Executar localmente
 
@@ -12,7 +12,36 @@ npm run lint
 npm start
 ```
 
-Em aparelho físico, configure `EXPO_PUBLIC_API_URL` com um endereço do Flask acessível pelo dispositivo. Por padrão, o cliente usa `https://iddun-web.onrender.com`. `EXPO_PUBLIC_WEB_URL` permite definir um host web diferente.
+### Homologação com iPhone/Android e Flask local
+
+O comando `npm start` continua usando a API padrão do cliente, `https://iddun-web.onrender.com`, quando `EXPO_PUBLIC_API_URL` não está definido. **Se você está rodando Flask no Windows, use `npm run start:local` em vez de `npm start`**. Esse comando verifica `/health` em loopback e na interface LAN antes de abrir o Expo e injeta `EXPO_PUBLIC_API_URL` somente no processo filho (não grava segredos nem modifica `.env`).
+
+1. Na raiz do repositório, ative o ambiente Python **da raiz**, não `mobile/.venv`:
+
+   ```powershell
+   cd "C:\\Users\\Gabriel castilho\\Documents\\iddun-master"
+   .\\.venv\\Scripts\\Activate.ps1
+   python -m flask --app app run --host 0.0.0.0 --port 5000
+   ```
+
+2. Em **outra janela** do PowerShell, com o backend rodando e o iPhone na mesma rede Wi-Fi:
+
+   ```powershell
+   cd mobile
+   npm ci
+   npm run start:local
+   ```
+
+3. Se houver várias interfaces locais (VPN, WSL, Ethernet e Wi-Fi), escolha explicitamente o IPv4 da rede do iPhone (verifique com `ipconfig`):
+
+   ```powershell
+   $env:IDDUN_LAN_IP="192.168.0.8" # exemplo; use seu IP real
+   npm run start:local
+   ```
+
+4. No Safari do iPhone abra `http://SEU_IPV4:5000/health` e confirme `{"status":"ok"}` antes de testar login, feed e reservas no Expo Go. Se falhar: mesma rede, endereço correto, Flask vinculado a `0.0.0.0` e firewall do Windows liberando a porta **somente na rede privada**. Não desative o firewall.
+
+A porta padrão é 5000; use `IDDUN_BACKEND_PORT` se o Flask estiver em outra porta. `npm run test:local` executa testes unitários isolados do inicializador sem precisar do backend. `EXPO_PUBLIC_WEB_URL` permite definir host Web diferente. A verificação de `/health` comprova a acessibilidade da API naquele momento, mas **não** substitui testes de login/autorização nem homologação em aparelhos. Não exponha servidor de desenvolvimento à internet.
 
 ## Integração atual — inventário verificado em 21/10/2026
 
