@@ -193,6 +193,9 @@ jobs:
       - name: Conferir instalação do expo-calendar
         run: npm ls expo-calendar --depth=0
 
+      - name: Testar conectividade de desenvolvimento local
+        run: npm run test:local
+
       - name: Validar TypeScript
         run: npm run typecheck
 
