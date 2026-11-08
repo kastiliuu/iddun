@@ -19,8 +19,8 @@ O comando `npm start` continua usando a API padrão do cliente, `https://iddun-w
 1. Na raiz do repositório, ative o ambiente Python **da raiz**, não `mobile/.venv`:
 
    ```powershell
-   cd "C:\\caminho\\para\\iddun-master"
-   .\\.venv\\Scripts\\Activate.ps1
+   cd "C:\caminho\para\iddun-master"
+   .\.venv\Scripts\Activate.ps1
    python -m flask --app app run --host 0.0.0.0 --port 5000
    ```
 
