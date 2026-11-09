@@ -117,7 +117,16 @@ def _booking_query(client_id):
     )
 
 
-def _booking_payload(booking):
+def _booking_payload(booking, pending_statuses=None):
+    if pending_statuses is None:
+        # The single-booking endpoints preserve their existing contract.
+        cancellation = pending_cancellation(booking.id)
+        reschedule = pending_reschedule(booking.id)
+        cancellation_status = cancellation.status if cancellation else None
+        reschedule_status = reschedule.status if reschedule else None
+    else:
+        cancellation_status, reschedule_status = pending_statuses
+
     timezone_name = (
         booking.professional.timezone
     )
@@ -243,12 +252,8 @@ def _booking_payload(booking):
         ),
         "canCancel": booking.status == BookingStatus.PENDING,
         "canRequestCancellation": booking.status == BookingStatus.CONFIRMED,
-        "cancellationRequestStatus": (
-            pending_cancellation(booking.id).status if pending_cancellation(booking.id) else None
-        ),
-        "rescheduleRequestStatus": (
-            pending_reschedule(booking.id).status if pending_reschedule(booking.id) else None
-        ),
+        "cancellationRequestStatus": cancellation_status,
+        "rescheduleRequestStatus": reschedule_status,
     }
 
 
@@ -395,6 +400,35 @@ def bookings():
         .limit(limit)
     ).all()
 
+    # Fetch pending requests in two queries per page instead of per booking.
+    # Only IDs from this authenticated client's page are ever queried.
+    pending_statuses = {}
+    if rows:
+        booking_ids = [item.id for item in rows]
+        cancellations = db.session.execute(
+            select(CancellationRequest.booking_id, CancellationRequest.status)
+            .where(
+                CancellationRequest.booking_id.in_(booking_ids),
+                CancellationRequest.status == "pending",
+            )
+        ).all()
+        reschedules = db.session.execute(
+            select(RescheduleRequest.booking_id, RescheduleRequest.status)
+            .where(
+                RescheduleRequest.booking_id.in_(booking_ids),
+                RescheduleRequest.status == "pending",
+            )
+        ).all()
+
+        pending_statuses = {
+            booking_id: [None, None]
+            for booking_id in booking_ids
+        }
+        for booking_id, status_value in cancellations:
+            pending_statuses[booking_id][0] = status_value
+        for booking_id, status_value in reschedules:
+            pending_statuses[booking_id][1] = status_value
+
     pagination = pagination_payload(
         total=total,
         offset=offset,
@@ -404,7 +438,7 @@ def bookings():
     return api_json(
         {
             "items": [
-                _booking_payload(item)
+                _booking_payload(item, pending_statuses[item.id])
                 for item in rows
             ],
             "pagination": pagination,

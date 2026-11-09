@@ -657,6 +657,113 @@ def test_booking_list_is_scoped_to_authenticated_client(
     ]
 
 
+def test_booking_listing_batches_pending_request_status_queries(app, client):
+    """A page of many bookings performs two pending-status SELECTs, not N+1."""
+    from sqlalchemy import event
+
+    from app.models.cancellation_request import CancellationRequest
+    from app.models.reschedule_request import RescheduleRequest
+
+    _, slots = _catalog(app, slot_count=7)
+    profile_id, headers = _authenticated_client(
+        app, email="qa-booking-batch@example.com",
+    )
+
+    with app.app_context():
+        profile = db.session.get(ClientProfile, profile_id)
+        experience = db.session.scalar(select(Experience).where(
+            Experience.slug == "experiencia-mobile"
+        ))
+        bookings = []
+        for slot_id in slots[:6]:
+            slot = db.session.get(ExperienceSlot, slot_id)
+            booking = Booking(
+                client_id=profile_id,
+                experience_id=experience.id,
+                professional_id=experience.professional_id,
+                slot_id=slot_id,
+                status=BookingStatus.CONFIRMED,
+                price_at_booking="120.00",
+                confirmed_at=utcnow(),
+            )
+            slot.status = SlotStatus.BOOKED
+            db.session.add(booking)
+            bookings.append(booking)
+        db.session.flush()
+
+        cancellation_id = str(bookings[5].id)
+        reschedule_id = str(bookings[4].id)
+        db.session.add(CancellationRequest(
+            booking_id=bookings[5].id,
+            client_user_id=profile.user_id,
+            status="pending",
+        ))
+        db.session.add(RescheduleRequest(
+            booking_id=bookings[4].id,
+            original_slot_id=slots[4],
+            requested_slot_id=slots[6],
+            requested_by_user_id=profile.user_id,
+            status="pending",
+        ))
+        db.session.commit()
+
+        statements = []
+
+        def count_pending_queries(_conn, _cursor, statement, _params, _context, _many):
+            sql = statement.lower()
+            if sql.lstrip().startswith("select") and (
+                "booking_cancellation_requests" in sql
+                or "booking_reschedule_requests" in sql
+            ):
+                statements.append(sql)
+
+        event.listen(db.engine, "before_cursor_execute", count_pending_queries)
+        try:
+            first = client.get(
+                "/api/v1/bookings?limit=3&offset=0", headers=headers,
+            )
+            first_queries = len(statements)
+            statements.clear()
+            second = client.get(
+                "/api/v1/bookings?limit=3&offset=3", headers=headers,
+            )
+            second_queries = len(statements)
+            statements.clear()
+            empty = client.get(
+                "/api/v1/bookings?limit=3&offset=99", headers=headers,
+            )
+            empty_queries = len(statements)
+        finally:
+            event.remove(db.engine, "before_cursor_execute", count_pending_queries)
+
+    assert first.status_code == second.status_code == empty.status_code == 200
+    assert first_queries == 2
+    assert second_queries == 2
+    assert empty_queries == 0
+
+    assert first.get_json()["pagination"]["total"] == 6
+    assert first.get_json()["pagination"]["nextOffset"] == 3
+    assert second.get_json()["pagination"]["total"] == 6
+    assert second.get_json()["pagination"]["nextOffset"] is None
+    statuses = {
+        row["id"]: (
+            row["cancellationRequestStatus"],
+            row["rescheduleRequestStatus"],
+        )
+        for response in (first, second)
+        for row in response.get_json()["items"]
+    }
+    assert len(statuses) == 6
+    assert statuses[cancellation_id] == ("pending", None)
+    assert statuses[reschedule_id] == (None, "pending")
+    assert all(
+        statuses[booking_id] == (None, None)
+        for booking_id in statuses
+        if booking_id not in (cancellation_id, reschedule_id)
+    )
+    assert empty.get_json()["items"] == []
+
+
 def test_mobile_reschedule_and_cancellation_requests_are_scoped_and_reversible(app, client):
     from app.models.reschedule_request import RescheduleRequest
     _, slots = _catalog(app, slot_count=3)
