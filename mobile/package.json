@@ -9,7 +9,9 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start:local": "node scripts/start-local.cjs",
+    "test:local": "node --test scripts/start-local.test.cjs"
   },
   "dependencies": {
     "@expo/ui": "~58.0.27",
