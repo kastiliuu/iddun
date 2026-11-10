@@ -281,6 +281,12 @@
   gap: 18px;
 }
 
+/* BUG-UI-001: a coluna não cresce com o carrossel de atividade do celular;
+   ele rola por dentro e a página não rola para o lado. */
+.account-main {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .account-side {
   position: sticky;
   top: 92px;
