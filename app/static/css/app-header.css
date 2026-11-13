@@ -18,6 +18,27 @@
   font-size: var(--ds-type-secondary);
 }
 
+.feed-account-menu {
+  max-height: 80dvh;
+  overflow-y: auto;
+}
+
+.feed-account-menu__group-label {
+  margin: 0;
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border-top: 1px solid var(--ds-border-subtle);
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+  font-weight: 700;
+}
+
+.feed-account-menu__hint {
+  margin: 0;
+  padding: var(--ds-space-1) var(--ds-space-3) var(--ds-space-2);
+  color: var(--color-text-on-light-muted);
+  font-size: var(--ds-type-caption);
+}
+
 .feed-account-menu__contexts {
   margin: 0;
   padding: var(--ds-space-1) 0;

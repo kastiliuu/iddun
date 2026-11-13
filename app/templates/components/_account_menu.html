@@ -36,6 +36,7 @@
 {% macro account_menu(contexts, active_kind='client', active_id=None, avatar=None) %}
 {% set active_name = {'client': 'Cliente', 'professional': 'Profissional', 'establishment': 'Estabelecimento'}[active_kind] %}
 {% set has_professional = contexts | selectattr('kind', 'equalto', 'professional') | list %}
+{% set business_contexts = contexts | selectattr('kind', 'equalto', 'establishment') | list %}
 <div
   id="feed-account-menu"
   class="feed-account-menu"
@@ -51,36 +52,51 @@
     </span>
     <span>
       <strong>{{ current_user.name }}</strong>
-      <small>Você está no contexto {{ active_name }}</small>
+      <small>Conta pessoal · agora em {{ active_name }}</small>
     </span>
   </div>
 
-  <p class="sr-only" id="feed-account-contexts-title">Trocar de contexto</p>
+  <p class="feed-account-menu__group-label" id="feed-account-contexts-title">Trocar de contexto</p>
   <ul class="feed-account-menu__contexts" aria-labelledby="feed-account-contexts-title" data-account-contexts>
-    {% for item in contexts %}
+    {% for item in contexts if item.kind != 'establishment' %}
     {% set current = is_active_context(item, active_kind, active_id) %}
     <li>
-      <a
-        href="{{ context_href(item) }}"
-        {% if current %}aria-current="true"{% endif %}
-        data-context-kind="{{ item.kind }}"
-      >
-        {{ icon('compass' if item.kind == 'client' else 'briefcase' if item.kind == 'professional' else 'store') }}
-        <span>
-          <strong>{{ item.name }}</strong>
-          <small>{{ context_note(item) }}</small>
-        </span>
+      <a href="{{ context_href(item) }}" {% if current %}aria-current="true"{% endif %} data-context-kind="{{ item.kind }}">
+        {{ icon('compass' if item.kind == 'client' else 'briefcase') }}
+        <span><strong>{{ item.name }}</strong><small>{{ context_note(item) }}</small></span>
+        {% if current %}{{ icon('check') }}{% endif %}
+      </a>
+    </li>
+    {% endfor %}
+    {% for item in business_contexts[:3] %}
+    {% set current = is_active_context(item, active_kind, active_id) %}
+    <li>
+      <a href="{{ context_href(item) }}" {% if current %}aria-current="true"{% endif %} data-context-kind="establishment">
+        {{ icon('store') }}
+        <span><strong>{{ item.name }}</strong><small>{{ context_note(item) }}</small></span>
         {% if current %}{{ icon('check') }}{% endif %}
       </a>
     </li>
     {% endfor %}
   </ul>
-
-  {% if not has_professional %}
-  <a href="{{ url_for('professional.start') }}">
-    {{ icon('briefcase') }} Tornar-me profissional
+  {% if business_contexts|length > 3 %}
+  <a href="{{ url_for('account.dashboard') }}#meus-estabelecimentos">
+    {{ icon('chevron-right') }} Ver todos os estabelecimentos
   </a>
   {% endif %}
+
+  <p class="feed-account-menu__group-label">Trabalho</p>
+  {% if not has_professional %}
+  <a href="{{ url_for('professional.onboarding') }}">
+    {{ icon('briefcase') }} Ativar perfil profissional
+  </a>
+  <p class="feed-account-menu__hint">Na mesma conta; você continua cliente.</p>
+  {% endif %}
+  <a href="{{ url_for('account.dashboard') }}#meus-estabelecimentos">
+    {{ icon('store') }} Criar e gerir estabelecimentos
+  </a>
+
+  <p class="feed-account-menu__group-label">Conta</p>
   <a href="{{ url_for('account.dashboard') }}">
     {{ icon('user') }} Minha conta
   </a>
