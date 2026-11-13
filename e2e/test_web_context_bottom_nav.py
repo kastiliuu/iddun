@@ -45,6 +45,17 @@ def test_business_more_menu_keyboard(page: Page):
     expect(menu).to_be_hidden()
     expect(button).to_be_focused()
 
+def test_business_team_anchor_updates_active_tab(page: Page):
+    page.set_viewport_size({"width": 390, "height": 844})
+    _login(page, E2E_PRO_EMAIL)
+    page.goto(f"/business/{E2E_BUSINESS_SLUG}/painel")
+    nav = page.get_by_role("navigation", name="Navegação do estabelecimento")
+    nav.get_by_role("link", name="Equipe").click()
+    expect(page).to_have_url(re.compile(r"#business-team$"))
+    expect(nav.get_by_role("link", name="Equipe")).to_have_attribute("aria-current", "location")
+    expect(nav.get_by_role("link", name="Painel")).not_to_have_attribute("aria-current", "page")
+
+
 def test_business_desktop_preserves_navigation(page: Page):
     page.set_viewport_size({"width": 1440, "height": 900})
     _login(page, E2E_PRO_EMAIL)
