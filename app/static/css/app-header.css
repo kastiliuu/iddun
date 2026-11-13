@@ -394,8 +394,6 @@ button.pro-header__account:focus-visible {
 
   .feed-header__mobile-account-wrap .feed-account-menu {
     top: calc(100% + var(--ds-space-1));
-    width: min(18.125rem, calc(100vw - var(--ds-space-6)));
-    max-height: calc(100dvh - var(--ds-space-8) * 2);
-    overflow-y: auto;
+    max-width: calc(100vw - var(--ds-space-6));
   }
 }
