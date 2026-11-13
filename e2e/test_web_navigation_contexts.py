@@ -202,3 +202,34 @@ def test_phone_avatar_new_client_has_no_foreign_context(page: Page):
     contexts = page.locator("#mobile-account-menu [data-mobile-account-contexts] a")
     expect(contexts).to_have_count(1)
     expect(contexts.first).to_have_attribute("aria-current", "true")
+
+
+@pytest.mark.parametrize("path", ["/feed", "/minha-conta", "/minhas-reservas"])
+@pytest.mark.parametrize("width", [760, 768, 900, 901, 1280])
+def test_client_keeps_one_main_nav_across_tablet_breakpoint(
+    page: Page, path: str, width: int,
+):
+    """NAV-W3: no tablet, nunca deixar Cliente sem os cinco destinos."""
+    page.set_viewport_size({"width": width, "height": 844})
+    _login(page, E2E_EMAIL)
+    page.goto(path)
+    desktop = _header_nav(page)
+    mobile = page.locator("[data-mobile-bottom-nav]")
+    # Os dois controles podem existir no DOM, mas não podem ficar visíveis
+    # simultaneamente nem desaparecer ao atravessar o breakpoint.
+    if width <= 900:
+        expect(desktop).to_be_hidden()
+        expect(mobile).to_be_visible()
+        links = mobile.get_by_role("link")
+        expect(links).to_have_count(5)
+        for idx, name in enumerate(
+            ("Início", "Explorar", "Reservas", "Favoritos", "Perfil")
+        ):
+            expect(links.nth(idx)).to_be_visible()
+            expect(links.nth(idx)).to_contain_text(name)
+    else:
+        expect(desktop).to_be_visible()
+        expect(mobile).to_be_hidden()
+    assert page.evaluate(
+        "document.documentElement.scrollWidth - window.innerWidth"
+    ) <= 0
