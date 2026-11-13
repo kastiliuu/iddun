@@ -1,0 +1,22 @@
+{% from 'components/icon.html' import icon %}
+{% macro business_bottom_nav(establishment, access) %}
+{% set dashboard = url_for('business.dashboard', slug=establishment.slug) %}
+{% set endpoint = request.endpoint or '' %}
+<nav class="mobile-bottom-nav mobile-bottom-nav--business" data-business-bottom-nav aria-label="Navegação do estabelecimento">
+  <a class="mobile-bottom-nav__item{% if endpoint == 'business.dashboard' %} is-active{% endif %}" href="{{ dashboard }}#business-overview" {% if endpoint == 'business.dashboard' %}aria-current="page"{% endif %}>{{ icon('home', 'mobile-bottom-nav__icon') }}<span>Painel</span></a>
+  <a class="mobile-bottom-nav__item{% if endpoint == 'business.bookings' %} is-active{% endif %}" href="{{ url_for('business.bookings', slug=establishment.slug) }}" {% if endpoint == 'business.bookings' %}aria-current="page"{% endif %}>{{ icon('calendar', 'mobile-bottom-nav__icon') }}<span>Agenda</span></a>
+  <a class="mobile-bottom-nav__item" href="{{ dashboard }}#business-team">{{ icon('users', 'mobile-bottom-nav__icon') }}<span>Equipe</span></a>
+  <a class="mobile-bottom-nav__item{% if endpoint == 'business.services' %} is-active{% endif %}" href="{{ url_for('business.services', slug=establishment.slug) }}" {% if endpoint == 'business.services' %}aria-current="page"{% endif %}>{{ icon('scissors', 'mobile-bottom-nav__icon') }}<span>Serviços</span></a>
+  <div class="nav-more mobile-bottom-nav__more">
+    <button type="button" class="mobile-bottom-nav__item nav-more__trigger{% if endpoint == 'business.insights' %} is-active{% endif %}" aria-expanded="false" aria-controls="business-mobile-more-menu" aria-label="Mais opções do estabelecimento" data-disclosure-trigger>{{ icon('menu', 'mobile-bottom-nav__icon') }}<span>Mais</span></button>
+    <div id="business-mobile-more-menu" class="feed-account-menu nav-more__menu" hidden data-disclosure-panel>
+      <a href="{{ url_for('business.insights', slug=establishment.slug) }}" {% if endpoint == 'business.insights' %}aria-current="page"{% endif %}>{{ icon('star') }} Indicadores</a>
+      <a href="{{ dashboard }}#business-operations">{{ icon('clock') }} Operação de hoje</a>
+      <a href="{{ dashboard }}#business-gallery">{{ icon('store') }} Galeria</a>
+      {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa</a>{% endif %}
+      <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('compass') }} Ver como cliente</a>
+      <a href="{{ url_for('feed.home') }}">{{ icon('arrow-left') }} Voltar ao Cliente</a>
+    </div>
+  </div>
+</nav>
+{% endmacro %}
