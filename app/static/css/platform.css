@@ -2577,10 +2577,8 @@ article > div {
     top: auto;
     right: 0;
     bottom: calc(100% + var(--ds-space-2));
-    width: min(18rem, calc(100vw - var(--ds-space-6)));
-    max-height: 65dvh;
+    max-width: calc(100vw - var(--ds-space-6));
     overflow-y: auto;
-    z-index: 160;
   }
   .mobile-bottom-nav--business .nav-more__menu a {
     min-height: var(--ds-control-min-target);
