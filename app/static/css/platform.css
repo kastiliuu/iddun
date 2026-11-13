@@ -2572,8 +2572,11 @@ article > div {
     place-items: center;
     align-content: center;
     gap: var(--ds-space-1);
-    color: inherit;
+    color: var(--color-text-muted);
     font-size: var(--ds-type-caption);
+  }
+  .mobile-bottom-nav--business .nav-more__trigger.is-active {
+    color: var(--color-white);
   }
   .mobile-bottom-nav--business .nav-more__menu {
     position: absolute;
