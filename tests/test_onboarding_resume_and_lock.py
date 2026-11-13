@@ -142,8 +142,17 @@ def test_moderated_establishment_stays_out_of_the_onboarding(app, client):
     assert "Fale com o suporte do IDDUN." in panel
     assert "Continuar cadastro" not in panel
     account = client.get("/minha-conta").get_data(as_text=True)
-    # Como já era desde a PR 3: página desativada não aparece em Minha conta.
-    assert "Studio Moderado" not in account
+    # QA-001-B1-03: só o dono vê a página moderada em Meus estabelecimentos,
+    # apenas como informação, sem retomar cadastro nem acessar o painel.
+    assert "Studio Moderado" in account
+    assert "Fora do ar pela moderação · fale com o suporte" in account
+    assert 'data-business-state="locked"' in account
+    locked = account.split('data-business-state="locked"', 1)[1].split("</div>", 1)[0]
+    assert "Studio Moderado" in locked
+    assert "href=" not in locked
+    assert "Continuar cadastro: Studio Moderado" not in account
+    assert 'href="/business/onboarding/{}"'.format(establishment_id) not in account
+    assert 'data-context-kind="establishment"' not in account
 
     with app.app_context():
         item = db.session.get(Establishment, establishment_id)
