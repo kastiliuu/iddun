@@ -2549,3 +2549,46 @@ article > div {
 .onb__choice-check--radio {
   border-radius: 50%;
 }
+
+/* NAV-W1: no celular, a navegação Business usa uma única barra inferior. */
+@media (max-width: 760px) {
+  .business-section-nav { display: none; }
+  .mobile-bottom-nav.mobile-bottom-nav--business {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .mobile-bottom-nav--business .mobile-bottom-nav__more {
+    min-width: 0;
+    display: block;
+  }
+  .mobile-bottom-nav--business .nav-more__trigger {
+    width: 100%;
+    min-height: var(--ds-control-min-target);
+    height: auto;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: var(--ds-space-1);
+    color: inherit;
+    font-size: inherit;
+  }
+  .mobile-bottom-nav--business .nav-more__menu {
+    position: absolute;
+    top: auto;
+    right: 0;
+    bottom: calc(100% + var(--ds-space-2));
+    width: min(18rem, calc(100vw - var(--ds-space-6)));
+    max-height: 65dvh;
+    overflow-y: auto;
+    z-index: 160;
+  }
+  .mobile-bottom-nav--business .nav-more__menu a {
+    min-height: var(--ds-control-min-target);
+    color: var(--color-ink);
+  }
+  .mobile-bottom-nav--business .nav-more__trigger:focus-visible,
+  .mobile-bottom-nav--business .mobile-bottom-nav__item:focus-visible {
+    outline: 2px solid var(--ds-focus-ring);
+    outline-offset: -2px;
+  }
+}
