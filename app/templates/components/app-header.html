@@ -184,18 +184,25 @@
       {% endif %}
     </a>
 
-    <a
-      class="feed-header__mobile-account"
-      href="{{ url_for('account.dashboard') }}"
-      aria-label="Minha conta e contextos"
-    >
-      <span
-        class="feed-avatar feed-avatar--header{% if header_avatar %} has-image{% endif %}"
-        {% if header_avatar %}style="background-image:url('{{ header_avatar|media_url }}')"{% endif %}
+    <div class="feed-header__mobile-account-wrap">
+      <button
+        class="feed-header__mobile-account"
+        type="button"
+        aria-label="Eu: conta e troca de contexto"
+        aria-expanded="false"
+        aria-controls="mobile-account-menu"
+        data-account-menu-trigger
       >
-        {% if not header_avatar %}{{ current_user.name[:1]|upper }}{% endif %}
-      </span>
-    </a>
+        <span
+          class="feed-avatar feed-avatar--header{% if header_avatar %} has-image{% endif %}"
+          {% if header_avatar %}style="background-image:url('{{ header_avatar|media_url }}')"{% endif %}
+          aria-hidden="true"
+        >
+          {% if not header_avatar %}{{ current_user.name[:1]|upper }}{% endif %}
+        </span>
+      </button>
+      {{ account_menu(header_contexts, header_context, header_context_id, header_avatar, 'mobile-account-menu', 'mobile-account-contexts-title') }}
+    </div>
   </div>
 
   {% if app_header_panels %}
