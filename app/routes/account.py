@@ -38,15 +38,20 @@ def _profile_completion(user, profile):
 
 
 def _active_business_accesses(user):
+    """List managed businesses; keep moderated pages visible to owners only.
+
+    The account is a management overview, not a permission grant or a
+    navigation context. Moderated pages remain excluded from account_contexts.
+    """
     return [
         access
         for access in user.establishment_accesses
         if access.status == EstablishmentAccessStatus.ACTIVE
+        and access.establishment is not None
         and (
             access.establishment.is_active
-            # Rascunho do cadastro por etapas (nunca publicado) aparece
-            # como "Continuar cadastro"; página desativada não aparece.
             or access.establishment.published_at is None
+            or access.role == "owner"
         )
     ]
 
