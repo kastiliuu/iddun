@@ -118,10 +118,10 @@
         <div class="account-panel__head account-context-section__head">
           <div>
             <span class="account-section-kicker">SEUS AMBIENTES</span>
-            <h2 id="account-context-title">Uma conta, diferentes formas de viver o IDDUN.</h2>
-            <p>Alterne entre cliente, profissional e negócio sem criar outro acesso.</p>
+            <h2 id="account-context-title">Seus contextos</h2>
+            <p>Você continua cliente ao ativar sua atuação profissional.</p>
           </div>
-          <a href="{{ url_for('professional.start') }}">Adicionar contexto</a>
+          {% if not current_user.professional_profile %}<a href="{{ url_for('professional.onboarding') }}">Ativar perfil profissional</a>{% endif %}
         </div>
 
         <div class="account-context-grid">
@@ -144,20 +144,51 @@
             {{ icon('chevron-right') }}
           </a>
           {% else %}
-          <a class="account-context-card account-context-card--ghost" href="{{ url_for('professional.start') }}">
+          <a class="account-context-card account-context-card--ghost" href="{{ url_for('professional.onboarding') }}">
             <span class="account-context-card__icon">{{ icon('plus') }}</span>
-            <span><strong>Criar perfil profissional</strong><small>Portfólio, reputação e presença própria.</small></span>
+            <span><strong>Ativar perfil profissional</strong><small>Na mesma conta, você continua cliente.</small></span>
             {{ icon('chevron-right') }}
           </a>
           {% endif %}
 
+        </div>
+      </section>
+
+      <section class="account-panel account-context-section" data-reveal id="meus-estabelecimentos" aria-labelledby="account-business-title">
+        <div class="account-panel__head account-context-section__head">
+          <div>
+            <span class="account-section-kicker">TRABALHO</span>
+            <h2 id="account-business-title">Meus estabelecimentos</h2>
+            <p>Crie e gerencie seus espaços sem sair da conta pessoal.</p>
+          </div>
+          <a href="{{ url_for('business.onboarding_new') }}">Criar estabelecimento</a>
+        </div>
+        <div class="account-context-grid">
           {% for access in business_accesses %}
-          {% set business_draft = not access.establishment.is_active and access.establishment.published_at is none and access.role == 'owner' %}
-          <a class="account-context-card account-context-card--business" href="{{ url_for('business.onboarding_resume', establishment_id=access.establishment.id) if business_draft else url_for('business.dashboard', slug=access.establishment.slug) }}">
+          {% set business_draft = not access.establishment.is_active and access.establishment.published_at is none %}
+          {% set business_locked = not access.establishment.is_active and access.establishment.published_at is not none %}
+          {% if business_locked %}
+          <div class="account-context-card account-context-card--business" data-business-state="locked">
             <span class="account-context-card__icon">{{ icon('store') }}</span>
-            <span><strong>{{ 'Continuar cadastro: ' if business_draft }}{{ access.establishment.name }}</strong><small>{% if business_draft %}rascunho, ainda não publicado{% else %}IDDUN Business · {{ access.role|title }}{% if not access.establishment.is_active %} · rascunho{% endif %}{% endif %}</small></span>
+            <span>
+              <strong>{{ access.establishment.name }}</strong>
+              <small>Proprietário · Fora do ar pela moderação · fale com o suporte</small>
+            </span>
+          </div>
+          {% else %}
+          <a class="account-context-card account-context-card--business"
+             data-business-state="{{ 'draft' if business_draft else 'published' }}"
+             href="{{ url_for('business.onboarding_resume', establishment_id=access.establishment.id) if business_draft and access.role == 'owner' else url_for('business.dashboard', slug=access.establishment.slug) }}">
+            <span class="account-context-card__icon">{{ icon('store') }}</span>
+            <span>
+              <strong>{{ 'Continuar cadastro: ' if business_draft and access.role == 'owner' }}{{ access.establishment.name }}</strong>
+              <small>{{ 'Proprietário' if access.role == 'owner' else 'Gestor' }} · {{ 'Rascunho' if business_draft else 'Publicado' }}</small>
+            </span>
             {{ icon('chevron-right') }}
           </a>
+          {% endif %}
+          {% else %}
+          <p class="account-context-section__empty">Você ainda não gerencia estabelecimentos no IDDUN.</p>
           {% endfor %}
         </div>
       </section>
