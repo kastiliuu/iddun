@@ -214,7 +214,7 @@ def test_client_keeps_one_main_nav_across_tablet_breakpoint(
     _login(page, E2E_EMAIL)
     page.goto(path)
     desktop = _header_nav(page)
-    mobile = page.get_by_role("navigation", name="Navegação inferior")
+    mobile = page.locator("[data-mobile-bottom-nav]")
     # Os dois controles podem existir no DOM, mas não podem ficar visíveis
     # simultaneamente nem desaparecer ao atravessar o breakpoint.
     if width <= 900:
@@ -222,8 +222,11 @@ def test_client_keeps_one_main_nav_across_tablet_breakpoint(
         expect(mobile).to_be_visible()
         links = mobile.get_by_role("link")
         expect(links).to_have_count(5)
-        for name in ("Início", "Explorar", "Reservas", "Favoritos", "Perfil"):
-            expect(mobile.get_by_role("link", name=name)).to_be_visible()
+        for idx, name in enumerate(
+            ("Início", "Explorar", "Reservas", "Favoritos", "Perfil")
+        ):
+            expect(links.nth(idx)).to_be_visible()
+            expect(links.nth(idx)).to_contain_text(name)
     else:
         expect(desktop).to_be_visible()
         expect(mobile).to_be_hidden()
