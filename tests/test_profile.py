@@ -1,5 +1,6 @@
 from datetime import date
 from io import BytesIO
+import re
 
 from sqlalchemy import select
 
@@ -12,6 +13,17 @@ from app.models.establishment import (
 )
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
+
+
+def _context_list_html(html, attribute):
+    """Isola um seletor renderizado para validar seus limites por viewport."""
+    match = re.search(
+        rf'<ul\\b[^>]*\\b{re.escape(attribute)}\\b[^>]*>(.*?)</ul>',
+        html,
+        re.DOTALL,
+    )
+    assert match is not None, f"Seletor {attribute} ausente"
+    return match.group(1)
 
 
 def _create_user_without_profile(app):
@@ -248,7 +260,9 @@ def test_qa001_account_separates_business_management_and_moderated_owner_pages(a
     assert 'href=' not in locked
 
     # The selector still excludes moderated businesses, showing at most 3.
-    assert html.count('data-context-kind="establishment"') == 3
+    for selector in ("data-account-contexts", "data-mobile-account-contexts"):
+        menu_contexts = _context_list_html(html, selector)
+        assert menu_contexts.count('data-context-kind="establishment"') == 3
     assert "Ver todos os estabelecimentos" not in html
 
 
@@ -277,7 +291,9 @@ def test_qa001_account_menu_limits_business_contexts_and_preserves_personal_iden
     assert page.status_code == 200
     html = page.get_data(as_text=True)
     assert "Conta pessoal · agora em Cliente" in html
-    assert html.count('data-context-kind="establishment"') == 3
+    for selector in ("data-account-contexts", "data-mobile-account-contexts"):
+        menu_contexts = _context_list_html(html, selector)
+        assert menu_contexts.count('data-context-kind="establishment"') == 3
     assert "Ver todos os estabelecimentos" in html
     assert 'href="/minha-conta#meus-estabelecimentos"' in html
     assert "Criar e gerir estabelecimentos" in html
