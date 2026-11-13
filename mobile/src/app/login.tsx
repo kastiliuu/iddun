@@ -147,17 +147,6 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      if (isSignup && accountType === "professional") {
-        router.push({
-          pathname: "/signup-pro",
-          params: {
-            name: name.trim(),
-            email: email.trim(),
-          },
-        });
-        return;
-      }
-
       if (isSignup) {
         await registerClient({
           name: name.trim(),
@@ -176,6 +165,14 @@ export default function LoginScreen() {
         await syncBeautyGraph();
       } catch {
         // Login continua válido; o estado local será reconciliado depois.
+      }
+
+      // QA-001 (DEC-ID-001, 064, 092): quem escolhe Profissional ganha a
+      // mesma conta pessoal do Cliente e segue para o cadastro Pro, já
+      // autenticado. Sem conta, as telas Pro só recebiam 401.
+      if (isSignup && accountType === "professional") {
+        router.replace("/signup-pro");
+        return;
       }
 
       if (requestedBooking) {
@@ -571,7 +568,7 @@ export default function LoginScreen() {
             title={
               isSignup
                 ? accountType === "professional"
-                  ? "Continuar"
+                  ? "Criar conta e continuar"
                   : "Criar minha conta"
                 : "Entrar"
             }
