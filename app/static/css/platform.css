@@ -2560,6 +2560,9 @@ article > div {
     min-width: 0;
     display: block;
   }
+  .mobile-bottom-nav--business .mobile-bottom-nav__item {
+    font-size: var(--ds-type-caption);
+  }
   .mobile-bottom-nav--business .nav-more__trigger {
     width: 100%;
     min-height: var(--ds-control-min-target);
@@ -2570,7 +2573,7 @@ article > div {
     align-content: center;
     gap: var(--ds-space-1);
     color: inherit;
-    font-size: inherit;
+    font-size: var(--ds-type-caption);
   }
   .mobile-bottom-nav--business .nav-more__menu {
     position: absolute;
