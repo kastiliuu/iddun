@@ -11,7 +11,8 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "start:local": "node scripts/start-local.cjs",
-    "test:local": "node --test scripts/start-local.test.cjs"
+    "test:local": "node --test scripts/start-local.test.cjs",
+    "postinstall": "npm view expo-calendar@58.0.7 dist.integrity && npm view expo@58.0.25 dist.integrity"
   },
   "dependencies": {
     "@expo/ui": "~58.0.28",
