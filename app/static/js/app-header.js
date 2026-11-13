@@ -19,7 +19,9 @@
   // Desktop e celular reutilizam o mesmo menu de conta, com IDs
   // independentes para manter aria-controls e leitor de tela corretos.
   const accountMenus = [
-    ...document.querySelectorAll('[data-account-menu-trigger]'),
+    ...document.querySelectorAll(
+      '[data-account-menu-trigger], [data-mobile-account-menu-trigger]',
+    ),
   ].map((trigger) => ({
     trigger,
     menu: document.getElementById(
