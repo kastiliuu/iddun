@@ -41,7 +41,7 @@
   id="{{ menu_id }}"
   class="feed-account-menu"
   hidden
-  data-account-menu
+  {% if menu_id == 'feed-account-menu' %}data-account-menu{% else %}data-mobile-account-menu{% endif %}
 >
   <div class="feed-account-menu__identity">
     <span
@@ -57,7 +57,7 @@
   </div>
 
   <p class="feed-account-menu__group-label" id="{{ contexts_label_id }}">Trocar de contexto</p>
-  <ul class="feed-account-menu__contexts" aria-labelledby="{{ contexts_label_id }}" data-account-contexts>
+  <ul class="feed-account-menu__contexts" aria-labelledby="{{ contexts_label_id }}" {% if menu_id == 'feed-account-menu' %}data-account-contexts{% else %}data-mobile-account-contexts{% endif %}>
     {% for item in contexts if item.kind != 'establishment' %}
     {% set current = is_active_context(item, active_kind, active_id) %}
     <li>
