@@ -2135,6 +2135,32 @@ input[type="search"]
   }
 
 
+  /* Disable hover motion on touch layouts */
+
+  .experience-card:hover,
+  .professional-card:hover,
+  .btn:hover {
+    transform: none;
+  }
+
+
+  /* Authenticated navigation */
+
+  .header-user-name,
+  .header-logout-form {
+    display: none;
+  }
+
+  .nav-account-link {
+    display: flex !important;
+  }
+}
+
+
+/* NAV-W3: Client bottom tabs remain accessible through tablet portrait.
+   Shared nav visuals keep their existing declarations; non-client navigation
+   retains its original <=760px breakpoint. */
+@media (max-width: 56.25em) {
   /* Bottom navigation */
 
   .mobile-bottom-nav {
@@ -2255,29 +2281,19 @@ input[type="search"]
     transition:
       color var(--motion-fast) ease;
   }
+}
 
-
-  /* Disable hover motion on touch layouts */
-
-  .experience-card:hover,
-  .professional-card:hover,
-  .btn:hover {
-    transform: none;
-  }
-
-
-  /* Authenticated navigation */
-
-  .header-user-name,
-  .header-logout-form {
+@media (max-width: 56.25em) {
+  .mobile-bottom-nav:not(.mobile-bottom-nav--client) {
     display: none;
-  }
-
-  .nav-account-link {
-    display: flex !important;
   }
 }
 
+@media (max-width: 760px) {
+  .mobile-bottom-nav {
+    display: grid;
+  }
+}
 
 /* ============================================================
    ACCESSIBILITY / REDUCED MOTION
