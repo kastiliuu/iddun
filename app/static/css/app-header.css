@@ -368,3 +368,34 @@ button.pro-header__account:focus-visible {
 .feed-notification-panel__all:focus-visible {
   background: var(--color-off-white);
 }
+
+/* NAV-W4: avatar e menu de contextos acessíveis também no celular. */
+.feed-header__mobile-account-wrap {
+  display: none;
+  position: relative;
+  justify-self: end;
+}
+
+@media (max-width: 56.25em) {
+  .feed-header__mobile-account-wrap {
+    display: grid;
+    place-items: center;
+  }
+
+  button.feed-header__mobile-account {
+    min-width: var(--ds-control-min-target);
+    min-height: var(--ds-control-min-target);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--color-off-white);
+    cursor: pointer;
+  }
+
+  .feed-header__mobile-account-wrap .feed-account-menu {
+    top: calc(100% + var(--ds-space-1));
+    width: min(18.125rem, calc(100vw - var(--ds-space-6)));
+    max-height: calc(100dvh - var(--ds-space-8) * 2);
+    overflow-y: auto;
+  }
+}
