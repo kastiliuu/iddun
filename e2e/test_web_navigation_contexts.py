@@ -199,6 +199,6 @@ def test_phone_avatar_new_client_has_no_foreign_context(page: Page):
     page.goto("/minha-conta")
     avatar = page.get_by_role("button", name="Eu: conta e troca de contexto")
     avatar.click()
-    contexts = page.locator("#mobile-account-menu [data-account-contexts] a")
+    contexts = page.locator("#mobile-account-menu [data-mobile-account-contexts] a")
     expect(contexts).to_have_count(1)
     expect(contexts.first).to_have_attribute("aria-current", "true")
