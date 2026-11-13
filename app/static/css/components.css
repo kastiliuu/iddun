@@ -2290,7 +2290,7 @@ input[type="search"]
 }
 
 @media (max-width: 760px) {
-  .mobile-bottom-nav {
+  .mobile-bottom-nav:not(.mobile-bottom-nav--client) {
     display: grid;
   }
 }
