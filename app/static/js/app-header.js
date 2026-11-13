@@ -16,13 +16,16 @@
     '[data-feed-search-results]',
   );
 
-  const accountTrigger = document.querySelector(
-    '[data-account-menu-trigger]',
-  );
-
-  const accountMenu = document.querySelector(
-    '[data-account-menu]',
-  );
+  // Desktop e celular reutilizam o mesmo menu de conta, com IDs
+  // independentes para manter aria-controls e leitor de tela corretos.
+  const accountMenus = [
+    ...document.querySelectorAll('[data-account-menu-trigger]'),
+  ].map((trigger) => ({
+    trigger,
+    menu: document.getElementById(
+      trigger.getAttribute('aria-controls') || '',
+    ),
+  })).filter(({ menu }) => menu);
 
   const notificationTrigger = document.querySelector(
     '[data-notification-trigger]',
@@ -35,17 +38,14 @@
   let searchTimer = null;
   let searchController = null;
 
-  const closeAccountMenu = () => {
-    if (!accountMenu || !accountTrigger) {
-      return;
-    }
-
-    accountMenu.hidden = true;
-
-    accountTrigger.setAttribute(
-      'aria-expanded',
-      'false',
-    );
+  const closeAccountMenu = (restoreFocus = false) => {
+    accountMenus.forEach(({ trigger, menu }) => {
+      if (!menu.hidden && restoreFocus) {
+        trigger.focus();
+      }
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+    });
   };
 
   const closeNotifications = () => {
@@ -64,24 +64,18 @@
     );
   };
 
-  accountTrigger?.addEventListener(
-    'click',
-    () => {
-      const willOpen =
-        accountMenu?.hidden ?? true;
-
+  accountMenus.forEach(({ trigger, menu }) => {
+    trigger.addEventListener('click', () => {
+      const willOpen = menu.hidden;
       closeNotifications();
-
-      if (!accountMenu) return;
-
-      accountMenu.hidden = !willOpen;
-
-      accountTrigger.setAttribute(
-        'aria-expanded',
-        String(willOpen),
-      );
-    },
-  );
+      closeAccountMenu();
+      menu.hidden = !willOpen;
+      trigger.setAttribute('aria-expanded', String(willOpen));
+      if (willOpen) {
+        menu.querySelector('a')?.focus();
+      }
+    });
+  });
 
   notificationTrigger?.addEventListener(
     'click',
@@ -116,10 +110,9 @@
       }
 
       if (
-        accountMenu
-        && accountTrigger
-        && !accountMenu.contains(target)
-        && !accountTrigger.contains(target)
+        !accountMenus.some(({ trigger, menu }) => (
+          trigger.contains(target) || menu.contains(target)
+        ))
       ) {
         closeAccountMenu();
       }
@@ -146,7 +139,7 @@
         return;
       }
 
-      closeAccountMenu();
+      closeAccountMenu(true);
       closeNotifications();
 
       if (searchResults) {
