@@ -18,7 +18,7 @@ from app.models.user import User, UserRole
 def _context_list_html(html, attribute):
     """Isola um seletor renderizado para validar seus limites por viewport."""
     match = re.search(
-        rf'<ul\\b[^>]*\\b{re.escape(attribute)}\\b[^>]*>(.*?)</ul>',
+        rf'<ul\b[^>]*\b{re.escape(attribute)}\b[^>]*>(.*?)</ul>',
         html,
         re.DOTALL,
     )
