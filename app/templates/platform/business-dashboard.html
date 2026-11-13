@@ -181,10 +181,6 @@
 {% endblock %}
 
 {% block mobile_bottom_nav %}
-<nav class="platform-mobile-nav" aria-label="IDDUN Business">
-  <a class="is-active" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('home') }}<span>Visão geral</span></a>
-  <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }}<span>Empresa</span></a>
-  {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar</span></a>{% endif %}
-  <a href="{{ url_for('feed.home') }}">{{ icon('compass') }}<span>Cliente</span></a>
-</nav>
+{% from 'components/_bottom_nav.html' import business_bottom_nav with context %}
+{{ business_bottom_nav(establishment, access) }}
 {% endblock %}
