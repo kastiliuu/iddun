@@ -561,4 +561,27 @@
 
   window.addEventListener('hashchange', openPanelFromHash);
   openPanelFromHash();
+
+  // NAV-W1: Equipe é uma seção real do Painel, não uma página fictícia.
+  // O estado ativo acompanha a âncora sem alterar autorização ou rotas.
+  const businessBottom = document.querySelector('[data-business-bottom-nav]');
+  const panelItem = businessBottom?.querySelector('a[href$="#business-overview"]');
+  const teamItem = businessBottom?.querySelector('a[href$="#business-team"]');
+  const updateBusinessSection = () => {
+    if (!panelItem || !teamItem) return;
+    const dashboardPath = new URL(panelItem.href).pathname;
+    if (window.location.pathname !== dashboardPath) return;
+    const teamIsActive = window.location.hash === '#business-team';
+    panelItem.classList.toggle('is-active', !teamIsActive);
+    teamItem.classList.toggle('is-active', teamIsActive);
+    if (teamIsActive) {
+      panelItem.removeAttribute('aria-current');
+      teamItem.setAttribute('aria-current', 'location');
+    } else {
+      panelItem.setAttribute('aria-current', 'page');
+      teamItem.removeAttribute('aria-current');
+    }
+  };
+  window.addEventListener('hashchange', updateBusinessSection);
+  updateBusinessSection();
 })();
