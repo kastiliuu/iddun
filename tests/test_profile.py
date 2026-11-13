@@ -189,3 +189,98 @@ def test_account_favorites_links_to_the_saved_tab(app, client):
     assert b'href="/favoritos?aba=salvos"' in response.data
     assert b"Comece a salvar suas descobertas" in response.data
     assert b"Seus salvos chegar" not in response.data
+
+
+def test_qa001_account_separates_business_management_and_moderated_owner_pages(app, client):
+    from datetime import datetime, timezone
+
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+    when = datetime(2026, 11, 1, tzinfo=timezone.utc)
+
+    with app.app_context():
+        establishments = [
+            ("Atelier Publicado", "atelier-publicado", True, when, "owner", "active"),
+            ("Atelier Rascunho", "atelier-rascunho", False, None, "owner", "active"),
+            ("Atelier Moderado", "atelier-moderado", False, when, "owner", "active"),
+            ("Atelier Gestor", "atelier-gestor", True, when, "manager", "active"),
+            ("Atelier Gestor Moderado", "atelier-gestor-moderado", False, when, "manager", "active"),
+            ("Atelier Revogado", "atelier-revogado", True, when, "owner", "inactive"),
+        ]
+        for name, slug, active, published_at, role, status in establishments:
+            establishment = Establishment(
+                name=name,
+                slug=slug,
+                is_active=active,
+                published_at=published_at,
+            )
+            db.session.add(establishment)
+            db.session.flush()
+            db.session.add(EstablishmentUserAccess(
+                user_id=user_id,
+                establishment_id=establishment.id,
+                role=role,
+                status=status,
+            ))
+        db.session.commit()
+
+    page = client.get("/minha-conta")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert 'id="account-context-title">Seus contextos' in html
+    assert 'id="meus-estabelecimentos"' in html
+    assert "Ativar perfil profissional" in html
+    assert 'href="/business/onboarding/novo"' in html
+    assert "Atelier Publicado" in html
+    assert "Atelier Rascunho" in html
+    assert "Continuar cadastro: Atelier Rascunho" in html
+    assert "Atelier Moderado" in html
+    assert "Fora do ar pela moderação · fale com o suporte" in html
+    assert 'data-business-state="locked"' in html
+    assert "Atelier Gestor" in html
+    assert "Gestor · Publicado" in html
+    assert "Atelier Gestor Moderado" not in html
+    assert "Atelier Revogado" not in html
+
+    # Locked pages appear as information, without a link to a protected panel.
+    locked = html.split('data-business-state="locked"', 1)[1].split("</div>", 1)[0]
+    assert "Atelier Moderado" in locked
+    assert 'href=' not in locked
+
+    # The selector still excludes moderated businesses, showing at most 3.
+    assert html.count('data-context-kind="establishment"') == 3
+    assert "Ver todos os estabelecimentos" not in html
+
+
+def test_qa001_account_menu_limits_business_contexts_and_preserves_personal_identity(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    with app.app_context():
+        for n in range(4):
+            item = Establishment(
+                name=f"Espaço {n}",
+                slug=f"espaco-{n}",
+                is_active=True,
+            )
+            db.session.add(item)
+            db.session.flush()
+            db.session.add(EstablishmentUserAccess(
+                user_id=user_id,
+                establishment_id=item.id,
+                role=EstablishmentAccessRole.OWNER,
+                status=EstablishmentAccessStatus.ACTIVE,
+            ))
+        db.session.commit()
+
+    page = client.get("/minha-conta")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "Conta pessoal · agora em Cliente" in html
+    assert html.count('data-context-kind="establishment"') == 3
+    assert "Ver todos os estabelecimentos" in html
+    assert 'href="/minha-conta#meus-estabelecimentos"' in html
+    assert "Criar e gerir estabelecimentos" in html
+    assert "Ativar perfil profissional" in html
+    for n in range(4):
+        assert f"Espaço {n}" in html
