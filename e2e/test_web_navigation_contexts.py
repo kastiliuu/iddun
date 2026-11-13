@@ -160,3 +160,45 @@ def test_cookie_json_calls_need_the_csrf_token(page: Page):
         }"""
     )
     assert with_token == 200
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/feed", f"/business/{E2E_BUSINESS_SLUG}/painel"],
+)
+def test_phone_avatar_opens_shared_context_menu(page: Page, path):
+    """NAV-W4: avatar não deve sair da página para abrir Minha Conta."""
+    page.set_viewport_size({"width": 390, "height": 844})
+    _login(page, E2E_PRO_EMAIL)
+    page.goto(path)
+    avatar = page.get_by_role("button", name="Eu: conta e troca de contexto")
+    expect(avatar).to_be_visible()
+    expect(avatar).to_have_attribute("aria-controls", "mobile-account-menu")
+    avatar.click()
+    expect(avatar).to_have_attribute("aria-expanded", "true")
+    menu = page.locator("#mobile-account-menu")
+    expect(menu).to_be_visible()
+    expect(menu.get_by_text("Trocar de contexto")).to_be_visible()
+    expect(menu.locator("[data-context-kind='client']")).to_have_count(1)
+    expect(menu.locator("[data-context-kind='professional']")).to_have_count(1)
+    expect(menu.locator("[data-context-kind='establishment']")).to_have_count(1)
+    assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 0
+    page.keyboard.press("Escape")
+    expect(menu).to_be_hidden()
+    expect(avatar).to_have_attribute("aria-expanded", "false")
+    expect(avatar).to_be_focused()
+    avatar.press("Enter")
+    expect(menu).to_be_visible()
+    menu.locator("[data-context-kind='client']").click()
+    expect(page).to_have_url(re.compile(r"/feed$"))
+
+
+def test_phone_avatar_new_client_has_no_foreign_context(page: Page):
+    page.set_viewport_size({"width": 390, "height": 844})
+    _register(page, name="Cliente Mobile Isolado")
+    page.goto("/minha-conta")
+    avatar = page.get_by_role("button", name="Eu: conta e troca de contexto")
+    avatar.click()
+    contexts = page.locator("#mobile-account-menu [data-mobile-account-contexts] a")
+    expect(contexts).to_have_count(1)
+    expect(contexts.first).to_have_attribute("aria-current", "true")

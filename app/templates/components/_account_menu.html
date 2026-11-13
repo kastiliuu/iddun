@@ -33,15 +33,15 @@
   'establishment'; active_id: id do estabelecimento ativo; avatar: caminho
   da foto ou None.
 #}
-{% macro account_menu(contexts, active_kind='client', active_id=None, avatar=None) %}
+{% macro account_menu(contexts, active_kind='client', active_id=None, avatar=None, menu_id='feed-account-menu', contexts_label_id='feed-account-contexts-title') %}
 {% set active_name = {'client': 'Cliente', 'professional': 'Profissional', 'establishment': 'Estabelecimento'}[active_kind] %}
 {% set has_professional = contexts | selectattr('kind', 'equalto', 'professional') | list %}
 {% set business_contexts = contexts | selectattr('kind', 'equalto', 'establishment') | list %}
 <div
-  id="feed-account-menu"
+  id="{{ menu_id }}"
   class="feed-account-menu"
   hidden
-  data-account-menu
+  {% if menu_id == 'feed-account-menu' %}data-account-menu{% else %}data-mobile-account-menu{% endif %}
 >
   <div class="feed-account-menu__identity">
     <span
@@ -56,8 +56,8 @@
     </span>
   </div>
 
-  <p class="feed-account-menu__group-label" id="feed-account-contexts-title">Trocar de contexto</p>
-  <ul class="feed-account-menu__contexts" aria-labelledby="feed-account-contexts-title" data-account-contexts>
+  <p class="feed-account-menu__group-label" id="{{ contexts_label_id }}">Trocar de contexto</p>
+  <ul class="feed-account-menu__contexts" aria-labelledby="{{ contexts_label_id }}" {% if menu_id == 'feed-account-menu' %}data-account-contexts{% else %}data-mobile-account-contexts{% endif %}>
     {% for item in contexts if item.kind != 'establishment' %}
     {% set current = is_active_context(item, active_kind, active_id) %}
     <li>
