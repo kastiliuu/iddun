@@ -52,7 +52,7 @@
     </span>
     <span>
       <strong>{{ current_user.name }}</strong>
-      <small>Conta pessoal · agora em {{ active_name }}</small>
+      <small>Conta pessoal{% if has_professional %} · atuação profissional habilitada{% endif %} · agora em {{ active_name }}</small>
     </span>
   </div>
 
@@ -63,7 +63,10 @@
     <li>
       <a href="{{ context_href(item) }}" {% if current %}aria-current="true"{% endif %} data-context-kind="{{ item.kind }}">
         {{ icon('compass' if item.kind == 'client' else 'briefcase') }}
-        <span><strong>{{ item.name }}</strong><small>{{ context_note(item) }}</small></span>
+        <span>
+          <strong>{{ 'Experiência Cliente' if item.kind == 'client' else 'Painel profissional' }}</strong>
+          <small>{{ 'Feed, reservas e favoritos' if item.kind == 'client' else context_note(item) }}</small>
+        </span>
         {% if current %}{{ icon('check') }}{% endif %}
       </a>
     </li>
