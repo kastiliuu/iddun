@@ -204,3 +204,27 @@ def test_contexts_are_isolated_and_update_after_grant_revocation(app, client):
     assert establishment_ids(_me(client, token_b)) == {str(business_b.id)}
     assert _me(client, "invalid-token").status_code == 401
     assert client.get("/api/v1/auth/me").status_code == 401
+
+
+def test_qa001_web_and_expo_show_personal_identity_once_in_context_navigation():
+    """QA-001: os contextos são destinos, não três identidades pessoais."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    web = (root / "app/templates/components/_account_menu.html").read_text(
+        encoding="utf-8"
+    )
+    expo = (root / "mobile/src/app/contexts.tsx").read_text(
+        encoding="utf-8"
+    )
+
+    assert "<strong>{{ current_user.name }}</strong>" in web
+    assert "<strong>{{ item.name }}</strong>" not in web.split(
+        "{% for item in contexts if item.kind != 'establishment' %}", 1
+    )[1].split("{% endfor %}", 1)[0]
+    assert "'Experiência Cliente'" in web
+    assert "'Painel profissional'" in web
+    assert 'title={item.kind === "client" ? "Experiência Cliente" : "Painel profissional"}' in expo
+    assert 'label="MEUS ESTABELECIMENTOS"' in expo
+    assert "title={item.name}" in expo  # nome só da entidade Business
+    assert "getCurrentUser()" in expo

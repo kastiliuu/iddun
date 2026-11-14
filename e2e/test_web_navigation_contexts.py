@@ -92,6 +92,14 @@ def test_professional_switches_context_and_uses_the_pro_and_business_bars(page: 
     expect(contexts).to_have_count(3)
     expect(contexts.nth(1)).to_contain_text("Profissional")
     expect(contexts.nth(2)).to_contain_text("Espaço QA Navegador")
+    menu = page.locator("[data-account-menu]")
+    # QA-001: a identidade pessoal aparece apenas no cabeçalho;
+    # Cliente e Pro são ferramentas da mesma pessoa, não novos perfis.
+    expect(menu.locator(".feed-account-menu__identity strong")).to_have_count(1)
+    expect(contexts.nth(0).locator("strong")).to_have_text("Experiência Cliente")
+    expect(contexts.nth(1).locator("strong")).to_have_text("Painel profissional")
+    assert all("Navegador Pro" not in label for label in contexts.locator("strong").all_text_contents())
+
 
     contexts.nth(1).click()
     expect(page).to_have_url(re.compile(r"/pro/painel$"))
