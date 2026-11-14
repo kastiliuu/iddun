@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from sqlalchemy import select
 
@@ -178,7 +180,7 @@ def test_register_retains_professional_selection_after_invalid_form(client):
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert 'value="professional" checked' in html or 'checked value="professional"' in html
+    assert re.search(r'<input[^>]*value="professional"[^>]*checked', html)
     assert "As senhas precisam ser iguais" in html
 
 
