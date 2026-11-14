@@ -62,6 +62,27 @@
       <form class="auth-form" method="post" novalidate>
         {{ form.hidden_tag() }}
 
+        <fieldset class="auth-account-choice" {% if form.account_type.errors %}aria-describedby="account_type-errors"{% endif %}>
+          <legend class="auth-label">{{ form.account_type.label.text }}</legend>
+          <div class="auth-account-choice__options">
+            {% for option in form.account_type %}
+              <label class="auth-account-choice__option">
+                {{ option(class_='auth-account-choice__radio') }}
+                <span class="auth-account-choice__title">{{ option.label.text }}</span>
+                <span class="auth-account-choice__detail">
+                  {% if option.data == 'professional' %}
+                    Mostre seu trabalho e receba clientes.
+                  {% else %}
+                    Descubra, siga, salve e agende.
+                  {% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+          <p class="auth-account-choice__hint">Uma conta só. Quem escolher Profissional continua com todos os recursos de Cliente.</p>
+          {{ field_errors(form.account_type) }}
+        </fieldset>
+
         <div class="auth-field">
           {{ form.name.label(class_='auth-label') }}
           {{ form.name(class_='auth-input', autocomplete='name', placeholder='Seu nome completo', aria_describedby=(form.name.id ~ '-errors') if form.name.errors else '') }}
