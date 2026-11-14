@@ -180,7 +180,14 @@ def test_register_retains_professional_selection_after_invalid_form(client):
     html = response.get_data(as_text=True)
 
     assert response.status_code == 200
-    assert re.search(r'<input[^>]*value="professional"[^>]*checked', html)
+    # A ordem dos atributos HTML é definida pelo renderizador WTForms.
+    # Verificar a seleção de forma semântica, independentemente da ordem.
+    pro_radio = re.search(
+        r'<input\\b(?=[^>]*\\bvalue="professional")[^>]*>',
+        html,
+    )
+    assert pro_radio is not None
+    assert re.search(r'\\bchecked(?:\\s|=|/?>)', pro_radio.group())
     assert "As senhas precisam ser iguais" in html
 
 
