@@ -14,6 +14,8 @@ class ClientProfileForm(IddunForm):
         ],
     )
     name = StringField("Nome", validators=[Length(min=2, max=120)])
+    # ID-SOC-R1-02: troca do @, no máximo 1 vez a cada 14 dias.
+    username = StringField("Seu @ no IDDUN", validators=[Optional(), Length(max=31)])
     phone = StringField("Telefone", validators=[Optional(), Length(max=32)])
     birth_date = DateField("Data de nascimento", validators=[Optional()], format="%Y-%m-%d")
     city = StringField("Cidade", validators=[Optional(), Length(max=100)])

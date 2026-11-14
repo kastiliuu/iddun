@@ -26,7 +26,8 @@ type ProfessionalCardProps = {
   location?: string;
   rating?: number;
   reviewsCount?: number;
-  routeType?: "professional" | "establishment";
+  /** "person": página pessoal de quem não tem perfil Pro publicado. */
+  routeType?: "professional" | "establishment" | "person";
   showFollow?: boolean;
   testID?: string;
 };
@@ -51,7 +52,9 @@ export function ProfessionalCard({
     router.push(
       routeType === "establishment"
         ? `/establishment/${routeId ?? id}`
-        : `/professional/${routeId ?? id}`,
+        : routeType === "person"
+          ? `/client/${routeId ?? id}`
+          : `/professional/${routeId ?? id}`,
     );
   };
 
@@ -127,7 +130,7 @@ export function ProfessionalCard({
         </View>
       </Pressable>
 
-      {showFollow ? (
+      {showFollow && routeType !== "person" ? (
         <View style={styles.followWrap}>
           <FollowButton
             id={id}

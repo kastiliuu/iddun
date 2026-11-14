@@ -1,9 +1,10 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 {% from 'components/owner-edit.html' import owner_banner %}
+{% from 'components/graph-buttons.html' import follow_button, follower_count with context %}
 {#
-  Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): foto, nome e publicações
-  públicas. Sem cidade, salvos, reservas nem seguidores.
+  Página pessoal pública (ID-SOC-R1-04, substitui a D-SOC-13): foto, nome,
+  @username, publicações e seguidores. Sem cidade, salvos nem reservas.
 #}
 {% block title %}{{ client.user.name }} | IDDUN{% endblock %}
 {% block body_class %}client-feed-page profile-posts-page{% endblock %}
@@ -23,7 +24,10 @@
     </span>
     <div>
       <h1>{{ client.user.name }}</h1>
-      <p>Cliente IDDUN · {{ posts.total }} publicaç{{ 'ão' if posts.total == 1 else 'ões' }}</p>
+      <p>@{{ client.user.username }} · {{ posts.total }} publicaç{{ 'ão' if posts.total == 1 else 'ões' }} · {{ follower_count('person', client.user_id) }}</p>
+      {% set pro = client.user.professional_profile %}
+      {% if pro and pro.is_active %}<p><a href="{{ url_for('public.professional_detail', slug=pro.slug) }}">Ver atuação profissional</a></p>{% endif %}
+      {{ follow_button('person', client.user_id, client.user.name) }}
     </div>
   </header>
 

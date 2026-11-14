@@ -841,6 +841,41 @@ def professional_posts(slug):
     )
 
 
+@public_bp.get("/@<username>")
+def person_by_username(username):
+    """/@username leva à página da pessoa (ID-SOC-R1-02).
+
+    Um @ antigo redireciona (301) para o atual; desconhecido, inativo ou
+    excluído dá 404. Com perfil Pro publicado, a página é a profissional;
+    sem ele, a pessoal.
+    """
+    from sqlalchemy import select
+
+    from app.extensions import db
+    from app.models.user import User
+    from app.services.username_service import resolve
+
+    user, is_current = resolve(username)
+    if user is None or db.session.scalar(
+        select(User.id).where(
+            User.id == user.id,
+            User.is_active_account.is_(True),
+            User.deleted_at.is_(None),
+        )
+    ) is None:
+        abort(404)
+    if not is_current or username != user.username:
+        return redirect(url_for("public.person_by_username", username=user.username), code=301)
+
+    professional = user.professional_profile
+    if professional is not None and professional.is_active:
+        return redirect(url_for("public.professional_detail", slug=professional.slug))
+    client = user.client_profile
+    if client is None:
+        abort(404)
+    return redirect(url_for("public.client_detail", profile_id=client.id))
+
+
 @public_bp.get(
     "/clientes/<int:profile_id>"
 )

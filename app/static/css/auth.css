@@ -307,6 +307,13 @@
 
 .auth-field { display: grid; gap: var(--auth-space-1); }
 
+/* ID-SOC-R1-02: orientação curta abaixo do campo @. */
+.auth-field-hint {
+  color: var(--auth-text-muted);
+  font-size: var(--ds-type-caption);
+  line-height: 1.4;
+}
+
 .auth-label {
   color: #e8e8ec;
   font-size: .8125rem;

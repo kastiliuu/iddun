@@ -38,6 +38,8 @@ export type CurrentUser =
       id?: number | string;
       name: string;
       email: string;
+      /** ID-SOC-R1-02: @username público. */
+      username?: string;
       avatar?: string;
 
       /**
