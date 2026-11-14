@@ -1,9 +1,17 @@
 from app.forms.base import IddunForm
-from wtforms import BooleanField, PasswordField, StringField, SubmitField
+from wtforms import BooleanField, PasswordField, RadioField, StringField, SubmitField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
 
 
 class RegisterForm(IddunForm):
+    # QA-001 B2: escolha de jornada, nunca um segundo usuário ou papel.
+    # Default client mantém os cadastros legados sem o campo compatíveis.
+    account_type = RadioField(
+        "Quero usar o IDDUN como",
+        choices=[("client", "Cliente"), ("professional", "Profissional")],
+        default="client",
+        validators=[DataRequired()],
+    )
     name = StringField(
         "Nome",
         validators=[DataRequired(), Length(min=2, max=120)],

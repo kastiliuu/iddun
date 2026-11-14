@@ -208,6 +208,11 @@ def register():
             )
         )
 
+        # A intenção Pro só define o próximo onboarding; a mesma conta
+        # Cliente foi criada e autenticada acima (DEC-ID-001/064/092).
+        if form.account_type.data == "professional":
+            return redirect(url_for("professional.onboarding"))
+
         return redirect(
             next_url
             or url_for(
