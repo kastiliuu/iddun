@@ -60,7 +60,10 @@ def test_client_name_in_the_feed_opens_her_page(page: Page):
 
     expect(page).to_have_url(re.compile(r"/clientes/\d+$"))
     expect(page.get_by_role("heading", level=1)).to_have_text("Cliente Perfil Público")
-    expect(page.locator(".client-profile-head")).to_contain_text("Cliente IDDUN · 1 publicação")
+    # ID-SOC-R1-02/04: a página pessoal mostra o @ e os seguidores.
+    expect(page.locator(".client-profile-head")).to_contain_text("@cliente.perfil.publico · 1 publicação · 0 seguidores")
+    # Na própria página não há Seguir (seguir a si mesmo é proibido).
+    expect(page.locator('[data-follow-button][data-target-type="person"]')).to_have_count(0)
     expect(page.get_by_text("Cachos definidos depois do corte.")).to_be_visible()
 
     assert page.request.get("/clientes/999999").status == 404
