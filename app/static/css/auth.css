@@ -818,3 +818,70 @@
   .auth-submit:hover,
   .auth-social-button:hover { transform: none !important; }
 }
+
+/* QA-001 B2 — escolha da jornada na mesma conta pessoal. */
+.auth-account-choice {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.auth-account-choice legend {
+  margin-bottom: var(--ds-space-2);
+}
+
+.auth-account-choice__options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ds-space-2);
+}
+
+.auth-account-choice__option {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--ds-space-2);
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-3);
+  border: 1px solid var(--auth-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--auth-surface);
+  cursor: pointer;
+}
+
+.auth-account-choice__option:has(input:checked) {
+  border-color: var(--color-plum);
+  background: var(--auth-surface-hover);
+}
+
+.auth-account-choice__option:has(input:focus-visible) {
+  outline: 2px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+.auth-account-choice__radio {
+  accent-color: var(--color-plum);
+}
+
+.auth-account-choice__title {
+  font-weight: var(--weight-semibold);
+  color: var(--auth-text);
+}
+
+.auth-account-choice__detail,
+.auth-account-choice__hint {
+  color: var(--auth-text-soft);
+  font-size: var(--ds-type-caption);
+  line-height: 1.5;
+}
+
+.auth-account-choice__hint {
+  margin: var(--ds-space-2) 0 0;
+}
+
+@media (max-width: 390px) {
+  .auth-account-choice__options {
+    grid-template-columns: 1fr;
+  }
+}
