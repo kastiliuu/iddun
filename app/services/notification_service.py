@@ -459,36 +459,43 @@ def notify_iddun_now_followers(
 def _notify_iddun_now_followers(
     slot,
 ):
+    from sqlalchemy import and_, or_
+
     from app.models.beauty_graph import (
         Follow,
         FollowTarget,
     )
+    from app.models.professional import ProfessionalProfile
 
-    clauses = [
-        (
+    # ID-SOC-R1-03: quem segue a pessoa dona do perfil Pro do horário.
+    person_id = db.session.scalar(
+        select(ProfessionalProfile.user_id).where(
+            ProfessionalProfile.id == slot.professional_id
+        )
+    )
+    person_clause = or_(
+        and_(
             Follow.target_type
-            == FollowTarget.PROFESSIONAL
+            == FollowTarget.PERSON,
+            Follow.followed_user_id
+            == person_id,
         ),
-        (
+        # Perfil de catálogo sem conta: seguido pelo próprio perfil.
+        and_(
+            Follow.target_type
+            == FollowTarget.PROFESSIONAL,
             Follow.professional_id
-            == slot.professional_id
+            == slot.professional_id,
         ),
-    ]
+    )
 
     if (
         slot.establishment_id
         is not None
     ):
-        from sqlalchemy import and_, or_
-
         query = select(Follow).where(
             or_(
-                and_(
-                    Follow.target_type
-                    == FollowTarget.PROFESSIONAL,
-                    Follow.professional_id
-                    == slot.professional_id,
-                ),
+                person_clause,
                 and_(
                     Follow.target_type
                     == FollowTarget.ESTABLISHMENT,
@@ -499,7 +506,7 @@ def _notify_iddun_now_followers(
         )
     else:
         query = select(Follow).where(
-            *clauses
+            person_clause
         )
 
     follows = db.session.scalars(

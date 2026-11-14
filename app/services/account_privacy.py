@@ -25,7 +25,7 @@ from app.models.establishment import (
 )
 from app.models.experience import ExperienceStatus
 from app.models.reputation import ContactClick
-from app.models.user import UserRole
+from app.models.user import UserRole, UsernameHistory
 from app.services.media_service import (
     delete_uploaded_files,
 )
@@ -366,6 +366,23 @@ def anonymize_account(
             == user.id
         )
     )
+
+    # ID-SOC-R1-03: quem seguia a pessoa deixa de segui-la.
+    db.session.execute(
+        delete(Follow).where(
+            Follow.followed_user_id
+            == user.id
+        )
+    )
+
+    # ID-SOC-R1-02: o @ escolhido é dado pessoal. Sai o atual e o histórico.
+    db.session.execute(
+        delete(UsernameHistory).where(
+            UsernameHistory.user_id
+            == user.id
+        )
+    )
+    user.username = f"conta.removida.{user.id}"
 
     db.session.execute(
         delete(Save).where(

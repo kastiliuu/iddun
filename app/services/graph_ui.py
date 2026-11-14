@@ -69,6 +69,8 @@ def template_helpers(user):
     def owns(target_type, target_id):
         """D-SOC-06: o próprio perfil e a própria empresa não têm Seguir."""
         state = _viewer(user)
+        if target_type == FollowTarget.PERSON:
+            return state["viewer_id"] == int(target_id)
         if target_type == FollowTarget.PROFESSIONAL:
             return state["own_professional"] == int(target_id)
         if target_type == FollowTarget.ESTABLISHMENT:

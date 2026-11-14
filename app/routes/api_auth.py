@@ -18,6 +18,10 @@ from app.services.api_auth import (
     revoke_user_session,
     rotate_refresh_token,
 )
+from app.services.username_service import (
+    UsernameError,
+    choose_for_new_account,
+)
 from app.services.navigation_context import (
     account_contexts,
     contexts_payload,
@@ -137,6 +141,8 @@ def _user_payload(user):
     payload = {
         "name": user.name,
         "email": user.email,
+        # ID-SOC-R1-02: identidade social pública única.
+        "username": user.username,
         "role": mobile_role,
         "accountRole": user.role,
         "emailVerified": (
@@ -387,9 +393,27 @@ def register():
             409,
         )
 
+    # ID-SOC-R1-02: @ opcional; sem ele, o IDDUN sugere um pelo nome.
+    raw_username = payload.get("username")
+    if raw_username is not None and not isinstance(raw_username, str):
+        return api_error(
+            "invalid_username",
+            "Informe o @ como texto.",
+            400,
+        )
+    try:
+        username = choose_for_new_account(raw_username, name)
+    except UsernameError as exc:
+        return api_error(
+            "invalid_username",
+            str(exc),
+            409 if "em uso" in str(exc) else 400,
+        )
+
     user = User(
         name=name,
         email=email,
+        username=username,
         role=UserRole.CLIENT,
         is_active_account=True,
     )

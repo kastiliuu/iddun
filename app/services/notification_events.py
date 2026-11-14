@@ -243,14 +243,14 @@ def reschedule_resolved(record):
 
 
 def _target_recipients(target_type, target_id):
-    """Pro: a conta dele. Empresa: os donos (D-SOC-16)."""
+    """Pessoa: a própria conta. Empresa: os donos (D-SOC-16)."""
     from app.models.beauty_graph import FollowTarget
-    from app.models.professional import ProfessionalProfile
+    from app.models.user import User
 
-    if target_type == FollowTarget.PROFESSIONAL:
-        profile = db.session.get(ProfessionalProfile, target_id)
-        user = getattr(profile, "user", None)
-        return [(user, NotificationContext.PROFESSIONAL, target_id)] if user else []
+    if target_type == FollowTarget.PERSON:
+        # Seguir é da identidade pessoal (ID-SOC-R1-03): contexto pessoal.
+        user = db.session.get(User, target_id)
+        return [(user, NotificationContext.CLIENT, None)] if user else []
     if target_type == FollowTarget.ESTABLISHMENT:
         return [(user, NotificationContext.ESTABLISHMENT, target_id) for user in _owners(target_id)]
     return []
@@ -260,7 +260,7 @@ def _target_recipients(target_type, target_id):
 def new_follower(follow):
     follower = follow.user
     name = (follower.name or "Alguém").split()[0]
-    target_id = follow.professional_id or follow.establishment_id
+    target_id = follow.followed_user_id or follow.professional_id or follow.establishment_id
     for user, context_type, context_id in _target_recipients(follow.target_type, target_id):
         if user.id == follower.id:
             continue
@@ -268,12 +268,12 @@ def new_follower(follow):
             user,
             kind=NotificationKind.FOLLOW,
             title="Novo seguidor",
-            body=f"{name} começou a seguir {'você' if context_type == NotificationContext.PROFESSIONAL else 'sua empresa'}.",
+            body=f"{name} começou a seguir {'sua empresa' if context_type == NotificationContext.ESTABLISHMENT else 'você'}.",
             action_type="followers",
             action_id=context_id,
             context_type=context_type,
             context_id=context_id,
-            dedupe_key=f"follow:{follow.target_type}:{context_id}:{follower.id}",
+            dedupe_key=f"follow:{follow.target_type}:{target_id}:{follower.id}",
         )
 
 

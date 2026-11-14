@@ -580,8 +580,10 @@ def client_feed_context(
                 "next_cursor"
             ],
         "mode": mode,
-        "follow_count": len(
-            graph["follows"]
+        # Os apelidos "professional" do estado não contam como seguidos.
+        "follow_count": graph.get(
+            "followingCount",
+            len(graph["follows"]),
         ),
         "save_count": len(
             graph["saves"]

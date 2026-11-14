@@ -13,6 +13,7 @@ from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
 )
+from app.services.beauty_graph_service import follower_count, is_following
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
     api_error,
@@ -1616,8 +1617,8 @@ def establishment_profile(
 )
 def client_profile(profile_id):
     """
-    Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): nome, foto e publicações
-    públicas. Sem publicação pública ou com conta inativa, 404.
+    Página pessoal pública (ID-SOC-R1-04, substitui a D-SOC-13): nome, foto,
+    @username, publicações e seguidores. Conta inativa ou excluída: 404.
     """
     profile = public_client_profile(profile_id)
     if profile is None:
@@ -1648,6 +1649,11 @@ def client_profile(profile_id):
             "id": str(profile.id),
             "kind": "client",
             "name": profile.user.name,
+            # ID-SOC-R1-02/03: identidade pessoal e alvo de Seguir.
+            "username": profile.user.username,
+            "userId": profile.user_id,
+            "followerCount": follower_count("person", profile.user_id),
+            "following": is_following(viewer, "person", profile.user_id),
             "avatar": resolve_image_url(avatar, external=True) if avatar else None,
             "posts": posts["items"],
             "postsCount": posts["total"],

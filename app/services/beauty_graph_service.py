@@ -15,10 +15,12 @@ from app.models.establishment import (
     EstablishmentUserAccess,
 )
 from app.models.experience import Experience
+from app.models.profile import ClientProfile
 from app.models.professional import (
     ProfessionalPortfolioItem,
     ProfessionalProfile,
 )
+from app.models.user import User
 from app.models.work_post import (
     WorkPost,
     WorkPostAuthorType,
@@ -45,7 +47,7 @@ class BeautyGraphError(ValueError):
 
 
 class OwnProfileError(BeautyGraphError):
-    """D-SOC-06: ninguém segue o próprio perfil Pro nem a própria empresa."""
+    """D-SOC-06: ninguém segue a si mesmo nem a própria empresa."""
 
 
 FOLLOWING_PAGE_SIZE = 20
@@ -178,23 +180,86 @@ def _public_work_post(target_id):
     return item
 
 
-def resolve_follow_target(
-    target_type,
-    target_id,
-):
-    if target_type == FollowTarget.PROFESSIONAL:
-        return _public_professional(
-            target_id
+def _public_person(user_id):
+    """ID-SOC-R1-03/04: qualquer conta ativa e não excluída pode ser seguida."""
+    # Conferido no banco, não no objeto em memória.
+    item = db.session.scalar(
+        select(User).where(
+            User.id == user_id,
+            User.is_active_account.is_(True),
+            User.deleted_at.is_(None),
+        )
+    )
+
+    if item is None:
+        raise BeautyGraphError(
+            "Pessoa não encontrada."
         )
 
-    if target_type == FollowTarget.ESTABLISHMENT:
-        return _public_establishment(
-            target_id
+    return item
+
+
+def canonical_follow_target(
+    target_type,
+    target_id,
+    *,
+    require_public=True,
+):
+    """(tipo gravado, id gravado) para o alvo pedido.
+
+    "professional" é o formato antigo: vira a pessoa dona do perfil Pro.
+    Com require_public, o alvo precisa existir e estar visível.
+    """
+    if target_type == FollowTarget.PERSON:
+        if require_public:
+            _public_person(target_id)
+        return FollowTarget.PERSON, int(target_id)
+
+    if target_type == FollowTarget.PROFESSIONAL:
+        profile = (
+            _public_professional(target_id)
+            if require_public
+            else db.session.get(ProfessionalProfile, target_id)
         )
+        if profile is None:
+            raise BeautyGraphError(
+                "Profissional não encontrado."
+            )
+        if profile.user_id is None:
+            # Perfil de catálogo sem conta: continua seguido pelo perfil.
+            return FollowTarget.PROFESSIONAL, profile.id
+        if require_public:
+            _public_person(profile.user_id)
+        return FollowTarget.PERSON, profile.user_id
+
+    if target_type == FollowTarget.ESTABLISHMENT:
+        if require_public:
+            _public_establishment(target_id)
+        return FollowTarget.ESTABLISHMENT, int(target_id)
 
     raise BeautyGraphError(
         "Tipo de perfil inválido para Follow."
     )
+
+
+def resolve_follow_target(
+    target_type,
+    target_id,
+):
+    """Objeto público seguido: a pessoa (User), o perfil sem conta ou a empresa."""
+    kind, item_id = canonical_follow_target(
+        target_type,
+        target_id,
+    )
+    return _stored_target(kind, item_id)
+
+
+def _stored_target(kind, item_id):
+    if kind == FollowTarget.PERSON:
+        return db.session.get(User, item_id)
+    if kind == FollowTarget.PROFESSIONAL:
+        return db.session.get(ProfessionalProfile, item_id)
+    return db.session.get(Establishment, item_id)
 
 
 def resolve_save_target(
@@ -236,12 +301,18 @@ def _follow_filters(
     target_type,
     target_id,
 ):
+    """Filtros sobre o formato gravado (person, professional sem conta, establishment)."""
     filters = [
         Follow.user_id == user_id,
         Follow.target_type == target_type,
     ]
 
-    if target_type == FollowTarget.PROFESSIONAL:
+    if target_type == FollowTarget.PERSON:
+        filters.append(
+            Follow.followed_user_id
+            == target_id
+        )
+    elif target_type == FollowTarget.PROFESSIONAL:
         filters.append(
             Follow.professional_id
             == target_id
@@ -295,9 +366,12 @@ def _save_filters(
 
 
 def owns_follow_target(user, target):
-    """O perfil Pro da própria conta ou empresa em que a conta é dona ativa."""
+    """A própria pessoa ou empresa em que a conta é dona ativa."""
     if user is None or user.id is None or target is None:
         return False
+
+    if isinstance(target, User):
+        return target.id == user.id
 
     if isinstance(target, ProfessionalProfile):
         return target.user_id == user.id
@@ -319,10 +393,11 @@ def follow_target(
     target_id,
 ):
     _require_user(user)
-    target = resolve_follow_target(
+    kind, item_id = canonical_follow_target(
         target_type,
         target_id,
     )
+    target = _stored_target(kind, item_id)
 
     if owns_follow_target(user, target):
         raise OwnProfileError(
@@ -333,8 +408,8 @@ def follow_target(
         select(Follow).where(
             *_follow_filters(
                 user.id,
-                target_type,
-                target_id,
+                kind,
+                item_id,
             )
         )
     )
@@ -344,17 +419,20 @@ def follow_target(
 
     item = Follow(
         user_id=user.id,
-        target_type=target_type,
+        target_type=kind,
+        followed_user_id=(
+            item_id
+            if kind == FollowTarget.PERSON
+            else None
+        ),
         professional_id=(
-            target_id
-            if target_type
-            == FollowTarget.PROFESSIONAL
+            item_id
+            if kind == FollowTarget.PROFESSIONAL
             else None
         ),
         establishment_id=(
-            target_id
-            if target_type
-            == FollowTarget.ESTABLISHMENT
+            item_id
+            if kind == FollowTarget.ESTABLISHMENT
             else None
         ),
     )
@@ -370,8 +448,8 @@ def follow_target(
             select(Follow).where(
                 *_follow_filters(
                     user.id,
-                    target_type,
-                    target_id,
+                    kind,
+                    item_id,
                 )
             )
         )
@@ -381,7 +459,7 @@ def follow_target(
 
         raise
 
-    # PR 6a: novo seguidor avisa o Pro ou os donos da empresa.
+    # PR 6a: novo seguidor avisa a pessoa ou os donos da empresa.
     from app.services import notification_events
 
     notification_events.new_follower(item)
@@ -396,12 +474,22 @@ def unfollow_target(
 ):
     _require_user(user)
 
+    # Deixar de seguir funciona mesmo se o perfil saiu do ar.
+    try:
+        kind, item_id = canonical_follow_target(
+            target_type,
+            target_id,
+            require_public=False,
+        )
+    except BeautyGraphError:
+        return False
+
     item = db.session.scalar(
         select(Follow).where(
             *_follow_filters(
                 user.id,
-                target_type,
-                target_id,
+                kind,
+                item_id,
             )
         )
     )
@@ -518,6 +606,11 @@ def unsave_target(
 def follow_reference(item):
     if (
         item.target_type
+        == FollowTarget.PERSON
+    ):
+        target_id = item.followed_user_id
+    elif (
+        item.target_type
         == FollowTarget.PROFESSIONAL
     ):
         target_id = item.professional_id
@@ -528,6 +621,37 @@ def follow_reference(item):
         "targetType": item.target_type,
         "targetId": target_id,
     }
+
+
+def _legacy_professional_references(follows):
+    """Apelido "professional" para quem segue uma pessoa com perfil Pro.
+
+    O app instalado e as telas da Web ainda perguntam "sigo o Pro X?" pelo id
+    do perfil Pro; o apelido mantém esses botões certos.
+    """
+    person_ids = [
+        item.followed_user_id
+        for item in follows
+        if item.target_type == FollowTarget.PERSON
+    ]
+    if not person_ids:
+        return []
+
+    rows = db.session.execute(
+        select(ProfessionalProfile.user_id, ProfessionalProfile.id).where(
+            ProfessionalProfile.user_id.in_(person_ids)
+        )
+    ).all()
+    profile_by_person = dict(rows)
+    return [
+        {
+            "targetType": FollowTarget.PROFESSIONAL,
+            "targetId": profile_by_person[item.followed_user_id],
+        }
+        for item in follows
+        if item.target_type == FollowTarget.PERSON
+        and item.followed_user_id in profile_by_person
+    ]
 
 
 def save_reference(item):
@@ -581,7 +705,10 @@ def graph_state(user):
         "follows": [
             follow_reference(item)
             for item in follows
-        ],
+        ]
+        + _legacy_professional_references(follows),
+        # Quantas pessoas e empresas a conta segue, sem contar os apelidos.
+        "followingCount": len(follows),
         "saves": [
             save_reference(item)
             for item in saves
@@ -940,17 +1067,28 @@ def saved_items(user):
 
 
 def follower_count(target_type, target_id):
-    """Número real de contas que seguem o perfil (D-SOC-05)."""
-    column = (
-        Follow.professional_id
-        if target_type == FollowTarget.PROFESSIONAL
-        else Follow.establishment_id
-    )
+    """Número real de contas que seguem a pessoa ou a empresa (D-SOC-05).
+
+    "professional" conta os seguidores da pessoa dona do perfil Pro.
+    """
+    try:
+        kind, item_id = canonical_follow_target(
+            target_type,
+            target_id,
+            require_public=False,
+        )
+    except BeautyGraphError:
+        return 0
+
+    column = {
+        FollowTarget.PERSON: Follow.followed_user_id,
+        FollowTarget.PROFESSIONAL: Follow.professional_id,
+    }.get(kind, Follow.establishment_id)
 
     return db.session.scalar(
         select(func.count(Follow.id)).where(
-            Follow.target_type == target_type,
-            column == target_id,
+            Follow.target_type == kind,
+            column == item_id,
         )
     ) or 0
 
@@ -959,12 +1097,21 @@ def is_following(user, target_type, target_id):
     if user is None or not getattr(user, "is_authenticated", False):
         return False
 
+    try:
+        kind, item_id = canonical_follow_target(
+            target_type,
+            target_id,
+            require_public=False,
+        )
+    except BeautyGraphError:
+        return False
+
     return db.session.scalar(
         select(Follow.id).where(
             *_follow_filters(
                 user.id,
-                target_type,
-                target_id,
+                kind,
+                item_id,
             )
         )
     ) is not None
@@ -986,7 +1133,11 @@ def is_saved(user, target_type, target_id):
 
 
 def _public_follows_query(user_id):
-    """Seguidos cujo perfil continua público, do mais recente ao mais antigo."""
+    """Seguidos que continuam públicos, do mais recente ao mais antigo."""
+    active_people = select(User.id).where(
+        User.is_active_account.is_(True),
+        User.deleted_at.is_(None),
+    )
     active_professionals = select(ProfessionalProfile.id).where(
         ProfessionalProfile.is_active.is_(True)
     )
@@ -998,6 +1149,10 @@ def _public_follows_query(user_id):
         Follow.user_id == user_id,
         (
             (
+                (Follow.target_type == FollowTarget.PERSON)
+                & Follow.followed_user_id.in_(active_people)
+            )
+            | (
                 (Follow.target_type == FollowTarget.PROFESSIONAL)
                 & Follow.professional_id.in_(active_professionals)
             )
@@ -1013,8 +1168,54 @@ def _location(*parts):
     return " · ".join(part for part in parts if part) or None
 
 
+def person_avatar(user):
+    """Avatar da identidade pessoal: o do perfil pessoal; sem ele, o do Pro."""
+    client = user.client_profile
+    if client is not None and client.avatar_url:
+        return client.avatar_url
+    professional = user.professional_profile
+    if professional is not None and professional.avatar_url:
+        return professional.avatar_url
+    return None
+
+
 def following_payload(follow):
+    if follow.target_type == FollowTarget.PERSON:
+        person = follow.followed_user
+        professional = person.professional_profile
+        public_pro = professional if professional_is_public(professional) else None
+        client = person.client_profile
+        avatar = person_avatar(person)
+        return {
+            "targetType": FollowTarget.PERSON,
+            "targetId": person.id,
+            "username": person.username,
+            "name": person.name,
+            # Atuação Pro aparece como selo; cidade pessoal continua privada.
+            "subtitle": (
+                public_pro.primary_specialty or "Profissional de beleza"
+                if public_pro is not None
+                else "No IDDUN"
+            ),
+            "location": (
+                _location(public_pro.city, public_pro.state)
+                if public_pro is not None
+                else None
+            ),
+            "slug": public_pro.slug if public_pro is not None else None,
+            "professionalId": public_pro.id if public_pro is not None else None,
+            "clientProfileId": client.id if client is not None else None,
+            # D11: sem foto enviada, o perfil mostra as iniciais.
+            "avatar": (
+                resolve_image_url(avatar, external=True)
+                if avatar
+                else None
+            ),
+            "followedAt": follow.created_at.isoformat(),
+        }
+
     if follow.target_type == FollowTarget.PROFESSIONAL:
+        # Perfil de catálogo sem conta.
         item = follow.professional
         return {
             "targetType": FollowTarget.PROFESSIONAL,
@@ -1023,7 +1224,6 @@ def following_payload(follow):
             "name": item.display_name,
             "subtitle": item.primary_specialty or "Profissional de beleza",
             "location": _location(item.city, item.state),
-            # D11: sem foto enviada, o perfil mostra as iniciais.
             "avatar": (
                 resolve_image_url(item.avatar_url, external=True)
                 if item.avatar_url
