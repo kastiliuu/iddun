@@ -92,6 +92,97 @@ def test_register_creates_user_and_client_profile(app, client):
         assert isinstance(user.client_profile, ClientProfile)
 
 
+
+def test_web_register_exposes_two_account_intents(client):
+    html = client.get("/cadastro").get_data(as_text=True)
+
+    assert 'name="account_type"' in html
+    assert 'value="client"' in html
+    assert 'value="professional"' in html
+    assert "Quem escolher Profissional continua" in html
+
+
+def test_register_professional_keeps_single_personal_identity(app, client):
+    response = client.post(
+        "/cadastro",
+        data={
+            "account_type": "professional",
+            "name": "Profissional QA",
+            "email": "qa-pro-register@example.com",
+            "password": "senha-forte-123",
+            "confirm_password": "senha-forte-123",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/pro/onboarding")
+
+    with app.app_context():
+        users = db.session.scalars(select(User)).all()
+        assert len(users) == 1
+        user = users[0]
+        assert user.email == "qa-pro-register@example.com"
+        assert user.role == UserRole.CLIENT
+        assert user.client_profile is not None
+        assert user.professional_profile is None
+
+
+def test_register_client_choice_goes_to_feed(client):
+    response = client.post(
+        "/cadastro",
+        data={
+            "account_type": "client",
+            "name": "Cliente QA",
+            "email": "qa-client-register@example.com",
+            "password": "senha-forte-123",
+            "confirm_password": "senha-forte-123",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/feed")
+
+
+def test_register_does_not_allow_unrecognized_account_intent(app, client):
+    response = client.post(
+        "/cadastro",
+        data={
+            "account_type": "admin",
+            "name": "Invalido QA",
+            "email": "qa-invalid-register@example.com",
+            "password": "senha-forte-123",
+            "confirm_password": "senha-forte-123",
+        },
+    )
+
+    assert response.status_code == 200
+    with app.app_context():
+        assert db.session.scalar(
+            select(User).where(User.email == "qa-invalid-register@example.com")
+        ) is None
+
+
+def test_register_retains_professional_selection_after_invalid_form(client):
+    response = client.post(
+        "/cadastro",
+        data={
+            "account_type": "professional",
+            "name": "Profissional QA",
+            "email": "qa-invalid-form@example.com",
+            "password": "senha-forte-123",
+            "confirm_password": "senha-diferente-123",
+        },
+    )
+    html = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert 'value="professional" checked' in html or 'checked value="professional"' in html
+    assert "As senhas precisam ser iguais" in html
+
+
+
 def test_register_rejects_duplicate_email(app, client):
     register(client)
     client.post("/logout")
