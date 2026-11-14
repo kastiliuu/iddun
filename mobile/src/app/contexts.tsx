@@ -68,26 +68,36 @@ export default function ContextsScreen() {
     <ContextScreen
       eyebrow="SUA CONTA"
       title="Trocar de contexto"
-      description="Uma conta, diferentes formas de usar o IDDUN. O login sempre começa no contexto Cliente."
+      description={user
+        ? `${user.name} · uma conta pessoal. O login começa na experiência Cliente; use as ferramentas profissionais e empresariais conforme seus acessos.`
+        : "Uma conta pessoal. O login começa na experiência Cliente."}
     >
-      <ContextSection label="CONTEXTOS">
-        {contexts.map((item) => (
+      <ContextSection label="CONTA PESSOAL E TRABALHO">
+        {contexts.filter((item) => item.kind !== "establishment").map((item) => (
           <ContextRow
-            key={`${item.kind}-${item.id ?? "client"}`}
-            icon={
-              item.kind === "client"
-                ? "compass"
-                : item.kind === "professional"
-                  ? "briefcase"
-                  : "home"
-            }
-            title={item.name}
+            key={item.kind}
+            icon={item.kind === "client" ? "compass" : "briefcase"}
+            title={item.kind === "client" ? "Experiência Cliente" : "Painel profissional"}
             subtitle={contextSubtitle(item)}
             current={item.kind === "client"}
             onPress={() => open(item)}
           />
         ))}
       </ContextSection>
+
+      {contexts.some((item) => item.kind === "establishment") ? (
+        <ContextSection label="MEUS ESTABELECIMENTOS">
+          {contexts.filter((item) => item.kind === "establishment").map((item) => (
+            <ContextRow
+              key={`establishment-${item.id}`}
+              icon="home"
+              title={item.name}
+              subtitle={contextSubtitle(item)}
+              onPress={() => open(item)}
+            />
+          ))}
+        </ContextSection>
+      ) : null}
 
       {!contexts.some((item) => item.kind === "professional") ? (
         <ContextSection label="COMEÇAR">
