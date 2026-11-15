@@ -21,6 +21,11 @@ import {
   type ClientPublicProfile,
   type WorkPost,
 } from "@/api/feed";
+import {
+  followGraphTarget,
+  unfollowGraphTarget,
+} from "@/api/graph";
+import { ApiError } from "@/api/client";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -39,9 +44,9 @@ import {
 } from "@/theme";
 
 /**
- * Página da Cliente (PR 4a; D-SOC-03, 12, 13): foto, nome e publicações
- * públicas. Nada de salvos, agendamentos ou cidade. Só existe com conta
- * ativa e ao menos uma publicação pública; fora disso, "não encontrado".
+ * Página pessoal pública (ID-SOC-R1-04, substitui a D-SOC-13): foto, nome,
+ * @username, seguidores e publicações. Nada de salvos, agendamentos ou
+ * cidade. Existe para toda conta ativa; fora disso, "não encontrado".
  */
 export default function ClientProfileScreen() {
   const styles = useStyles();
@@ -56,6 +61,45 @@ export default function ClientProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [followBusy, setFollowBusy] = useState(false);
+  const [followError, setFollowError] = useState<string | null>(null);
+
+  // ID-SOC-R1-03: segue-se a pessoa (a conta), pelo alvo "person".
+  const toggleFollow = async () => {
+    if (!profile?.userId || followBusy) {
+      return;
+    }
+    const next = !profile.following;
+    setFollowBusy(true);
+    setFollowError(null);
+    try {
+      if (next) {
+        await followGraphTarget("person", profile.userId);
+      } else {
+        await unfollowGraphTarget("person", profile.userId);
+      }
+      setProfile((current) =>
+        current
+          ? {
+              ...current,
+              following: next,
+              followerCount: Math.max(
+                0,
+                (current.followerCount ?? 0) + (next ? 1 : -1),
+              ),
+            }
+          : current,
+      );
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        router.push("/login");
+      } else {
+        setFollowError("Não foi possível atualizar agora. Tente de novo.");
+      }
+    } finally {
+      setFollowBusy(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -167,7 +211,33 @@ export default function ClientProfileScreen() {
           <Text style={styles.name} accessibilityRole="header">
             {profile.name}
           </Text>
-          <Text style={styles.meta}>{`Cliente IDDUN · ${countLabel}`}</Text>
+          <Text style={styles.meta}>
+            {[
+              profile.username ? `@${profile.username}` : null,
+              countLabel,
+              typeof profile.followerCount === "number"
+                ? profile.followerCount === 1
+                  ? "1 seguidor"
+                  : `${profile.followerCount} seguidores`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </Text>
+          {!profile.mine && profile.userId ? (
+            <Button
+              title={profile.following ? "Seguindo" : "Seguir"}
+              variant={profile.following ? "secondary" : "primary"}
+              onPress={toggleFollow}
+              loading={followBusy}
+              accessibilityLabel={`${profile.following ? "Deixar de seguir" : "Seguir"} ${profile.name}`}
+            />
+          ) : null}
+          {followError ? (
+            <Text style={styles.meta} accessibilityRole="alert">
+              {followError}
+            </Text>
+          ) : null}
         </View>
 
         {profile.mine ? (

@@ -78,6 +78,8 @@ export default function LoginScreen() {
     );
 
   const [name, setName] = useState("");
+  // ID-SOC-R1-02: @ opcional; vazio, o servidor sugere pelo nome.
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -152,6 +154,7 @@ export default function LoginScreen() {
           name: name.trim(),
           email: email.trim(),
           password,
+          username: username.trim() || undefined,
         });
       } else {
         await loginWithApi({
@@ -455,6 +458,37 @@ export default function LoginScreen() {
                   accessibilityLabel="Nome"
                 />
               </View>
+            </View>
+          ) : null}
+
+          {isSignup ? (
+            <View>
+              <Text style={styles.fieldLabel}>Seu @ no IDDUN (opcional)</Text>
+
+              <View style={styles.inputWrap}>
+                <Icon
+                  name="at-sign"
+                  size={17}
+                  color={colors.muted}
+                />
+
+                <TextInput
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="seu.nome"
+                  placeholderTextColor={colors.muted}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  maxLength={31}
+                  style={styles.input}
+                  accessibilityLabel="Seu @ no IDDUN, opcional"
+                  accessibilityHint="Letras sem acento, números, ponto e sublinhado. Em branco, criamos um a partir do seu nome."
+                />
+              </View>
+
+              <Text style={styles.accountHint}>
+                Em branco, criamos um a partir do seu nome. Você pode trocar depois.
+              </Text>
             </View>
           ) : null}
 

@@ -359,6 +359,12 @@ export type ClientPublicProfile = {
   kind: "client";
   name: string;
   avatar: string | null;
+  /** ID-SOC-R1-02: identidade social pública. */
+  username?: string;
+  /** Conta da pessoa: alvo de Seguir ("person"). */
+  userId?: number;
+  followerCount?: number;
+  following?: boolean;
   posts: WorkPost[];
   postsCount: number;
   nextCursor: string | null;
@@ -366,7 +372,7 @@ export type ClientPublicProfile = {
   mine?: boolean;
 };
 
-/** Página pública da Cliente (D-SOC-03, 13): nome, foto e publicações. */
+/** Página pessoal pública (ID-SOC-R1-04): nome, foto, @, seguidores e publicações. */
 export async function getClientProfile(
   profileId: string,
   cursor?: string | null,

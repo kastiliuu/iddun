@@ -8,10 +8,21 @@ def utcnow():
 
 
 class FollowTarget:
+    # ID-SOC-R1-03: segue-se a pessoa (a conta), não mais o perfil Pro.
+    # "professional" continua aceito na entrada e vira a pessoa dona do
+    # perfil. Só perfis Pro de catálogo sem conta (criados pelo admin)
+    # continuam seguidos como "professional": não há pessoa para seguir.
+    PERSON = "person"
     PROFESSIONAL = "professional"
     ESTABLISHMENT = "establishment"
 
     VALUES = (
+        PERSON,
+        PROFESSIONAL,
+        ESTABLISHMENT,
+    )
+    STORED = (
+        PERSON,
         PROFESSIONAL,
         ESTABLISHMENT,
     )
@@ -72,6 +83,15 @@ class Follow(db.Model):
         nullable=True,
         index=True,
     )
+    followed_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "users.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
+    )
     created_at = db.Column(
         db.DateTime(timezone=True),
         nullable=False,
@@ -81,6 +101,11 @@ class Follow(db.Model):
     user = db.relationship(
         "User",
         back_populates="follows",
+        foreign_keys=[user_id],
+    )
+    followed_user = db.relationship(
+        "User",
+        foreign_keys=[followed_user_id],
     )
     professional = db.relationship(
         "ProfessionalProfile"
@@ -93,13 +118,20 @@ class Follow(db.Model):
         db.CheckConstraint(
             (
                 "("
+                "target_type = 'person' "
+                "AND followed_user_id IS NOT NULL "
+                "AND professional_id IS NULL "
+                "AND establishment_id IS NULL"
+                ") OR ("
                 "target_type = 'professional' "
                 "AND professional_id IS NOT NULL "
-                "AND establishment_id IS NULL"
+                "AND establishment_id IS NULL "
+                "AND followed_user_id IS NULL"
                 ") OR ("
                 "target_type = 'establishment' "
                 "AND establishment_id IS NOT NULL "
-                "AND professional_id IS NULL"
+                "AND professional_id IS NULL "
+                "AND followed_user_id IS NULL"
                 ")"
             ),
             name="ck_follow_target_shape",
@@ -113,6 +145,11 @@ class Follow(db.Model):
             "user_id",
             "establishment_id",
             name="uq_follow_user_establishment",
+        ),
+        db.UniqueConstraint(
+            "user_id",
+            "followed_user_id",
+            name="uq_follow_user_person",
         ),
     )
 

@@ -216,7 +216,16 @@ def test_follow_and_membership_reach_pro_and_owners(app, world):
         notification_events.membership_invited(membership)
         accept_invitation(user=db.session.get(User, world["pro_user"]), membership_id=membership.id)
 
-    assert ("follow", "social", "Novo seguidor", "professional", 1) in _notices(app, world["pro_user"])
+    # ID-SOC-R1-03 (14/11/2026): segue-se a pessoa, não o perfil Pro; o aviso
+    # é da identidade pessoal e o seguir fica gravado como "person".
+    assert ("follow", "social", "Novo seguidor", "client", 1) in _notices(app, world["pro_user"])
+    assert not _notices(app, world["pro_user"], kind="follow", context_type="professional")
+    with app.app_context():
+        from app.models.beauty_graph import Follow
+
+        stored = db.session.scalars(select(Follow).where(Follow.user_id == world["client_user"])).all()
+        assert sorted(item.target_type for item in stored) == ["establishment", "person"]
+        assert [item.followed_user_id for item in stored if item.target_type == "person"] == [world["pro_user"]]
     assert ("membership", "work", "Convite de vínculo", "professional", 1) in _notices(app, world["pro_user"])
     owner = _notices(app, world["owner"])
     assert ("follow", "social", "Novo seguidor", "establishment", 1) in owner

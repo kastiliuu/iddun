@@ -30,6 +30,7 @@ from app.models.account_token import (
 )
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
+from app.services.username_service import UsernameError, choose_for_new_account
 from app.services.account_notifications import (
     send_email_verification,
     send_password_reset_email,
@@ -148,9 +149,19 @@ def register():
                 form=form,
             )
 
+        try:
+            username = choose_for_new_account(form.username.data, name)
+        except UsernameError as exc:
+            form.username.errors.append(str(exc))
+            return render_template(
+                "auth/register.html",
+                form=form,
+            )
+
         user = User(
             name=name,
             email=email,
+            username=username,
             role=UserRole.CLIENT,
         )
         user.set_password(

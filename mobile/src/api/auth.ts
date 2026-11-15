@@ -42,6 +42,8 @@ export type RegisterClientPayload = {
   name: string;
   email: string;
   password: string;
+  /** ID-SOC-R1-02: opcional; vazio, o servidor sugere pelo nome. */
+  username?: string;
 };
 
 export type AuthTokens = {
@@ -209,6 +211,9 @@ export async function registerClient(
           .trim()
           .toLowerCase(),
         password: payload.password,
+        ...(payload.username?.trim()
+          ? { username: payload.username.trim() }
+          : {}),
         role: "client",
         device: DEVICE_METADATA,
       },

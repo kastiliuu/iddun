@@ -9,7 +9,12 @@ import {
 } from "@/api/auth";
 
 
+/**
+ * ID-SOC-R1-03: segue-se a pessoa ("person", id da conta). "professional"
+ * continua aceito e o servidor grava como a pessoa dona do perfil Pro.
+ */
 export type FollowTargetType =
+  | "person"
   | "professional"
   | "establishment";
 
@@ -29,6 +34,8 @@ export type GraphReference<
 
 export type GraphState = {
   follows: GraphReference<FollowTargetType>[];
+  /** Pessoas e empresas seguidas, sem os apelidos "professional". */
+  followingCount?: number;
   saves: GraphReference<SaveTargetType>[];
 };
 
@@ -75,7 +82,12 @@ export type SavedPortfolioItem = {
 export type FollowingItem = {
   targetType: FollowTargetType;
   targetId: number;
-  slug: string;
+  /** Pessoa: slug do perfil Pro publicado, se houver; senão null. */
+  slug: string | null;
+  /** Pessoa (ID-SOC-R1-03): @, perfil Pro publicado e página pessoal. */
+  username?: string;
+  professionalId?: number | null;
+  clientProfileId?: number | null;
   name: string;
   subtitle: string;
   location?: string | null;

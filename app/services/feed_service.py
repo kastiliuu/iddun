@@ -545,6 +545,23 @@ def feed_page(
                 "Entre na sua conta para ver quem você segue."
             )
 
+        # ID-SOC-R1-03: segue-se a pessoa; aparecem os posts pessoais dela
+        # (perfil Cliente ou posts antigos do perfil Pro) e os das empresas.
+        person_ids = (
+            select(
+                Follow.followed_user_id
+            ).where(
+                Follow.user_id
+                == user.id,
+                Follow.target_type
+                == FollowTarget.PERSON,
+                Follow.followed_user_id.is_not(
+                    None
+                ),
+            )
+        )
+
+        # Perfis de catálogo sem conta continuam seguidos pelo perfil.
         professional_ids = (
             select(
                 Follow.professional_id
@@ -577,9 +594,21 @@ def feed_page(
             or_(
                 and_(
                     WorkPost.author_type
+                    == WorkPostAuthorType.CLIENT,
+                    ClientProfile.user_id.in_(
+                        person_ids
+                    ),
+                ),
+                and_(
+                    WorkPost.author_type
                     == WorkPostAuthorType.PROFESSIONAL,
-                    WorkPost.professional_id.in_(
-                        professional_ids
+                    or_(
+                        ProfessionalProfile.user_id.in_(
+                            person_ids
+                        ),
+                        WorkPost.professional_id.in_(
+                            professional_ids
+                        ),
                     ),
                 ),
                 and_(
@@ -730,13 +759,18 @@ def clients_with_public_posts(profile_ids):
 
 def public_client_profile(profile_id):
     """
-    D-SOC-03 e 13: a página da Cliente só existe com conta ativa e ao menos
-    uma publicação pública. Mostra nome e foto; nada de cidade, salvos ou
-    reservas.
+    Página pessoal pública (ID-SOC-R1-04, 14/11/2026, substitui a D-SOC-13):
+    existe para toda conta ativa e não excluída, com nome, foto, @username,
+    publicações e número de seguidores. Cidade, salvos e reservas continuam
+    privados.
     """
-    profile = db.session.get(ClientProfile, profile_id)
-    if profile is None or profile.user is None or not profile.user.is_active:
-        return None
-    if profile.id not in clients_with_public_posts([profile.id]):
-        return None
-    return profile
+    # A conta ativa é conferida no banco, não no objeto em memória.
+    return db.session.scalar(
+        select(ClientProfile)
+        .join(User, ClientProfile.user_id == User.id)
+        .where(
+            ClientProfile.id == profile_id,
+            User.is_active_account.is_(True),
+            User.deleted_at.is_(None),
+        )
+    )

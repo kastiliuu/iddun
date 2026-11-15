@@ -236,6 +236,16 @@
               {{ form.name(class_='account-input', autocomplete='name', placeholder='Seu nome completo') }}
               {{ field_errors(form.name) }}
             </div>
+
+            {# ID-SOC-R1-02: o @ antigo continua levando a você. #}
+            <div class="account-field account-field--wide">
+              {{ form.username.label(class_='account-label') }}
+              {{ form.username(class_='account-input', autocomplete='username', autocapitalize='none', spellcheck='false', aria_describedby=form.username.id ~ '-help') }}
+              <p class="account-help" id="{{ form.username.id }}-help">
+                {% if username_next_change %}Você poderá trocar de novo em {{ username_next_change.strftime('%d/%m/%Y') }}.{% else %}Pode trocar 1 vez a cada 14 dias. Quem usar o @ antigo continua chegando ao seu perfil.{% endif %}
+              </p>
+              {{ field_errors(form.username) }}
+            </div>
           </fieldset>
 
           <fieldset class="account-form-section">

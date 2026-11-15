@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy import event
+from sqlalchemy.orm import Session
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import db
@@ -27,6 +29,15 @@ class User(UserMixin, db.Model):
         nullable=False,
         unique=True,
         index=True
+    )
+
+    # ID-SOC-R1-02: @username público, único e sempre em minúsculas.
+    # Preenchido pelo nome quando a conta é criada sem um @ escolhido.
+    username = db.Column(
+        db.String(30),
+        nullable=False,
+        unique=True,
+        index=True,
     )
 
     password_hash = db.Column(
@@ -100,6 +111,7 @@ class User(UserMixin, db.Model):
     follows = db.relationship(
         "Follow",
         back_populates="user",
+        foreign_keys="Follow.user_id",
         cascade="all, delete-orphan",
         lazy="selectin",
         order_by="Follow.created_at.asc()",
@@ -148,3 +160,54 @@ class User(UserMixin, db.Model):
             self.email_verified_at
             is not None
         )
+
+
+class UsernameHistory(db.Model):
+    """@ que a pessoa já usou: continua levando a ela e nunca passa a outra."""
+
+    __tablename__ = "username_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    username = db.Column(
+        db.String(30),
+        nullable=False,
+        unique=True,
+    )
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    user = db.relationship("User")
+
+
+@event.listens_for(User, "before_insert")
+def _assign_username(mapper, connection, target):
+    """Conta nova sem @ escolhido recebe um sugerido pelo nome (ID-SOC-R1-02).
+
+    Contas criadas no mesmo flush não podem receber o mesmo @: os nomes
+    escolhidos ficam na sessão até o fim do flush.
+    """
+    from sqlalchemy.orm import object_session
+
+    from app.services.username_service import normalize, suggest
+
+    session = object_session(target)
+    pending = session.info.setdefault("iddun_pending_usernames", set()) if session else set()
+    if target.username:
+        target.username = normalize(target.username)
+    else:
+        target.username = suggest(target.name, taken=pending)
+    pending.add(target.username)
+
+
+@event.listens_for(Session, "after_flush_postexec")
+def _forget_pending_usernames(session, flush_context):
+    session.info.pop("iddun_pending_usernames", None)

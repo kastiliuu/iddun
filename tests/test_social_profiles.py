@@ -71,22 +71,29 @@ def _add_post(app, **fields):
 # ------------------------------------------------------------- Cliente
 
 
-def test_client_page_exists_only_with_a_public_post(app, client):
+def test_client_page_exists_for_every_active_account_without_private_data(app, client):
+    """ID-SOC-R1-04 (Notion 08, 14/11/2026) substitui a D-SOC-13: toda conta
+    ativa tem página pessoal, mesmo sem post; dados privados continuam fora."""
     user_id, _, headers = _user(app, email="cliente-pagina@example.com", with_professional=False)
     profile_id = _client_profile_id(app, user_id)
-
-    _html(client, f"/clientes/{profile_id}", 404)
-    assert client.get(f"/api/v1/clients/{profile_id}").status_code == 404
-
-    post_id = _client_text_post(client, headers, profile_id, "Meus cachos hoje")
     with app.app_context():
         db.session.get(ClientProfile, profile_id).city = "Cidade Privada"
+        username = db.session.get(User, user_id).username
         db.session.commit()
+
+    empty = _html(client, f"/clientes/{profile_id}")
+    assert f"@{username} · 0 publicações" in empty
+    assert "Ainda não há publicações." in empty
+    assert "Cidade Privada" not in empty
+    empty_api = client.get(f"/api/v1/clients/{profile_id}").get_json()
+    assert (empty_api["postsCount"], empty_api["posts"], empty_api["username"]) == (0, [], username)
+
+    post_id = _client_text_post(client, headers, profile_id, "Meus cachos hoje")
 
     page = _html(client, f"/clientes/{profile_id}")
     assert "Creator Test" in page
     assert "Meus cachos hoje" in page
-    assert "Cliente IDDUN · 1 publicação" in page
+    assert f"@{username} · 1 publicação" in page
     assert "Cidade Privada" not in page
 
     api = client.get(f"/api/v1/clients/{profile_id}").get_json()
@@ -94,16 +101,19 @@ def test_client_page_exists_only_with_a_public_post(app, client):
     assert [item["id"] for item in api["posts"]] == [post_id]
     assert "city" not in api and "Cidade Privada" not in str(api)
 
+    # Post oculto sai da lista; a página continua existindo.
     with app.app_context():
         db.session.get(WorkPost, int(post_id)).status = WorkPostStatus.HIDDEN
         db.session.commit()
-    _html(client, f"/clientes/{profile_id}", 404)
+    hidden = _html(client, f"/clientes/{profile_id}")
+    assert "Meus cachos hoje" not in hidden
 
     with app.app_context():
         db.session.get(WorkPost, int(post_id)).status = WorkPostStatus.PUBLISHED
         db.session.get(User, user_id).is_active_account = False
         db.session.commit()
     _html(client, f"/clientes/{profile_id}", 404)
+    assert client.get(f"/api/v1/clients/{profile_id}").status_code == 404
 
 
 def test_feed_and_comments_link_to_the_client_page(app, client):

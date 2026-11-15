@@ -313,11 +313,15 @@ export default function FavoritesScreen() {
               key={
                 `${item.targetType}-${item.targetId}`
               }
+              // ID-SOC-R1-03: pessoa com Pro publicado abre o perfil Pro;
+              // sem ele, a página pessoal.
               id={String(
-                item.targetId,
+                item.professionalId ?? item.targetId,
               )}
               routeId={
-                item.slug
+                item.targetType === "person" && !item.professionalId
+                  ? String(item.clientProfileId ?? "")
+                  : item.slug ?? undefined
               }
               name={
                 item.name
@@ -333,7 +337,11 @@ export default function FavoritesScreen() {
                 undefined
               }
               routeType={
-                item.targetType
+                item.targetType === "establishment"
+                  ? "establishment"
+                  : item.targetType === "person" && !item.professionalId
+                    ? "person"
+                    : "professional"
               }
             />
           ),

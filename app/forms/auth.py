@@ -1,6 +1,6 @@
 from app.forms.base import IddunForm
 from wtforms import BooleanField, PasswordField, RadioField, StringField, SubmitField
-from wtforms.validators import DataRequired, Email, EqualTo, Length
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 
 
 class RegisterForm(IddunForm):
@@ -15,6 +15,11 @@ class RegisterForm(IddunForm):
     name = StringField(
         "Nome",
         validators=[DataRequired(), Length(min=2, max=120)],
+    )
+    # ID-SOC-R1-02: opcional; sem ele, o IDDUN sugere um pelo nome.
+    username = StringField(
+        "Seu @ no IDDUN (opcional)",
+        validators=[Optional(), Length(max=31)],
     )
     email = StringField(
         "E-mail",

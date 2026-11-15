@@ -30,6 +30,8 @@
           {% else %}<span>{{ icon('sparkles') }} Novo no IDDUN</span>{% endif %}
           <span>{{ icon('map-pin') }} {{ professional.location }}</span>
           {% if professional.verified %}<span>{{ icon('shield-check') }} Perfil verificado</span>{% endif %}
+          {# ID-SOC-R1-02/03: o @ e os seguidores são da pessoa dona do perfil. #}
+          {% if professional.source == 'database' and professional.profile.user %}<span>@{{ professional.profile.user.username }}</span>{% endif %}
           {% if professional.source == 'database' %}<span>{{ icon('users') }} {{ follower_count('professional', professional.profile.id) }}</span>{% endif %}
         </div>
       </div>

@@ -9,6 +9,7 @@ from app.extensions import db
 from app.forms.auth import DeleteAccountForm
 from app.forms.profile import ClientProfileForm
 from app.models.booking import BookingStatus
+from app.services.username_service import UsernameError, change_username, next_change_at
 from app.services.profile_service import ensure_client_profile
 from app.services.media_service import save_uploaded_image
 from app.models.establishment import EstablishmentAccessStatus
@@ -65,6 +66,7 @@ def _dashboard_context(form, profile):
     return {
         "form": form,
         "profile": profile,
+        "username_next_change": next_change_at(current_user),
         "completion": completion,
         "completion_missing": completion_missing,
         "business_accesses": _active_business_accesses(current_user),
@@ -95,6 +97,7 @@ def dashboard():
     form = ClientProfileForm(obj=profile)
     if not form.is_submitted():
         form.name.data = current_user.name
+        form.username.data = current_user.username
 
     if form.validate_on_submit():
         try:
@@ -104,6 +107,14 @@ def dashboard():
             uploaded_avatar = None
         if form.avatar_file.errors:
             return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
+        requested = (form.username.data or "").strip()
+        if requested:
+            try:
+                change_username(current_user, requested)
+            except UsernameError as exc:
+                form.username.errors.append(str(exc))
+                db.session.rollback()
+                return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
         current_user.name = form.name.data.strip()
         profile.phone = (form.phone.data or "").strip() or None
         profile.birth_date = form.birth_date.data

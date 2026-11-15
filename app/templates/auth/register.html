@@ -89,6 +89,14 @@
           {{ field_errors(form.name) }}
         </div>
 
+        {# ID-SOC-R1-02: @ opcional; o servidor valida e, vazio, sugere pelo nome. #}
+        <div class="auth-field">
+          {{ form.username.label(class_='auth-label') }}
+          {{ form.username(class_='auth-input', autocomplete='username', autocapitalize='none', spellcheck='false', placeholder='seu.nome', aria_describedby=form.username.id ~ '-hint' ~ ((' ' ~ form.username.id ~ '-errors') if form.username.errors else '')) }}
+          <small class="auth-field-hint" id="{{ form.username.id }}-hint">Letras sem acento, números, ponto e sublinhado. Se deixar em branco, criamos um a partir do seu nome; você pode trocar depois.</small>
+          {{ field_errors(form.username) }}
+        </div>
+
         <div class="auth-field">
           {{ form.email.label(class_='auth-label') }}
           {{ form.email(class_='auth-input', autocomplete='email', inputmode='email', placeholder='voce@exemplo.com', aria_describedby=(form.email.id ~ '-errors') if form.email.errors else '') }}
