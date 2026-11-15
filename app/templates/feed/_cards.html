@@ -20,7 +20,9 @@
 {% for post in feed_items %}
 {% set author_id = post.authorId|int %}
 {% set post_id = post.id|int %}
-{% set is_following = (post.authorKind, author_id) in followed_keys %}
+{# ID-SOC-R1-03: Seguir aponta para a pessoa, a empresa ou o perfil de catálogo. #}
+{% set follow = post.followTarget %}
+{% set is_following = follow and (follow.type, follow.id) in followed_keys %}
 {% set is_saved = ('work_post', post_id) in saved_keys %}
 {% set detail_url = url_for('posts.detail', post_id=post.id) %}
 {% set profile_url = author_href(post) %}
@@ -37,7 +39,7 @@
        público (Cliente), à página da publicação. #}
     {% if post.service %}
     {{ carousel(post, url_for('public.experience_detail', slug=post.service.id), link_label='Ver serviço ' ~ post.service.name) }}
-    {% elif profile_url and post.authorKind != 'client' %}
+    {% elif profile_url and (post.author.professional or post.author.identity != 'person') %}
     {{ carousel(post, profile_url, link_label='Conhecer perfil de ' ~ post.author.name) }}
     {% else %}
     {{ carousel(post, detail_url) }}
@@ -76,16 +78,17 @@
         </span>
       {% if profile_url %}</a>{% else %}</span>{% endif %}
 
-      {# D-SOC-06: sem Seguir no próprio perfil ou na própria empresa.
-         Cliente não é seguida (DEC-ID-035). #}
-      {% if post.authorKind != 'client' and not graph_owns(post.authorKind, author_id) %}
+      {# D-SOC-06: sem Seguir em si mesmo ou na própria empresa. Qualquer
+         pessoa pode ser seguida (ID-SOC-R1-04 substitui a DEC-ID-035). #}
+      {% if follow and not graph_owns(follow.type, follow.id) %}
       <button
         class="feed-follow-button{% if is_following %} is-active{% endif %}"
         type="button"
         aria-pressed="{{ 'true' if is_following else 'false' }}"
+        aria-label="{{ ('Deixar de seguir ' if is_following else 'Seguir ') ~ post.author.name }}"
         data-follow-button
-        data-target-type="{{ post.authorKind }}"
-        data-target-id="{{ post.authorId }}"
+        data-target-type="{{ follow.type }}"
+        data-target-id="{{ follow.id }}"
       >
         {{ 'Seguindo' if is_following else 'Seguir' }}
       </button>

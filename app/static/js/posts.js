@@ -30,7 +30,6 @@
     const thumbs = composer.querySelector('[data-composer-thumbs]');
     const caption = composer.querySelector('[data-composer-caption]');
     const count = composer.querySelector('[data-composer-count]');
-    const author = composer.querySelector('[data-composer-author]');
     const service = composer.querySelector('[data-composer-service]');
     const errorBox = composer.querySelector('[data-composer-error]');
     const submit = composer.querySelector('[data-composer-submit]');
@@ -41,21 +40,27 @@
       errorBox.hidden = !message;
     };
 
-    const syncService = () => {
-      if (!service) return;
+    // Serviço (ID-SOC-R1-05): sem JavaScript o campo fica à vista; com ele,
+    // abre pelo botão "Serviço" da linha de ações.
+    const serviceToggle = composer.querySelector('[data-composer-service-toggle]');
+    if (service && serviceToggle) {
       const select = service.querySelector('select');
-      const value = author.value;
-      let visible = 0;
-      [...select.options].forEach((option) => {
-        if (!option.value) return;
-        const matches = option.dataset.author === value;
-        option.hidden = !matches;
-        option.disabled = !matches;
-        if (matches) visible += 1;
+      service.hidden = true;
+      serviceToggle.hidden = false;
+      serviceToggle.addEventListener('click', () => {
+        const open = service.hidden;
+        service.hidden = !open;
+        serviceToggle.setAttribute('aria-expanded', String(open));
+        if (open) select.focus();
+        else select.value = '';
       });
-      if (select.selectedOptions[0]?.disabled) select.value = '';
-      service.hidden = visible === 0;
-    };
+    }
+
+    // Vídeo ainda não existe: o botão avisa e não envia nada.
+    composer.querySelector('[data-composer-video]')?.addEventListener('click', () => {
+      showError('');
+      toast('Vídeo chega em breve. Por enquanto, publique fotos.');
+    });
 
     const render = () => {
       thumbs.replaceChildren();
@@ -131,8 +136,6 @@
     caption.addEventListener('input', () => {
       count.textContent = String(caption.value.length);
     });
-    author.addEventListener('change', syncService);
-    syncService();
 
     composer.addEventListener('submit', async (event) => {
       event.preventDefault();

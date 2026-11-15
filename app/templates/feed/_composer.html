@@ -1,17 +1,23 @@
 {% from 'components/icon.html' import icon %}
 {#
-  Compositor do feed (PR 3; D-SOC-11): autoria, texto até 1200, até 10
-  fotos com ordem e texto alternativo, serviço opcional para Pro/empresa.
-  Funciona sem JavaScript (as fotos entram na ordem escolhida); posts.js
-  acrescenta miniaturas, reordenação e o texto alternativo por foto.
+  Compositor do feed (D-SOC-11; ID-SOC-R1-01, 05). Publica sempre como a
+  pessoa: nome, foto e @ de uma identidade só. A empresa entra quando a
+  página dela abre o compositor (composer_author, validado na rota).
+  Texto até 1200, até 10 fotos com ordem e texto alternativo, e o serviço
+  opcional (os do próprio perfil Pro público, ou os da empresa).
+  Funciona sem JavaScript; posts.js acrescenta miniaturas, reordenação e o
+  texto alternativo por foto.
 #}
 {% set first_name = current_user.name.split()[0] if current_user.name else '' %}
+{% set personal = composer_author.personal %}
+{% set author_key = composer_author.type ~ ':' ~ composer_author.id %}
+{% set services = composer.experiences|selectattr('authorType', 'equalto', composer_author.type)|selectattr('authorId', 'equalto', composer_author.id)|list %}
 <details class="post-composer" id="post-composer" data-composer {% if composer_open %}open{% endif %}>
   <summary class="post-composer__summary">
-    <span class="feed-avatar{% if profile.avatar_url %} has-image{% endif %}" {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %} aria-hidden="true">
-      {% if not profile.avatar_url %}{{ current_user.name|initials }}{% endif %}
+    <span class="feed-avatar{% if personal and profile.avatar_url %} has-image{% endif %}" {% if personal and profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %} aria-hidden="true">
+      {% if not (personal and profile.avatar_url) %}{{ composer_author.name|initials }}{% endif %}
     </span>
-    <span>Compartilhe algo, {{ first_name }}…</span>
+    <span>{% if personal %}Compartilhe algo, {{ first_name }}…{% else %}Publicar como {{ composer_author.name }}…{% endif %}</span>
   </summary>
 
   <form
@@ -22,36 +28,48 @@
     data-composer-form
   >
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="author" value="{{ author_key }}">
 
-    <div class="post-composer__field">
-      <label for="composer-author">Publicar como</label>
-      <select id="composer-author" name="author" data-composer-author>
-        {% for author in composer.authors %}
-        <option value="{{ author.type }}:{{ author.id }}">
-          {{ author.name }} ({{ 'Cliente' if author.type == 'client' else 'Profissional' if author.type == 'professional' else 'Empresa' }})
-        </option>
-        {% endfor %}
-      </select>
+    <div class="post-composer__identity" data-composer-identity>
+      <span class="post-composer__identity-text">
+        <strong>{{ composer_author.name }}</strong>
+        {% if personal %}
+        <small>@{{ composer_author.username }}</small>
+        {% else %}
+        <small>Publicando como a empresa · <a href="{{ url_for('feed.home', _anchor='post-composer') }}">Publicar como você</a></small>
+        {% endif %}
+      </span>
     </div>
 
     <div class="post-composer__field">
-      <label for="composer-caption">Texto</label>
+      <label class="sr-only" for="composer-caption">Texto da publicação</label>
       <textarea
         id="composer-caption"
         name="caption"
         rows="3"
         maxlength="1200"
+        placeholder="O que você quer compartilhar?"
         aria-describedby="composer-caption-help"
         data-composer-caption
       ></textarea>
       <small id="composer-caption-help"><span data-composer-count>0</span> de 1200 caracteres. Escreva um texto, adicione fotos ou os dois.</small>
     </div>
 
-    <div class="post-composer__field">
-      <span class="post-composer__label" id="composer-images-label">Fotos</span>
-      <label class="btn btn-outline btn-outline--light btn-sm post-composer__add" for="composer-images">
-        {{ icon('image') }} Adicionar fotos
-      </label>
+    <ol class="post-composer__thumbs" aria-label="Fotos escolhidas" data-composer-thumbs hidden></ol>
+
+    {% if services %}
+    <div class="post-composer__field" id="composer-service-field" data-composer-service>
+      <label for="composer-service">Serviço (opcional)</label>
+      <select id="composer-service" name="experience_id">
+        <option value="">Sem serviço</option>
+        {% for item in services %}
+        <option value="{{ item.id }}">{{ item.title }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div class="post-composer__actions" role="group" aria-label="Adicionar à publicação">
       <input
         id="composer-images"
         class="sr-only"
@@ -62,21 +80,31 @@
         aria-describedby="composer-images-help"
         data-composer-files
       >
-      <small id="composer-images-help">Até 10 fotos JPG, PNG ou WebP, com até 5 MB cada.</small>
-      <ol class="post-composer__thumbs" aria-labelledby="composer-images-label" data-composer-thumbs hidden></ol>
+      <label class="post-composer__action" for="composer-images">
+        {{ icon('image') }} Foto
+      </label>
+      <button
+        type="button"
+        class="post-composer__action"
+        aria-disabled="true"
+        data-composer-video
+      >
+        {{ icon('upload') }} Vídeo <span class="post-composer__soon">Em breve</span>
+      </button>
+      {% if services %}
+      <button
+        type="button"
+        class="post-composer__action"
+        aria-expanded="false"
+        aria-controls="composer-service-field"
+        data-composer-service-toggle
+        hidden
+      >
+        {{ icon('scissors') }} Serviço
+      </button>
+      {% endif %}
     </div>
-
-    {% if composer.experiences %}
-    <div class="post-composer__field" data-composer-service hidden>
-      <label for="composer-service">Serviço (opcional)</label>
-      <select id="composer-service" name="experience_id">
-        <option value="">Sem serviço</option>
-        {% for item in composer.experiences %}
-        <option value="{{ item.id }}" data-author="{{ item.authorType }}:{{ item.authorId }}">{{ item.title }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    {% endif %}
+    <small class="post-composer__hint" id="composer-images-help">Até 10 fotos JPG, PNG ou WebP, com até 5 MB cada.</small>
 
     <p class="post-composer__error" role="alert" data-composer-error hidden></p>
 

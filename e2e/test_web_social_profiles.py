@@ -55,7 +55,8 @@ def test_client_name_in_the_feed_opens_her_page(page: Page):
     card = page.locator("article.feed-card").filter(has_text="Cachos definidos depois do corte.").first
     link = card.get_by_role("link", name="Cliente Perfil Público").first
     href = link.get_attribute("href")
-    assert re.fullmatch(r"/clientes/\d+", href), href
+    # ID-SOC-R1-01: o autor leva a /@username, que chega à página pessoal.
+    assert href == "/@cliente.perfil.publico", href
     link.click()
 
     expect(page).to_have_url(re.compile(r"/clientes/\d+$"))
