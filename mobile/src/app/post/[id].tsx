@@ -22,6 +22,8 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 
 import {
   authorRoute,
+  authorSubtitle,
+  postFollowTarget,
   deletePost,
   getPost,
   replacePostImage,
@@ -255,6 +257,9 @@ export default function PostDetailScreen() {
       </View>
     );
   }
+
+  // ID-SOC-R1-03: Seguir a pessoa, a empresa ou o perfil de catálogo.
+  const follow = postFollowTarget(author, post.followTarget);
 
   const openAuthor = () => {
     const route = authorRoute(author);
@@ -743,24 +748,15 @@ export default function PostDetailScreen() {
                 }
                 numberOfLines={1}
               >
-                {author.kind ===
-                "establishment"
-                  ? "Estabelecimento"
-                  : author.kind === "client"
-                    ? "Cliente IDDUN"
-                    : author.specialty}
+                {authorSubtitle(author)}
               </Text>
             </View>
           </Pressable>
 
-          {author.kind !== "client" ? (
+          {follow ? (
             <FollowButton
-              id={
-                author.id
-              }
-              targetType={
-                author.kind
-              }
+              id={String(follow.id)}
+              targetType={follow.type}
               authorName={
                 author.name
               }

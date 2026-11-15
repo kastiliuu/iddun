@@ -460,7 +460,14 @@ export default function HomeScreen() {
           specialty:
             author.specialty ??
             undefined,
+          identity: author.identity,
+          username: author.username,
+          clientProfileId:
+            author.clientProfileId,
+          professional:
+            author.professional,
         }}
+        followTarget={post.followTarget}
         image={post.image}
         media={post.media}
         likesCount={post.likesCount}

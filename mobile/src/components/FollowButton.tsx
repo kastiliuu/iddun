@@ -65,7 +65,8 @@ function numericTargetId(
 
 
 /**
- * D-SOC-06: ninguém segue o próprio perfil Pro nem a própria empresa (dono).
+ * D-SOC-06: ninguém segue a si mesmo, o próprio perfil Pro nem a própria
+ * empresa (dono).
  * Os contextos vêm de /auth/me; o backend também recusa (own_profile).
  */
 export function ownsFollowTarget(
@@ -73,6 +74,10 @@ export function ownsFollowTarget(
   targetType: FollowTargetType,
   id: string,
 ) {
+  // ID-SOC-R1-03: a pessoa é a própria conta.
+  if (targetType === "person") {
+    return user?.id !== undefined && String(user.id) === id;
+  }
   return Boolean(
     user?.contexts?.some(
       (context) =>
