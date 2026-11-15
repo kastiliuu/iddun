@@ -81,6 +81,31 @@ def _focus(value, label):
     return parsed
 
 
+def personal_author_request(
+    *,
+    user,
+    author_type,
+    author_id=None,
+):
+    """ID-SOC-R1-01: post pessoal novo sai sempre pelo perfil pessoal.
+
+    O formato antigo "professional" (app instalado) continua aceito se o
+    perfil Pro for da própria conta, e é gravado como pessoal. Empresa
+    segue como está.
+    """
+    if author_type != WorkPostAuthorType.PROFESSIONAL:
+        return author_type, author_id
+
+    professional = user.professional_profile
+    if professional is None or (
+        author_id is not None and professional.id != author_id
+    ):
+        raise WorkPostError(
+            "Perfil profissional não encontrado para esta conta."
+        )
+    return WorkPostAuthorType.CLIENT, None
+
+
 def creator_author(
     *,
     user,
@@ -301,6 +326,19 @@ def _experience_for_author(
             "Serviço vinculado não encontrado."
         )
 
+    if author_type == WorkPostAuthorType.CLIENT:
+        # ID-SOC-R1-05: o post pessoal só vincula serviço do próprio perfil
+        # Pro, e só de perfil Pro público.
+        professional = author.user.professional_profile if author.user else None
+        if (
+            professional is None
+            or experience.professional_id != professional.id
+            or not professional_is_public(professional)
+        ):
+            raise WorkPostError(
+                "Você só pode vincular um serviço seu."
+            )
+
     if (
         author_type
         == WorkPostAuthorType.PROFESSIONAL
@@ -414,17 +452,18 @@ def create_work_post(
         == WorkPostStatus.PUBLISHED
     )
 
+    author_type, author_id = personal_author_request(
+        user=user,
+        author_type=author_type,
+        author_id=author_id,
+    )
+
     author = creator_author(
         user=user,
         author_type=author_type,
         author_id=author_id,
         publishing=publishing,
     )
-
-    if author_type == WorkPostAuthorType.CLIENT and experience_id not in (None, ""):
-        raise WorkPostError(
-            "Somente Pro e empresa vinculam serviços à publicação."
-        )
 
     experience = (
         _experience_for_author(
@@ -547,15 +586,6 @@ def update_work_post(
         ),
         publishing=publishing,
     )
-
-    if (
-        experience_supplied
-        and post.author_type == WorkPostAuthorType.CLIENT
-        and experience_id not in (None, "")
-    ):
-        raise WorkPostError(
-            "Somente Pro e empresa vinculam serviços à publicação."
-        )
 
     if caption_supplied:
         post.caption = (
@@ -728,43 +758,31 @@ def delete_work_post(
 
 
 def creator_options(user):
-    """Contextos em que a conta pode publicar (DEC-ID-224, D-SOC-02)."""
+    """Onde a conta pode publicar (ID-SOC-R1-01, DEC-ID-224).
+
+    Uma identidade pessoal (sempre pelo perfil pessoal) e as empresas
+    publicadas das quais a conta é dona. Serviços elegíveis: os do próprio
+    perfil Pro público (no post pessoal) e os das empresas.
+    """
     _require_user(user)
 
     client = ensure_client_profile(user)
+    professional = user.professional_profile
+    public_professional = (
+        professional
+        if professional is not None and professional_is_public(professional)
+        else None
+    )
     authors = [
         {
             "type": WorkPostAuthorType.CLIENT,
             "id": client.id,
             "name": user.name,
+            "personal": True,
+            "username": user.username,
         }
     ]
-    professional_ids = []
     establishment_ids = []
-
-    professional = (
-        user.professional_profile
-    )
-
-    if (
-        professional is not None
-        and professional_is_public(
-            professional
-        )
-    ):
-        professional_ids.append(
-            professional.id
-        )
-        authors.append(
-            {
-                "type":
-                    WorkPostAuthorType.PROFESSIONAL,
-                "id":
-                    professional.id,
-                "name":
-                    professional.display_name,
-            }
-        )
 
     for access in (
         user.establishment_accesses
@@ -793,16 +811,16 @@ def creator_options(user):
                     access.establishment_id,
                 "name":
                     access.establishment.name,
+                "personal": False,
             }
         )
 
     conditions = []
 
-    if professional_ids:
+    if public_professional is not None:
         conditions.append(
-            Experience.professional_id.in_(
-                professional_ids
-            )
+            Experience.professional_id
+            == public_professional.id
         )
 
     if establishment_ids:
@@ -832,17 +850,18 @@ def creator_options(user):
 
         for item in rows:
             if (
-                item.professional_id
-                in professional_ids
+                public_professional is not None
+                and item.professional_id
+                == public_professional.id
             ):
+                # Serviço próprio: vinculável ao post pessoal.
                 experiences.append(
                     {
                         "id": item.id,
                         "title": item.title,
                         "authorType":
-                            WorkPostAuthorType.PROFESSIONAL,
-                        "authorId":
-                            item.professional_id,
+                            WorkPostAuthorType.CLIENT,
+                        "authorId": client.id,
                     }
                 )
 

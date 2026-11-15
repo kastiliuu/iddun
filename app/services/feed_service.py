@@ -22,6 +22,7 @@ from app.models.work_post import (
 )
 from app.services.media_storage import resolve_image_url
 from app.services.public_eligibility import (
+    professional_is_public,
     public_experiences_query,
 )
 
@@ -197,27 +198,89 @@ def _review_summary(author):
     )
 
 
+def _person_author_payload(user, *, legacy_kind, legacy_id, legacy_route):
+    """ID-SOC-R1-01: autor pessoal único (nome, avatar e @), com selo Pro.
+
+    kind, id e routeId continuam com os valores antigos para o app
+    instalado; os campos novos dizem quem é a pessoa.
+    """
+    from app.services.beauty_graph_service import person_avatar
+
+    professional = user.professional_profile
+    public_pro = (
+        professional
+        if professional is not None and professional_is_public(professional)
+        else None
+    )
+    rating, reviews_count = (
+        _review_summary(public_pro) if public_pro is not None else (None, 0)
+    )
+    avatar = person_avatar(user)
+    return {
+        "id": legacy_id,
+        "routeId": legacy_route,
+        "kind": legacy_kind,
+        "identity": "person",
+        "userId": user.id,
+        "username": user.username,
+        "profileUrl": f"/@{user.username}",
+        # Página pessoal (toda conta ativa tem uma; ID-SOC-R1-04).
+        "clientProfileId": str(user.client_profile.id) if user.client_profile else None,
+        # DEC-ID-227: só nome e foto da pessoa; nada de cidade.
+        "name": user.name,
+        "avatar": _media_url(avatar) if avatar else None,
+        "specialty": public_pro.primary_specialty if public_pro is not None else None,
+        "professional": (
+            {
+                "id": str(public_pro.id),
+                "slug": public_pro.slug,
+                "specialty": public_pro.primary_specialty,
+            }
+            if public_pro is not None
+            else None
+        ),
+        "rating": rating,
+        "reviewsCount": reviews_count,
+    }
+
+
+def _follow_target(post):
+    if post.author_type == WorkPostAuthorType.ESTABLISHMENT:
+        return {"type": "establishment", "id": post.establishment_id}
+    if post.author_type == WorkPostAuthorType.CLIENT:
+        user_id = post.client_profile.user_id if post.client_profile else None
+        return {"type": "person", "id": user_id} if user_id else None
+    professional = post.professional
+    if professional is not None and professional.user_id is not None:
+        return {"type": "person", "id": professional.user_id}
+    return {"type": "professional", "id": post.professional_id}
+
+
 def _author_payload(post):
     if post.author_type == WorkPostAuthorType.CLIENT:
-        # DEC-ID-227: só nome e foto; nada de cidade ou dados privados.
         profile = post.client_profile
-        # D-SOC-13: quem tem post público tem página (/clientes/<id>).
-        return {
-            "id": str(profile.id),
-            "routeId": str(profile.id),
-            "kind": "client",
-            "name": profile.user.name,
-            "avatar": _media_url(profile.avatar_url),
-            "specialty": None,
-            "rating": None,
-            "reviewsCount": 0,
-        }
+        return _person_author_payload(
+            profile.user,
+            legacy_kind="client",
+            legacy_id=str(profile.id),
+            legacy_route=str(profile.id),
+        )
 
     if (
         post.author_type
         == WorkPostAuthorType.PROFESSIONAL
     ):
         author = post.professional
+        if author.user is not None:
+            # Post Pro antigo: aparece como a mesma pessoa.
+            return _person_author_payload(
+                author.user,
+                legacy_kind="professional",
+                legacy_id=str(author.id),
+                legacy_route=author.slug,
+            )
+
+        # Perfil de catálogo sem conta: continua como perfil profissional.
         rating, reviews_count = (
             _review_summary(
                 author
@@ -230,6 +293,7 @@ def _author_payload(post):
             ),
             "routeId": author.slug,
             "kind": "professional",
+            "identity": "professional",
             "name": (
                 author.display_name
             ),
@@ -257,6 +321,7 @@ def _author_payload(post):
         ),
         "routeId": author.slug,
         "kind": "establishment",
+        "identity": "establishment",
         "name": author.name,
         "avatar": _media_url(
             author.logo_url
@@ -434,6 +499,9 @@ def serialize_work_post(
         "authorKind": (
             post.author_type
         ),
+        # ID-SOC-R1-03: quem o botão Seguir segue (pessoa, empresa ou perfil
+        # de catálogo sem conta).
+        "followTarget": _follow_target(post),
         "author": (
             _author_payload(
                 post
@@ -693,13 +761,49 @@ def public_post(
 
 
 
-def _author_filter(author_type, author_id):
+def _person_ids(author_type, author_id):
+    """(perfil pessoal, perfil Pro) da conta dona do perfil pedido, ou None."""
+    model = ClientProfile if author_type == WorkPostAuthorType.CLIENT else ProfessionalProfile
+    user_id = db.session.scalar(select(model.user_id).where(model.id == author_id))
+    if user_id is None:
+        return None
+    client_id = db.session.scalar(select(ClientProfile.id).where(ClientProfile.user_id == user_id))
+    professional_id = db.session.scalar(
+        select(ProfessionalProfile.id).where(ProfessionalProfile.user_id == user_id)
+    )
+    return client_id, professional_id
+
+
+def author_filter(author_type, author_id):
+    """Filtro dos posts de um perfil.
+
+    ID-SOC-R1-01: perfil pessoal ou Pro de uma conta mostram os mesmos posts
+    pessoais (os do perfil pessoal e os Pro antigos). Empresa e perfil Pro
+    de catálogo sem conta continuam só com os próprios.
+    """
+    if author_type in (WorkPostAuthorType.CLIENT, WorkPostAuthorType.PROFESSIONAL):
+        person = _person_ids(author_type, author_id)
+        if person is not None:
+            client_id, professional_id = person
+            return or_(
+                and_(
+                    WorkPost.author_type == WorkPostAuthorType.CLIENT,
+                    WorkPost.client_profile_id == client_id,
+                ),
+                and_(
+                    WorkPost.author_type == WorkPostAuthorType.PROFESSIONAL,
+                    WorkPost.professional_id == professional_id,
+                ),
+            )
     column = {
         WorkPostAuthorType.CLIENT: WorkPost.client_profile_id,
         WorkPostAuthorType.PROFESSIONAL: WorkPost.professional_id,
         WorkPostAuthorType.ESTABLISHMENT: WorkPost.establishment_id,
     }[author_type]
     return and_(WorkPost.author_type == author_type, column == author_id)
+
+
+_author_filter = author_filter
 
 
 def author_post_count(author_type, author_id):

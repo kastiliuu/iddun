@@ -6,10 +6,6 @@ from PIL import Image
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.beauty_graph import (
-    Follow,
-    FollowTarget,
-)
 from app.models.establishment import (
     Establishment,
     EstablishmentAccessRole,
@@ -276,12 +272,15 @@ def test_professional_can_publish_real_post_linked_to_own_experience(
         "post"
     ]
 
-    assert post["author"][
-        "id"
-    ] == str(profile_id)
+    # ID-SOC-R1-01: o app instalado ainda manda authorType=professional;
+    # o post nasce pessoal (perfil de cliente) e mostra o selo Pro.
     assert post["author"][
         "kind"
-    ] == "professional"
+    ] == "client"
+    assert post["authorKind"] == "client"
+    assert post["author"]["identity"] == "person"
+    assert post["author"]["professional"]["id"] == str(profile_id)
+    assert post["followTarget"]["type"] == "person"
     assert post[
         "experienceId"
     ] == str(
@@ -536,19 +535,13 @@ def test_following_feed_only_contains_followed_authors(
         ),
     )
 
-    with app.app_context():
-        db.session.add(
-            Follow(
-                user_id=user_id,
-                target_type=(
-                    FollowTarget.PROFESSIONAL
-                ),
-                professional_id=(
-                    followed_id
-                ),
-            )
-        )
-        db.session.commit()
+    # O app instalado segue pelo perfil Pro; a conta passa a seguir a
+    # pessoa (ID-SOC-R1-03) e vê o post pessoal novo dela.
+    followed = client.put(
+        f"/api/v1/graph/follows/professional/{followed_id}",
+        headers=viewer_headers,
+    )
+    assert followed.status_code == 200
 
     following = client.get(
         FEED
@@ -889,30 +882,37 @@ def test_creator_options_only_return_authors_and_services_owned_by_account(
         for item
         in payload["authors"]
     } == {
-        # DEC-ID-224: a conta também publica como Cliente.
+        # ID-SOC-R1-01: uma identidade pessoal só (o perfil Pro não é
+        # autor à parte) e as empresas das quais a conta é dona.
         (
             "client",
             client_profile_id,
-        ),
-        (
-            "professional",
-            profile_id,
         ),
         (
             "establishment",
             establishment_id,
         ),
     }
+    personal = payload["authors"][0]
+    assert personal["personal"] is True and personal["type"] == "client"
+    assert personal["username"]
 
+    # Serviços do próprio perfil Pro público vão no post pessoal
+    # (ID-SOC-R1-05); os da empresa, no post da empresa.
     assert {
-        item["id"]
+        (
+            item["id"],
+            item["authorType"],
+            item["authorId"],
+        )
         for item
         in payload[
             "experiences"
         ]
     } == {
-        professional_experience,
-        establishment_experience,
+        (professional_experience, "client", client_profile_id),
+        (establishment_experience, "client", client_profile_id),
+        (establishment_experience, "establishment", establishment_id),
     }
 
 
