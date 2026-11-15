@@ -83,8 +83,9 @@
             <small>{{ author_role(post) }}</small>
           </span>
         {% if profile_url %}</a>{% else %}</span>{% endif %}
-        {% if post.authorKind != 'client' %}
-        {{ follow_button(post.authorKind, post.authorId, post.author.name, 'feed-follow-button') }}
+        {# ID-SOC-R1-03: Seguir a pessoa, a empresa ou o perfil de catálogo. #}
+        {% if post.followTarget %}
+        {{ follow_button(post.followTarget.type, post.followTarget.id, post.author.name, 'feed-follow-button') }}
         {% endif %}
       </div>
 

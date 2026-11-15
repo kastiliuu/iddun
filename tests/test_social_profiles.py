@@ -129,9 +129,14 @@ def test_feed_and_comments_link_to_the_client_page(app, client):
     links = {item["body"]: item["author"]["profileId"] for item in comments}
     assert links == {"Eu mesma": str(author_profile), "Sem página": None}
 
+    with app.app_context():
+        username = db.session.get(User, author_id).username
     _as(client, author_id)
     feed = _html(client, "/feed")
-    assert f'href="/clientes/{author_profile}"' in feed
+    # ID-SOC-R1-01: o autor leva a /@username, que chega à página da pessoa.
+    assert f'href="/@{username}"' in feed
+    at = client.get(f"/@{username}")
+    assert at.status_code == 302 and at.headers["Location"].endswith(f"/clientes/{author_profile}")
     detail = _html(client, f"/publicacoes/{post_id}")
     assert f'class="post-comment__author" href="/clientes/{author_profile}"' in detail
 

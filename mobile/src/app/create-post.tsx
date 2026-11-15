@@ -18,6 +18,7 @@ import {
 } from "expo-image";
 
 import {
+  useLocalSearchParams,
   useRouter,
 } from "expo-router";
 
@@ -61,11 +62,25 @@ import {
 
 const MAX_IMAGES = 10;
 
-const AUTHOR_LABEL: Record<WorkPostAuthorKind, string> = {
-  client: "Cliente",
-  professional: "Profissional",
-  establishment: "Empresa",
-};
+/**
+ * ID-SOC-R1-01: publica sempre como a pessoa. A empresa só entra quando a
+ * tela dela abre o Creator com ?author=establishment:<id> e a conta é dona
+ * (a lista vem de /posts/options; o backend confere de novo).
+ */
+function initialAuthor(
+  options: CreatorOptions,
+  requested?: string,
+) {
+  const personal =
+    options.authors.find((item) => item.personal) ?? options.authors[0];
+  const company = options.authors.find(
+    (item) =>
+      !item.personal &&
+      item.type === "establishment" &&
+      requested === `establishment:${item.id}`,
+  );
+  return company ?? personal;
+}
 
 
 export default function CreatePostScreen() {
@@ -77,6 +92,14 @@ export default function CreatePostScreen() {
 
   const router =
     useRouter();
+
+  const params =
+    useLocalSearchParams<{ author?: string }>();
+
+  const requestedAuthor =
+    typeof params.author === "string"
+      ? params.author
+      : undefined;
 
   const toast =
     useToast();
@@ -166,9 +189,10 @@ export default function CreatePostScreen() {
             );
 
             const first =
-              response.authors[
-                0
-              ];
+              initialAuthor(
+                response,
+                requestedAuthor,
+              );
 
             if (first) {
               setAuthorType(
@@ -213,7 +237,7 @@ export default function CreatePostScreen() {
         mounted = false;
       };
     },
-    [toast],
+    [toast, requestedAuthor],
   );
 
   const experiences =
@@ -236,6 +260,17 @@ export default function CreatePostScreen() {
         authorId,
       ],
     );
+
+  const currentAuthor =
+    options?.authors.find(
+      (item) =>
+        item.type === authorType &&
+        item.id === authorId,
+    );
+
+  const personalAuthor =
+    options?.authors.find((item) => item.personal) ??
+    options?.authors[0];
 
   const chooseImage =
     async (
@@ -345,10 +380,8 @@ export default function CreatePostScreen() {
             images,
             caption:
               caption.trim(),
-            experienceId:
-              authorType === "client"
-                ? null
-                : experienceId,
+            // ID-SOC-R1-05: o post pessoal leva serviço do próprio Pro.
+            experienceId,
             status:
               "published",
           });
@@ -739,6 +772,43 @@ export default function CreatePostScreen() {
                     Câmera
                   </Text>
                 </Pressable>
+
+                {/* Vídeo ainda não existe: inativo, sem envio. */}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Vídeo, em breve"
+                  accessibilityState={{
+                    disabled: true,
+                  }}
+                  onPress={() =>
+                    toast.show({
+                      title: "Vídeo em breve",
+                      body: "Por enquanto, publique fotos ou texto.",
+                      icon: "clock",
+                    })
+                  }
+                  style={[
+                    styles.mediaButton,
+                    styles.mediaButtonInactive,
+                  ]}
+                >
+                  <Icon
+                    name="video"
+                    size={17}
+                    color={
+                      colors.muted
+                    }
+                  />
+
+                  <Text
+                    style={[
+                      styles.mediaButtonText,
+                      styles.mediaButtonTextInactive,
+                    ]}
+                  >
+                    Vídeo · Em breve
+                  </Text>
+                </Pressable>
               </View>
 
               {mediaBusy ? (
@@ -767,86 +837,72 @@ export default function CreatePostScreen() {
 
             <View
               style={
-                styles.section
+                styles.identity
+              }
+              accessible
+              accessibilityLabel={
+                currentAuthor
+                  ? `Publicando como ${currentAuthor.name}`
+                  : undefined
               }
             >
-              <Text
-                style={
-                  styles.sectionLabel
+              <Icon
+                name={
+                  currentAuthor?.personal === false
+                    ? "home"
+                    : "user"
                 }
-              >
-                PUBLICAR COMO
-              </Text>
-
+                size={18}
+                color={
+                  colors.plum
+                }
+              />
               <View
                 style={
-                  styles.choiceList
+                  styles.identityText
                 }
               >
-                {options?.authors.map(
-                  (author) => {
-                    const selected =
-                      author.type ===
-                        authorType &&
-                      author.id ===
-                        authorId;
-
-                    return (
-                      <Pressable
-                        key={
-                          author.type
-                          + "-"
-                          + author.id
-                        }
-                        accessibilityRole="button"
-                        accessibilityState={{
-                          selected,
-                        }}
-                        onPress={() =>
-                          selectAuthor(
-                            author.type,
-                            author.id,
-                          )
-                        }
-                        style={[
-                          styles.choice,
-                          selected &&
-                            styles.choiceSelected,
-                        ]}
-                      >
-                        <Icon
-                          name={
-                            author.type ===
-                            "establishment"
-                              ? "home"
-                              : author.type ===
-                                  "professional"
-                                ? "briefcase"
-                                : "user"
-                          }
-                          size={17}
-                          color={
-                            selected
-                              ? colors.plum
-                              : colors.muted
-                          }
-                        />
-
-                        <Text
-                          style={[
-                            styles.choiceText,
-                            selected &&
-                              styles.choiceTextSelected,
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {`${author.name} · ${AUTHOR_LABEL[author.type]}`}
-                        </Text>
-                      </Pressable>
-                    );
-                  },
-                )}
+                <Text
+                  style={
+                    styles.identityName
+                  }
+                  numberOfLines={1}
+                >
+                  {currentAuthor?.name}
+                </Text>
+                <Text
+                  style={
+                    styles.hint
+                  }
+                  numberOfLines={1}
+                >
+                  {currentAuthor?.personal === false
+                    ? "Publicando como a empresa"
+                    : currentAuthor?.username
+                      ? `@${currentAuthor.username}`
+                      : "Sua identidade no IDDUN"}
+                </Text>
               </View>
+              {currentAuthor?.personal === false && personalAuthor ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() =>
+                    selectAuthor(
+                      personalAuthor.type,
+                      personalAuthor.id,
+                    )
+                  }
+                  hitSlop={8}
+                >
+                  <Text
+                    style={
+                      styles.identityLink
+                    }
+                  >
+                    Publicar como você
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
 
             <View
@@ -891,7 +947,7 @@ export default function CreatePostScreen() {
               </Text>
             </View>
 
-            {authorType !== "client" ? (
+            {experiences.length ? (
             <View
               style={
                 styles.section
@@ -1269,11 +1325,14 @@ const useStyles =
       mediaActions: {
         flexDirection:
           "row",
+        flexWrap:
+          "wrap",
         gap: spacing.sm,
       },
 
       mediaButton: {
         flex: 1,
+        minWidth: 120,
         minHeight: 46,
         borderRadius:
           radius.pill,
@@ -1297,6 +1356,60 @@ const useStyles =
         fontSize: 12,
         color:
           colors.onSurface,
+      },
+
+      mediaButtonInactive: {
+        borderStyle:
+          "dashed",
+        backgroundColor:
+          colors.surface,
+      },
+
+      mediaButtonTextInactive: {
+        color:
+          colors.muted,
+      },
+
+      identity: {
+        marginTop:
+          spacing.xl,
+        padding:
+          spacing.md,
+        borderRadius:
+          radius.lg,
+        borderWidth: 1,
+        borderColor:
+          colors.border,
+        backgroundColor:
+          colors.surfaceSecondary,
+        flexDirection:
+          "row",
+        alignItems:
+          "center",
+        gap: spacing.md,
+      },
+
+      identityText: {
+        flex: 1,
+        gap: 2,
+      },
+
+      identityName: {
+        fontFamily:
+          fonts.sansSemiBold,
+        fontSize: 15,
+        color:
+          colors.onSurface,
+      },
+
+      identityLink: {
+        fontFamily:
+          fonts.sansMedium,
+        fontSize: 13,
+        color:
+          colors.plum,
+        textDecorationLine:
+          "underline",
       },
 
       loadingRow: {

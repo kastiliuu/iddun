@@ -4,15 +4,22 @@
   página do post. Importar com `with context`.
 #}
 
+{# ID-SOC-R1-01: autor pessoal leva a /@username (página da pessoa). #}
 {% macro author_href(post) -%}
-{%- if post.author.kind == 'professional' -%}{{ url_for('public.professional_detail', slug=post.author.routeId) }}
+{%- if post.author.identity == 'person' and post.author.username -%}{{ url_for('public.person_by_username', username=post.author.username) }}
+{%- elif post.author.kind == 'professional' -%}{{ url_for('public.professional_detail', slug=post.author.routeId) }}
 {%- elif post.author.kind == 'establishment' -%}{{ url_for('public.establishment_detail', slug=post.author.routeId) }}
 {%- elif post.author.kind == 'client' and post.author.routeId -%}{{ url_for('public.client_detail', profile_id=post.author.routeId|int) }}
 {%- endif -%}
 {%- endmacro %}
 
+{# Pessoa: @username e, com perfil Pro publicado, a especialidade como selo. #}
 {% macro author_role(post) -%}
-{{ post.author.specialty or ('Cliente' if post.author.kind == 'client' else 'Profissional' if post.author.kind == 'professional' else 'Estabelecimento') }}
+{%- if post.author.identity == 'person' -%}
+@{{ post.author.username }}{% if post.author.professional %} · {{ post.author.professional.specialty or 'Profissional' }}{% endif %}
+{%- else -%}
+{{ post.author.specialty or ('Profissional' if post.author.kind == 'professional' else 'Estabelecimento') }}
+{%- endif -%}
 {%- endmacro %}
 
 {#

@@ -24,8 +24,12 @@ import {
 import { useToast } from "@/components/Toast";
 import {
   authorRoute,
+  authorSubtitle,
   deletePost,
+  postFollowTarget,
   setPostLike,
+  type WorkPostAuthor,
+  type WorkPostFollowTarget,
 } from "@/api/feed";
 import { store } from "@/store/local";
 
@@ -54,7 +58,15 @@ type PostCardProps = {
     avatar?: string | null;
     kind: PostAuthorKind;
     specialty?: string;
+    /** ID-SOC-R1-01: identidade única da pessoa, com selo Pro. */
+    identity?: WorkPostAuthor["identity"];
+    username?: string | null;
+    clientProfileId?: string | null;
+    professional?: WorkPostAuthor["professional"];
   };
+
+  /** ID-SOC-R1-03: quem o Seguir segue (pessoa, empresa ou catálogo). */
+  followTarget?: WorkPostFollowTarget | null;
 
   /** Primeira imagem; nula em publicação só de texto (PR 3). */
   image: string | null;
@@ -263,6 +275,7 @@ export function PostCard({
   service,
   commentsCount = 0,
   showFollow = true,
+  followTarget,
   onCommentsPress,
   onSharePress,
   onMorePress,
@@ -283,6 +296,9 @@ export function PostCard({
         : [];
 
   const profileRoute = authorRoute(author);
+  const subtitle =
+    author.identity === "person" ? authorSubtitle(author) : author.specialty;
+  const follow = postFollowTarget(author, followTarget);
   const hasProfile = Boolean(profileRoute);
 
   const removePost = () => {
@@ -385,22 +401,22 @@ export function PostCard({
               {author.name}
             </Text>
 
-            {author.specialty ? (
+            {subtitle ? (
               <Text
                 style={styles.authorSubtitle}
                 numberOfLines={1}
               >
-                {author.specialty}
+                {subtitle}
               </Text>
             ) : null}
           </View>
         </Pressable>
 
         <View style={styles.headerActions}>
-          {showFollow && author.kind !== "client" ? (
+          {showFollow && follow ? (
             <FollowButton
-              id={author.id}
-              targetType={author.kind}
+              id={String(follow.id)}
+              targetType={follow.type}
               authorName={author.name}
             />
           ) : null}

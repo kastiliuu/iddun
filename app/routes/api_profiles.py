@@ -14,6 +14,7 @@ from app.models.work_post import (
     WorkPostStatus,
 )
 from app.services.beauty_graph_service import follower_count, is_following
+from app.services.feed_service import author_filter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
     api_error,
@@ -846,9 +847,12 @@ def _posts(
     )
 
     if professional_id is not None:
+        # ID-SOC-R1-01: os posts pessoais da pessoa dona do perfil Pro.
         query = query.where(
-            WorkPost.professional_id
-            == professional_id
+            author_filter(
+                "professional",
+                professional_id,
+            )
         )
 
     if establishment_id is not None:

@@ -13,6 +13,7 @@ import {
 import {
   saveGraphTarget,
   unsaveGraphTarget,
+  type FollowTargetType,
 } from "@/api/graph";
 
 import {
@@ -51,6 +52,28 @@ export type WorkPostAuthor = {
   specialty?: string | null;
   rating?: number | null;
   reviewsCount?: number;
+  /**
+   * ID-SOC-R1-01: "person" é a identidade única da pessoa (nome, foto e
+   * @). kind, id e routeId seguem no formato antigo para o app instalado.
+   */
+  identity?: "person" | "professional" | "establishment";
+  userId?: number;
+  username?: string | null;
+  profileUrl?: string;
+  /** Página pessoal (/client/[id]) da pessoa. */
+  clientProfileId?: string | null;
+  /** Selo Pro: perfil profissional publicado da pessoa. */
+  professional?: {
+    id: string;
+    slug: string;
+    specialty?: string | null;
+  } | null;
+};
+
+/** Quem o botão Seguir segue (ID-SOC-R1-03). */
+export type WorkPostFollowTarget = {
+  type: FollowTargetType;
+  id: number;
 };
 
 export type WorkPostService = {
@@ -74,6 +97,7 @@ export type WorkPost = {
   authorId: string;
   authorKind: WorkPostAuthorKind;
   author: WorkPostAuthor;
+  followTarget?: WorkPostFollowTarget | null;
   /** Primeira imagem; nula em publicação só de texto (PR 3). */
   image: string | null;
   /** Carrossel até 10 imagens, na ordem escolhida. */
@@ -112,6 +136,9 @@ export type CreatorOption = {
   type: WorkPostAuthorKind;
   id: number;
   name: string;
+  /** ID-SOC-R1-01: a identidade pessoal vem primeiro e é a única pessoal. */
+  personal?: boolean;
+  username?: string | null;
 };
 
 export type CreatorExperienceOption = {
@@ -338,10 +365,64 @@ export async function getFeed(
 }
 
 
+/**
+ * Linha abaixo do nome (ID-SOC-R1-01): pessoa mostra @username e, com
+ * perfil Pro publicado, a especialidade; empresa e catálogo, como antes.
+ */
+export function authorSubtitle(
+  author: Pick<WorkPostAuthor, "kind"> &
+    Partial<Pick<WorkPostAuthor, "identity" | "username" | "professional">> & {
+      specialty?: string | null;
+    },
+): string | null {
+  if (author.identity === "person" && author.username) {
+    return [
+      `@${author.username}`,
+      author.professional ? author.professional.specialty || "Profissional" : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+  if (author.kind === "establishment") {
+    return author.specialty || "Estabelecimento";
+  }
+  if (author.kind === "client") {
+    return "Cliente IDDUN";
+  }
+  return author.specialty || null;
+}
+
+/**
+ * Quem o Seguir segue (ID-SOC-R1-03). Sem followTarget (servidor antigo):
+ * Pro e empresa, como antes; Cliente sem botão.
+ */
+export function postFollowTarget(
+  author: Pick<WorkPostAuthor, "id" | "kind">,
+  followTarget?: WorkPostFollowTarget | null,
+): WorkPostFollowTarget | null {
+  if (followTarget !== undefined) {
+    return followTarget;
+  }
+  const id = Number(author.id);
+  return author.kind !== "client" && Number.isInteger(id) && id > 0
+    ? { type: author.kind, id }
+    : null;
+}
+
 /** Rota do perfil de quem publicou (D-SOC-12); nula quando não há página. */
 export function authorRoute(
-  author: Pick<WorkPostAuthor, "id" | "kind"> & { routeId?: string | null },
+  author: Pick<WorkPostAuthor, "id" | "kind"> &
+    Partial<Pick<WorkPostAuthor, "identity" | "professional" | "clientProfileId">> & {
+      routeId?: string | null;
+    },
 ): Href | null {
+  // ID-SOC-R1-01: a pessoa abre no perfil Pro publicado ou na página pessoal.
+  if (author.identity === "person") {
+    if (author.professional?.slug) {
+      return `/professional/${author.professional.slug}`;
+    }
+    return author.clientProfileId ? `/client/${author.clientProfileId}` : null;
+  }
   const routeId = author.routeId ?? (author.kind === "client" ? null : author.id);
   if (!routeId) {
     return null;

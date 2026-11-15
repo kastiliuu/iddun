@@ -46,11 +46,22 @@ def home():
         mode=mode,
     )
 
+    # ID-SOC-R1-01: o compositor publica como a pessoa. A empresa só entra
+    # quando a página dela pede (?publicar_como=establishment:<id>) e a
+    # conta é dona; qualquer outro valor cai na identidade pessoal.
+    composer = creator_options(current_user)
+    requested = request.args.get("publicar_como", "")
+    composer_author = composer["authors"][0]
+    for author in composer["authors"][1:]:
+        if requested == f"{author['type']}:{author['id']}":
+            composer_author = author
+
     return render_template(
         "feed/index.html",
         current_page="feed",
-        # PR 3: compositor e janela de denúncia.
-        composer=creator_options(current_user),
+        composer=composer,
+        composer_author=composer_author,
+        composer_open=composer_author is not composer["authors"][0],
         report_categories=ReportCategory.LABELS,
         **context,
     )
