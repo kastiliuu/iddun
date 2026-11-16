@@ -139,7 +139,8 @@ def test_business_metrics_and_indicators(page: Page):
     _login(page, E2E_PRO_EMAIL)
     page.goto(f"/business/{E2E_BUSINESS_SLUG}/painel")
     _reveal(page)
-    _assert_data(page, ".platform-metric-grid strong", TEXT_2XL)
+    # P-004 / F16: os números da operação ficam no cartão compacto do painel.
+    _assert_data(page, ".business-operations-card__numbers dd", HEADING_SM)
     page.goto(f"/business/{E2E_BUSINESS_SLUG}/indicadores")
     _reveal(page)
     _assert_data(page, ".platform-panel .platform-field > h3", HEADING_MD)

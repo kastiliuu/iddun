@@ -94,7 +94,7 @@ def test_business_steps_validate_skip_address_and_publish_explicitly(page: Page)
     _readable(page)
     page.get_by_role("link", name="Ir para o painel").click()
     expect(page).to_have_url(re.compile(r"/business/[^/]+/painel$"))
-    expect(page.locator(".platform-dashboard-avatar .ds-avatar-initials")).to_have_text("SE")
+    expect(page.locator(".business-identity .ds-avatar-initials")).to_have_text("SE")
 
 
 def test_owner_can_leave_and_continue_a_draft(page: Page):

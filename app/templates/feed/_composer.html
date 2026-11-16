@@ -29,6 +29,8 @@
   >
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="author" value="{{ author_key }}">
+    {# P-004: no painel da empresa, o envio volta ao painel (rota validada). #}
+    {% if composer_origin %}<input type="hidden" name="origem" value="{{ composer_origin }}">{% endif %}
 
     <div class="post-composer__identity" data-composer-identity>
       <span class="post-composer__identity-text">
@@ -36,7 +38,7 @@
         {% if personal %}
         <small>@{{ composer_author.username }}</small>
         {% else %}
-        <small>Publicando como a empresa · <a href="{{ url_for('feed.home', _anchor='post-composer') }}">Publicar como você</a></small>
+        <small>Publicando como a empresa{% if not composer_origin %} · <a href="{{ url_for('feed.home', _anchor='post-composer') }}">Publicar como você</a>{% endif %}</small>
         {% endif %}
       </span>
     </div>

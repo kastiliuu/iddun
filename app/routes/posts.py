@@ -19,6 +19,7 @@ from flask_login import current_user, login_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db, limiter
+from app.models.establishment import Establishment
 from app.models.work_post import (
     MAX_POST_IMAGES,
     ModerationActionType,
@@ -26,6 +27,7 @@ from app.models.work_post import (
     ReportStatus,
     ReportTarget,
     WorkPost,
+    WorkPostAuthorType,
     WorkPostStatus,
 )
 from app.services.feed_service import (
@@ -50,6 +52,7 @@ from app.services.post_interactions import (
 from app.services.work_post_service import (
     WorkPostError,
     create_work_post,
+    creator_options,
     delete_work_post,
 )
 from app.utils.admin import admin_required
@@ -85,6 +88,33 @@ def _parse_author(value):
         raise WorkPostError("Escolha como publicar.")
 
 
+def _composer_return(author_value):
+    """Para onde o compositor volta depois do envio.
+
+    P-004: o compositor do painel da empresa manda `origem=painel`. Só
+    volta ao painel quando a conta publica como essa empresa (a mesma
+    lista que o compositor usa); o endereço sai do cadastro da empresa,
+    nunca do que veio no formulário. Em qualquer outro caso, o feed.
+    """
+    feed = url_for("feed.home")
+    if request.form.get("origem") != "painel":
+        return feed
+    try:
+        kind, author_id = _parse_author(author_value)
+    except WorkPostError:
+        return feed
+    if kind != WorkPostAuthorType.ESTABLISHMENT:
+        return feed
+    allowed = any(
+        author["type"] == WorkPostAuthorType.ESTABLISHMENT and author["id"] == author_id
+        for author in creator_options(current_user)["authors"]
+    )
+    establishment = db.session.get(Establishment, author_id) if allowed else None
+    if establishment is None:
+        return feed
+    return url_for("business.dashboard", slug=establishment.slug)
+
+
 @posts_bp.post("/publicacoes/nova")
 @login_required
 @limiter.limit("40 per hour")
@@ -95,6 +125,7 @@ def create():
         item for item in request.files.getlist("images") if getattr(item, "filename", "")
     ]
     alt_texts = request.form.getlist("alt_texts")
+    back = _composer_return(request.form.get("author"))
 
     try:
         if len(files) > MAX_POST_IMAGES:
@@ -122,14 +153,14 @@ def create():
     except (WorkPostError, ValueError) as exc:
         db.session.rollback()
         flash(str(exc), "error")
-        return _go(url_for("feed.home") + "#post-composer")
+        return _go(back + "#post-composer")
     except (OSError, SQLAlchemyError):
         db.session.rollback()
         flash("Não foi possível publicar agora. Tente de novo.", "error")
-        return _go(url_for("feed.home") + "#post-composer")
+        return _go(back + "#post-composer")
 
     flash("Sua publicação está no ar.", "success")
-    return _go(url_for("feed.home") + f"#post-{post.id}")
+    return _go(back + f"#post-{post.id}")
 
 
 def _viewable_post(post_id):

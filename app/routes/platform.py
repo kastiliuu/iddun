@@ -119,7 +119,12 @@ from app.services.onboarding_steps import (
     business_journey,
     professional_journey,
 )
+from app.models.work_post import ReportCategory, WorkPostAuthorType
+from app.services.beauty_graph_service import follower_count
+from app.services.feed_service import author_posts_page
+from app.services.graph_ui import card_keys
 from app.services.reputation_service import reputation_summary
+from app.services.work_post_service import creator_options
 from app.services.slug_service import unique_slug
 from app.services.time_service import to_local, local_naive_to_utc
 
@@ -2664,16 +2669,56 @@ def dashboard(slug):
         if item.channel == "whatsapp"
     )
 
+    # P-004 / F16: o painel reusa o feed. No centro, as publicações reais
+    # da empresa e o compositor, que só aparece para quem pode publicar
+    # como ela (dona, página no ar); o servidor confere de novo no envio.
+    posts = author_posts_page(
+        WorkPostAuthorType.ESTABLISHMENT,
+        establishment.id,
+        viewer=current_user,
+    )
+    followed_keys, saved_keys = card_keys(current_user)
+    composer = creator_options(current_user)
+    composer_author = next(
+        (
+            author
+            for author in composer["authors"]
+            if author["type"] == WorkPostAuthorType.ESTABLISHMENT
+            and author["id"] == establishment.id
+        ),
+        None,
+    )
+
+    # ID-SOC-R1-06: os formulários de equipe abrem sob demanda. Sem
+    # JavaScript, ?equipe=convidar|gerenciar abre a janela no servidor;
+    # um convite recusado pela validação volta com a janela aberta.
+    team_dialog = request.args.get("equipe")
+    if team_dialog not in {"convidar", "gerenciar"}:
+        team_dialog = None
+    if team_form.is_submitted() and team_form.errors:
+        team_dialog = "convidar"
+
     return render_template(
         "platform/business-dashboard.html",
         establishment=establishment,
         access=access,
         team_form=team_form,
+        team_dialog=team_dialog,
         confirmed_bookings=confirmed_bookings,
         published_experiences=published_experiences,
         catalog_preview=catalog_preview,
         reputation=reputation,
         whatsapp_clicks=whatsapp_clicks,
+        feed_items=posts["items"],
+        posts_total=posts["total"],
+        followers=follower_count("establishment", establishment.id),
+        followed_keys=followed_keys,
+        saved_keys=saved_keys,
+        composer=composer,
+        composer_author=composer_author,
+        composer_open=False,
+        composer_origin="painel",
+        report_categories=ReportCategory.LABELS,
         current_page="business-dashboard",
     )
 
