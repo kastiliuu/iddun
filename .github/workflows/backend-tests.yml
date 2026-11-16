@@ -347,3 +347,26 @@ jobs:
             pip-audit-report.json
           if-no-files-found: ignore
           retention-days: 14
+
+  design-system:
+    name: Design System / linhas novas
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Obter código com histórico
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: .python-version
+
+      # FE-DEC-011–020: só as linhas adicionadas pela PR são conferidas.
+      # O legado migra aos poucos (DS-V1-01-D03); tokens.css e theme.ts
+      # são as fontes dos valores e ficam fora da conferência.
+      - name: Conferir tokens nas linhas adicionadas
+        run: python scripts/check_design_system_diff.py --base "origin/${{ github.base_ref }}"
