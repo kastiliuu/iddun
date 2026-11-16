@@ -3,7 +3,13 @@
 {#
   Navegação das páginas operacionais do IDDUN Pro (PR 1; FE-DEC-023):
   Painel, Agenda, Serviços, Clientes e Mais. O menu Eu troca o contexto.
+  DS-V1-01-D01: mesmo contrato do cabeçalho das outras áreas logadas —
+  sino com as não lidas reais e a identidade da pessoa no menu Eu (uma
+  conta só; o perfil Pro não é outra pessoa).
 #}
+{% set header_unread = nav_unread_count() %}
+{% set unread_label = 'Notificações' ~ (', ' ~ header_unread ~ ' não lidas' if header_unread else '') %}
+{% set person_avatar = (current_user.client_profile.avatar_url if current_user.client_profile else None) or profile.avatar_url %}
 <header class="pro-header">
   <div class="pro-header__inner">
     <a class="pro-header__brand" href="{{ url_for('professional.dashboard') }}" aria-label="IDDUN Pro">
@@ -44,6 +50,20 @@
       </div>
     </nav>
 
+    <div class="pro-header__tools">
+    <a
+      class="feed-header__nav-item feed-notification-trigger pro-header__bell{% if request.endpoint and request.endpoint.startswith('notifications.') %} is-active{% endif %}"
+      href="{{ url_for('notifications.center') }}"
+      aria-label="{{ unread_label }}"
+    >
+      <span class="feed-header__icon-wrap">
+        {{ icon('bell') }}
+        {% if header_unread %}
+        <span class="feed-header__badge" aria-hidden="true">{{ header_unread if header_unread < 100 else '99+' }}</span>
+        {% endif %}
+      </span>
+      <span>Notificações</span>
+    </a>
     <div class="feed-account-menu-wrap pro-header__account-wrap">
       <button
         class="pro-header__account"
@@ -53,13 +73,14 @@
         aria-label="Eu: conta e troca de contexto"
         data-account-menu-trigger
       >
-        <span class="pro-header__avatar{% if profile.avatar_url %} has-image{% endif %}"
-          {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}>
-          {% if not profile.avatar_url %}{{ profile.display_name[:1]|upper }}{% endif %}
+        <span class="pro-header__avatar{% if person_avatar %} has-image{% endif %}"
+          {% if person_avatar %}style="background-image:url('{{ person_avatar|media_url }}')"{% endif %}>
+          {% if not person_avatar %}{{ current_user.name[:1]|upper }}{% endif %}
         </span>
         <span>Eu</span>
       </button>
-      {{ account_menu(nav_contexts(), 'professional', None, profile.avatar_url) }}
+      {{ account_menu(nav_contexts(), 'professional', None, person_avatar) }}
+    </div>
     </div>
   </div>
 </header>
