@@ -14,14 +14,30 @@ import { Icon } from "@/components/Icon";
 import {
   fonts,
   makeStyles,
+  ThemeScope,
   useTheme,
 } from "@/theme";
 
+
+/**
+ * DS-V1-01-D03: as cinco abas do Cliente são a primeira jornada do app
+ * que segue a preferência de tema (claro por padrão, escuro opcional).
+ * As telas abertas a partir delas continuam escuras até serem conferidas.
+ */
 export default function TabsLayout() {
+  return (
+    <ThemeScope>
+      <ClientTabs />
+    </ThemeScope>
+  );
+}
+
+
+function ClientTabs() {
   const styles =
     useStyles();
 
-  const { colors } =
+  const { colors, scheme } =
     useTheme();
 
   return (
@@ -34,7 +50,9 @@ export default function TabsLayout() {
           true,
 
         tabBarActiveTintColor:
-          colors.onSurface,
+          scheme === "light"
+            ? colors.plum
+            : colors.onSurface,
 
         tabBarInactiveTintColor:
           colors.muted,
@@ -91,7 +109,7 @@ export default function TabsLayout() {
                 intensity={
                   82
                 }
-                tint="dark"
+                tint={scheme}
                 style={
                   styles.blur
                 }
@@ -99,9 +117,11 @@ export default function TabsLayout() {
 
               <View
                 pointerEvents="none"
-                style={
-                  styles.tabBarOverlay
-                }
+                style={[
+                  styles.tabBarOverlay,
+                  scheme === "light" &&
+                    styles.tabBarOverlayLight,
+                ]}
               />
             </View>
           ),
@@ -279,6 +299,13 @@ const useStyles =
 
         backgroundColor:
           colors.overlayInkStrong,
+      },
+
+      // Claro: a barra é a própria superfície, não uma camada sobre foto.
+      tabBarOverlayLight: {
+        backgroundColor:
+          colors.surfaceSecondary,
+        opacity: 0.94,
       },
     }),
   );

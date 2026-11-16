@@ -43,6 +43,7 @@ export default function EstablishmentContextScreen() {
     <ContextScreen
       eyebrow={owner ? "ESTABELECIMENTO · PROPRIETÁRIO" : "ESTABELECIMENTO · GESTÃO"}
       title={context.name}
+      contextLabel={context.name}
       description="Equipe, vagas e publicações. Painel, agenda e indicadores da empresa estão no site por enquanto."
     >
       {draft && owner ? (
@@ -75,10 +76,28 @@ export default function EstablishmentContextScreen() {
 
       {!draft ? (
         <ContextSection label="PRESENÇA">
+          {/* P-004: quem é dona publica como a empresa (o Creator e o
+              servidor conferem de novo); a gestão publica como pessoa. */}
           <ContextRow
             icon="image"
-            title="Publicar um trabalho"
-            onPress={() => router.push("/create-post")}
+            title={
+              owner
+                ? `Publicar como ${context.name}`
+                : "Publicar um trabalho"
+            }
+            subtitle={
+              owner
+                ? "A publicação sai em nome da empresa"
+                : "A publicação sai no seu nome"
+            }
+            onPress={() =>
+              owner
+                ? router.push({
+                    pathname: "/create-post",
+                    params: { author: `establishment:${id}` },
+                  })
+                : router.push("/create-post")
+            }
           />
           {context.slug ? (
             <ContextRow

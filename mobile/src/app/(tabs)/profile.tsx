@@ -10,6 +10,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { logout } from "@/api/auth";
+import { chooseTheme } from "@/store/themePreference";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Icon, IconName } from "@/components/Icon";
@@ -120,7 +121,7 @@ export default function ProfileScreen() {
   useStoreVersion();
 
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
   const toast = useToast();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -557,6 +558,24 @@ export default function ProfileScreen() {
               title="Ajuda"
               subtitle="Central de ajuda em preparação"
               disabled
+            />
+
+            <View style={styles.menuDivider} />
+
+            {/* FE-DEC-002 / D-VIS-02: claro por padrão, escuro opcional. */}
+            <MenuItem
+              icon={scheme === "light" ? "sun" : "moon"}
+              title="Aparência"
+              subtitle={
+                scheme === "light"
+                  ? "Tema claro · toque para usar o escuro"
+                  : "Tema escuro · toque para usar o claro"
+              }
+              onPress={() =>
+                void chooseTheme(
+                  scheme === "light" ? "dark" : "light",
+                )
+              }
             />
 
             <View style={styles.menuDivider} />

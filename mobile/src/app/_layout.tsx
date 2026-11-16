@@ -39,6 +39,7 @@ import {
 import {
   store,
 } from "@/store/local";
+import { loadThemePreference } from "@/store/themePreference";
 
 import {
   syncBeautyGraph,
@@ -70,7 +71,11 @@ export default function RootLayout() {
       const initialize =
         async () => {
           try {
-            await store.load();
+            // Tema salvo antes da primeira tela, para não piscar.
+            await Promise.all([
+              store.load(),
+              loadThemePreference(),
+            ]);
 
             try {
               const user =

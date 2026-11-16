@@ -46,6 +46,7 @@ import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Avatar } from "@/components/Avatar";
+import { ContextPill } from "@/components/navigation/ContextPill";
 import { StoryAvatar } from "@/components/StoryAvatar";
 
 import {
@@ -621,7 +622,9 @@ export default function HomeScreen() {
             ) : null}
           </Pressable>
 
-          {/* PR 1 (DEC-ID-077): o avatar abre a troca de contexto. */}
+          {/* Visitante: o avatar leva ao login pela troca de contexto.
+              Com conta, o contexto ativo aparece na linha de baixo. */}
+          {!store.getUser() ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Trocar de contexto"
@@ -632,12 +635,17 @@ export default function HomeScreen() {
             ]}
           >
             <Avatar
-              name={store.getUser()?.name ?? "IDDUN"}
-              uri={store.getUser()?.avatar}
+              name="IDDUN"
               size={36}
             />
           </Pressable>
+          ) : null}
           </View>
+        </View>
+
+        {/* DS-V1-01-D02: avatar + contexto ativo, sempre visível. */}
+        <View style={styles.contextRow}>
+          <ContextPill label="Cliente" />
         </View>
 
         <View
@@ -1164,6 +1172,12 @@ const useStyles =
           fonts.display,
 
         fontSize: 13,
+      },
+
+      contextRow: {
+        paddingHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+        flexDirection: "row",
       },
 
       headerActions: {

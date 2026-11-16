@@ -1,4 +1,11 @@
-import { useMemo } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { StyleSheet, type ImageStyle, type TextStyle, type ViewStyle } from "react-native";
 
 export type ColorScheme = "dark" | "light";
@@ -72,9 +79,8 @@ export const colors = {
 
 /**
  * Design System 2.0 — Editorial Híbrido.
- * Semantic palettes are additive: legacy `colors`, `theme`, `useTheme`
- * and `makeStyles` remain dark for existing screens.
- * A later PR will add persisted preference and migrate consumers safely.
+ * Semantic palettes are additive. `useTheme` and `makeStyles` stay dark
+ * outside a `ThemeScope`; inside one they follow the saved preference.
  */
 export const semanticPalettes = {
   dark: {
@@ -146,6 +152,46 @@ export function getSemanticPalette(scheme: ColorScheme) {
 
 export type ThemeColors = typeof colors;
 
+/**
+ * Tema claro (D-VIS-02, DS-V1-01-D03): os mesmos papéis de `colors`, com os
+ * valores já aprovados de `semanticPalettes.light`. Nenhuma cor nova: o
+ * vermelho de erro é o token claro da D-VIS-06. As camadas escuras sobre
+ * foto (overlay*) e as cores de marca não mudam com o tema.
+ */
+export const lightColors: ThemeColors = {
+  ...colors,
+
+  surface: semanticPalettes.light.canvas,
+  onSurface: semanticPalettes.light.textPrimary,
+
+  surfaceSecondary: semanticPalettes.light.surface,
+  onSurfaceSecondary: semanticPalettes.light.textSecondary,
+
+  surfaceTertiary: colors.mist,
+  onSurfaceTertiary: semanticPalettes.light.textPrimary,
+
+  surfaceInverse: semanticPalettes.light.inverse,
+  onSurfaceInverse: semanticPalettes.light.textInverse,
+
+  muted: semanticPalettes.light.textMuted,
+
+  brandTertiary: colors.plumSoft,
+  onBrandTertiary: semanticPalettes.light.link,
+
+  error: "#A33149",
+
+  border: semanticPalettes.light.border,
+  divider: semanticPalettes.light.borderSubtle,
+
+  glassSoft: semanticPalettes.light.borderSubtle,
+  glassBorder: semanticPalettes.light.borderSubtle,
+  glassBorderStrong: semanticPalettes.light.border,
+};
+
+export function paletteFor(scheme: ColorScheme): ThemeColors {
+  return scheme === "light" ? lightColors : colors;
+}
+
 export const fonts = {
   display: "PlayfairDisplay",
   displayItalic: "PlayfairDisplay-Italic",
@@ -199,15 +245,69 @@ export const theme = {
   touch,
 };
 
+/**
+ * Preferência de tema da pessoa: claro por padrão, escuro opcional
+ * (FE-DEC-002, D-VIS-02). A gravação fica em `store/themePreference.ts`.
+ */
+export const DEFAULT_SCHEME: ColorScheme = "light";
+
+let preferredScheme: ColorScheme = DEFAULT_SCHEME;
+const schemeListeners = new Set<() => void>();
+
+export function getPreferredScheme() {
+  return preferredScheme;
+}
+
+export function setPreferredScheme(scheme: ColorScheme) {
+  if (scheme === preferredScheme) {
+    return;
+  }
+  preferredScheme = scheme;
+  schemeListeners.forEach((listener) => listener());
+}
+
+function subscribeToScheme(listener: () => void) {
+  schemeListeners.add(listener);
+  return () => {
+    schemeListeners.delete(listener);
+  };
+}
+
+export function usePreferredScheme() {
+  return useSyncExternalStore(
+    subscribeToScheme,
+    getPreferredScheme,
+    getPreferredScheme,
+  );
+}
+
+/**
+ * DS-V1-01-D03: a migração é tela a tela. Fora de um `ThemeScope` tudo
+ * continua escuro, como antes; a tela (ou o grupo de telas) que já foi
+ * conferida nos dois temas se envolve num `ThemeScope` e passa a seguir a
+ * preferência da pessoa, junto com os componentes que renderiza.
+ */
+const ThemeScopeContext = createContext<ColorScheme>("dark");
+
+export function ThemeScope({ children }: { children: ReactNode }) {
+  const scheme = usePreferredScheme();
+  return createElement(ThemeScopeContext.Provider, { value: scheme }, children);
+}
+
+export function useScheme() {
+  return useContext(ThemeScopeContext);
+}
+
 export function useTheme() {
+  const scheme = useScheme();
   return {
-    colors,
+    colors: paletteFor(scheme),
     fonts,
     spacing,
     radius,
     typography,
     touch,
-    scheme: "dark" as const,
+    scheme,
   };
 }
 
@@ -219,9 +319,10 @@ export function makeStyles<
   T extends NamedStyles<T>,
 >(factory: (themeColors: ThemeColors) => T) {
   return function useStyles() {
+    const scheme = useScheme();
     return useMemo(
-      () => StyleSheet.create(factory(colors)),
-      [],
+      () => StyleSheet.create(factory(paletteFor(scheme))),
+      [scheme],
     );
   };
 }

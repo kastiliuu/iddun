@@ -23,6 +23,7 @@ export default function ProfessionalContextScreen() {
   return (
     <ContextScreen
       eyebrow="CONTEXTO PROFISSIONAL"
+      contextLabel="Profissional"
       title={context?.name ?? "Seu trabalho no IDDUN"}
       description="Perfil, serviços, horários e vínculos. Painel e carteira de clientes estão no site por enquanto."
       notice={
