@@ -222,6 +222,8 @@ export function DiscoverTile({
   );
 }
 
+// Texto sobre foto: branco e Mist fixos nos dois temas (a camada escura
+// sobre a imagem não muda com o tema; DS-V1-01-D03).
 const useStyles = makeStyles((colors) => ({
   container: {
     width: "100%",
@@ -302,7 +304,7 @@ const useStyles = makeStyles((colors) => ({
 
   title: {
     color:
-      colors.onSurface,
+      colors.white,
 
     fontFamily:
       fonts.sansSemiBold,
@@ -315,7 +317,7 @@ const useStyles = makeStyles((colors) => ({
     marginTop: 2,
 
     color:
-      colors.onSurfaceSecondary,
+      colors.mist,
 
     fontFamily:
       fonts.sans,
@@ -343,7 +345,7 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: 2,
 
     backgroundColor:
-      colors.onSurfaceSecondary,
+      colors.mist,
 
     opacity: 0.6,
   },
@@ -362,7 +364,7 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
 
     color:
-      colors.onSurfaceSecondary,
+      colors.mist,
 
     fontFamily:
       fonts.sans,

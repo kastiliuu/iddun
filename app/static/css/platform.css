@@ -2596,3 +2596,369 @@ article > div {
     outline-offset: -2px;
   }
 }
+
+/* ------------------------------------------------------------------
+ * Painel Business em feed (P-004 / F16; ID-SOC-R1-06).
+ * A composição vem do feed (.feed-shell e cartões); aqui só o que é
+ * próprio do painel. Só tokens do Design System.
+ * ------------------------------------------------------------------ */
+
+.business-identity .feed-avatar--profile {
+  background-size: cover;
+  background-position: center;
+}
+
+.business-feed__notice {
+  margin: 0 0 var(--ds-space-4);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-lg);
+  background: var(--color-white);
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-secondary);
+}
+
+.business-feed__notice .icon {
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+}
+
+.business-team-card,
+.business-operations-card,
+.business-reputation-card,
+.business-gallery-card {
+  display: grid;
+  gap: var(--ds-space-3);
+}
+
+.business-team-card__list,
+.business-operations-card__catalog ul {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-2);
+  list-style: none;
+}
+
+.business-team-card__list li,
+.business-team-member__identity {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.business-team-card__list strong,
+.business-team-card__list small,
+.business-team-member strong,
+.business-team-member small,
+.business-operations-card__catalog strong,
+.business-operations-card__catalog small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-team-card__list strong,
+.business-team-member strong,
+.business-operations-card__catalog strong {
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.business-team-card__list small,
+.business-team-member small,
+.business-operations-card__catalog small,
+.business-team-card__more,
+.business-team-card__pending,
+.business-reputation-card__line {
+  margin: 0;
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+}
+
+.business-team-avatar {
+  width: var(--ds-control-min-target);
+  height: var(--ds-control-min-target);
+  display: grid;
+  place-items: center;
+  border-radius: var(--ds-radius-md);
+  background-color: var(--color-off-white);
+  background-size: cover;
+  background-position: center;
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.business-team-card__pending {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.business-team-card__pending .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.business-team-card__actions,
+.business-dialog__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+.business-team-card__actions .btn,
+.business-dialog__actions .btn {
+  min-height: var(--ds-control-min-target);
+}
+
+.business-operations-card__numbers {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-2);
+}
+
+.business-operations-card__numbers div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: var(--ds-space-1);
+}
+
+.business-operations-card__numbers dt {
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+}
+
+/* Número operacional: Inter 600 com algarismos tabulares (DS-TYPO-001). */
+.business-operations-card__numbers dd {
+  margin: 0;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: var(--ds-type-heading-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.business-operations-card__catalog a {
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  display: grid;
+  align-content: center;
+  gap: var(--ds-space-1);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+  text-decoration: none;
+}
+
+.business-operations-card__catalog a:hover {
+  background: var(--color-off-white);
+}
+
+.business-operations-card__catalog a:focus-visible,
+.business-team-member__identity:focus-visible,
+.business-team-remove:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}
+
+.business-reputation-card__quote {
+  margin: 0;
+  padding-left: var(--ds-space-3);
+  border-left: 0.125rem solid var(--color-border-light);
+  color: var(--color-ink);
+  font-size: var(--ds-type-secondary);
+}
+
+.business-reputation-card__quote cite {
+  margin-top: var(--ds-space-1);
+  display: block;
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+  font-style: normal;
+}
+
+.business-gallery-card__strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--ds-space-2);
+}
+
+.business-gallery-card__strip img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--ds-radius-sm);
+}
+
+/* Janelas sob demanda da equipe. */
+.business-dialog {
+  width: min(32rem, calc(100vw - var(--ds-space-8)));
+  max-height: calc(100dvh - var(--ds-space-8));
+  padding: 0;
+  overflow: auto;
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-lg);
+  background: var(--color-white);
+  color: var(--color-ink);
+}
+
+.business-dialog::backdrop {
+  background: var(--color-ink);
+  opacity: 0.6;
+}
+
+/* Sem JavaScript a janela vem aberta do servidor, fora do fluxo modal. */
+.business-dialog[open]:not(:modal) {
+  position: fixed;
+  top: var(--ds-space-8);
+  z-index: 90;
+  box-shadow: var(--shadow-medium);
+}
+
+.business-dialog__body {
+  padding: var(--ds-space-6);
+  display: grid;
+  gap: var(--ds-space-4);
+}
+
+.business-dialog__body h2,
+.business-dialog__body h3,
+.business-dialog__body p {
+  margin: 0;
+}
+
+.business-dialog__body h2 {
+  font-size: var(--ds-type-heading-sm);
+}
+
+.business-dialog__body h3,
+.business-dialog__body p {
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-secondary);
+}
+
+.business-dialog__body h3 {
+  font-weight: 600;
+}
+
+.business-dialog__field {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.business-dialog__label {
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.business-dialog__input {
+  width: 100%;
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+  background: var(--color-white);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--ds-type-body);
+}
+
+.business-dialog__input:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0;
+}
+
+.business-dialog__actions {
+  justify-content: flex-end;
+}
+
+.business-team-list {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.business-team-member {
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+}
+
+.business-team-member__identity {
+  color: inherit;
+  text-decoration: none;
+}
+
+.business-team-remove {
+  min-height: var(--ds-control-min-target);
+  padding: 0 var(--ds-space-3);
+  border: 0;
+  background: transparent;
+  color: var(--ds-feedback-danger-on-light);
+  font: inherit;
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Títulos do painel são operacionais: Inter, sem destaque editorial
+   (FE-DEC-001–010; Playfair fica para conteúdo editorial). */
+.business-feed h1,
+.business-feed .feed-rail-card h2,
+.business-feed .feed-completion-card h2,
+.business-feed .feed-empty h2 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.business-feed h1 {
+  font-size: var(--ds-type-heading-md);
+  line-height: 1.25;
+}
+
+.business-feed .feed-rail-card h2,
+.business-feed .feed-completion-card h2,
+.business-feed .feed-empty h2 {
+  font-size: var(--ds-type-body);
+  line-height: 1.35;
+}
+
+.business-feed .feed-main__header {
+  min-height: 0;
+}
+
+.business-team-card__actions .btn {
+  flex: 1 1 auto;
+  justify-content: center;
+}
+
+.business-gallery-card__strip img {
+  overflow: hidden;
+  background: var(--color-off-white);
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+}
+
+/* Textos secundários herdados do feed: contraste AA nos cartões claros. */
+.business-feed .feed-profile-stats span,
+.business-feed .feed-profile-card__identity > span:not(.feed-avatar),
+.business-feed .feed-rail-empty,
+.business-feed .feed-main__header p,
+.business-feed .feed-completion-card p,
+.business-feed .feed-empty p {
+  color: var(--color-text-on-light-secondary);
+}

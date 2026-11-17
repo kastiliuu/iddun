@@ -26,6 +26,7 @@ import { ApiError } from "@/api/client";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
+import { AppHeader } from "@/components/navigation/AppHeader";
 import {
   fonts,
   makeStyles,
@@ -350,26 +351,7 @@ export default function BookingsScreen() {
           false
         }
       >
-        <View
-          style={
-            styles.header
-          }
-        >
-
-          <Text
-            style={
-              styles.headerTitle
-            }
-          >
-            Meus agendamentos
-          </Text>
-
-          <View
-            style={
-              styles.headerPlaceholder
-            }
-          />
-        </View>
+        <AppHeader title="Meus agendamentos" bleed={spacing.lg} />
 
         <View
           style={
@@ -845,46 +827,9 @@ const useStyles =
           spacing.lg,
       },
 
-      header: {
-        minHeight: 52,
-        flexDirection:
-          "row",
-        alignItems:
-          "center",
-        justifyContent:
-          "space-between",
-      },
 
-      headerButton: {
-        width:
-          touch.minimum,
-        height:
-          touch.minimum,
-        borderRadius:
-          radius.pill,
-        alignItems:
-          "center",
-        justifyContent:
-          "center",
-        backgroundColor:
-          colors.glassSoft,
-        borderWidth: 1,
-        borderColor:
-          colors.glassBorder,
-      },
 
-      headerTitle: {
-        color:
-          colors.onSurface,
-        fontFamily:
-          fonts.sansSemiBold,
-        fontSize: 14,
-      },
 
-      headerPlaceholder: {
-        width:
-          touch.minimum,
-      },
 
       intro: {
         marginTop:

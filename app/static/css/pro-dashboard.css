@@ -1517,3 +1517,23 @@
     height: 18px;
   }
 }
+
+/* DS-V1-01-D01: o cabeçalho Pro segue o contrato das outras áreas logadas
+   (sino com as não lidas reais ao lado do menu Eu). O sino é o mesmo
+   componente do cabeçalho comum (.feed-header__nav-item). */
+.pro-header__inner {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.pro-header__tools {
+  justify-self: end;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+.pro-header__bell {
+  min-width: var(--ds-control-min-target);
+  min-height: var(--ds-control-min-target);
+}

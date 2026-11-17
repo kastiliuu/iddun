@@ -33,6 +33,7 @@ import {
   type ExploreCategory,
 } from "@/components/ExploreResults";
 
+import { AppHeader } from "@/components/navigation/AppHeader";
 import {
   fonts,
   makeStyles,
@@ -306,47 +307,7 @@ export default function DiscoverScreen() {
         }
         keyboardShouldPersistTaps="handled"
       >
-        <View
-          style={
-            styles.header
-          }
-        >
-          <Image
-            source={require(
-              "../../../assets/branding/iddun-logo-white.png",
-            )}
-            style={
-              styles.logo
-            }
-            contentFit="contain"
-            accessibilityLabel="IDDUN"
-          />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Notificações"
-            onPress={() =>
-              router.push(
-                "/notifications",
-              )
-            }
-            style={({
-              pressed,
-            }) => [
-              styles.headerButton,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Icon
-              name="bell"
-              size={20}
-              color={
-                colors.onSurface
-              }
-            />
-          </Pressable>
-        </View>
+        <AppHeader />
 
         <View
           style={
@@ -813,51 +774,8 @@ const useStyles =
         paddingTop: 54,
       },
 
-      header: {
-        minHeight: 52,
 
-        paddingHorizontal:
-          spacing.lg,
 
-        flexDirection:
-          "row",
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "space-between",
-      },
-
-      logo: {
-        width: 112,
-        height: 34,
-      },
-
-      headerButton: {
-        width:
-          touch.minimum,
-
-        height:
-          touch.minimum,
-
-        borderRadius:
-          radius.pill,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
-        backgroundColor:
-          colors.glassSoft,
-
-        borderWidth: 1,
-
-        borderColor:
-          colors.glassBorder,
-      },
 
       intro: {
         paddingHorizontal:

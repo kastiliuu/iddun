@@ -19,6 +19,7 @@ import {
   spacing,
   touch,
   useTheme,
+  ThemeScope,
 } from "@/theme";
 
 type IDDUNNowCardProps = {
@@ -130,10 +131,13 @@ export function IDDUNNowCard({
         />
 
         <View style={styles.badgeWrap}>
-          <AvailabilityBadge
-            label={timeLabel}
-            urgent={urgent}
-          />
+          {/* Sobre a foto: sempre no tema escuro. */}
+          <ThemeScope scheme="dark">
+            <AvailabilityBadge
+              label={timeLabel}
+              urgent={urgent}
+            />
+          </ThemeScope>
         </View>
 
         <View style={styles.mediaContent}>
@@ -231,6 +235,8 @@ export function IDDUNNowCard({
   );
 }
 
+// Texto sobre foto: branco e Mist fixos nos dois temas (a camada escura
+// sobre a imagem não muda com o tema; DS-V1-01-D03).
 const useStyles = makeStyles((colors) => ({
   card: {
     width: 290,
@@ -284,7 +290,7 @@ const useStyles = makeStyles((colors) => ({
 
   serviceName: {
     maxWidth: 220,
-    color: colors.onSurface,
+    color: colors.white,
     fontFamily: fonts.display,
     fontSize: 24,
     lineHeight: 29,
@@ -308,7 +314,7 @@ const useStyles = makeStyles((colors) => ({
 
   location: {
     flex: 1,
-    color: colors.onSurfaceSecondary,
+    color: colors.mist,
     fontFamily: fonts.sans,
     fontSize: 11,
     lineHeight: 14,
@@ -316,7 +322,7 @@ const useStyles = makeStyles((colors) => ({
 
   price: {
     flexShrink: 0,
-    color: colors.onSurface,
+    color: colors.white,
     fontFamily: fonts.sansSemiBold,
     fontSize: 14,
     lineHeight: 18,

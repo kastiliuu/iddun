@@ -1,186 +1,293 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 {% from 'auth/_macros.html' import field_errors %}
+{#
+  Painel Business em feed (P-004 / F16; ID-SOC-R1-06). Reusa a composição
+  do feed: à esquerda a identidade real da empresa e os atalhos; no centro
+  o compositor (só para quem pode publicar como a empresa) e as publicações
+  reais dela; à direita a equipe, a operação e a reputação em cartões
+  compactos. Os formulários de equipe abrem sob demanda numa janela; as
+  rotas, validações e permissões são as de antes. Nenhum dado de exemplo.
+#}
 
 {% block title %}IDDUN Business | {{ establishment.name }}{% endblock %}
-{% block body_class %}platform-page platform-dashboard-page{% endblock %}
-{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
+{% block body_class %}platform-page platform-dashboard-page business-feed-page{% endblock %}
+{% block styles %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/posts.css') }}">
+{% endblock %}
+
+{% set owner = access.role == 'owner' %}
+{% set active_team = establishment.active_memberships %}
+{% set pending_team = establishment.pending_memberships %}
+{% set panel_url = url_for('business.dashboard', slug=establishment.slug) %}
+{% set public_url = url_for('public.establishment_detail', slug=establishment.slug) %}
+
+{% macro team_avatar(professional) -%}
+<span class="business-team-avatar {% if professional.avatar_url %}has-image{% endif %}" {% if professional.avatar_url %}style="background-image:url('{{ professional.avatar_url|media_url }}')"{% endif %} aria-hidden="true">{% if not professional.avatar_url %}<span class="ds-avatar-initials ds-avatar-initials--fill">{{ professional.display_name|initials }}</span>{% endif %}</span>
+{%- endmacro %}
 
 {% block content %}
-<section class="platform-dashboard-hero platform-dashboard-hero--business">
-  <div class="container platform-dashboard-hero__inner">
-    <div class="platform-dashboard-identity">
-      <div class="platform-dashboard-avatar platform-dashboard-avatar--business {% if establishment.logo_url %}has-image{% endif %}" {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}>{% if not establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill" aria-hidden="true">{{ establishment.name|initials }}</span>{% endif %}</div>
-      <div>
-        <span class="platform-kicker">IDDUN BUSINESS · {{ establishment.plan_tier|upper }}</span>
-        <h1>{{ establishment.name }}</h1>
-        <p>{{ establishment.neighborhood or establishment.category|title }}{% if establishment.city %} · {{ establishment.city }}{% endif %}</p>
-      </div>
-    </div>
-    <div class="platform-dashboard-hero__actions">
-      <a class="btn btn-outline" href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}" target="_blank">Ver como cliente {{ icon('chevron-right') }}</a>
-      {% if access.role == 'owner' %}<a class="btn btn-primary" href="{{ url_for('business.edit', slug=establishment.slug) }}">Editar empresa</a>{% endif %}
-    </div>
-  </div>
-</section>
-
 {% include 'components/business-nav.html' %}
 
-<section class="platform-dashboard-content" id="business-overview">
-  <div class="container platform-dashboard-grid">
-    <main class="platform-dashboard-main">
-      {% if not establishment.is_active and establishment.published_at is none %}
-      {# Onboarding PR 3: rascunho só vai ao ar pela publicação explícita. #}
-      <section class="platform-completion-card platform-completion-card--draft">
-        <div><span class="platform-kicker">RASCUNHO</span><h2>Esta página ainda não está no ar.</h2><p>{% if access.role == 'owner' %}Termine o cadastro e publique quando estiver pronto.{% else %}Quem é proprietário termina o cadastro e publica.{% endif %}</p></div>
-        {% if access.role == 'owner' %}<a class="btn btn-primary" href="{{ url_for('business.onboarding_resume', establishment_id=establishment.id) }}">Continuar cadastro</a>{% endif %}
-      </section>
-      {% elif not establishment.is_active %}
-      {# PR 4: desativada pela moderação; o dono não republica pelo cadastro. #}
-      <section class="platform-completion-card platform-completion-card--draft">
-        <div><span class="platform-kicker">FORA DO AR</span><h2>Esta página foi desativada.</h2><p>Ela não pode ser publicada por aqui. Fale com o suporte do IDDUN.</p></div>
-      </section>
-      {% elif establishment.profile_completion < 100 %}
-      <section class="platform-completion-card" data-reveal>
-        <div><span class="platform-kicker">PRESENÇA DA MARCA</span><h2>Página {{ establishment.profile_completion }}% completa.</h2><p>A empresa conecta a marca ao quadro de profissionais, sem misturar identidades.</p></div>
+<div class="feed-shell business-feed" id="business-overview">
+  <aside class="feed-sidebar" aria-label="Identidade e atalhos da empresa">
+    <section class="feed-profile-card business-identity">
+      <a class="feed-profile-card__cover" href="{{ public_url }}" aria-label="Ver a página pública de {{ establishment.name }}">
+        <span class="feed-profile-card__spark">✦</span>
+      </a>
+      <div class="feed-profile-card__identity">
+        <span
+          class="feed-avatar feed-avatar--profile{% if establishment.logo_url %} has-image{% endif %}"
+          {% if establishment.logo_url %}style="background-image:url('{{ establishment.logo_url|media_url }}')"{% endif %}
+          aria-hidden="true"
+        >{% if not establishment.logo_url %}<span class="ds-avatar-initials ds-avatar-initials--fill">{{ establishment.name|initials }}</span>{% endif %}</span>
+        <strong>{{ establishment.name }}</strong>
+        <span>{{ establishment.neighborhood or establishment.category|title }}{% if establishment.city %} · {{ establishment.city }}{% endif %}</span>
+        <small>IDDUN Business · {{ establishment.plan_tier|title }}</small>
+      </div>
+      <div class="feed-profile-stats">
+        <div><strong>{{ followers }}</strong><span>{{ 'Seguidor' if followers == 1 else 'Seguidores' }}</span></div>
+        <div><strong>{{ posts_total }}</strong><span>{{ 'Publicação' if posts_total == 1 else 'Publicações' }}</span></div>
+      </div>
+      <nav class="feed-profile-links" aria-label="Atalhos da empresa">
+        <a href="{{ public_url }}">{{ icon('store') }}<span>Ver como cliente</span>{{ icon('chevron-right') }}</a>
+        {% if owner %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }}<span>Editar empresa</span>{{ icon('chevron-right') }}</a>{% endif %}
+        <a href="{{ url_for('business.insights', slug=establishment.slug) }}">{{ icon('star') }}<span>Indicadores</span>{{ icon('chevron-right') }}</a>
+        <a href="{{ url_for('public.professionals') }}">{{ icon('users') }}<span>Encontrar profissionais</span>{{ icon('chevron-right') }}</a>
+      </nav>
+    </section>
+
+    {% if not establishment.is_active and establishment.published_at is none %}
+    {# Onboarding PR 3: rascunho só vai ao ar pela publicação explícita. #}
+    <section class="feed-completion-card business-status-card">
+      <span class="feed-rail-card__eyebrow">RASCUNHO</span>
+      <h2>Esta página ainda não está no ar.</h2>
+      <p>{% if owner %}Termine o cadastro e publique quando estiver pronto.{% else %}Quem é proprietário termina o cadastro e publica.{% endif %}</p>
+      {% if owner %}<a href="{{ url_for('business.onboarding_resume', establishment_id=establishment.id) }}">Continuar cadastro {{ icon('chevron-right') }}</a>{% endif %}
+    </section>
+    {% elif not establishment.is_active %}
+    {# PR 4: desativada pela moderação; o dono não republica pelo cadastro. #}
+    <section class="feed-completion-card business-status-card">
+      <span class="feed-rail-card__eyebrow">FORA DO AR</span>
+      <h2>Esta página foi desativada.</h2>
+      <p>Ela não pode ser publicada por aqui. Fale com o suporte do IDDUN.</p>
+    </section>
+    {% elif establishment.profile_completion < 100 %}
+    <section class="feed-completion-card">
+      <div class="feed-completion-card__top">
+        <span>{{ icon('store') }}</span>
         <strong>{{ establishment.profile_completion }}%</strong>
-        <div class="platform-progress__bar"><span style="width:{{ establishment.profile_completion }}%"></span></div>
-      </section>
+      </div>
+      <h2>Página {{ establishment.profile_completion }}% completa.</h2>
+      <p>Complete os dados da empresa para aparecer melhor para quem procura.</p>
+      <div class="feed-completion-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ establishment.profile_completion }}">
+        <span style="width:{{ establishment.profile_completion }}%"></span>
+      </div>
+      {% if owner %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">Completar página {{ icon('chevron-right') }}</a>{% endif %}
+    </section>
+    {% endif %}
+
+    <section class="feed-rail-card business-gallery-card" id="business-gallery" aria-labelledby="business-gallery-title">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">GALERIA</span>
+          <h2 id="business-gallery-title">O espaço em imagens</h2>
+        </div>
+      </div>
+      {% if establishment.gallery_items %}
+      <div class="business-gallery-card__strip">
+        {% for item in establishment.gallery_items[:3] %}<img src="{{ item.image_url|media_url }}" alt="Foto do espaço {{ loop.index }} de {{ establishment.name }}" loading="lazy">{% endfor %}
+      </div>
+      {% else %}
+      <p class="feed-rail-empty">Ainda não há fotos do espaço.</p>
       {% endif %}
+      {% if owner %}<a class="feed-rail-card__footer-link" href="{{ url_for('business.edit', slug=establishment.slug) }}#galeria">Gerenciar fotos {{ icon('chevron-right') }}</a>{% endif %}
+    </section>
+  </aside>
 
-      <section class="business-operations" id="business-operations" aria-labelledby="business-operations-title">
-        <div class="business-operations__intro">
-          <span class="platform-kicker">OPERAÇÃO DO ESTABELECIMENTO</span>
+  <section class="feed-main" aria-labelledby="business-title">
+    <header class="feed-main__header business-feed__header">
+      <div>
+        <span class="feed-kicker">PAINEL DA EMPRESA</span>
+        <h1 id="business-title">{{ establishment.name }}</h1>
+        <p>Publicações da empresa e o que precisa da sua atenção hoje.</p>
+      </div>
+    </header>
+
+    {% if composer_author %}
+      {% include 'feed/_composer.html' %}
+    {% elif owner and not establishment.is_active %}
+      <p class="business-feed__notice">{{ icon('info') }} A empresa publica novidades quando a página estiver no ar.</p>
+    {% elif not owner %}
+      <p class="business-feed__notice">{{ icon('info') }} Só quem é proprietário publica em nome da empresa.</p>
+    {% endif %}
+
+    {% if feed_items %}
+    <div class="feed-masonry business-feed__posts" id="business-posts">
+      {% include 'feed/_cards.html' %}
+    </div>
+    {% if posts_total > feed_items|length %}
+    <div class="feed-load-more">
+      <a class="btn btn-outline btn-outline--light" href="{{ url_for('public.establishment_tab', slug=establishment.slug, tab='publicacoes') }}">Ver todas as {{ posts_total }} publicações</a>
+    </div>
+    {% endif %}
+    {% else %}
+    <section class="feed-empty" id="business-posts">
+      <h2>A empresa ainda não publicou.</h2>
+      <p>{% if composer_author %}Mostre um trabalho, uma novidade ou os bastidores do espaço.{% else %}As publicações da empresa aparecem aqui.{% endif %}</p>
+    </section>
+    {% endif %}
+  </section>
+
+  <aside class="feed-rail" aria-label="Equipe, operação e reputação">
+    <section class="feed-rail-card business-team-card" id="business-team" aria-labelledby="business-team-title">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">EQUIPE</span>
+          <h2 id="business-team-title">{% if active_team %}{{ active_team|length }} {{ 'profissional' if active_team|length == 1 else 'profissionais' }} na equipe{% else %}Equipe ainda vazia{% endif %}</h2>
+        </div>
+      </div>
+      {% if active_team %}
+      <ul class="business-team-card__list">
+        {% for membership in active_team[:3] %}
+        <li>
+          {{ team_avatar(membership.professional) }}
+          <span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty or 'Profissional' }}</small></span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% if active_team|length > 3 %}<p class="business-team-card__more">e mais {{ active_team|length - 3 }}</p>{% endif %}
+      {% else %}
+      <p class="feed-rail-empty">Convide quem já tem perfil profissional no IDDUN. A pessoa precisa aceitar antes de aparecer na página.</p>
+      {% endif %}
+      {% if pending_team %}
+      <p class="business-team-card__pending">{{ icon('clock') }} {{ pending_team|length }} {{ 'convite aguardando' if pending_team|length == 1 else 'convites aguardando' }} resposta</p>
+      {% endif %}
+      <div class="business-team-card__actions">
+        <a class="btn btn-outline btn-outline--light btn-sm" href="{{ url_for('business.dashboard', slug=establishment.slug, equipe='gerenciar') }}#business-team" data-dialog-open="business-team-manage">Gerenciar equipe</a>
+        <a class="btn btn--ds-primary btn-sm" href="{{ url_for('business.dashboard', slug=establishment.slug, equipe='convidar') }}#business-team" data-dialog-open="business-team-invite">Convidar profissional</a>
+      </div>
+    </section>
+
+    <section class="feed-rail-card business-operations-card" id="business-operations" aria-labelledby="business-operations-title">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">OPERAÇÃO</span>
           <h2 id="business-operations-title">Visão geral da operação</h2>
-          <p>Dados reais das reservas e dos serviços vinculados a este estabelecimento.</p>
         </div>
-        <div class="business-operations__metrics">
-          <article class="business-operations__metric">
-            <span>{{ icon('calendar') }}</span>
-            <strong>{{ confirmed_bookings }}</strong>
-            <small>Reservas confirmadas</small>
-            <p>Total de reservas atualmente confirmadas neste estabelecimento.</p>
-          </article>
-          <article class="business-operations__metric">
-            <span>{{ icon('scissors') }}</span>
-            <strong>{{ published_experiences }}</strong>
-            <small>Serviços publicados</small>
-            <p>Experiências publicadas e vinculadas à empresa.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="platform-metric-grid" data-reveal-stagger>
-        <article><span>{{ icon('users') }}</span><strong>{{ establishment.active_memberships|length }}</strong><small>profissionais na equipe</small></article>
-        <article><span>{{ icon('star') }}</span><strong>{{ reputation.average_label }}</strong><small>{% if reputation.count %}{{ reputation.count }} avaliações verificadas{% else %}sem avaliações ainda{% endif %}</small></article>
-        <article><span>{{ icon('check') }}</span><strong>{% if reputation.recommendation_percent is not none %}{{ reputation.recommendation_percent }}%{% else %}—{% endif %}</strong><small>clientes que recomendam</small></article>
-        <article><span>{{ icon('message-circle') }}</span><strong>{{ whatsapp_clicks }}</strong><small>cliques no WhatsApp pelo IDDUN</small></article>
-      </section>
-
-      <section class="platform-panel business-catalog" id="business-catalog" aria-labelledby="business-catalog-title">
-        <header class="platform-panel__head">
-          <div>
-            <span class="platform-kicker">CATÁLOGO EMPRESARIAL</span>
-            <h2 id="business-catalog-title">Serviços publicados</h2>
-            <a class="btn btn-outline" href="{{ url_for('business.services', slug=establishment.slug) }}">Ver catálogo completo</a>
-            <p>Visualização dos serviços realmente publicados nesta empresa. Alterações comerciais compartilhadas terão aprovação específica.</p>
-          </div>
-        </header>
+      </div>
+      <dl class="business-operations-card__numbers">
+        <div><dt>Reservas confirmadas</dt><dd>{{ confirmed_bookings }}</dd></div>
+        <div><dt>Serviços publicados</dt><dd>{{ published_experiences }}</dd></div>
+        <div><dt>Cliques no WhatsApp</dt><dd>{{ whatsapp_clicks }}</dd></div>
+      </dl>
+      <div id="business-catalog" class="business-operations-card__catalog">
         {% if catalog_preview %}
-          <ul class="business-catalog__list">
-            {% for service in catalog_preview %}
-              <li class="business-catalog__item">
-                <div class="business-catalog__details">
-                  <strong>{{ service.title }}</strong>
-                  <span>{{ service.professional.display_name }} · {{ service.duration_minutes }} min</span>
-                </div>
-                <div class="business-catalog__value">
-                  <strong>R$ {{ '%.2f'|format(service.price)|replace('.', ',') }}</strong>
-                  <a href="{{ url_for('public.experience_detail', slug=service.slug) }}">Ver serviço {{ icon('chevron-right') }}</a>
-                </div>
-              </li>
-            {% endfor %}
-          </ul>
-          {% if published_experiences > catalog_preview|length %}
-            <p class="business-catalog__footnote">Exibindo os seis serviços publicados mais recentes da empresa.</p>
-          {% endif %}
-        {% else %}
-          <div class="platform-empty">Ainda não há serviços publicados vinculados a este estabelecimento.</div>
-        {% endif %}
-      </section>
-
-      <section class="platform-panel" id="business-team" data-reveal>
-        <header class="platform-panel__head">
-          <div><span class="platform-kicker">EQUIPE</span><h2>Quadro de profissionais</h2><p>Convide quem já possui perfil profissional. A pessoa precisa aceitar antes de aparecer publicamente.</p></div>
-        </header>
-
-        {% if establishment.pending_memberships %}
-        <div class="platform-pending-team">
-          <span class="platform-status-badge">{{ establishment.pending_memberships|length }} convite(s) aguardando resposta</span>
-          {% for membership in establishment.pending_memberships %}
-          <div class="platform-team-member platform-team-member--pending">
-            <span class="platform-team-member__identity"><span class="platform-team-avatar {% if membership.professional.avatar_url %}has-image{% endif %}" {% if membership.professional.avatar_url %}style="background-image:url('{{ membership.professional.avatar_url|media_url }}')"{% endif %}>{{ membership.professional.display_name[:1] }}</span><span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }} · aguardando aceite</small></span></span>
-          </div>
-          {% endfor %}
-        </div>
-        {% endif %}
-
-        {% if establishment.active_memberships %}
-        <div class="platform-team-list">
-          {% for membership in establishment.active_memberships %}
-          <div class="platform-team-member">
-            <a href="{{ url_for('public.professional_detail', slug=membership.professional.slug) }}" class="platform-team-member__identity">
-              <span class="platform-team-avatar {% if membership.professional.avatar_url %}has-image{% endif %}" {% if membership.professional.avatar_url %}style="background-image:url('{{ membership.professional.avatar_url|media_url }}')"{% endif %}>{{ membership.professional.display_name[:1] }}</span>
-              <span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }}{% if membership.is_primary %} · local principal{% endif %}</small></span>
+        <ul>
+          {% for service in catalog_preview[:3] %}
+          <li>
+            <a href="{{ url_for('public.experience_detail', slug=service.slug) }}">
+              <strong>{{ service.title }}</strong>
+              <small>{{ service.professional.display_name }} · {{ service.duration_minutes }} min · R$ {{ '%.2f'|format(service.price)|replace('.', ',') }}</small>
             </a>
-            <form method="post" action="{{ url_for('business.remove_team_member', slug=establishment.slug, membership_id=membership.id) }}">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="platform-inline-danger">Remover</button>
-            </form>
-          </div>
+          </li>
           {% endfor %}
-        </div>
+        </ul>
         {% else %}
-          {% if not establishment.pending_memberships %}<div class="platform-empty">Sua equipe ainda está vazia. Envie o primeiro convite usando o e-mail da conta IDDUN do profissional.</div>{% endif %}
+        <p class="feed-rail-empty">Ainda não há serviços publicados vinculados a este estabelecimento.</p>
         {% endif %}
+      </div>
+      <a class="feed-rail-card__footer-link" href="{{ url_for('business.bookings', slug=establishment.slug) }}">Abrir agenda {{ icon('chevron-right') }}</a>
+      <a class="feed-rail-card__footer-link" href="{{ url_for('business.services', slug=establishment.slug) }}">Ver catálogo completo {{ icon('chevron-right') }}</a>
+    </section>
 
-        <form method="post" class="platform-team-form" novalidate>
-          {{ team_form.hidden_tag() }}
-          <div class="platform-field">{{ team_form.email.label(class_='platform-label') }}{{ team_form.email(class_='platform-input', placeholder='profissional@email.com') }}{{ field_errors(team_form.email) }}</div>
-          <div class="platform-field">{{ team_form.role_name.label(class_='platform-label') }}{{ team_form.role_name(class_='platform-input', placeholder='Ex.: Hair Stylist') }}{{ field_errors(team_form.role_name) }}</div>
-          <div class="platform-team-form__action">{{ team_form.submit(class_='btn btn-primary') }}</div>
-        </form>
-      </section>
-
-
-      <section class="platform-panel" id="business-reputation" data-reveal>
-        <header class="platform-panel__head"><div><span class="platform-kicker">REPUTAÇÃO DA EMPRESA</span><h2>Avaliações verificadas</h2><p>A nota do estabelecimento é separada da reputação dos profissionais da equipe.</p></div></header>
-        {% if establishment.reviews_received %}<div class="platform-review-list">{% for review in establishment.reviews_received[:3] %}{% if review.is_visible %}<article><div><strong>{{ review.client.user.name.split()[0] }}</strong><span>{{ review.rating }} ★</span></div>{% if review.comment %}<p>“{{ review.comment }}”</p>{% endif %}<small>{{ icon('shield-check') }} Atendimento verificado · {% if review.recommended %}recomenda o estabelecimento{% else %}sem recomendação{% endif %}</small></article>{% endif %}{% endfor %}</div>{% else %}<div class="platform-empty">As avaliações da empresa aparecerão depois de atendimentos concluídos.</div>{% endif %}
-      </section>
-      <section class="platform-panel" id="business-gallery" data-reveal>
-        <header class="platform-panel__head"><div><span class="platform-kicker">GALERIA</span><h2>O espaço em imagens</h2></div>{% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}#galeria">Gerenciar</a>{% endif %}</header>
-        {% if establishment.gallery_items %}
-        <div class="platform-portfolio-strip">
-          {% for item in establishment.gallery_items[:6] %}<img src="{{ item.image_url|media_url }}" alt="{{ establishment.name }}" loading="lazy">{% endfor %}
+    <section class="feed-rail-card business-reputation-card" id="business-reputation" aria-labelledby="business-reputation-title">
+      <div class="feed-rail-card__head">
+        <div>
+          <span class="feed-rail-card__eyebrow">REPUTAÇÃO DA EMPRESA</span>
+          <h2 id="business-reputation-title">{% if reputation.count %}{{ reputation.average_label }} ★ em {{ reputation.count }} {{ 'avaliação' if reputation.count == 1 else 'avaliações' }}{% else %}Sem avaliações ainda{% endif %}</h2>
         </div>
-        {% else %}<div class="platform-empty">Adicione fotos para transformar a página em uma apresentação visual da marca.</div>{% endif %}
-      </section>
-    </main>
+      </div>
+      {% if reputation.count %}
+        {% if reputation.recommendation_percent is not none %}<p class="business-reputation-card__line">{{ reputation.recommendation_percent }}% dos clientes recomendam.</p>{% endif %}
+        {% set latest = establishment.reviews_received|selectattr('is_visible')|list %}
+        {% if latest and latest[0].comment %}
+        <blockquote class="business-reputation-card__quote">“{{ latest[0].comment }}”<cite>{{ latest[0].client.user.name.split()[0] }} · atendimento verificado</cite></blockquote>
+        {% endif %}
+      {% else %}
+      <p class="feed-rail-empty">As avaliações aparecem depois de atendimentos concluídos. A nota da empresa é separada da nota de cada profissional.</p>
+      {% endif %}
+      <a class="feed-rail-card__footer-link" href="{{ public_url }}">Ver na página pública {{ icon('chevron-right') }}</a>
+    </section>
+  </aside>
+</div>
 
-    <aside class="platform-dashboard-side">
-      <section class="platform-panel platform-panel--dark">
-        <span class="platform-kicker">ATALHOS</span>
-        {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa {{ icon('chevron-right') }}</a>{% endif %}
-        <a href="{{ url_for('public.establishment_detail', slug=establishment.slug) }}">{{ icon('store') }} Página pública {{ icon('chevron-right') }}</a>
-        <a href="{{ url_for('public.professionals') }}">{{ icon('users') }} Encontrar profissionais {{ icon('chevron-right') }}</a>
-      </section>
-      <section class="platform-panel"><span class="platform-kicker">PLANO</span><h3>IDDUN Business Free</h3><p>Empresas entram gratuitamente nesta fase. A base já diferencia Business Free de planos pagos futuros.</p></section>
-    </aside>
+{# ---- Equipe: janelas sob demanda (ID-SOC-R1-06). Mesmos formulários. ---- #}
+<dialog class="business-dialog" id="business-team-invite" aria-labelledby="business-team-invite-title" data-dialog {% if team_dialog == 'convidar' %}open{% endif %}>
+  <form method="post" action="{{ panel_url }}" class="business-dialog__body" novalidate>
+    {{ team_form.hidden_tag() }}
+    <h2 id="business-team-invite-title">Convidar profissional</h2>
+    <p>Use o e-mail da conta IDDUN de quem já tem perfil profissional. A pessoa precisa aceitar antes de aparecer na página.</p>
+    <div class="business-dialog__field">{{ team_form.email.label(class_='business-dialog__label') }}{{ team_form.email(class_='business-dialog__input', placeholder='profissional@email.com') }}{{ field_errors(team_form.email) }}</div>
+    <div class="business-dialog__field">{{ team_form.role_name.label(class_='business-dialog__label') }}{{ team_form.role_name(class_='business-dialog__input', placeholder='Ex.: Hair Stylist') }}{{ field_errors(team_form.role_name) }}</div>
+    <div class="business-dialog__actions">
+      <a class="btn btn-outline btn-outline--light" href="{{ panel_url }}#business-team" data-dialog-close>Cancelar</a>
+      {{ team_form.submit(class_='btn btn--ds-primary') }}
+    </div>
+  </form>
+</dialog>
+
+<dialog class="business-dialog" id="business-team-manage" aria-labelledby="business-team-manage-title" data-dialog {% if team_dialog == 'gerenciar' %}open{% endif %}>
+  <div class="business-dialog__body">
+    <h2 id="business-team-manage-title">Equipe de {{ establishment.name }}</h2>
+    {% if pending_team %}
+    <h3>Aguardando resposta</h3>
+    <div class="business-team-list">
+      {% for membership in pending_team %}
+      <div class="business-team-member">
+        <span class="business-team-member__identity">{{ team_avatar(membership.professional) }}<span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }} · aguardando aceite</small></span></span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if active_team %}
+    <h3>Na equipe</h3>
+    <div class="business-team-list">
+      {% for membership in active_team %}
+      <div class="business-team-member">
+        <a href="{{ url_for('public.professional_detail', slug=membership.professional.slug) }}" class="business-team-member__identity">
+          {{ team_avatar(membership.professional) }}
+          <span><strong>{{ membership.professional.display_name }}</strong><small>{{ membership.role_name or membership.professional.primary_specialty }}{% if membership.is_primary %} · local principal{% endif %}</small></span>
+        </a>
+        <form method="post" action="{{ url_for('business.remove_team_member', slug=establishment.slug, membership_id=membership.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="business-team-remove" aria-label="Remover {{ membership.professional.display_name }} da equipe">Remover</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if not active_team and not pending_team %}
+    <p>Sua equipe ainda está vazia. Envie o primeiro convite usando o e-mail da conta IDDUN do profissional.</p>
+    {% endif %}
+    <div class="business-dialog__actions">
+      <a class="btn btn-outline btn-outline--light" href="{{ panel_url }}#business-team" data-dialog-close>Fechar</a>
+      <a class="btn btn--ds-primary" href="{{ url_for('business.dashboard', slug=establishment.slug, equipe='convidar') }}#business-team" data-dialog-open="business-team-invite">Convidar profissional</a>
+    </div>
   </div>
-</section>
+</dialog>
+
+<div class="feed-toast" role="status" aria-live="polite" hidden data-feed-toast></div>
+{% include 'posts/_report_dialog.html' %}
 {% endblock %}
 
 {% block mobile_bottom_nav %}
 {% from 'components/_bottom_nav.html' import business_bottom_nav with context %}
 {{ business_bottom_nav(establishment, access) }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/posts.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dialogs.js') }}" defer></script>
 {% endblock %}

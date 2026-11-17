@@ -1692,7 +1692,9 @@
     padding-inline: 7px;
   }
 
-  .feed-header__nav-item span {
+  /* Só o rótulo some; o ícone com contador (Favoritos, Notificações)
+     também é um span e continuava escondido junto. */
+  .feed-header__nav-item > span:not(.feed-header__icon-wrap) {
     display: none;
   }
 

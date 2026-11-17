@@ -9,6 +9,7 @@ import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import { Icon, type IconName } from "@/components/Icon";
+import { ContextPill } from "@/components/navigation/ContextPill";
 import {
   fonts,
   makeStyles,
@@ -99,12 +100,15 @@ export function ContextScreen({
   title,
   description,
   notice,
+  contextLabel,
   children,
 }: {
   eyebrow: string;
   title: string;
   description?: string;
   notice?: string;
+  /** DS-V1-01-D02: contexto ativo mostrado ao lado do avatar. */
+  contextLabel?: string;
   children: React.ReactNode;
 }) {
   const styles = useStyles();
@@ -131,6 +135,7 @@ export function ContextScreen({
           >
             <Icon name="arrow-left" size={20} color={colors.onSurface} />
           </Pressable>
+          {contextLabel ? <ContextPill label={contextLabel} /> : null}
         </View>
 
         <Text style={styles.eyebrow}>{eyebrow}</Text>
@@ -169,6 +174,8 @@ const useStyles = makeStyles((colors) => ({
     minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
   },
 
   headerButton: {
