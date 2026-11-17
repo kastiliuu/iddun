@@ -134,20 +134,37 @@ def refresh_experience_slots(experience, now=None, commit=True):
     return changed
 
 
-def available_slots_for_experience(experience, now=None):
+def available_slots_for_experience(experience, now=None, viewer_client=None):
+    """Horários livres do serviço. QA-004: com `viewer_client`, o horário
+    retido por essa mesma cliente (hold ainda válido) também entra, para
+    ela poder voltar a ele ou trocar; para os outros ele segue oculto."""
     refresh_experience_slots(experience, now=now, commit=True)
     now = as_utc(now or utcnow())
+    own_held = set()
+    if viewer_client is not None:
+        own_held = set(
+            db.session.scalars(
+                select(Booking.slot_id).where(
+                    Booking.client_id == viewer_client.id,
+                    Booking.experience_id == experience.id,
+                    Booking.status == BookingStatus.PENDING,
+                )
+            ).all()
+        )
     return [
         slot
         for slot in experience.slots
-        if slot.status == SlotStatus.AVAILABLE
+        if (
+            slot.status == SlotStatus.AVAILABLE
+            or (slot.status == SlotStatus.HELD and slot.id in own_held)
+        )
         and as_utc(slot.starts_at) > now
         and now < booking_deadline(slot)
     ]
 
 
-def grouped_available_slots(experience, now=None):
-    slots = available_slots_for_experience(experience, now=now)
+def grouped_available_slots(experience, now=None, viewer_client=None):
+    slots = available_slots_for_experience(experience, now=now, viewer_client=viewer_client)
     timezone_name = experience.professional.timezone
     groups = defaultdict(list)
     for slot in slots:
@@ -159,6 +176,7 @@ def grouped_available_slots(experience, now=None):
                 "ends_at": to_local(slot.ends_at, timezone_name),
                 "deadline": to_local(booking_deadline(slot), timezone_name),
                 "cutoff_minutes": effective_cutoff_minutes(slot),
+                "mine": slot.status == SlotStatus.HELD,
             }
         )
     weekdays = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]

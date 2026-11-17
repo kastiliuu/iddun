@@ -59,6 +59,43 @@
         </div>
       </section>
 
+      {# DEC-ID-062/166: aparelhos com o app IDDUN conectados à conta. #}
+      <section class="account-panel" id="aparelhos" aria-labelledby="app-sessions-title">
+        <div class="account-panel__head">
+          <div>
+            <span class="account-section-kicker">DISPOSITIVOS E SESSÕES</span>
+            <h2 id="app-sessions-title">Aparelhos com o app conectados</h2>
+            <p>Desconecte um aparelho que você não reconhece. Isso não encerra este navegador.</p>
+          </div>
+        </div>
+        {% if app_sessions %}
+        <ul class="account-session-list">
+          {% for row in app_sessions %}
+          {% set item = row.session %}
+          <li class="account-session">
+            <span class="account-context-card__icon">{{ icon('shield-check') }}</span>
+            <span>
+              <strong>{{ item.device_name or 'Aplicativo IDDUN' }}</strong>
+              <small>{{ {'ios': 'iPhone', 'android': 'Android'}.get(item.platform, 'Aparelho') }} · último acesso em {{ row.seen.strftime('%d/%m/%Y às %H:%M') }}</small>
+            </span>
+            <form method="post" action="{{ url_for('account.revoke_app_session', session_id=item.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="account-session__revoke" aria-label="Desconectar {{ item.device_name or 'Aplicativo IDDUN' }}">Desconectar</button>
+            </form>
+          </li>
+          {% endfor %}
+        </ul>
+        {% if app_sessions|length > 1 %}
+        <form method="post" action="{{ url_for('account.revoke_all_app_sessions') }}" class="account-session-all">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="account-session__revoke">Desconectar todos os aparelhos</button>
+        </form>
+        {% endif %}
+        {% else %}
+        <p class="account-session-empty">Nenhum aparelho com o app está conectado à sua conta.</p>
+        {% endif %}
+      </section>
+
       <section class="account-panel" aria-labelledby="delete-account-title">
         <div class="account-panel__head">
           <div>

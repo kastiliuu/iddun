@@ -536,8 +536,8 @@ experience-detail-page visual-v2-page
 
                       <button
                         type="submit"
-                        class="slot-button"
-                        aria-label="Selecionar horário das {{ slot.starts_at.strftime('%H:%M') }}"
+                        class="slot-button{% if slot.mine %} slot-button--mine{% endif %}"
+                        aria-label="{% if slot.mine %}Seu horário em andamento: continuar com {{ slot.starts_at.strftime('%H:%M') }}{% else %}Selecionar horário das {{ slot.starts_at.strftime('%H:%M') }}{% endif %}"
                       >
 
                         <strong>
@@ -545,7 +545,7 @@ experience-detail-page visual-v2-page
                         </strong>
 
                         <span>
-                          Reservar
+                          {% if slot.mine %}Seu horário em andamento{% else %}Reservar{% endif %}
                         </span>
 
                       </button>

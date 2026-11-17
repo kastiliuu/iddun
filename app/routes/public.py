@@ -600,9 +600,16 @@ def experience_detail(slug):
             db_experience.professional_id
         )
 
+        # QA-004: quem já reteve um horário o vê na lista ao voltar.
+        viewer_client = (
+            current_user.client_profile
+            if current_user.is_authenticated
+            else None
+        )
         slot_groups = (
             grouped_available_slots(
-                db_experience
+                db_experience,
+                viewer_client=viewer_client,
             )
         )
 
