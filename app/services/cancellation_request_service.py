@@ -1,9 +1,9 @@
 from sqlalchemy import select
 
 from app.extensions import db
-from app.models.booking import BookingStatus
+from app.models.booking import BookingActorRole, BookingEventAction, BookingStatus
 from app.models.cancellation_request import CancellationRequest
-from app.services.booking_service import BookingStateError, cancel_booking
+from app.services.booking_service import BookingStateError, cancel_booking, record_booking_event
 from app.services import notification_events
 from app.services.time_service import as_utc, utcnow
 
@@ -66,6 +66,11 @@ def execute_cancellation(booking, user, reason):
     # The underlying operation validates booking state and slot timing.
     # Never acknowledge a request until its booking cancellation commits.
     cancel_booking(booking, reason=reason[:255], commit=False)
+    # D-NV07-02: a efetivação pelo executor também entra na trilha.
+    record_booking_event(
+        booking, actor=user, actor_role=BookingActorRole.EXECUTOR,
+        action=BookingEventAction.CANCELLED, reason=reason[:255],
+    )
     item.status = "executed"
     item.resolved_at = utcnow()
     item.resolved_by_user_id = user.id

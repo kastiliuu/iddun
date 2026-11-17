@@ -193,3 +193,63 @@ class Booking(db.Model):
     @property
     def status_label(self):
         return BookingStatus.LABELS.get(self.status, self.status.title())
+
+
+class BookingEventAction:
+    CANCELLED = "cancelled"
+    COMPLETED = "completed"
+    NO_SHOW = "no_show"
+
+    VALUES = (CANCELLED, COMPLETED, NO_SHOW)
+
+
+class BookingActorRole:
+    EXECUTOR = "executor"
+    ADMIN = "admin"
+
+    VALUES = (EXECUTOR, ADMIN)
+
+
+class BookingEvent(db.Model):
+    """Trilha das ações operacionais numa reserva (D-NV07-01/02/03).
+
+    Quem fez, em que papel, o quê, com qual motivo e quando. Só acrescenta:
+    nada aqui é editado depois de gravado.
+    """
+
+    __tablename__ = "booking_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    booking_id = db.Column(
+        db.Integer,
+        db.ForeignKey("bookings.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    actor_role = db.Column(db.String(16), nullable=False)
+    action = db.Column(db.String(24), nullable=False)
+    reason = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    booking = db.relationship(
+        "Booking",
+        backref=db.backref("events", order_by="BookingEvent.id", passive_deletes=True),
+    )
+    actor = db.relationship("User")
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "action IN ('cancelled', 'completed', 'no_show')",
+            name="ck_booking_event_action",
+        ),
+        db.CheckConstraint(
+            "actor_role IN ('executor', 'admin')",
+            name="ck_booking_event_actor_role",
+        ),
+    )

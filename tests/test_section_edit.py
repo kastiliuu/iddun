@@ -228,7 +228,7 @@ def test_business_editor_has_the_page_sections(app, client):
     html = client.get(f"/business/{slug}/editar").get_data(as_text=True)
 
     sections = re.findall(r'<input type="hidden" name="section" value="([a-z]+)">', html)
-    assert sections == ["identidade", "sobre", "atendimento", "funcionamento", "localizacao", "contatos", "galeria"]
+    assert sections == ["identidade", "sobre", "atendimento", "funcionamento", "localizacao", "contatos", "reservas", "galeria"]
     assert "Definir depois" not in html
     assert f'href="/business/{slug}/servicos"' in html
 

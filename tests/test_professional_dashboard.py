@@ -411,11 +411,24 @@ def test_pro_can_cancel_own_future_booking(
         user_id,
     )
 
+    # D-NV07-02: sem motivo, nada muda.
+    refused = client.post(
+        (
+            "/pro/painel/reservas/"
+            f"{booking_id}/cancelar"
+        ),
+        follow_redirects=False,
+    )
+    assert refused.status_code == 302
+    with app.app_context():
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED
+
     response = client.post(
         (
             "/pro/painel/reservas/"
             f"{booking_id}/cancelar"
         ),
+        data={"motivo": "Imprevisto do profissional"},
         follow_redirects=False,
     )
 

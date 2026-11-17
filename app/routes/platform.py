@@ -72,9 +72,9 @@ from app.services.availability_service import AvailabilityError, create_availabi
 from app.services.booking_service import (
     BookingStateError,
     block_slot_manual,
-    cancel_booking,
     complete_booking,
     mark_booking_no_show,
+    cancel_booking_with_reason,
     reopen_manual_slot,
 )
 from app.services.google_calendar_service import (
@@ -119,6 +119,7 @@ from app.services.onboarding_steps import (
     business_journey,
     professional_journey,
 )
+from app.models.booking import BookingActorRole
 from app.models.work_post import ReportCategory, WorkPostAuthorType
 from app.services.beauty_graph_service import follower_count
 from app.services.feed_service import author_posts_page
@@ -300,6 +301,7 @@ BUSINESS_EDIT_SECTIONS = {
     ),
     "localizacao": ("address_line1", "address_line2", "neighborhood", "city", "state", "postal_code"),
     "contatos": ("phone", "whatsapp_enabled", "email", "instagram"),
+    "reservas": ("no_show_tolerance_minutes",),
     "galeria": ("gallery_files",),
 }
 BUSINESS_EDIT_SECTION_LABELS = {
@@ -309,6 +311,7 @@ BUSINESS_EDIT_SECTION_LABELS = {
     "funcionamento": "Funcionamento",
     "localizacao": "Localização",
     "contatos": "Contatos",
+    "reservas": "Reservas",
     "galeria": "Galeria",
 }
 # Seções salvas pelo mesmo serviço do cadastro por etapas.
@@ -875,7 +878,8 @@ def dashboard_complete_booking(
 
     try:
         complete_booking(
-            booking
+            booking,
+            actor=current_user,
         )
     except BookingStateError as exc:
         flash(
@@ -905,8 +909,11 @@ def dashboard_no_show_booking(
     )
 
     try:
+        # D-NV07-03: justificativa curta obrigatória, autor e tolerância.
         mark_booking_no_show(
-            booking
+            booking,
+            reason=request.form.get("motivo"),
+            actor=current_user,
         )
     except BookingStateError as exc:
         flash(
@@ -937,13 +944,16 @@ def dashboard_cancel_booking(
 
     try:
         request_reason = (request.form.get("motivo") or "").strip()
+        # D-NV07-02: o executor cancela direto, com motivo obrigatório e
+        # trilha; com pedido pendente, efetiva o pedido (também com motivo).
         if pending_cancellation(booking.id):
-            execute_cancellation(
-                booking, current_user, request_reason or "Solicitação aceita pelo executor"
-            )
+            execute_cancellation(booking, current_user, request_reason)
         else:
-            cancel_booking(
-                booking, reason=request_reason or "Cancelada pelo profissional"
+            cancel_booking_with_reason(
+                booking,
+                actor=current_user,
+                actor_role=BookingActorRole.EXECUTOR,
+                reason=request_reason,
             )
         try:
             delete_booking_event(booking)
@@ -2935,6 +2945,8 @@ def edit(slug):
                         establishment.state = form.state.data.strip().upper()
                     if changes("postal_code"):
                         establishment.postal_code = (form.postal_code.data or "").strip() or None
+                    if changes("no_show_tolerance_minutes"):
+                        establishment.no_show_tolerance_minutes = form.no_show_tolerance_minutes.data
                     if changes("logo_focus_x"):
                         establishment.logo_focus_x = _focus_value(form.logo_focus_x.data)
                         establishment.logo_focus_y = _focus_value(form.logo_focus_y.data)

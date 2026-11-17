@@ -1405,7 +1405,16 @@ def test_v1_cancellation_and_no_show_update_business_without_completed_value(
     _login_session(client, pro_user_id)
     g.pop("_login_user", None)
 
-    cancelled = client.post(f"/pro/painel/reservas/{cancelled_id}/cancelar")
+    # D-NV07-02: sem motivo o cancelamento direto é recusado.
+    refused = client.post(f"/pro/painel/reservas/{cancelled_id}/cancelar")
+    assert refused.status_code == 302
+    with app.app_context():
+        assert db.session.get(Booking, cancelled_id).status == BookingStatus.CONFIRMED
+
+    cancelled = client.post(
+        f"/pro/painel/reservas/{cancelled_id}/cancelar",
+        data={"motivo": "Imprevisto do executor"},
+    )
     assert cancelled.status_code == 302
     with app.app_context():
         cancelled_booking = db.session.get(Booking, cancelled_id)
@@ -1414,18 +1423,35 @@ def test_v1_cancellation_and_no_show_update_business_without_completed_value(
         assert cancelled_booking.slot.status == SlotStatus.AVAILABLE
 
     # A no-show must not be recorded before the appointment begins.
-    early = client.post(f"/pro/painel/reservas/{no_show_id}/no-show")
+    early = client.post(f"/pro/painel/reservas/{no_show_id}/no-show", data={"motivo": "Não veio"})
     assert early.status_code == 302
     with app.app_context():
         booking = db.session.get(Booking, no_show_id)
         assert booking.status == BookingStatus.CONFIRMED
         after_start = booking.slot.starts_at + timedelta(minutes=1)
+        after_tolerance = booking.slot.starts_at + timedelta(minutes=16)
 
+    # D-NV07-03: dentro da tolerância (padrão 15 min) ainda não vale.
     monkeypatch.setattr(
         "app.services.booking_service.utcnow",
         lambda: after_start,
     )
-    marked = client.post(f"/pro/painel/reservas/{no_show_id}/no-show")
+    client.post(f"/pro/painel/reservas/{no_show_id}/no-show", data={"motivo": "Não veio"})
+    with app.app_context():
+        assert db.session.get(Booking, no_show_id).status == BookingStatus.CONFIRMED
+
+    monkeypatch.setattr(
+        "app.services.booking_service.utcnow",
+        lambda: after_tolerance,
+    )
+    # Sem justificativa, recusado mesmo depois da tolerância.
+    client.post(f"/pro/painel/reservas/{no_show_id}/no-show")
+    with app.app_context():
+        assert db.session.get(Booking, no_show_id).status == BookingStatus.CONFIRMED
+    marked = client.post(
+        f"/pro/painel/reservas/{no_show_id}/no-show",
+        data={"motivo": "Sem aviso até 20 min depois"},
+    )
     assert marked.status_code == 302
     with app.app_context():
         booking = db.session.get(Booking, no_show_id)
