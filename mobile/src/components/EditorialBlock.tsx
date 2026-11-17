@@ -159,6 +159,8 @@ export function EditorialBlock({
   );
 }
 
+// Texto sobre foto: branco e Mist fixos nos dois temas (a camada escura
+// sobre a imagem não muda com o tema; DS-V1-01-D03).
 const useStyles = makeStyles((colors) => ({
   container: {
     width: "100%",
@@ -237,7 +239,7 @@ const useStyles = makeStyles((colors) => ({
     flexShrink: 1,
 
     color:
-      colors.onSurfaceSecondary,
+      colors.mist,
 
     fontFamily:
       fonts.sansMedium,
@@ -253,7 +255,7 @@ const useStyles = makeStyles((colors) => ({
     maxWidth: 300,
 
     color:
-      colors.onSurface,
+      colors.white,
 
     fontFamily:
       fonts.display,
@@ -271,7 +273,7 @@ const useStyles = makeStyles((colors) => ({
       spacing.sm,
 
     color:
-      colors.onSurfaceSecondary,
+      colors.mist,
 
     fontFamily:
       fonts.sans,
@@ -295,7 +297,7 @@ const useStyles = makeStyles((colors) => ({
 
   actionText: {
     color:
-      colors.onSurface,
+      colors.white,
 
     fontFamily:
       fonts.sansMedium,

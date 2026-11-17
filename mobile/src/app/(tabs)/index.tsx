@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Image } from "expo-image";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 
 import {
@@ -41,12 +40,9 @@ import { CommentsSheet } from "@/components/CommentsSheet";
 import { EditorialBlock } from "@/components/EditorialBlock";
 import { EmptyState } from "@/components/EmptyState";
 import { IDDUNNowCard } from "@/components/IDDUNNowCard";
-import { Icon } from "@/components/Icon";
 import { PostCard } from "@/components/PostCard";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { SectionHeader } from "@/components/SectionHeader";
-import { Avatar } from "@/components/Avatar";
-import { ContextPill } from "@/components/navigation/ContextPill";
 import { StoryAvatar } from "@/components/StoryAvatar";
 
 import {
@@ -54,6 +50,7 @@ import {
   useStoreVersion,
 } from "@/store/local";
 
+import { AppHeader } from "@/components/navigation/AppHeader";
 import {
   fonts,
   makeStyles,
@@ -543,110 +540,17 @@ export default function HomeScreen() {
           />
         }
       >
-        <View
-          style={
-            styles.header
-          }
-        >
-          <View style={styles.brandRow}>
-            <Image
-                source={require("../../../assets/branding/iddun-logo-white.png")}
-                style={styles.logo}
-                contentFit="contain"
-                accessibilityLabel="IDDUN"
-            />
-        </View>
-
-          <View style={styles.headerActions}>
-          {/* PR 1 (FE-DEC-030): Criar é ação do feed, não aba. */}
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Criar publicação ou serviço"
-            onPress={() => router.push("/create")}
-            style={({ pressed }) => [
-              styles.createButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Icon name="plus" size={16} color={colors.onBrandPrimary} />
-            <Text style={styles.createButtonText}>Criar</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={
-              notificationsCount >
-              0
-                ? `${notificationsCount} notificações não lidas`
-                : "Notificações"
-            }
-            onPress={() =>
-              router.push(
-                "/notifications",
-              )
-            }
-            style={({
-              pressed,
-            }) => [
-              styles.notificationButton,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Icon
-              name="bell"
-              size={20}
-              color={
-                colors.onSurface
-              }
-            />
-
-            {notificationsCount >
-            0 ? (
-              <View
-                style={
-                  styles.notificationBadge
-                }
-              >
-                <Text
-                  style={
-                    styles.notificationBadgeText
-                  }
-                >
-                  {notificationsCount >
-                  9
-                    ? "9+"
-                    : notificationsCount}
-                </Text>
-              </View>
-            ) : null}
-          </Pressable>
-
-          {/* Visitante: o avatar leva ao login pela troca de contexto.
-              Com conta, o contexto ativo aparece na linha de baixo. */}
-          {!store.getUser() ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Trocar de contexto"
-            onPress={() => router.push("/contexts")}
-            style={({ pressed }) => [
-              styles.avatarButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Avatar
-              name="IDDUN"
-              size={36}
-            />
-          </Pressable>
-          ) : null}
-          </View>
-        </View>
-
-        {/* DS-V1-01-D02: avatar + contexto ativo, sempre visível. */}
-        <View style={styles.contextRow}>
-          <ContextPill label="Cliente" />
-        </View>
+        {/* DS-V1-01-D01/D02: cabeçalho único, com Criar como ação do feed
+            (FE-DEC-030) e as não lidas reais no sino. */}
+        <AppHeader
+          unreadCount={notificationsCount}
+          action={{
+            icon: "plus",
+            text: "Criar",
+            label: "Criar publicação ou serviço",
+            onPress: () => router.push("/create"),
+          }}
+        />
 
         <View
           style={
@@ -1120,36 +1024,8 @@ const useStyles =
         paddingTop: 54,
       },
 
-      header: {
-        minHeight: 52,
 
-        paddingHorizontal:
-          spacing.lg,
 
-        flexDirection:
-          "row",
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "space-between",
-      },
-
-      brandRow: {
-        flexDirection:
-          "row",
-
-        alignItems:
-          "center",
-
-        gap: spacing.xs,
-      },
-
-      logo: {
-        width: 112,
-        height: 34,
-      },
 
       brand: {
         color:
@@ -1174,130 +1050,13 @@ const useStyles =
         fontSize: 13,
       },
 
-      contextRow: {
-        paddingHorizontal: spacing.lg,
-        marginBottom: spacing.md,
-        flexDirection: "row",
-      },
 
-      headerActions: {
-        flexDirection:
-          "row",
 
-        alignItems:
-          "center",
 
-        gap: spacing.sm,
-      },
 
-      createButton: {
-        minHeight:
-          touch.minimum,
 
-        paddingHorizontal:
-          spacing.md,
 
-        flexDirection:
-          "row",
 
-        alignItems:
-          "center",
-
-        gap: spacing.xs,
-
-        borderRadius: 999,
-
-        backgroundColor:
-          colors.plum,
-      },
-
-      createButtonText: {
-        color:
-          colors.onBrandPrimary,
-
-        fontFamily:
-          fonts.sansSemiBold,
-
-        fontSize: 13,
-      },
-
-      avatarButton: {
-        width:
-          touch.minimum,
-
-        height:
-          touch.minimum,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-      },
-
-      notificationButton: {
-        width:
-          touch.minimum,
-
-        height:
-          touch.minimum,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
-        borderRadius: 999,
-
-        backgroundColor:
-          colors.glassSoft,
-
-        borderWidth: 1,
-
-        borderColor:
-          colors.glassBorder,
-      },
-
-      notificationBadge: {
-        position:
-          "absolute",
-
-        top: 4,
-        right: 3,
-
-        minWidth: 17,
-        height: 17,
-
-        paddingHorizontal: 4,
-
-        borderRadius: 9,
-
-        alignItems:
-          "center",
-
-        justifyContent:
-          "center",
-
-        backgroundColor:
-          colors.plum,
-
-        borderWidth: 2,
-
-        borderColor:
-          colors.surface,
-      },
-
-      notificationBadgeText: {
-        color:
-          colors.onBrandPrimary,
-
-        fontFamily:
-          fonts.sansSemiBold,
-
-        fontSize: 8,
-        lineHeight: 10,
-      },
 
       feedSwitcher: {
         marginTop:

@@ -289,9 +289,20 @@ export function usePreferredScheme() {
  */
 const ThemeScopeContext = createContext<ColorScheme>("dark");
 
-export function ThemeScope({ children }: { children: ReactNode }) {
-  const scheme = usePreferredScheme();
-  return createElement(ThemeScopeContext.Provider, { value: scheme }, children);
+export function ThemeScope({
+  children,
+  scheme,
+}: {
+  children: ReactNode;
+  /** Fixa o tema do trecho (ex.: cabeçalho preto, DS-V1-01-D01). */
+  scheme?: ColorScheme;
+}) {
+  const preferred = usePreferredScheme();
+  return createElement(
+    ThemeScopeContext.Provider,
+    { value: scheme ?? preferred },
+    children,
+  );
 }
 
 export function useScheme() {

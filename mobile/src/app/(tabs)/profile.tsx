@@ -19,6 +19,7 @@ import {
   store,
   useStoreVersion,
 } from "@/store/local";
+import { AppHeader } from "@/components/navigation/AppHeader";
 import {
   fonts,
   makeStyles,
@@ -199,32 +200,7 @@ export default function ProfileScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.header}>
-            <Image
-              source={require(
-                "../../../assets/branding/iddun-logo-white.png"
-              )}
-              style={styles.logo}
-              contentFit="contain"
-              accessibilityLabel="IDDUN"
-            />
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Notificações"
-              onPress={() => router.push("/notifications")}
-              style={({ pressed }) => [
-                styles.headerButton,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Icon
-                name="bell"
-                size={20}
-                color={colors.onSurface}
-              />
-            </Pressable>
-          </View>
+          <AppHeader bleed={spacing.lg} />
 
           <View style={styles.guestHero}>
             <View style={styles.guestIcon}>
@@ -323,34 +299,14 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Image
-            source={require(
-              "../../../assets/branding/iddun-logo-white.png"
-            )}
-            style={styles.logo}
-            contentFit="contain"
-            accessibilityLabel="IDDUN"
-          />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dispositivos e sessões"
-            onPress={() =>
-              router.push("/sessions")
-            }
-            style={({ pressed }) => [
-              styles.headerButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Icon
-              name="smartphone"
-              size={19}
-              color={colors.onSurface}
-            />
-          </Pressable>
-        </View>
+        <AppHeader
+          bleed={spacing.lg}
+          action={{
+            icon: "smartphone",
+            label: "Dispositivos e sessões",
+            onPress: () => router.push("/sessions"),
+          }}
+        />
 
         <View style={styles.profileHeader}>
           <Avatar
@@ -641,26 +597,6 @@ const useStyles = makeStyles((colors) => ({
   content: {
     paddingTop: 54,
     paddingHorizontal: spacing.lg,
-  },
-  header: {
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  logo: {
-    width: 112,
-    height: 34,
-  },
-  headerButton: {
-    width: touch.minimum,
-    height: touch.minimum,
-    borderRadius: radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.glassSoft,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
   },
   guestHero: {
     marginTop: spacing.xxxl,

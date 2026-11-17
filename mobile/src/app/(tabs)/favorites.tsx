@@ -22,7 +22,6 @@ import {
 
 import { EmptyState } from "@/components/EmptyState";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { Icon } from "@/components/Icon";
 import { ProfessionalCard } from "@/components/ProfessionalCard";
 import { ServiceCard } from "@/components/ServiceCard";
 
@@ -31,6 +30,7 @@ import {
   useStoreVersion,
 } from "@/store/local";
 
+import { AppHeader } from "@/components/navigation/AppHeader";
 import {
   fonts,
   makeStyles,
@@ -862,47 +862,13 @@ export default function FavoritesScreen() {
           false
         }
       >
-        <View
-          style={
-            styles.header
-          }
-        >
-          <Image
-            source={require(
-              "../../../assets/branding/iddun-logo-white.png",
-            )}
-            style={
-              styles.logo
-            }
-            contentFit="contain"
-            accessibilityLabel="IDDUN"
-          />
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Descobrir"
-            onPress={() =>
-              router.push(
-                "/(tabs)/discover",
-              )
-            }
-            style={({
-              pressed,
-            }) => [
-              styles.headerButton,
-              pressed &&
-                styles.pressed,
-            ]}
-          >
-            <Icon
-              name="search"
-              size={19}
-              color={
-                colors.onSurface
-              }
-            />
-          </Pressable>
-        </View>
+        <AppHeader
+          action={{
+            icon: "search",
+            label: "Descobrir",
+            onPress: () => router.push("/(tabs)/discover"),
+          }}
+        />
 
         <View
           style={
@@ -1090,40 +1056,8 @@ const useStyles =
         paddingTop: 54,
       },
 
-      header: {
-        minHeight: 52,
-        paddingHorizontal:
-          spacing.lg,
-        flexDirection:
-          "row",
-        alignItems:
-          "center",
-        justifyContent:
-          "space-between",
-      },
 
-      logo: {
-        width: 112,
-        height: 34,
-      },
 
-      headerButton: {
-        width:
-          touch.minimum,
-        height:
-          touch.minimum,
-        borderRadius:
-          radius.pill,
-        alignItems:
-          "center",
-        justifyContent:
-          "center",
-        backgroundColor:
-          colors.glassSoft,
-        borderWidth: 1,
-        borderColor:
-          colors.glassBorder,
-      },
 
       intro: {
         marginTop:
