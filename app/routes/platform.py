@@ -14,7 +14,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
@@ -59,6 +59,7 @@ from app.models.establishment import (
     ProfessionalEstablishmentMembership,
 )
 from app.models.experience import Experience, ExperienceStatus
+from app.models.professional_schedule import ProfessionalWorkingHour
 from app.models.professional_experience import ProfessionalExperience
 from app.models.professional import (
     ProfessionalPortfolioItem,
@@ -1086,6 +1087,21 @@ def _service_establishment_choices(profile):
     ]
 
 
+def _working_days(profile):
+    """Dias com jornada semanal cadastrada (só leitura, etapa 3 do Wizard A)."""
+    return db.session.scalar(
+        select(func.count(func.distinct(ProfessionalWorkingHour.weekday))).where(
+            ProfessionalWorkingHour.professional_id == profile.id
+        )
+    ) or 0
+
+
+def _service_catalog_url(service_id=None):
+    if service_id is None:
+        return url_for("professional.services")
+    return url_for("professional.services", servico=service_id)
+
+
 @professional_bp.route("/servicos/novo", methods=["GET", "POST"])
 @login_required
 def create_service():
@@ -1137,6 +1153,7 @@ def create_service():
     return render_template(
         "platform/professional-service-form.html",
         form=form,
+        working_days=_working_days(profile),
         current_page="professional-services",
     )
 
@@ -1182,7 +1199,8 @@ def edit_service(service_id):
         ]
         return render_template(
             "platform/professional-service-form.html",
-            form=form, service=item, current_page="professional-services",
+            form=form, service=item, working_days=_working_days(profile),
+            current_page="professional-services",
         ), 200
 
     if form.validate_on_submit():
@@ -1218,12 +1236,13 @@ def edit_service(service_id):
             if new_image_url and old_image_url:
                 delete_uploaded_file(old_image_url)
             flash("Serviço atualizado.", "success")
-            return redirect(url_for("professional.services"))
+            return redirect(_service_catalog_url(item.id))
 
     return render_template(
         "platform/professional-service-form.html",
         form=form,
         service=item,
+        working_days=_working_days(profile),
         current_page="professional-services",
     )
 
@@ -1245,7 +1264,7 @@ def publish_service(service_id):
         abort(404)
     if item.status not in {ExperienceStatus.DRAFT, ExperienceStatus.PAUSED}:
         flash("Este serviço não pode ser publicado neste estado.", "info")
-        return redirect(url_for("professional.services"))
+        return redirect(_service_catalog_url(item.id))
 
     try:
         publish_experience(item)
@@ -1255,7 +1274,7 @@ def publish_service(service_id):
         flash(str(exc), "error")
     else:
         flash("Serviço publicado no IDDUN.", "success")
-    return redirect(url_for("professional.services"))
+    return redirect(_service_catalog_url(item.id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/pausar")
@@ -1275,12 +1294,12 @@ def pause_service(service_id):
         abort(404)
     if item.status != ExperienceStatus.PUBLISHED:
         flash("Somente serviços publicados podem ser pausados.", "info")
-        return redirect(url_for("professional.services"))
+        return redirect(_service_catalog_url(item.id))
 
     item.status = ExperienceStatus.PAUSED
     db.session.commit()
     flash("Serviço pausado. Reservas já confirmadas permanecem válidas.", "info")
-    return redirect(url_for("professional.services"))
+    return redirect(_service_catalog_url(item.id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/horarios")
@@ -1309,7 +1328,7 @@ def create_service_slot(service_id):
         flash(str(exc), "error")
     else:
         flash("Horário disponibilizado para reserva.", "success")
-    return redirect(url_for("professional.services") + f"#servico-{item.id}")
+    return redirect(_service_catalog_url(item.id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/horarios/lote")
@@ -1338,7 +1357,7 @@ def create_service_slots_batch(service_id):
         flash(str(exc), "error")
     else:
         flash(f"{len(created)} horários disponibilizados para reserva.", "success")
-    return redirect(url_for("professional.services") + f"#servico-{item.id}")
+    return redirect(_service_catalog_url(item.id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/horarios/jornada")
@@ -1369,7 +1388,7 @@ def create_service_slots_from_schedule(service_id):
             f"{len(created)} horários abertos conforme sua jornada semanal.",
             "success",
         )
-    return redirect(url_for("professional.services") + f"#servico-{item.id}")
+    return redirect(_service_catalog_url(item.id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/horarios/<int:slot_id>/bloquear")
@@ -1385,7 +1404,7 @@ def block_service_slot(service_id, slot_id):
         flash("Horário bloqueado.", "success")
     else:
         flash("Este horário não pode ser bloqueado.", "error")
-    return redirect(url_for("professional.services") + f"#servico-{service_id}")
+    return redirect(_service_catalog_url(service_id))
 
 
 @professional_bp.post("/servicos/<int:service_id>/horarios/<int:slot_id>/liberar")
@@ -1407,12 +1426,23 @@ def reopen_service_slot(service_id, slot_id):
                 else "O prazo para reservar este horário já terminou.",
                 "success" if slot.status == SlotStatus.AVAILABLE else "info",
             )
-    return redirect(url_for("professional.services") + f"#servico-{service_id}")
+    return redirect(_service_catalog_url(service_id))
+
+
+CATALOG_SLOT_DIALOGS = ("horario", "lote", "jornada")
+CATALOG_NEXT_SLOTS = 12
 
 
 @professional_bp.get("/servicos")
 @login_required
 def services():
+    """Proposta C: catálogo à esquerda, serviço selecionado à direita.
+
+    Só o serviço selecionado carrega horários e formulários de
+    disponibilidade (AC-CAT-02). O parâmetro ?servico= só seleciona
+    serviços do próprio profissional; qualquer outro valor cai no primeiro
+    serviço da lista, sem revelar nada de terceiros (AC-CAT-01).
+    """
     profile = current_user.professional_profile
     if profile is None:
         return redirect(url_for("professional.start"))
@@ -1422,31 +1452,51 @@ def services():
         .where(Experience.professional_id == profile.id)
         .order_by(Experience.created_at.desc(), Experience.id.desc())
     ).all()
-    upcoming = db.session.scalars(
-        select(ExperienceSlot)
-        .where(
-            ExperienceSlot.professional_id == profile.id,
-            ExperienceSlot.starts_at >= utcnow(),
-        )
-        .order_by(ExperienceSlot.starts_at.asc())
-        .limit(100)
-    ).all()
-    slots_by_service = {item.id: [] for item in items}
-    for slot in upcoming:
-        rows = slots_by_service.get(slot.experience_id)
-        if rows is not None and len(rows) < 5:
-            rows.append({
+
+    requested = request.args.get("servico", type=int)
+    selected = next((item for item in items if item.id == requested), None)
+    explicit = selected is not None
+    if selected is None and items:
+        selected = items[0]
+
+    slot_days = []
+    open_dialog = None
+    if selected is not None:
+        upcoming = db.session.scalars(
+            select(ExperienceSlot)
+            .where(
+                ExperienceSlot.professional_id == profile.id,
+                ExperienceSlot.experience_id == selected.id,
+                ExperienceSlot.starts_at >= utcnow(),
+            )
+            .order_by(ExperienceSlot.starts_at.asc())
+            .limit(CATALOG_NEXT_SLOTS)
+        ).all()
+        for slot in upcoming:
+            local = to_local(slot.starts_at, profile.timezone)
+            row = {
                 "id": slot.id,
-                "starts_at": to_local(slot.starts_at, profile.timezone),
+                "starts_at": local,
                 "raw_status": slot.status,
                 "status": SlotStatus.LABELS.get(slot.status, slot.status),
-            })
+            }
+            if slot_days and slot_days[-1]["day"] == local.date():
+                slot_days[-1]["slots"].append(row)
+            else:
+                slot_days.append({"day": local.date(), "slots": [row]})
+        wanted = request.args.get("abrir")
+        if wanted in CATALOG_SLOT_DIALOGS and selected.status == ExperienceStatus.PUBLISHED:
+            open_dialog = wanted
 
     return render_template(
         "platform/professional-services.html",
         profile=profile,
         experiences=items,
-        slots_by_service=slots_by_service,
+        selected=selected,
+        explicit_selection=explicit,
+        slot_days=slot_days,
+        open_dialog=open_dialog,
+        working_days=_working_days(profile),
         ExperienceStatus=ExperienceStatus,
         SlotStatus=SlotStatus,
         current_page="professional-services",
