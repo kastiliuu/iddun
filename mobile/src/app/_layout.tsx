@@ -253,6 +253,10 @@ export default function RootLayout() {
               />
 
               <Stack.Screen
+                name="manage-service/[id]"
+              />
+
+              <Stack.Screen
                 name="create-post"
               />
 

@@ -9,6 +9,7 @@ import {
   type ManagedAvailabilitySlot,
 } from "@/api/services";
 import { Button } from "@/components/Button";
+import { SLOT_STATUS_LABELS } from "@/services/serviceWizard";
 import { makeStyles, spacing, useTheme } from "@/theme";
 
 export default function ServiceAvailabilityScreen() {
@@ -137,7 +138,7 @@ export default function ServiceAvailabilityScreen() {
           slots.map(slot => (
             <View key={slot.id} style={styles.slot}>
               <Text style={styles.label}>{slot.startsAt.replace("T", " ").slice(0, 16)}</Text>
-              <Text style={styles.subtle}>{slot.status}</Text>
+              <Text style={styles.subtle}>{SLOT_STATUS_LABELS[slot.status] ?? slot.status}</Text>
               {(slot.status === "available" || slot.status === "blocked_manual") ? (
                 <Pressable accessibilityRole="button" disabled={slotBusy !== null}
                   accessibilityLabel={(slot.status === "available" ? "Bloquear " : "Reabrir ") + slot.startsAt}
