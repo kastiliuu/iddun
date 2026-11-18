@@ -433,6 +433,15 @@ class BusinessOnboardingForm(IddunForm):
 
 class BusinessEditForm(BusinessOnboardingForm):
     logo_file = FileField("Logo", validators=[Optional(), *IMAGE_VALIDATORS])
+    # D-NV07-03 / V1-CONV-D02: tolerância antes do no-show, de 0 a 60 min.
+    no_show_tolerance_minutes = IntegerField(
+        "Tolerância para não comparecimento (minutos)",
+        validators=[
+            DataRequired(message="Informe de 0 a 60 minutos."),
+            NumberRange(min=0, max=60, message="Use de 0 a 60 minutos."),
+        ],
+        default=15,
+    )
     submit = SubmitField("Salvar empresa")
 
 

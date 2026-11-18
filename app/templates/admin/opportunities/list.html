@@ -27,7 +27,10 @@
       <div class="admin-opportunity-card__actions">
         {% if item.status == SlotStatus.AVAILABLE %}
           <form method="post" action="{{ url_for('admin.opportunity_block', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Bloquear</button></form>
+          {# V1-CONV-D02: gancho de QA só fora de produção. #}
+          {% if config.APP_ENV != 'production' %}
           <form method="post" action="{{ url_for('admin.opportunity_simulate_external_conflict', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Simular Google</button></form>
+          {% endif %}
         {% elif item.status in [SlotStatus.BLOCKED_MANUAL, SlotStatus.BLOCKED_EXTERNAL, SlotStatus.EXPIRED] %}
           <form method="post" action="{{ url_for('admin.opportunity_reopen', slot_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="admin-action-button admin-action-button--compact" type="submit">Recalcular disponibilidade</button></form>
         {% endif %}

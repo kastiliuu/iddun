@@ -26,8 +26,18 @@ class EstablishmentAccessStatus:
     INACTIVE = "inactive"
 
 
+NO_SHOW_TOLERANCE_DEFAULT = 15
+NO_SHOW_TOLERANCE_MAX = 60
+
+
 class Establishment(db.Model):
     __tablename__ = "establishments"
+    __table_args__ = (
+        db.CheckConstraint(
+            "no_show_tolerance_minutes BETWEEN 0 AND 60",
+            name="ck_establishment_no_show_tolerance",
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(160), nullable=False)
@@ -40,6 +50,11 @@ class Establishment(db.Model):
     business_hours = db.Column(db.JSON().with_variant(JSONB(), "postgresql"), nullable=True)
     visual_theme = db.Column(db.String(24), nullable=False, default="beauty")
     plan_tier = db.Column(db.String(24), nullable=False, default="free")
+    # D-NV07-03 / V1-CONV-D02: minutos depois do início para o executor poder
+    # marcar no-show; a dona ajusta de 0 a 60. Padrão 15.
+    no_show_tolerance_minutes = db.Column(
+        db.SmallInteger, nullable=False, default=15, server_default="15"
+    )
     onboarding_completed = db.Column(db.Boolean, nullable=False, default=False)
     published_at = db.Column(db.DateTime(timezone=True), nullable=True)
     phone = db.Column(db.String(32), nullable=True)

@@ -10,6 +10,11 @@ const KNOWN_ADVISORIES = new Set([
   "GHSA-vfj7-8cjw-p6xm", // braces: no upstream fix as of baseline
   "GHSA-86w9-cpqp-85rv", // node-forge: no upstream fix as of baseline
   "GHSA-vcc3-ghjq-m6fr", // decode-uri-component
+  // picomatch <=4.0.7 (ReDoS): sem versão corrigida publicada em 17/11/2026;
+  // entra só por ferramentas de build do Expo SDK 58 (@expo/cli,
+  // @expo/metro-config, metro-file-map) e não vai para o bundle do app.
+  // Aceito pelo responsável na PR #249. Rever quando houver correção.
+  "GHSA-fc5q-39xc-vjpf",
 ]);
 
 function readAudit(path) {

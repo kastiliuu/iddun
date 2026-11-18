@@ -13,6 +13,7 @@ from app.models.booking import (
 from app.services.availability_service import (
     slot_is_urgent,
 )
+from app.services.booking_service import no_show_available_at
 from app.services.time_service import (
     local_naive_to_utc,
     to_local,
@@ -147,6 +148,14 @@ def professional_dashboard_context(
             slot.ends_at,
             profile.timezone,
         )
+        no_show_from = (
+            to_local(
+                no_show_available_at(booking),
+                profile.timezone,
+            )
+            if booking is not None
+            else None
+        )
 
         timeline.append(
             {
@@ -179,12 +188,24 @@ def professional_dashboard_context(
                     and local_start
                     > local_now
                 ),
+                # D-NV07-03: só depois da tolerância da empresa.
                 "can_no_show": (
                     booking is not None
                     and booking.status
                     == BookingStatus.CONFIRMED
+                    and no_show_from is not None
+                    and no_show_from
+                    <= local_now
+                ),
+                "no_show_from": no_show_from,
+                "no_show_pending": (
+                    booking is not None
+                    and booking.status
+                    == BookingStatus.CONFIRMED
+                    and no_show_from is not None
                     and local_start
                     <= local_now
+                    < no_show_from
                 ),
                 "can_complete": (
                     booking is not None

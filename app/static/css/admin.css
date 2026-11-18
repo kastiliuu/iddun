@@ -620,3 +620,25 @@
 @media (max-width:760px) {
   .admin-experience-card__actions .admin-action-button { min-height:44px; }
 }
+/* D-NV07-01: exceção administrativa com motivo obrigatório. */
+.admin-booking-exception {
+  align-items: center;
+}
+
+.admin-booking-exception label {
+  flex-basis: 100%;
+  font-size: var(--ds-type-caption);
+  font-weight: 600;
+}
+
+.admin-booking-exception input {
+  flex: 1 1 100%;
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ds-type-secondary);
+}

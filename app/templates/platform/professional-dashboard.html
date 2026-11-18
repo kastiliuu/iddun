@@ -352,22 +352,33 @@
                 </form>
                 {% endif %}
 
+                {# D-NV07-03: no-show só depois da tolerância, com justificativa
+                   curta e confirmação explícita; nunca automático. #}
                 {% if item.can_no_show %}
-                <form method="post" action="{{ url_for('professional.dashboard_no_show_booking', booking_id=item.booking.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="pro-operation-button" type="submit">
-                    Não compareceu
-                  </button>
-                </form>
+                <details class="pro-operation-confirm">
+                  <summary class="pro-operation-button">Não compareceu</summary>
+                  <form method="post" action="{{ url_for('professional.dashboard_no_show_booking', booking_id=item.booking.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="no-show-reason-{{ item.booking.id }}">Justificativa (obrigatória)</label>
+                    <input id="no-show-reason-{{ item.booking.id }}" name="motivo" maxlength="255" required placeholder="Ex.: sem aviso até 20 min depois do horário">
+                    <button class="pro-operation-button" type="submit">Confirmar não comparecimento</button>
+                  </form>
+                </details>
+                {% elif item.no_show_pending %}
+                <p class="pro-operation-note">No-show a partir das {{ item.no_show_from.strftime('%H:%M') }}</p>
                 {% endif %}
 
+                {# D-NV07-02: cancelamento direto pelo executor, motivo obrigatório. #}
                 {% if item.can_cancel %}
-                <form method="post" action="{{ url_for('professional.dashboard_cancel_booking', booking_id=item.booking.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="pro-operation-button pro-operation-button--danger" type="submit">
-                    Cancelar
-                  </button>
-                </form>
+                <details class="pro-operation-confirm">
+                  <summary class="pro-operation-button pro-operation-button--danger">Cancelar</summary>
+                  <form method="post" action="{{ url_for('professional.dashboard_cancel_booking', booking_id=item.booking.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <label for="cancel-reason-{{ item.booking.id }}">Motivo do cancelamento (obrigatório)</label>
+                    <input id="cancel-reason-{{ item.booking.id }}" name="motivo" maxlength="255" required placeholder="A cliente recebe o aviso do cancelamento">
+                    <button class="pro-operation-button pro-operation-button--danger" type="submit">Confirmar cancelamento</button>
+                  </form>
+                </details>
                 {% endif %}
               </div>
             {% elif item.slot.status == slot_status.AVAILABLE %}

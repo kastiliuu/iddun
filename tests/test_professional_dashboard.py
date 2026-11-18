@@ -411,11 +411,24 @@ def test_pro_can_cancel_own_future_booking(
         user_id,
     )
 
+    # D-NV07-02: sem motivo, nada muda.
+    refused = client.post(
+        (
+            "/pro/painel/reservas/"
+            f"{booking_id}/cancelar"
+        ),
+        follow_redirects=False,
+    )
+    assert refused.status_code == 302
+    with app.app_context():
+        assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED
+
     response = client.post(
         (
             "/pro/painel/reservas/"
             f"{booking_id}/cancelar"
         ),
+        data={"motivo": "Imprevisto do profissional"},
         follow_redirects=False,
     )
 
@@ -733,7 +746,8 @@ def test_pro_can_pause_published_service_without_cancelling_bookings(app, client
 
     response = client.post(f"/pro/servicos/{service_id}/pausar")
     assert response.status_code == 302
-    assert response.headers["Location"].endswith("/pro/servicos")
+    # P-003: volta ao catálogo com o mesmo serviço selecionado.
+    assert response.headers["Location"].endswith(f"/pro/servicos?servico={service_id}")
     with app.app_context():
         assert db.session.get(Experience, service_id).status == ExperienceStatus.PAUSED
         assert db.session.get(Booking, booking_id).status == BookingStatus.CONFIRMED

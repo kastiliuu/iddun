@@ -6,7 +6,16 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
+from app.models.booking import (
+    Booking,
+    BookingActorRole,
+    BookingEvent,
+    BookingEventAction,
+    BookingStatus,
+    ExperienceSlot,
+    SlotStatus,
+)
+from app.models.establishment import NO_SHOW_TOLERANCE_DEFAULT
 from app.models.experience import Experience, ExperienceStatus
 from app.services.time_service import as_utc, local_naive_to_utc, to_local, utcnow
 from app.services import notification_events
@@ -125,20 +134,37 @@ def refresh_experience_slots(experience, now=None, commit=True):
     return changed
 
 
-def available_slots_for_experience(experience, now=None):
+def available_slots_for_experience(experience, now=None, viewer_client=None):
+    """Horários livres do serviço. QA-004: com `viewer_client`, o horário
+    retido por essa mesma cliente (hold ainda válido) também entra, para
+    ela poder voltar a ele ou trocar; para os outros ele segue oculto."""
     refresh_experience_slots(experience, now=now, commit=True)
     now = as_utc(now or utcnow())
+    own_held = set()
+    if viewer_client is not None:
+        own_held = set(
+            db.session.scalars(
+                select(Booking.slot_id).where(
+                    Booking.client_id == viewer_client.id,
+                    Booking.experience_id == experience.id,
+                    Booking.status == BookingStatus.PENDING,
+                )
+            ).all()
+        )
     return [
         slot
         for slot in experience.slots
-        if slot.status == SlotStatus.AVAILABLE
+        if (
+            slot.status == SlotStatus.AVAILABLE
+            or (slot.status == SlotStatus.HELD and slot.id in own_held)
+        )
         and as_utc(slot.starts_at) > now
         and now < booking_deadline(slot)
     ]
 
 
-def grouped_available_slots(experience, now=None):
-    slots = available_slots_for_experience(experience, now=now)
+def grouped_available_slots(experience, now=None, viewer_client=None):
+    slots = available_slots_for_experience(experience, now=now, viewer_client=viewer_client)
     timezone_name = experience.professional.timezone
     groups = defaultdict(list)
     for slot in slots:
@@ -150,6 +176,7 @@ def grouped_available_slots(experience, now=None):
                 "ends_at": to_local(slot.ends_at, timezone_name),
                 "deadline": to_local(booking_deadline(slot), timezone_name),
                 "cutoff_minutes": effective_cutoff_minutes(slot),
+                "mine": slot.status == SlotStatus.HELD,
             }
         )
     weekdays = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
@@ -436,6 +463,46 @@ def confirm_booking(booking_id, client_profile, now=None):
     return booking
 
 
+REASON_MAX = 255
+
+
+def _clean_reason(reason, message):
+    """Motivo obrigatório (D-NV07-01/02/03): texto curto, sem só espaços."""
+    value = " ".join(str(reason or "").split())
+    if not value:
+        raise BookingStateError(message)
+    return value[:REASON_MAX]
+
+
+def record_booking_event(booking, *, actor, actor_role, action, reason=None, now=None):
+    """Grava quem fez o quê, por quê e quando. Não faz commit."""
+    if actor_role not in BookingActorRole.VALUES or action not in BookingEventAction.VALUES:
+        raise ValueError("Evento de reserva inválido.")
+    event = BookingEvent(
+        booking=booking,
+        actor_user_id=getattr(actor, "id", None),
+        actor_role=actor_role,
+        action=action,
+        reason=reason,
+        created_at=as_utc(now or utcnow()),
+    )
+    db.session.add(event)
+    return event
+
+
+def no_show_tolerance_minutes(booking):
+    """Tolerância da empresa da reserva; sem empresa, o padrão (15 min)."""
+    establishment = booking.establishment if booking.establishment_id else None
+    if establishment is None or establishment.no_show_tolerance_minutes is None:
+        return NO_SHOW_TOLERANCE_DEFAULT
+    return establishment.no_show_tolerance_minutes
+
+
+def no_show_available_at(booking):
+    """D-NV07-03: no-show só depois do início mais a tolerância."""
+    return as_utc(booking.slot.starts_at) + timedelta(minutes=no_show_tolerance_minutes(booking))
+
+
 def cancel_booking(booking, reason="Cancelada pelo cliente", now=None, *, commit=True):
     now = as_utc(now or utcnow())
     was_confirmed = (
@@ -492,7 +559,12 @@ def complete_booking(
     booking,
     *,
     now=None,
+    actor=None,
+    actor_role=BookingActorRole.EXECUTOR,
+    reason=None,
 ):
+    """Conclui depois do fim previsto (DEC-ID-144). Com `actor`, grava a
+    trilha; pelo admin, o motivo é obrigatório (D-NV07-01)."""
     now = as_utc(now or utcnow())
 
     if booking.status != BookingStatus.CONFIRMED:
@@ -505,8 +577,18 @@ def complete_booking(
             "O atendimento ainda não terminou."
         )
 
+    if actor_role == BookingActorRole.ADMIN:
+        reason = _clean_reason(reason, "Informe o motivo da exceção administrativa.")
+    elif reason is not None:
+        reason = " ".join(str(reason).split())[:REASON_MAX] or None
+
     booking.status = BookingStatus.COMPLETED
     booking.completed_at = now
+    if actor is not None:
+        record_booking_event(
+            booking, actor=actor, actor_role=actor_role,
+            action=BookingEventAction.COMPLETED, reason=reason, now=now,
+        )
 
     db.session.commit()
 
@@ -519,8 +601,13 @@ def complete_booking(
 def mark_booking_no_show(
     booking,
     *,
+    reason,
+    actor,
+    actor_role=BookingActorRole.EXECUTOR,
     now=None,
 ):
+    """D-NV07-03: nunca automático; só depois do início mais a tolerância da
+    empresa (padrão 15 min), com justificativa curta, autor e data."""
     now = as_utc(now or utcnow())
 
     if booking.status != BookingStatus.CONFIRMED:
@@ -533,11 +620,48 @@ def mark_booking_no_show(
             "O horário do atendimento ainda não começou."
         )
 
+    available_at = no_show_available_at(booking)
+    if available_at > now:
+        minutes = no_show_tolerance_minutes(booking)
+        local = to_local(available_at, booking.professional.timezone)
+        raise BookingStateError(
+            f"Aguarde a tolerância de {minutes} min: o no-show pode ser marcado a partir das {local:%H:%M}."
+        )
+
+    reason = _clean_reason(reason, "Informe uma justificativa curta para o no-show.")
+
     booking.status = BookingStatus.NO_SHOW
     booking.no_show_at = now
+    record_booking_event(
+        booking, actor=actor, actor_role=actor_role,
+        action=BookingEventAction.NO_SHOW, reason=reason, now=now,
+    )
 
     db.session.commit()
 
+    return booking
+
+
+def cancel_booking_with_reason(booking, *, actor, actor_role, reason, now=None):
+    """D-NV07-01/02: cancelamento direto pelo executor ou, em exceção, pelo
+    admin. Motivo obrigatório e trilha; libera o horário pelas regras de
+    sempre (cancel_booking)."""
+    reason = _clean_reason(
+        reason,
+        "Informe o motivo do cancelamento."
+        if actor_role == BookingActorRole.EXECUTOR
+        else "Informe o motivo da exceção administrativa.",
+    )
+    was_confirmed = booking.status == BookingStatus.CONFIRMED
+    now = as_utc(now or utcnow())
+    cancel_booking(booking, reason=reason, now=now, commit=False)
+    record_booking_event(
+        booking, actor=actor, actor_role=actor_role,
+        action=BookingEventAction.CANCELLED, reason=reason, now=now,
+    )
+    db.session.commit()
+    if was_confirmed:
+        notification_events.booking_cancelled(booking)
     return booking
 
 

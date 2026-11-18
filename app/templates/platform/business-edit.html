@@ -112,6 +112,7 @@
           <li><a href="#funcionamento">Funcionamento</a></li>
           <li><a href="#localizacao">Localização</a></li>
           <li><a href="#contatos">Contatos</a></li>
+          <li><a href="#reservas">Reservas</a></li>
           <li><a href="#galeria">Galeria</a></li>
           <li><a href="{{ url_for('business.services', slug=establishment.slug) }}">Serviços {{ icon('chevron-right') }}</a></li>
           <li><a href="{{ url_for('business.dashboard', slug=establishment.slug) }}#business-team">Equipe {{ icon('chevron-right') }}</a></li>
@@ -214,6 +215,13 @@
             {{ form.whatsapp_enabled() }}
             {{ form.whatsapp_enabled.label(class_='platform-label') }}
           </div>
+        </div>
+      {% endcall %}
+
+      {# D-NV07-03: o executor só marca no-show depois desta tolerância. #}
+      {% call section_form('reservas', 'RESERVAS', 'Reservas', 'Depois do horário marcado, quanto tempo o profissional espera antes de poder registrar que a cliente não compareceu. O registro nunca é automático.', 'Salvar tolerância') %}
+        <div class="platform-form-grid">
+          {{ text_field(form.no_show_tolerance_minutes, type='number', min=0, max=60, inputmode='numeric') }}
         </div>
       {% endcall %}
 

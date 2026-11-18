@@ -12,15 +12,22 @@
       <div class="admin-booking-card__head"><span class="admin-status admin-status--{{ item.status }}">{{ item.status_label }}</span><small>#{{ '%04d'|format(item.id) }}</small></div>
       <div class="admin-booking-card__date"><strong>{{ row.local_start.strftime('%H:%M') }}</strong><span>{{ row.local_start.strftime('%d/%m/%Y') }}</span></div>
       <div class="admin-booking-card__copy"><h2>{{ item.experience.title }}</h2><p>{{ item.client.user.name }} · {{ item.professional.display_name }}</p></div>
-      <div class="admin-booking-card__actions">
+      {# D-NV07-01: o admin atua só em exceção justificada; motivo obrigatório,
+         as mesmas regras de horário do executor e trilha com o autor. #}
+      {% if item.status in (BookingStatus.CONFIRMED, BookingStatus.PENDING) %}
+      <form class="admin-booking-card__actions admin-booking-exception" method="post" action="{{ url_for('admin.booking_cancel_admin', booking_id=item.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="admin-reason-{{ item.id }}">Motivo da exceção (obrigatório)</label>
+        <input id="admin-reason-{{ item.id }}" name="motivo" maxlength="255" required>
         {% if item.status == BookingStatus.CONFIRMED %}
-          <form method="post" action="{{ url_for('admin.booking_complete', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Concluir</button></form>
-          <form method="post" action="{{ url_for('admin.booking_no_show', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">No-show</button></form>
-          <form method="post" action="{{ url_for('admin.booking_cancel_admin', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Cancelar</button></form>
-        {% elif item.status == BookingStatus.PENDING %}
-          <form method="post" action="{{ url_for('admin.booking_cancel_admin', booking_id=item.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Cancelar hold</button></form>
+        <button type="submit" formaction="{{ url_for('admin.booking_complete', booking_id=item.id) }}">Concluir</button>
+        <button type="submit" formaction="{{ url_for('admin.booking_no_show', booking_id=item.id) }}">No-show</button>
+        <button type="submit">Cancelar</button>
+        {% else %}
+        <button type="submit">Cancelar hold</button>
         {% endif %}
-      </div>
+      </form>
+      {% endif %}
     </article>
   {% endfor %}
 </div>

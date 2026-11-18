@@ -5,7 +5,7 @@ from flask_login import (
     logout_user,
 )
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.forms.auth import DeleteAccountForm
 from app.forms.profile import ClientProfileForm
 from app.models.booking import BookingStatus
@@ -13,6 +13,12 @@ from app.services.username_service import UsernameError, change_username, next_c
 from app.services.profile_service import ensure_client_profile
 from app.services.media_service import save_uploaded_image
 from app.models.establishment import EstablishmentAccessStatus
+from app.services.time_service import DEFAULT_TIMEZONE, to_local
+from app.services.api_auth import (
+    list_user_sessions,
+    revoke_other_user_sessions,
+    revoke_user_session,
+)
 from app.services.account_privacy import (
     AccountDeletionBlocked,
     anonymize_account,
@@ -185,5 +191,41 @@ def privacy():
     return render_template(
         "account/privacy.html",
         form=form,
+        app_sessions=[
+            {
+                "session": item,
+                "seen": to_local(item.last_seen_at or item.created_at, DEFAULT_TIMEZONE),
+            }
+            for item in list_user_sessions(current_user.id)
+        ],
         current_page="account",
     )
+
+
+# DEC-ID-062/166: aparelhos com o app conectados à conta, com o mesmo
+# serviço da API do app. Encerrar aqui não mexe na sessão deste navegador.
+@account_bp.post("/minha-conta/sessoes/<int:session_id>/encerrar")
+@login_required
+@limiter.limit("30 per hour")
+def revoke_app_session(session_id):
+    if revoke_user_session(current_user.id, session_id):
+        flash("Aparelho desconectado. O app pedirá login de novo.", "success")
+    else:
+        flash("Este aparelho não está conectado à sua conta.", "error")
+    return redirect(url_for("account.privacy", _anchor="aparelhos"))
+
+
+@account_bp.post("/minha-conta/sessoes/encerrar-todas")
+@login_required
+@limiter.limit("10 per hour")
+def revoke_all_app_sessions():
+    # Sem token de app nesta requisição: encerra todos os aparelhos do app.
+    count = revoke_other_user_sessions(current_user.id, None)
+    if count:
+        flash(
+            f"{count} aparelho{'s' if count != 1 else ''} desconectado{'s' if count != 1 else ''}.",
+            "success",
+        )
+    else:
+        flash("Nenhum aparelho estava conectado.", "info")
+    return redirect(url_for("account.privacy", _anchor="aparelhos"))

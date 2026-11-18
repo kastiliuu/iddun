@@ -3576,3 +3576,14 @@
   bottom: auto;
   left: var(--ds-space-6);
 }
+
+/* QA-004: o horário que a própria cliente já reteve volta à lista. */
+.slot-button--mine {
+  border-color: var(--color-plum);
+  box-shadow: inset 0 0 0 0.0625rem var(--color-plum);
+}
+
+.slot-button--mine span {
+  color: var(--color-plum);
+  font-weight: 600;
+}

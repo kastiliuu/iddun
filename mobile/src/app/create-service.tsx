@@ -1,20 +1,53 @@
-import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 
-import { createProfessionalServiceDraft, getProfessionalServiceDetail, getProfessionalServiceEstablishments, updateProfessionalServiceDraft, type ServiceEstablishment } from "@/api/services";
+import { ApiError } from "@/api/client";
+import {
+  createProfessionalServiceDraft,
+  getProfessionalServiceDetail,
+  getProfessionalServiceEstablishments,
+  updateProfessionalServiceDraft,
+  type ServiceEstablishment,
+} from "@/api/services";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { makeStyles, spacing, touch, useTheme } from "@/theme";
+import {
+  EMPTY,
+  LIMITS,
+  SERVICE_CATEGORIES,
+  SERVICE_STEPS,
+  buildPayload,
+  categoryLabel,
+  firstReachableStep,
+  formatMoney,
+  parseMoney,
+  stepErrors,
+  stepForServerError,
+  type ServiceWizardValues,
+  type StepErrors,
+} from "@/services/serviceWizard";
+import { makeStyles, radius, spacing, touch, typography, useTheme } from "@/theme";
 
-const categories = [
-  ["cabelo", "Cabelo"],
-  ["unhas", "Unhas"],
-  ["barbearia", "Barbearia"],
-  ["estetica", "Estética"],
-  ["tatuagem", "Tatuagem"],
-  ["sobrancelhas", "Sobrancelhas"],
-] as const;
+/*
+ * P-002 · Wizard A no app: as mesmas cinco etapas da Web, uma por vez.
+ * Salvar cria (ou mantém) um rascunho; publicar é feito em Meus serviços.
+ * Nada aqui abre horários. A imagem do serviço continua sendo enviada pelo
+ * site até o envio pelo app ser aprovado.
+ */
+
+const EMPTY_VALUES: ServiceWizardValues = {
+  name: "",
+  category: "unhas",
+  shortDescription: "",
+  description: "",
+  regularPrice: "",
+  price: "",
+  duration: "60",
+  establishmentId: null,
+};
+
+const LAST = SERVICE_STEPS.length - 1;
 
 export default function CreateServiceScreen() {
   const router = useRouter();
@@ -22,17 +55,22 @@ export default function CreateServiceScreen() {
   const serviceId = editId && /^\d+$/.test(editId) ? Number(editId) : null;
   const { colors } = useTheme();
   const styles = useStyles();
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState<string>("unhas");
-  const [shortDescription, setShortDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [duration, setDuration] = useState("60");
+  const [values, setValues] = useState<ServiceWizardValues>(EMPTY_VALUES);
+  const [step, setStep] = useState(0);
+  const [errors, setErrors] = useState<StepErrors>({});
   const [saving, setSaving] = useState(false);
   const [fetching, setFetching] = useState(Boolean(editId));
-  const [editable, setEditable] = useState(false);
+  const [editable, setEditable] = useState(!editId);
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [establishments, setEstablishments] = useState<ServiceEstablishment[]>([]);
-  const [establishmentId, setEstablishmentId] = useState<number | null>(null);
+
+  const disablePrevention = usePreventRemove(dirty && !saving, ({ repeat }) => {
+    Alert.alert("Descartar alterações?", "O que você preencheu ainda não foi salvo.", [
+      { text: "Continuar editando", style: "cancel" },
+      { text: "Descartar", style: "destructive", onPress: () => { setDirty(false); repeat(); } },
+    ]);
+  });
 
   useEffect(() => {
     let active = true;
@@ -55,16 +93,19 @@ export default function CreateServiceScreen() {
     }
     getProfessionalServiceDetail(serviceId).then(({ service }) => {
       if (!active) return;
-      setName(service.name);
-      setCategory(service.category);
-      setEstablishmentId(service.establishmentId);
-      setShortDescription(service.shortDescription);
-      setPrice(String(service.price));
-      setDuration(String(service.durationMinutes));
-      setEditable(service.status === "draft" || service.status === "paused");
-      if (service.status !== "draft" && service.status !== "paused") {
-        setError("Somente rascunhos e serviços pausados podem ser editados.");
-      }
+      setValues({
+        name: service.name,
+        category: service.category,
+        shortDescription: service.shortDescription,
+        description: service.description ?? "",
+        regularPrice: formatMoney(service.regularPrice).replace("R$ ", ""),
+        price: formatMoney(service.price).replace("R$ ", ""),
+        duration: String(service.durationMinutes),
+        establishmentId: service.establishmentId,
+      });
+      const canEdit = service.status === "draft" || service.status === "paused";
+      setEditable(canEdit);
+      if (!canEdit) setError("Somente rascunhos e serviços pausados podem ser editados.");
     }).catch(cause => {
       if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar.");
     }).finally(() => {
@@ -73,102 +114,204 @@ export default function CreateServiceScreen() {
     return () => { active = false; };
   }, [editId, serviceId]);
 
+  const update = <K extends keyof ServiceWizardValues>(key: K, value: ServiceWizardValues[K]) => {
+    setValues(current => ({ ...current, [key]: value }));
+    setErrors(current => ({ ...current, [key]: undefined }));
+    setDirty(true);
+  };
+
+  const goTo = (target: number) => {
+    const reachable = target > step ? firstReachableStep(target, values) : target;
+    setErrors(reachable < target ? stepErrors(reachable, values) : {});
+    setStep(reachable);
+  };
+
+  const establishmentName = useMemo(() => {
+    if (values.establishmentId === null) return "Atendimento independente";
+    return establishments.find(item => item.id === values.establishmentId)?.name ?? "Estabelecimento vinculado";
+  }, [establishments, values.establishmentId]);
+
   const submit = async () => {
-    const value = Number(price.replace(",", "."));
-    const minutes = Number(duration);
-    if (!name.trim() || name.trim().length > 160 || !shortDescription.trim() ||
-        shortDescription.trim().length > 220 || !price.trim() ||
-        !Number.isFinite(value) || value < 0 || !Number.isInteger(minutes) ||
-        minutes < 10 || minutes > 720) {
-      setError("Preencha nome, descrição, preço e duração válida (10 a 720 minutos).");
+    const payload = buildPayload(values);
+    if (!payload) {
+      goTo(LAST);
       return;
     }
     if (editId && (!serviceId || !editable)) return;
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        name: name.trim(),
-        category,
-        shortDescription: shortDescription.trim(),
-        price: value,
-        regularPrice: value,
-        durationMinutes: minutes,
-        establishmentId,
-      };
       if (serviceId) await updateProfessionalServiceDraft(serviceId, payload);
       else await createProfessionalServiceDraft(payload);
+      setDirty(false);
+      disablePrevention();
       router.replace("/manage-services");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível salvar o serviço.");
+      const code = cause instanceof ApiError ? cause.code : undefined;
+      const back = stepForServerError(code);
+      if (back !== null) setStep(back);
+      if (cause instanceof ApiError && cause.status === 401) {
+        setError("Sua sessão terminou. Entre de novo para salvar; o que você preencheu continua aqui.");
+      } else {
+        setError(cause instanceof Error ? cause.message : "Não foi possível salvar o serviço.");
+      }
     } finally {
       setSaving(false);
     }
+  };
+
+  const fieldError = (key: keyof ServiceWizardValues) => errors[key] ? (
+    <Text accessibilityRole="alert" style={styles.fieldError}>{errors[key]}</Text>
+  ) : null;
+
+  const reviewRow = (label: string, value: string, target: number) => (
+    <View key={label} style={styles.reviewRow}>
+      <View style={styles.reviewCopy}>
+        <Text style={styles.reviewLabel}>{label}</Text>
+        <Text style={styles.reviewValue}>{value || EMPTY}</Text>
+      </View>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Editar ${label.toLowerCase()}`}
+        onPress={() => setStep(target)} style={styles.reviewEdit}>
+        <Text style={styles.reviewEditText}>Editar</Text>
+      </Pressable>
+    </View>
+  );
+
+  const money = (text: string) => {
+    const value = parseMoney(text);
+    return value === null || Number.isNaN(value) ? "" : formatMoney(value);
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled">
       <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
-        onPress={() => router.canGoBack() ? router.back() : router.replace("/create")}
+        onPress={() => router.canGoBack() ? router.back() : router.replace("/manage-services")}
         style={styles.backButton}>
         <Icon name="arrow-left" size={20} color={colors.onSurface} />
       </Pressable>
-      <Text style={styles.heading}>{editId ? "Editar serviço" : "Novo serviço"}</Text>
-      <Text style={styles.description}>{editId ? "Atualize seu rascunho ou serviço pausado." : "Crie um rascunho privado. Você poderá completar e publicar depois."}</Text>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>01 · Informações do serviço</Text>
-        <Text style={styles.sectionDescription}>Nome, categoria e local de atendimento.</Text>
-        <Text style={styles.label}>Nome do serviço *</Text>
-      <TextInput accessibilityLabel="Nome do serviço" value={name} onChangeText={setName}
-        maxLength={160} placeholder="Ex.: Banho de gel" placeholderTextColor={colors.muted} style={styles.input} />
-      <Text style={styles.label}>Categoria *</Text>
-      <View style={styles.categories}>
-        {categories.map(([key, label]) => (
-          <Pressable key={key} accessibilityRole="button"
-            accessibilityState={{ selected: category === key }}
-            onPress={() => setCategory(key)} style={[styles.chip, category === key && styles.chipSelected]}>
-            <Text style={styles.chipText}>{label}</Text>
-          </Pressable>
+      <Text style={styles.heading}>{editId ? "Editar serviço" : "Criar serviço"}</Text>
+      <Text style={styles.description}>{editId ? "Atualize seu rascunho ou serviço pausado. O status não muda." : "Cinco etapas curtas. O rascunho fica privado até você publicar em Meus serviços."}</Text>
+
+      <View accessibilityRole="progressbar" accessibilityLabel={`Etapa ${step + 1} de ${SERVICE_STEPS.length}: ${SERVICE_STEPS[step].label}`}
+        accessibilityValue={{ min: 1, max: SERVICE_STEPS.length, now: step + 1 }} style={styles.progress}>
+        {SERVICE_STEPS.map((item, index) => (
+          <View key={item.key} style={[styles.progressDot, index < step && styles.progressDone, index === step && styles.progressCurrent]}>
+            <Text style={[styles.progressNumber, index === step && styles.progressNumberCurrent]}>{index + 1}</Text>
+          </View>
         ))}
       </View>
-      <Text style={styles.label}>Local do atendimento</Text>
-      <View style={styles.categories}>
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: establishmentId === null }}
-          onPress={() => setEstablishmentId(null)}
-          style={[styles.chip, establishmentId === null && styles.chipSelected]}>
-          <Text style={styles.chipText}>Independente</Text>
-        </Pressable>
-        {establishments.map((establishment) => (
-          <Pressable key={establishment.id} accessibilityRole="button"
-            accessibilityState={{ selected: establishmentId === establishment.id }}
-            onPress={() => setEstablishmentId(establishment.id)}
-            style={[styles.chip, establishmentId === establishment.id && styles.chipSelected]}>
-            <Text style={styles.chipText}>{establishment.name}</Text>
-          </Pressable>
-        ))}
-      </View>
-      </View>
+
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>02 · Descrição e valores</Text>
-        <Text style={styles.sectionDescription}>Ajude o cliente a entender o procedimento antes de reservar.</Text>
-        <Text style={styles.label}>Descrição resumida *</Text>
-      <TextInput accessibilityLabel="Descrição resumida" value={shortDescription}
-        onChangeText={setShortDescription} maxLength={220} multiline
-        placeholder="Conte o que está incluído" placeholderTextColor={colors.muted}
-        style={[styles.input, styles.multiline]} />
-      <Text style={styles.label}>Preço (R$) *</Text>
-      <TextInput accessibilityLabel="Preço em reais" value={price} onChangeText={setPrice}
-        keyboardType="decimal-pad" placeholder="120,00" placeholderTextColor={colors.muted} style={styles.input} />
-      <Text style={styles.label}>Duração em minutos *</Text>
-      <TextInput accessibilityLabel="Duração em minutos" value={duration} onChangeText={setDuration}
-        keyboardType="number-pad" placeholder="60" placeholderTextColor={colors.muted} style={styles.input} />
+        <Text style={styles.stepCount}>Etapa {step + 1} de {SERVICE_STEPS.length}</Text>
+        <Text accessibilityRole="header" style={styles.sectionTitle}>{SERVICE_STEPS[step].label}</Text>
+
+        {step === 0 ? (
+          <>
+            <Text style={styles.label}>Nome do serviço</Text>
+            <TextInput accessibilityLabel="Nome do serviço" value={values.name} onChangeText={text => update("name", text)}
+              maxLength={LIMITS.title} placeholder="Ex.: Banho de gel" placeholderTextColor={colors.muted} style={styles.input} />
+            {fieldError("name")}
+            <Text style={styles.label}>Categoria</Text>
+            <View style={styles.chips}>
+              {SERVICE_CATEGORIES.map(([key, label]) => (
+                <Pressable key={key} accessibilityRole="radio" accessibilityState={{ checked: values.category === key }}
+                  onPress={() => update("category", key)} style={[styles.chip, values.category === key && styles.chipSelected]}>
+                  <Text style={styles.chipText}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {fieldError("category")}
+            <Text style={styles.label}>Descrição resumida</Text>
+            <TextInput accessibilityLabel="Descrição resumida" value={values.shortDescription}
+              onChangeText={text => update("shortDescription", text)} maxLength={LIMITS.shortDescription} multiline
+              placeholder="O que está incluído" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} />
+            <Text style={styles.help}>Aparece na lista de serviços. {values.shortDescription.length}/{LIMITS.shortDescription}</Text>
+            {fieldError("shortDescription")}
+            <Text style={styles.label}>Descrição completa (opcional)</Text>
+            <TextInput accessibilityLabel="Descrição completa" value={values.description}
+              onChangeText={text => update("description", text)} maxLength={LIMITS.description} multiline
+              placeholder="Detalhes, cuidados e preparo" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} />
+            {fieldError("description")}
+          </>
+        ) : null}
+
+        {step === 1 ? (
+          <>
+            <Text style={styles.help}>O preço IDDUN é o que o cliente vê para reservar. Ele não pode ser maior que o preço regular.</Text>
+            <Text style={styles.label}>Preço regular (R$)</Text>
+            <TextInput accessibilityLabel="Preço regular em reais" value={values.regularPrice} onChangeText={text => update("regularPrice", text)}
+              keyboardType="decimal-pad" placeholder="120,00" placeholderTextColor={colors.muted} style={styles.input} />
+            {fieldError("regularPrice")}
+            <Text style={styles.label}>Preço IDDUN (R$)</Text>
+            <TextInput accessibilityLabel="Preço IDDUN em reais" value={values.price} onChangeText={text => update("price", text)}
+              keyboardType="decimal-pad" placeholder="100,00" placeholderTextColor={colors.muted} style={styles.input} />
+            {fieldError("price")}
+            <Text style={styles.label}>Duração em minutos</Text>
+            <TextInput accessibilityLabel="Duração em minutos" value={values.duration} onChangeText={text => update("duration", text)}
+              keyboardType="number-pad" placeholder="60" placeholderTextColor={colors.muted} style={styles.input} />
+            <Text style={styles.help}>Entre {LIMITS.durationMin} e {LIMITS.durationMax} minutos.</Text>
+            {fieldError("duration")}
+          </>
+        ) : null}
+
+        {step === 2 ? (
+          <>
+            <Text style={styles.label}>Local do atendimento</Text>
+            <View style={styles.chips}>
+              <Pressable accessibilityRole="radio" accessibilityState={{ checked: values.establishmentId === null }}
+                onPress={() => update("establishmentId", null)}
+                style={[styles.chip, values.establishmentId === null && styles.chipSelected]}>
+                <Text style={styles.chipText}>Independente</Text>
+              </Pressable>
+              {establishments.map((establishment) => (
+                <Pressable key={establishment.id} accessibilityRole="radio"
+                  accessibilityState={{ checked: values.establishmentId === establishment.id }}
+                  onPress={() => update("establishmentId", establishment.id)}
+                  style={[styles.chip, values.establishmentId === establishment.id && styles.chipSelected]}>
+                  <Text style={styles.chipText}>{establishment.name}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.help}>Só aparecem estabelecimentos com vínculo ativo e aceito.</Text>
+            <View style={styles.note}>
+              <Icon name="calendar" size={20} color={colors.plum} />
+              <Text style={styles.noteText}>Salvar não abre horários. Depois de publicar, em Meus serviços, você abre horários ou gera pela jornada semanal.</Text>
+            </View>
+          </>
+        ) : null}
+
+        {step === 3 ? (
+          <View style={styles.note}>
+            <Icon name="image" size={20} color={colors.plum} />
+            <Text style={styles.noteText}>Opcional. Por enquanto, a foto do serviço é enviada pelo site, em Meus serviços › Editar serviço. Sem imagem, o serviço aparece com o nome da categoria em destaque, nunca com foto genérica.</Text>
+          </View>
+        ) : null}
+
+        {step === 4 ? (
+          <View style={styles.review}>
+            {reviewRow("Nome", values.name.trim(), 0)}
+            {reviewRow("Categoria", categoryLabel(values.category), 0)}
+            {reviewRow("Descrição resumida", values.shortDescription.trim(), 0)}
+            {reviewRow("Preço regular", money(values.regularPrice), 1)}
+            {reviewRow("Preço IDDUN", money(values.price), 1)}
+            {reviewRow("Duração", values.duration.trim() ? `${values.duration.trim()} min` : "", 1)}
+            {reviewRow("Local", establishmentName, 2)}
+            {reviewRow("Imagem", "Enviada pelo site", 3)}
+          </View>
+        ) : null}
       </View>
+
       <View style={styles.actions}>
-      {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-      {saving ? <ActivityIndicator accessibilityLabel="Salvando rascunho" /> : null}
-      {fetching ? <ActivityIndicator accessibilityLabel="Carregando serviço" /> : null}
-      <Button title={editId ? "Salvar alterações" : "Salvar rascunho"} fullWidth disabled={saving || fetching || (Boolean(editId) && !editable)} onPress={() => { void submit(); }} />
+        {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+        {fetching ? <ActivityIndicator accessibilityLabel="Carregando serviço" /> : null}
+        {step < LAST ? (
+          <Button title="Continuar" fullWidth disabled={fetching || !editable} onPress={() => goTo(step + 1)} />
+        ) : (
+          <Button title={editId ? "Salvar alterações" : "Salvar rascunho"} fullWidth loading={saving}
+            disabled={saving || fetching || !editable} onPress={() => { void submit(); }} />
+        )}
+        {step > 0 ? <Button title="Voltar" variant="outline" fullWidth disabled={saving} onPress={() => goTo(step - 1)} /> : null}
       </View>
     </ScrollView>
   );
@@ -176,24 +319,42 @@ export default function CreateServiceScreen() {
 
 const useStyles = makeStyles((colors) => ({
   container: { flex: 1, backgroundColor: colors.surface },
-  content: { paddingTop: spacing.xxxl, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.xl },
-  backButton: { width: touch.minimum, height: touch.minimum, alignItems: "center" as const,
-    justifyContent: "center" as const },
-  heading: { color: colors.onSurface, fontSize: 24, fontWeight: "700" as const },
-  description: { color: colors.muted, fontSize: 16, lineHeight: 24 },
-  section: { padding: spacing.xl, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, borderRadius: 16, gap: spacing.md },
-  sectionTitle: { color: colors.onSurface, fontSize: 20, fontWeight: "700" as const },
-  sectionDescription: { color: colors.onSurfaceSecondary, fontSize: 14, lineHeight: 24 },
-  actions: { gap: spacing.lg, paddingTop: spacing.md },
-  label: { color: colors.onSurface, fontSize: 16, fontWeight: "600" as const, marginTop: spacing.sm },
-  input: { minHeight: touch.minimum, color: colors.onSurface, fontSize: 16, borderColor: colors.border,
-    borderWidth: 1, backgroundColor: colors.surface, borderRadius: 12,
+  content: { paddingTop: spacing.xxxl, paddingHorizontal: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
+  backButton: { width: touch.minimum, height: touch.minimum, alignItems: "center" as const, justifyContent: "center" as const },
+  heading: { color: colors.onSurface, fontSize: typography.title, fontWeight: "700" as const },
+  description: { color: colors.onSurfaceSecondary, fontSize: typography.bodyLarge, lineHeight: 24 },
+  progress: { flexDirection: "row" as const, justifyContent: "space-between" as const, gap: spacing.sm },
+  progressDot: { flex: 1, minHeight: spacing.xxl, alignItems: "center" as const, justifyContent: "center" as const,
+    borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border },
+  progressDone: { borderColor: colors.plum },
+  progressCurrent: { backgroundColor: colors.plum, borderColor: colors.plum },
+  progressNumber: { color: colors.onSurfaceSecondary, fontSize: typography.body, fontWeight: "600" as const },
+  progressNumberCurrent: { color: colors.white },
+  section: { padding: spacing.xl, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, gap: spacing.md },
+  stepCount: { color: colors.plum, fontSize: typography.small, fontWeight: "700" as const, letterSpacing: 1, textTransform: "uppercase" as const },
+  sectionTitle: { color: colors.onSurface, fontSize: typography.titleSmall, fontWeight: "700" as const },
+  actions: { gap: spacing.md, paddingTop: spacing.sm },
+  label: { color: colors.onSurface, fontSize: typography.bodyLarge, fontWeight: "600" as const, marginTop: spacing.sm },
+  help: { color: colors.onSurfaceSecondary, fontSize: typography.body, lineHeight: 20 },
+  input: { minHeight: touch.minimum, color: colors.onSurface, fontSize: typography.bodyLarge, borderColor: colors.border,
+    borderWidth: 1, backgroundColor: colors.surface, borderRadius: radius.sm,
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   multiline: { minHeight: 96, textAlignVertical: "top" as const },
-  categories: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: spacing.sm },
-  chip: { minHeight: touch.minimum, justifyContent: "center" as const, borderWidth: 1, borderColor: colors.border, borderRadius: 12,
+  chips: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: spacing.sm },
+  chip: { minHeight: touch.minimum, justifyContent: "center" as const, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm,
     paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   chipSelected: { borderColor: colors.plum, backgroundColor: colors.plumSoft },
-  chipText: { color: colors.onSurface, fontSize: 16 },
-  error: { color: colors.error, fontSize: 13 },
+  chipText: { color: colors.onSurface, fontSize: typography.bodyLarge },
+  note: { flexDirection: "row" as const, gap: spacing.md, padding: spacing.lg, borderRadius: radius.sm, backgroundColor: colors.surface },
+  noteText: { flex: 1, color: colors.onSurface, fontSize: typography.body, lineHeight: 21 },
+  review: { gap: spacing.xs },
+  reviewRow: { flexDirection: "row" as const, alignItems: "center" as const, gap: spacing.md, paddingVertical: spacing.sm,
+    borderBottomWidth: 1, borderBottomColor: colors.divider },
+  reviewCopy: { flex: 1, gap: spacing.xs },
+  reviewLabel: { color: colors.onSurfaceSecondary, fontSize: typography.body },
+  reviewValue: { color: colors.onSurface, fontSize: typography.bodyLarge },
+  reviewEdit: { minHeight: touch.minimum, minWidth: touch.minimum, justifyContent: "center" as const, alignItems: "flex-end" as const },
+  reviewEditText: { color: colors.plum, fontSize: typography.bodyLarge, fontWeight: "600" as const },
+  fieldError: { color: colors.error, fontSize: typography.body },
+  error: { color: colors.error, fontSize: typography.body },
 }));

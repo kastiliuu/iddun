@@ -1195,3 +1195,69 @@ a.account-context-card:hover {
     transition: none;
   }
 }
+
+/* DEC-ID-062/166: aparelhos com o app conectados (Privacidade). */
+.account-session-list {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--ds-space-2);
+  list-style: none;
+}
+
+.account-session {
+  min-height: var(--ds-control-min-target);
+  padding: var(--ds-space-3);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--ds-radius-md);
+  color: var(--color-ink);
+}
+
+.account-session > span:nth-child(2) {
+  display: grid;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+
+.account-session strong {
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+}
+
+.account-session small,
+.account-session-empty {
+  margin: 0;
+  color: var(--color-text-on-light-secondary);
+  font-size: var(--ds-type-caption);
+}
+
+.account-session form,
+.account-session-all {
+  margin: 0;
+}
+
+.account-session-all {
+  margin-top: var(--ds-space-3);
+}
+
+.account-session__revoke {
+  min-height: var(--ds-control-min-target);
+  padding: 0 var(--ds-space-3);
+  border: 0.0625rem solid var(--color-border-light);
+  border-radius: var(--radius-pill);
+  background: var(--color-white);
+  color: var(--ds-feedback-danger-on-light);
+  font: inherit;
+  font-size: var(--ds-type-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-session__revoke:focus-visible {
+  outline: 0.125rem solid var(--ds-focus-ring);
+  outline-offset: 0.125rem;
+}

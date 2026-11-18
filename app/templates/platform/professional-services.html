@@ -1,6 +1,39 @@
 {% extends 'layouts/base.html' %}
 {% from 'components/icon.html' import icon %}
 
+{#
+  P-003 · Proposta C — catálogo com painel lateral.
+  Esquerda: lista compacta. Direita: só o serviço selecionado, com ações
+  conforme o estado real e horários reais. Os modos de abrir horário
+  (único, jornada, lote) ficam em janelas sob demanda; sem JavaScript, o
+  link recarrega a página com a janela aberta pelo servidor.
+  Em telas estreitas: lista → detalhe, com volta para a lista.
+#}
+
+{% set weekdays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'] %}
+
+{% macro status_chip(item) -%}
+<span class="pro-catalog-status pro-catalog-status--{{ item.status }}">{{ item.status_label }}</span>
+{%- endmacro %}
+
+{% macro money(value) -%}
+R$ {{ '%.2f'|format(value)|replace('.', ',') }}
+{%- endmacro %}
+
+{% macro service_thumb(item, size='sm') -%}
+<span class="pro-catalog-thumb pro-catalog-thumb--{{ size }}">
+  {% if item.image_url %}
+    <img src="{{ item.image_url|media_url }}" alt="{{ 'Capa de ' ~ item.title if size == 'lg' else '' }}" loading="lazy" decoding="async">
+  {% else %}
+    <span class="ds-media-type" aria-hidden="true">
+      <span class="ds-media-type__rule"></span>
+      <span class="ds-media-type__name">{{ item.category_label }}</span>
+      {% if size == 'lg' %}<span class="ds-media-type__note">Sem imagem enviada</span>{% endif %}
+    </span>
+  {% endif %}
+</span>
+{%- endmacro %}
+
 {% block title %}Meus serviços | IDDUN Pro{% endblock %}
 {% block body_class %}platform-page platform-editor-page pro-services-page{% endblock %}
 {% block styles %}
@@ -10,135 +43,228 @@
 
 {% block content %}
 <section class="platform-editor" data-iddun-surface="light" aria-labelledby="pro-services-title">
-  <div class="container platform-editor__layout">
+  <div class="container platform-editor__layout pro-catalog-layout">
     <header class="platform-editor__head pro-catalog-heading">
       <a class="platform-back-link" href="{{ url_for('professional.dashboard') }}">{{ icon('arrow-left') }} Voltar ao painel</a>
-      <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
+      <span class="platform-kicker">IDDUN PRO · SERVIÇOS E AGENDA</span>
       <h1 id="pro-services-title">Meus serviços</h1>
-      <p>Acompanhe os serviços vinculados ao seu perfil e o estado de publicação de cada um.</p>
+      <p>Selecione um serviço para consultar os detalhes e gerenciar a disponibilidade.</p>
       <a class="btn btn-primary pro-catalog-primary-action" href="{{ url_for('professional.create_service') }}">{{ icon('plus') }} Criar serviço</a>
     </header>
 
-    <section class="platform-panel pro-catalog-panel" aria-label="Catálogo de serviços cadastrados">
-      <header class="platform-panel__head">
-        <div>
-          <span class="platform-kicker">SEU CATÁLOGO</span>
-          <h2>{{ experiences|length }} {{ 'serviço' if experiences|length == 1 else 'serviços' }}</h2>
-        </div>
-      </header>
-      {% if experiences %}
-      <div class="pro-catalog-list">
-        {% for item in experiences %}
-        <article class="pro-catalog-service" id="servico-{{ item.id }}">
-          <div class="pro-catalog-service__meta"><span class="platform-kicker">{{ item.category_label }}</span><span class="pro-catalog-status">{{ item.status_label }}</span></div>
-          {% if item.image_url %}
-            <img src="{{ item.image_url|media_url }}" alt="Capa de {{ item.title }}" loading="lazy" class="pro-catalog-service__image">
-          {% endif %}
-          <h3 class="pro-catalog-service__title">{{ item.title }}</h3>
-          <p class="pro-catalog-service__description">{{ item.short_description }}</p>
-          <p class="pro-catalog-service__facts"><strong>R$ {{ '%.2f'|format(item.price)|replace('.', ',') }}</strong><span>{{ item.duration_minutes }} min</span></p>
-          {% if item.establishment %}
-            <p class="pro-catalog-service__location">Local: {{ item.establishment.name }}</p>
-          {% endif %}
-          {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
-            <a class="btn btn-outline" href="{{ url_for('professional.edit_service', service_id=item.id) }}">Editar serviço</a>
-          {% endif %}
-          {% if item.status == ExperienceStatus.PUBLISHED %}
-            <section class="pro-catalog-availability" aria-label="Disponibilidade de {{ item.title }}">
-              <h4>Disponibilidade</h4>
-              <p class="pro-catalog-help">Abra horários futuros. O IDDUN verifica conflitos com sua agenda e outros serviços.</p>
-              <form class="pro-catalog-slot-form" method="post" action="{{ url_for('professional.create_service_slot', service_id=item.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="platform-form-grid">
-                  <div class="platform-field">
-                    <label class="platform-label" for="slot-date-{{ item.id }}">Data</label>
-                    <input class="platform-input" type="date" id="slot-date-{{ item.id }}" name="slot_date" required>
-                  </div>
-                  <div class="platform-field">
-                    <label class="platform-label" for="slot-time-{{ item.id }}">Horário ({{ profile.timezone }})</label>
-                    <input class="platform-input" type="time" id="slot-time-{{ item.id }}" name="slot_time" required>
-                  </div>
-                </div>
-                <button class="btn btn-primary" type="submit">Disponibilizar horário</button>
-              </form>
-              <details class="pro-catalog-details">
-                <summary>Gerar horários da jornada semanal</summary>
-                <p>O IDDUN usa sua jornada cadastrada, o intervalo e a duração deste serviço. Todos os horários da data serão validados como um único lote.</p>
-                <form method="post" action="{{ url_for('professional.create_service_slots_from_schedule', service_id=item.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <div class="platform-field">
-                    <label class="platform-label" for="schedule-date-{{ item.id }}">Data da jornada</label>
-                    <input class="platform-input" type="date" id="schedule-date-{{ item.id }}" name="slot_date" required>
-                  </div>
-                  <a class="btn btn-outline" href="{{ url_for('professional.schedule') }}">Configurar jornada</a>
-                  <button class="btn btn-primary" type="submit">Gerar horários do dia</button>
-                </form>
-              </details>
-              <details class="pro-catalog-details">
-                <summary>Abrir vários horários de uma vez</summary>
-                <form method="post" action="{{ url_for('professional.create_service_slots_batch', service_id=item.id) }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <div class="platform-field">
-                    <label class="platform-label" for="batch-date-{{ item.id }}">Data dos atendimentos</label>
-                    <input class="platform-input" type="date" id="batch-date-{{ item.id }}" name="slot_date" required>
-                  </div>
-                  <div class="platform-field">
-                    <label class="platform-label" for="batch-times-{{ item.id }}">Horários ({{ profile.timezone }})</label>
-                    <textarea class="platform-input" id="batch-times-{{ item.id }}" name="slot_times" rows="3" maxlength="240" placeholder="09:00, 10:00, 11:00" required></textarea>
-                    <small class="platform-help">Separe até 20 horários por vírgulas ou linhas. Se algum conflitar, nenhum horário do lote será criado.</small>
-                  </div>
-                  <button class="btn btn-outline" type="submit">Abrir horários em lote</button>
-                </form>
-              </details>
-            </section>
-          {% endif %}
-          {% if slots_by_service[item.id] %}
+    {% if experiences %}
+    <div class="pro-catalog{% if explicit_selection %} pro-catalog--detail{% endif %}">
+      <nav class="platform-panel pro-catalog-panel pro-catalog-index" aria-labelledby="pro-catalog-index-title">
+        <header class="pro-catalog-index__head">
+          <h2 id="pro-catalog-index-title">Seu catálogo</h2>
+          <span class="pro-catalog-count">{{ experiences|length }} {{ 'serviço' if experiences|length == 1 else 'serviços' }}</span>
+        </header>
+        <ul class="pro-catalog-list">
+          {% for item in experiences %}
+          {% set current = selected and item.id == selected.id %}
+          <li>
+            <a class="pro-catalog-item{% if current %} is-selected{% endif %}" id="servico-{{ item.id }}" href="{{ url_for('professional.services', servico=item.id) }}#servico-selecionado"{% if current %} aria-current="true"{% endif %}>
+              {{ service_thumb(item) }}
+              <span class="pro-catalog-item__text">
+                <span class="pro-catalog-item__title">{{ item.title }}</span>
+                <span class="pro-catalog-item__facts">{{ money(item.price) }} · {{ item.duration_minutes }} min</span>
+                {{ status_chip(item) }}
+              </span>
+              <span class="pro-catalog-item__chevron">{{ icon('chevron-right') }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ul>
+      </nav>
+
+      {% set item = selected %}
+      <article class="platform-panel pro-catalog-panel pro-catalog-detail" id="servico-selecionado" aria-labelledby="pro-catalog-detail-title" data-service-id="{{ item.id }}">
+        <a class="platform-back-link pro-catalog-detail__back" href="{{ url_for('professional.services') }}">{{ icon('arrow-left') }} Todos os serviços</a>
+        <header class="pro-catalog-detail__head">
+          <div class="pro-catalog-detail__identity">
+            <span class="platform-kicker">SERVIÇO SELECIONADO</span>
+            <h2 id="pro-catalog-detail-title" class="pro-catalog-service__title">{{ item.title }}</h2>
+            <p class="pro-catalog-help">{{ item.category_label }} · {{ item.establishment.name if item.establishment else 'Atendimento independente' }}</p>
+          </div>
+          <div class="pro-catalog-detail__status">
+            {{ status_chip(item) }}
+            {% if item.status == ExperienceStatus.PUBLISHED %}
+              <a class="btn btn-outline" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Visualizar e consultar horários</a>
+            {% endif %}
+          </div>
+        </header>
+
+        <section class="pro-catalog-detail__summary" aria-label="Resumo de {{ item.title }}">
+          {{ service_thumb(item, 'lg') }}
+          <div class="pro-catalog-detail__facts">
+            <dl class="pro-catalog-facts">
+              <div><dt>Preço IDDUN</dt><dd>{{ money(item.price) }}</dd></div>
+              {% if item.regular_price != item.price %}<div><dt>Preço regular</dt><dd>{{ money(item.regular_price) }}</dd></div>{% endif %}
+              <div><dt>Duração</dt><dd>{{ item.duration_minutes }} minutos</dd></div>
+              <div><dt>Local</dt><dd>{{ item.establishment.name if item.establishment else 'Independente' }}</dd></div>
+            </dl>
+            <p class="pro-catalog-service__description">{{ item.short_description }}</p>
+            {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
+              <a class="btn btn-outline pro-catalog-edit" href="{{ url_for('professional.edit_service', service_id=item.id) }}">{{ icon('edit') }} Editar serviço</a>
+            {% elif item.status == ExperienceStatus.PUBLISHED %}
+              <p class="pro-catalog-note">Serviços publicados não são editados para não mudar as condições de reservas existentes. Pause o serviço para editar.</p>
+            {% endif %}
+          </div>
+        </section>
+
+        <section class="pro-catalog-availability" aria-labelledby="pro-catalog-availability-title">
+          <header class="pro-catalog-availability__head">
+            <div>
+              <h3 id="pro-catalog-availability-title">Disponibilidade</h3>
+              {% if item.status == ExperienceStatus.PUBLISHED %}
+                <p class="pro-catalog-help">Abra horários futuros. O IDDUN confere conflitos com sua agenda e com outros serviços.</p>
+              {% else %}
+                <p class="pro-catalog-help">Este serviço não está disponível para reservas públicas enquanto estiver {{ item.status_label|lower }}.</p>
+              {% endif %}
+            </div>
+            {% if item.status == ExperienceStatus.PUBLISHED %}
+              <a class="btn btn-primary" href="{{ url_for('professional.services', servico=item.id, abrir='horario') }}#servico-selecionado" data-dialog-open="slot-dialog-horario">{{ icon('plus') }} Abrir horário</a>
+            {% endif %}
+          </header>
+
+          {% if slot_days %}
             <h4 class="pro-catalog-next-title">Próximos horários</h4>
-            <ul class="pro-catalog-slots">
-              {% for slot in slots_by_service[item.id] %}
-                <li class="pro-catalog-slot">
-                  <span>{{ slot.starts_at.strftime('%d/%m/%Y %H:%M') }} — {{ slot.status }}</span>
-                  {% if slot.raw_status == SlotStatus.AVAILABLE %}
-                    <form method="post" action="{{ url_for('professional.block_service_slot', service_id=item.id, slot_id=slot.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-outline">Bloquear horário</button>
-                    </form>
-                  {% elif slot.raw_status == SlotStatus.BLOCKED_MANUAL %}
-                    <form method="post" action="{{ url_for('professional.reopen_service_slot', service_id=item.id, slot_id=slot.id) }}">
-                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                      <button type="submit" class="btn btn-outline">Liberar horário</button>
-                    </form>
-                  {% endif %}
-                </li>
+            <ul class="pro-catalog-days">
+              {% for day in slot_days %}
+              <li class="pro-catalog-day">
+                <span class="pro-catalog-day__label">{{ weekdays[day.day.weekday()] }}, {{ day.day.strftime('%d/%m') }}</span>
+                <ul class="pro-catalog-slots">
+                  {% for slot in day.slots %}
+                  <li class="pro-catalog-slot pro-catalog-slot--{{ slot.raw_status }}">
+                    <span class="pro-catalog-slot__time">{{ slot.starts_at.strftime('%H:%M') }}</span>
+                    <span class="pro-catalog-slot__status">{{ slot.status }}</span>
+                    {% if slot.raw_status == SlotStatus.AVAILABLE %}
+                      <form method="post" action="{{ url_for('professional.block_service_slot', service_id=item.id, slot_id=slot.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline btn-sm" aria-label="Bloquear horário de {{ day.day.strftime('%d/%m') }} às {{ slot.starts_at.strftime('%H:%M') }}">Bloquear horário</button>
+                      </form>
+                    {% elif slot.raw_status == SlotStatus.BLOCKED_MANUAL %}
+                      <form method="post" action="{{ url_for('professional.reopen_service_slot', service_id=item.id, slot_id=slot.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline btn-sm" aria-label="Liberar horário de {{ day.day.strftime('%d/%m') }} às {{ slot.starts_at.strftime('%H:%M') }}">Liberar horário</button>
+                      </form>
+                    {% endif %}
+                  </li>
+                  {% endfor %}
+                </ul>
+              </li>
               {% endfor %}
             </ul>
           {% elif item.status == ExperienceStatus.PUBLISHED %}
             <p class="pro-catalog-empty-slots">Nenhum horário futuro cadastrado. Abra um horário para receber reservas.</p>
           {% endif %}
 
+          {% if item.status == ExperienceStatus.PUBLISHED %}
+          <div class="pro-catalog-modes">
+            <a class="pro-catalog-mode" href="{{ url_for('professional.services', servico=item.id, abrir='jornada') }}#servico-selecionado" data-dialog-open="slot-dialog-jornada">
+              {{ icon('calendar') }}
+              <span><strong>Gerar pela jornada semanal</strong><span>Usa os horários da sua agenda</span></span>
+            </a>
+            <a class="pro-catalog-mode" href="{{ url_for('professional.services', servico=item.id, abrir='lote') }}#servico-selecionado" data-dialog-open="slot-dialog-lote">
+              {{ icon('clock') }}
+              <span><strong>Abrir horários em lote</strong><span>Vários horários de uma vez</span></span>
+            </a>
+          </div>
+          {% endif %}
+        </section>
+
+        <footer class="pro-catalog-detail__actions">
           {% if item.status in [ExperienceStatus.DRAFT, ExperienceStatus.PAUSED] %}
-            <form method="post" action="{{ url_for('professional.publish_service', service_id=item.id) }}">
+            <form method="post" action="{{ url_for('professional.publish_service', service_id=item.id) }}" data-once>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-primary" type="submit">{{ 'Republicar serviço' if item.status == ExperienceStatus.PAUSED else 'Publicar serviço' }}</button>
             </form>
-          {% endif %}
-          {% if item.status == ExperienceStatus.PUBLISHED %}
-            <form method="post" action="{{ url_for('professional.pause_service', service_id=item.id) }}" data-confirm-submit="Pausar este serviço? Novas reservas ficarão indisponíveis, mas reservas confirmadas serão mantidas.">
+            <p class="pro-catalog-help">A publicação confere se o serviço está completo. Nada é publicado sem este passo.</p>
+          {% elif item.status == ExperienceStatus.PUBLISHED %}
+            <form method="post" action="{{ url_for('professional.pause_service', service_id=item.id) }}" data-confirm-submit="Pausar este serviço? Novas reservas ficarão indisponíveis, mas reservas confirmadas serão mantidas." data-once>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
               <button class="btn btn-outline" type="submit">Pausar serviço</button>
             </form>
-            <a class="btn btn-outline" href="{{ url_for('public.experience_detail', slug=item.slug) }}">Visualizar e consultar horários</a>
-          {% else %}
-            <p class="pro-catalog-empty-slots">Este serviço não está disponível para reservas públicas enquanto estiver {{ item.status_label|lower }}.</p>
+            <p class="pro-catalog-help">Reservas confirmadas permanecem válidas.</p>
           {% endif %}
-        </article>
-        {% endfor %}
-      </div>
-      {% else %}
-        <p class="pro-catalog-empty">Você ainda não possui serviços cadastrados no IDDUN.</p>
-        <a class="btn btn-primary" href="{{ url_for('professional.create_service') }}">Criar meu primeiro serviço</a>
-      {% endif %}
+        </footer>
+      </article>
+    </div>
+
+    {% if selected.status == ExperienceStatus.PUBLISHED %}
+    {% set close_url = url_for('professional.services', servico=selected.id) ~ '#servico-selecionado' %}
+    <dialog class="business-dialog pro-catalog-dialog" id="slot-dialog-horario" aria-labelledby="slot-dialog-horario-title" data-dialog {% if open_dialog == 'horario' %}open{% endif %}>
+      <form class="business-dialog__body" method="post" action="{{ url_for('professional.create_service_slot', service_id=selected.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2 id="slot-dialog-horario-title">Abrir horário</h2>
+        <p>{{ selected.title }} · {{ selected.duration_minutes }} min. O horário só fica disponível se não houver conflito.</p>
+        <div class="business-dialog__field">
+          <label class="business-dialog__label" for="slot-date">Data</label>
+          <input class="business-dialog__input" type="date" id="slot-date" name="slot_date" required>
+        </div>
+        <div class="business-dialog__field">
+          <label class="business-dialog__label" for="slot-time">Horário ({{ profile.timezone }})</label>
+          <input class="business-dialog__input" type="time" id="slot-time" name="slot_time" required>
+        </div>
+        <div class="business-dialog__actions">
+          <a class="btn btn-outline btn-outline--light" href="{{ close_url }}" data-dialog-close>Cancelar</a>
+          <button class="btn btn-primary" type="submit">Disponibilizar horário</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="business-dialog pro-catalog-dialog" id="slot-dialog-jornada" aria-labelledby="slot-dialog-jornada-title" data-dialog {% if open_dialog == 'jornada' %}open{% endif %}>
+      <form class="business-dialog__body" method="post" action="{{ url_for('professional.create_service_slots_from_schedule', service_id=selected.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2 id="slot-dialog-jornada-title">Gerar horários da jornada semanal</h2>
+        {% if working_days %}
+          <p>O IDDUN usa sua jornada ({{ working_days }} {{ 'dia' if working_days == 1 else 'dias' }} por semana), o intervalo e a duração deste serviço. Todos os horários da data são validados como um único lote.</p>
+        {% else %}
+          <p>Sua jornada semanal ainda não está configurada. Configure os dias e horários antes de gerar.</p>
+        {% endif %}
+        <div class="business-dialog__field">
+          <label class="business-dialog__label" for="schedule-date">Data da jornada</label>
+          <input class="business-dialog__input" type="date" id="schedule-date" name="slot_date" required>
+        </div>
+        <div class="business-dialog__actions">
+          <a class="btn btn-outline btn-outline--light" href="{{ url_for('professional.schedule') }}">Configurar jornada</a>
+          <a class="btn btn-outline btn-outline--light" href="{{ close_url }}" data-dialog-close>Cancelar</a>
+          <button class="btn btn-primary" type="submit">Gerar horários do dia</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="business-dialog pro-catalog-dialog" id="slot-dialog-lote" aria-labelledby="slot-dialog-lote-title" data-dialog {% if open_dialog == 'lote' %}open{% endif %}>
+      <form class="business-dialog__body" method="post" action="{{ url_for('professional.create_service_slots_batch', service_id=selected.id) }}" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2 id="slot-dialog-lote-title">Abrir vários horários de uma vez</h2>
+        <div class="business-dialog__field">
+          <label class="business-dialog__label" for="batch-date">Data dos atendimentos</label>
+          <input class="business-dialog__input" type="date" id="batch-date" name="slot_date" required>
+        </div>
+        <div class="business-dialog__field">
+          <label class="business-dialog__label" for="batch-times">Horários ({{ profile.timezone }})</label>
+          <textarea class="business-dialog__input" id="batch-times" name="slot_times" rows="3" maxlength="240" placeholder="09:00, 10:00, 11:00" required aria-describedby="batch-times-help"></textarea>
+          <p id="batch-times-help">Separe até 20 horários por vírgulas ou linhas. Se algum conflitar, nenhum horário do lote é criado.</p>
+        </div>
+        <div class="business-dialog__actions">
+          <a class="btn btn-outline btn-outline--light" href="{{ close_url }}" data-dialog-close>Cancelar</a>
+          <button class="btn btn-primary" type="submit">Abrir horários em lote</button>
+        </div>
+      </form>
+    </dialog>
+    {% endif %}
+
+    {% else %}
+    <section class="platform-panel pro-catalog-panel" aria-label="Catálogo de serviços cadastrados">
+      <p class="pro-catalog-empty">Você ainda não possui serviços cadastrados no IDDUN.</p>
+      <a class="btn btn-primary" href="{{ url_for('professional.create_service') }}">Criar meu primeiro serviço</a>
     </section>
+    {% endif %}
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dialogs.js') }}" defer></script>
 {% endblock %}

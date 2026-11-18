@@ -7,6 +7,8 @@ EDITOR = ROOT / "app/templates/platform/professional-service-form.html"
 CSS = ROOT / "app/static/css/pro-service-catalog.css"
 MOBILE_LIST = ROOT / "mobile/src/app/manage-services.tsx"
 MOBILE_EDITOR = ROOT / "mobile/src/app/create-service.tsx"
+MOBILE_DETAIL = ROOT / "mobile/src/app/manage-service/[id].tsx"
+MOBILE_RULES = ROOT / "mobile/src/services/serviceWizard.ts"
 
 
 def test_catalog_preserves_all_mutating_actions_and_csrf():
@@ -54,11 +56,26 @@ def test_scoped_styles_use_tokens_and_have_mobile_rules():
 
 def test_expo_catalog_and_editor_still_call_real_service_api():
     listing = MOBILE_LIST.read_text(encoding="utf-8")
+    detail = MOBILE_DETAIL.read_text(encoding="utf-8")
     editor = MOBILE_EDITOR.read_text(encoding="utf-8")
     assert "getManagedServices()" in listing
-    assert "changeProfessionalServiceStatus(" in listing
+    # P-003: lista → detalhe → horários; publicar/pausar ficam no detalhe.
+    assert '"/manage-service/[id]"' in listing
+    assert "changeProfessionalServiceStatus(" in detail
+    assert '"/service-availability"' in detail
     assert "router.push(\"/create-service\")" in listing
     assert "styles.card" in listing
     assert "createProfessionalServiceDraft(payload)" in editor
     assert "updateProfessionalServiceDraft(serviceId, payload)" in editor
     assert "styles.section" in editor
+
+
+def test_expo_wizard_has_the_web_steps_and_keeps_the_regular_price():
+    editor = MOBILE_EDITOR.read_text(encoding="utf-8")
+    rules = MOBILE_RULES.read_text(encoding="utf-8")
+    for label in ("Básico", "Preço e duração", "Local e disponibilidade", "Imagem", "Revisão"):
+        assert f'label: "{label}"' in rules
+    assert "SERVICE_STEPS" in editor and "buildPayload(values)" in editor
+    # Antes o app enviava o preço IDDUN também como preço regular.
+    assert "regularPrice: value" not in editor
+    assert "Publicar" not in editor

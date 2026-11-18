@@ -1,7 +1,8 @@
 from app.models.no_show_dispute import NoShowDispute
 from app.services.no_show_dispute_service import decide_dispute
 from app.services.booking_service import BookingStateError
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask_login import current_user
 from sqlalchemy import func, select
 
 from app.extensions import db
@@ -13,7 +14,7 @@ from app.forms.admin import (
     ProfessionalForm,
 )
 from app.models.establishment import Establishment, ProfessionalEstablishmentMembership
-from app.models.booking import Booking, BookingStatus, ExperienceSlot, SlotStatus
+from app.models.booking import Booking, BookingActorRole, BookingStatus, ExperienceSlot, SlotStatus
 from app.models.experience import Experience, ExperienceStatus
 from app.models.professional import ProfessionalProfile
 from app.services.admin_catalog_service import (
@@ -30,8 +31,10 @@ from app.services.media_service import save_uploaded_image
 from app.services.google_calendar_service import delete_booking_event, sync_professional_if_stale
 from app.services.booking_service import (
     block_slot_manual,
-    cancel_booking,
+    cancel_booking_with_reason,
     clear_external_conflict,
+    complete_booking,
+    mark_booking_no_show,
     create_slots_batch,
     mark_external_conflict,
     refresh_slot,
@@ -709,7 +712,10 @@ def opportunity_reopen(slot_id):
 @admin_bp.post("/oportunidades/<int:slot_id>/simular-conflito")
 @admin_required
 def opportunity_simulate_external_conflict(slot_id):
-    """Temporary QA hook until Google Calendar OAuth is connected."""
+    """Gancho de QA até o Google Calendar estar ligado. V1-CONV-D02: nunca
+    em produção (nada simulado com dados reais)."""
+    if current_app.config.get("APP_ENV") == "production":
+        abort(404)
     slot = db.session.get(ExperienceSlot, slot_id) or abort(404)
     if mark_external_conflict(slot, provider="google", reason="Conflito simulado para QA"):
         flash("Conflito externo simulado: o horário saiu do marketplace.", "info")
@@ -739,58 +745,58 @@ def bookings():
     )
 
 
-def _admin_booking_status(item, status):
-    now = utcnow()
-    if status == BookingStatus.COMPLETED:
-        item.status = status
-        item.completed_at = now
-    elif status == BookingStatus.NO_SHOW:
-        item.status = status
-        item.no_show_at = now
-    elif status == BookingStatus.CANCELLED:
-        try:
-            delete_booking_event(item)
-        except Exception:
-            pass
-        cancel_booking(item, reason="Cancelada pelo administrador", now=now)
-        return
-    db.session.commit()
+def _admin_booking_action(booking_id, action):
+    """D-NV07-01: o admin atua só em exceção justificada. Motivo
+    obrigatório, as mesmas regras de horário do executor e trilha com o
+    autor (booking_events)."""
+    item = db.session.get(Booking, booking_id) or abort(404)
+    reason = request.form.get("motivo")
+    try:
+        if action == "complete":
+            complete_booking(
+                item, actor=current_user, actor_role=BookingActorRole.ADMIN, reason=reason,
+            )
+            message = "Atendimento marcado como concluído."
+        elif action == "no_show":
+            mark_booking_no_show(
+                item, actor=current_user, actor_role=BookingActorRole.ADMIN, reason=reason,
+            )
+            message = "Reserva marcada como não compareceu."
+        else:
+            cancel_booking_with_reason(
+                item, actor=current_user, actor_role=BookingActorRole.ADMIN, reason=reason,
+            )
+            try:
+                delete_booking_event(item)
+            except Exception:
+                current_app.logger.exception(
+                    "Falha ao remover evento externo após o cancelamento pelo admin."
+                )
+            message = "Reserva cancelada."
+    except BookingStateError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+    else:
+        flash(message, "success" if action == "complete" else "info")
+    return redirect(url_for("admin.bookings"))
 
 
 @admin_bp.post("/reservas/<int:booking_id>/concluir")
 @admin_required
 def booking_complete(booking_id):
-    item = db.session.get(Booking, booking_id) or abort(404)
-    if item.status != BookingStatus.CONFIRMED:
-        flash("Somente reservas confirmadas podem ser concluídas.", "error")
-    else:
-        _admin_booking_status(item, BookingStatus.COMPLETED)
-        flash("Atendimento marcado como concluído.", "success")
-    return redirect(url_for("admin.bookings"))
+    return _admin_booking_action(booking_id, "complete")
 
 
 @admin_bp.post("/reservas/<int:booking_id>/no-show")
 @admin_required
 def booking_no_show(booking_id):
-    item = db.session.get(Booking, booking_id) or abort(404)
-    if item.status != BookingStatus.CONFIRMED:
-        flash("Somente reservas confirmadas podem ser marcadas como no-show.", "error")
-    else:
-        _admin_booking_status(item, BookingStatus.NO_SHOW)
-        flash("Reserva marcada como não compareceu.", "info")
-    return redirect(url_for("admin.bookings"))
+    return _admin_booking_action(booking_id, "no_show")
 
 
 @admin_bp.post("/reservas/<int:booking_id>/cancelar")
 @admin_required
 def booking_cancel_admin(booking_id):
-    item = db.session.get(Booking, booking_id) or abort(404)
-    if item.status not in {BookingStatus.PENDING, BookingStatus.CONFIRMED}:
-        flash("Esta reserva não pode ser cancelada.", "error")
-    else:
-        _admin_booking_status(item, BookingStatus.CANCELLED)
-        flash("Reserva cancelada.", "info")
-    return redirect(url_for("admin.bookings"))
+    return _admin_booking_action(booking_id, "cancel")
 
 
 @admin_bp.get("/identificador/disponibilidade")

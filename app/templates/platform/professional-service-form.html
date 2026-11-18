@@ -2,57 +2,182 @@
 {% from 'components/icon.html' import icon %}
 {% from 'auth/_macros.html' import field_errors %}
 
-{% block title %}{{ 'Editar serviço' if service is defined else 'Novo serviço' }} | IDDUN Pro{% endblock %}
+{#
+  P-002 · Wizard A — criar ou editar serviço em cinco etapas.
+  Um único formulário, enviado uma única vez: as etapas só organizam o
+  preenchimento. Sem JavaScript, todas aparecem em sequência e o envio
+  funciona igual. Salvar cria (ou mantém) um RASCUNHO: não publica, não
+  abre horários e não cria post. Publicar continua sendo um ato separado,
+  em Meus serviços.
+#}
+
+{% set editing = service is defined %}
+{% set steps = [
+  ('basico', 'Básico'),
+  ('preco', 'Preço e duração'),
+  ('local', 'Local e disponibilidade'),
+  ('imagem', 'Imagem'),
+  ('revisao', 'Revisão'),
+] %}
+
+{% macro wizard_field(field, kind='input', help=None, wide=False, attrs={}) -%}
+{# aria-invalid e o id do erro são acrescentados por IddunForm (V-02a). #}
+{% set extra = dict(attrs) %}
+{% if help %}{% set _ = extra.update({'aria-describedby': field.id ~ '-help'}) %}{% endif %}
+<div class="platform-field{% if wide %} platform-field--wide{% endif %}">
+  {{ field.label(class_='platform-label') }}
+  {{ field(class_='platform-textarea' if kind == 'textarea' else 'platform-select' if kind == 'select' else 'platform-input', **extra) }}
+  {% if help %}<small class="platform-help" id="{{ field.id }}-help">{{ help }}</small>{% endif %}
+  {{ field_errors(field) }}
+</div>
+{%- endmacro %}
+
+{% macro review_row(key, label, value, step) -%}
+<div class="service-wizard__review-row">
+  <dt>{{ label }}</dt>
+  <dd data-review="{{ key }}" data-empty="Ainda não informado">{{ value if value not in [None, ''] else 'Ainda não informado' }}</dd>
+  <dd class="service-wizard__review-edit"><a href="#etapa-{{ step }}" data-wizard-goto="{{ step }}">Editar<span class="sr-only"> {{ label|lower }}</span></a></dd>
+</div>
+{%- endmacro %}
+
+{% block title %}{{ 'Editar serviço' if editing else 'Novo serviço' }} | IDDUN Pro{% endblock %}
 {% block body_class %}platform-page platform-editor-page pro-service-form-page{% endblock %}
 {% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}">{% endblock %}
 {% block styles_after %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pro-service-catalog.css') }}">{% endblock %}
 
 {% block content %}
 <section class="platform-editor" data-iddun-surface="light" aria-labelledby="new-service-title">
-  <div class="container platform-editor__layout">
+  <div class="container platform-editor__layout service-wizard-layout">
     <header class="platform-editor__head pro-catalog-heading">
-      <a class="platform-back-link" href="{{ url_for('professional.services') }}">{{ icon('arrow-left') }} Meus serviços</a>
+      <a class="platform-back-link" href="{{ url_for('professional.services', servico=service.id) if editing else url_for('professional.services') }}">{{ icon('arrow-left') }} Meus serviços</a>
       <span class="platform-kicker">IDDUN PRO · CATÁLOGO</span>
-      <h1 id="new-service-title">{{ "Editar serviço" if service is defined else "Criar serviço" }}</h1>
-      {% if service is defined %}<p>Atualize as informações do serviço. O status {{ service.status_label|lower }} e o endereço do serviço serão preservados.</p>{% else %}<p>Preencha as informações iniciais. O serviço será salvo como rascunho e não aparecerá para clientes antes da publicação.</p>{% endif %}
+      <h1 id="new-service-title">{{ "Editar serviço" if editing else "Criar serviço" }}</h1>
+      {% if editing %}<p>Atualize as informações do serviço. O status {{ service.status_label|lower }} e o endereço do serviço serão preservados.</p>{% else %}<p>Preencha em cinco etapas curtas. O serviço é salvo como rascunho e não aparece para clientes antes da publicação.</p>{% endif %}
     </header>
-    <section class="platform-panel pro-service-form-panel">
-      <form method="post" enctype="multipart/form-data" class="platform-editor-form">
-        {{ form.hidden_tag() }}
-        <section class="pro-service-form-section" aria-label="Imagem do serviço">
-          <div class="pro-service-form-section__head"><h2>01 · Apresentação visual</h2><p>Uma imagem ajuda a mostrar seu trabalho. O envio é opcional.</p></div>
-          <div class="platform-field">
-          {{ form.image_file.label(class_='platform-label') }}
-          {% if service is defined and service.image_url %}
-            <img src="{{ service.image_url|media_url }}" alt="Capa atual do serviço" loading="lazy" class="pro-service-form-image">
-            <p class="platform-help">Envie uma nova imagem para substituir a atual ou deixe vazio para manter.</p>
-          {% endif %}
-          {{ form.image_file(class_='platform-input', accept='.jpg,.jpeg,.png,.webp') }}
-          <small class="platform-help">JPG, PNG ou WEBP · até 5 MB.</small>
-          {{ field_errors(form.image_file) }}
-          </div>
-        </section>
-        <section class="pro-service-form-section" aria-label="Dados e valores do serviço">
-          <div class="pro-service-form-section__head"><h2>02 · Detalhes do serviço</h2><p>Organize as informações que ajudam o cliente a decidir.</p></div>
-        <div class="platform-form-grid">
-          {% for field in [form.title, form.category, form.establishment_id, form.short_description, form.description, form.regular_price, form.price, form.duration_minutes] %}
-          <div class="platform-field{% if field.name in ['short_description', 'description'] %} platform-field--wide{% endif %}">
-            {{ field.label(class_='platform-label') }}
-            {{ field(class_='platform-input' if field.name not in ['description', 'category', 'establishment_id'] else 'platform-textarea' if field.name == 'description' else 'platform-select') }}
-            {% if field.name == 'establishment_id' %}
-              <small class="platform-help">Apenas estabelecimentos com vínculo ativo e aceito aparecem nesta lista.</small>
-            {% endif %}
-            {{ field_errors(field) }}
-          </div>
+
+    <form method="post" enctype="multipart/form-data" class="service-wizard" data-service-wizard aria-labelledby="new-service-title">
+      {{ form.hidden_tag() }}
+
+      <nav class="service-wizard__progress" aria-label="Etapas do cadastro">
+        <ol>
+          {% for key, label in steps %}
+          <li class="service-wizard__progress-item" data-progress="{{ key }}">
+            <a href="#etapa-{{ key }}" data-wizard-goto="{{ key }}">
+              <span class="service-wizard__progress-number" aria-hidden="true">{{ loop.index }}</span>
+              <span class="service-wizard__progress-label">{{ label }}</span>
+              <span class="sr-only" data-progress-state></span>
+            </a>
+          </li>
           {% endfor %}
+        </ol>
+      </nav>
+
+      <p class="sr-only" aria-live="polite" data-wizard-status></p>
+
+      <div class="service-wizard__body">
+        <div class="platform-panel pro-service-form-panel service-wizard__panel">
+
+          <fieldset class="pro-service-form-section service-wizard__step" id="etapa-basico" data-step="basico">
+            <legend class="pro-service-form-section__head"><span class="service-wizard__step-count">Etapa 1 de 5</span><span class="service-wizard__step-title">Informações básicas</span></legend>
+            <p class="service-wizard__step-intro">Nome, categoria e uma descrição clara do serviço.</p>
+            <div class="platform-form-grid">
+              {{ wizard_field(form.title, attrs={'autocomplete': 'off'}) }}
+              {{ wizard_field(form.category, kind='select') }}
+              {{ wizard_field(form.short_description, help='Aparece na lista de serviços (até 220 caracteres).', wide=True, attrs={'data-count': '220'}) }}
+              {{ wizard_field(form.description, kind='textarea', help='Opcional. Detalhes do procedimento, cuidados e o que está incluído.', wide=True) }}
+            </div>
+          </fieldset>
+
+          <fieldset class="pro-service-form-section service-wizard__step" id="etapa-preco" data-step="preco">
+            <legend class="pro-service-form-section__head"><span class="service-wizard__step-count">Etapa 2 de 5</span><span class="service-wizard__step-title">Preço e duração</span></legend>
+            <p class="service-wizard__step-intro">O preço IDDUN é o que o cliente vê para reservar. Ele não pode ser maior que o preço regular.</p>
+            <div class="platform-form-grid">
+              {{ wizard_field(form.regular_price, help='O valor que você pratica normalmente.') }}
+              {{ wizard_field(form.price, help='Igual ao regular, ou menor.') }}
+              {{ wizard_field(form.duration_minutes, help='Entre 10 e 720 minutos. Define o tamanho de cada horário.') }}
+            </div>
+          </fieldset>
+
+          <fieldset class="pro-service-form-section service-wizard__step" id="etapa-local" data-step="local">
+            <legend class="pro-service-form-section__head"><span class="service-wizard__step-count">Etapa 3 de 5</span><span class="service-wizard__step-title">Local e disponibilidade</span></legend>
+            <p class="service-wizard__step-intro">Onde o atendimento acontece.</p>
+            <div class="platform-form-grid">
+              {{ wizard_field(form.establishment_id, kind='select', help='Apenas estabelecimentos com vínculo ativo e aceito aparecem nesta lista.', wide=True) }}
+            </div>
+            <div class="service-wizard__info" role="note">
+              {{ icon('calendar') }}
+              <div>
+                <strong>Horários vêm depois da publicação</strong>
+                <p>Salvar não abre horários. Depois de publicar, em Meus serviços, você abre um horário, vários em lote ou gera pela jornada semanal.
+                {% if working_days %}Sua jornada semanal tem {{ working_days }} {{ 'dia configurado' if working_days == 1 else 'dias configurados' }}.{% else %}Sua jornada semanal ainda não está configurada.{% endif %}</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="pro-service-form-section service-wizard__step" id="etapa-imagem" data-step="imagem">
+            <legend class="pro-service-form-section__head"><span class="service-wizard__step-count">Etapa 4 de 5</span><span class="service-wizard__step-title">Imagem</span></legend>
+            <p class="service-wizard__step-intro">Opcional. Uma foto real do seu trabalho ajuda o cliente a decidir. Sem imagem, o serviço aparece com o nome da categoria em destaque, nunca com foto genérica.</p>
+            <div class="service-wizard__image">
+              <figure class="service-wizard__image-preview">
+                {% if editing and service.image_url %}
+                  <img src="{{ service.image_url|media_url }}" alt="Capa atual do serviço" loading="lazy" class="pro-service-form-image" data-image-current>
+                {% endif %}
+                <img alt="Prévia da nova imagem" class="pro-service-form-image" data-image-preview hidden>
+                {% if not (editing and service.image_url) %}
+                <span class="ds-media-type service-wizard__fallback" aria-hidden="true" data-image-fallback>
+                  <span class="ds-media-type__rule"></span>
+                  <span class="ds-media-type__name" data-bind="category">{{ dict(form.category.choices).get(form.category.data, '') if form.category.data else 'Categoria' }}</span>
+                  <span class="ds-media-type__note">Sem imagem</span>
+                </span>
+                {% endif %}
+              </figure>
+              <div class="service-wizard__image-controls">
+                {% set image_help = 'Envie outra imagem para substituir a atual ou deixe vazio para manter. JPG, PNG ou WEBP, até 5 MB.' if editing and service.image_url else 'JPG, PNG ou WEBP, até 5 MB.' %}
+                {{ wizard_field(form.image_file, help=image_help, attrs={'accept': '.jpg,.jpeg,.png,.webp', 'data-max-bytes': '5242880'}) }}
+                <button type="button" class="btn btn-outline btn-sm" data-image-clear hidden>Remover imagem escolhida</button>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="pro-service-form-section service-wizard__step" id="etapa-revisao" data-step="revisao">
+            <legend class="pro-service-form-section__head"><span class="service-wizard__step-count">Etapa 5 de 5</span><span class="service-wizard__step-title">Revisão</span></legend>
+            <p class="service-wizard__step-intro">{{ 'Confira antes de salvar. O status do serviço não muda.' if editing else 'Confira antes de salvar. O rascunho fica privado até você publicar em Meus serviços.' }}</p>
+            <dl class="service-wizard__review">
+              {{ review_row('title', 'Nome', form.title.data, 'basico') }}
+              {{ review_row('category', 'Categoria', dict(form.category.choices).get(form.category.data) if form.category.data else None, 'basico') }}
+              {{ review_row('short_description', 'Descrição resumida', form.short_description.data, 'basico') }}
+              {{ review_row('regular_price', 'Preço regular', ('R$ ' ~ ('%.2f'|format(form.regular_price.data))|replace('.', ',')) if form.regular_price.data is not none else None, 'preco') }}
+              {{ review_row('price', 'Preço IDDUN', ('R$ ' ~ ('%.2f'|format(form.price.data))|replace('.', ',')) if form.price.data is not none else None, 'preco') }}
+              {{ review_row('duration_minutes', 'Duração', (form.duration_minutes.data ~ ' min') if form.duration_minutes.data else None, 'preco') }}
+              {{ review_row('establishment_id', 'Local', dict(form.establishment_id.choices).get(form.establishment_id.data or 0), 'local') }}
+              {{ review_row('image_file', 'Imagem', 'Imagem atual mantida' if editing and service.image_url else 'Sem imagem', 'imagem') }}
+            </dl>
+          </fieldset>
+
+          <div class="platform-editor-actions service-wizard__actions">
+            <button class="btn btn-outline" type="button" data-wizard-back hidden>{{ icon('arrow-left') }} Voltar</button>
+            <a class="btn btn-outline" href="{{ url_for('professional.services', servico=service.id) if editing else url_for('professional.services') }}" data-wizard-cancel>Cancelar</a>
+            <button class="btn btn-primary" type="button" data-wizard-next hidden>Continuar {{ icon('chevron-right') }}</button>
+            <button class="btn btn-primary" type="submit" data-wizard-submit>{{ 'Salvar alterações' if editing else 'Salvar rascunho' }}</button>
+          </div>
         </div>
-        </section>
-        <div class="platform-editor-actions">
-          <button class="btn btn-primary" type="submit">{{ 'Salvar alterações' if service is defined else 'Salvar rascunho' }}</button>
-          <a class="btn btn-outline" href="{{ url_for('professional.services') }}">Cancelar</a>
-        </div>
-      </form>
-    </section>
+
+        <aside class="platform-panel service-wizard__preview" aria-label="Prévia do serviço">
+          <span class="platform-kicker">PRÉVIA</span>
+          <p class="service-wizard__preview-title" data-bind="title" data-empty="Ainda não informado">{{ form.title.data or 'Ainda não informado' }}</p>
+          <dl class="service-wizard__preview-facts">
+            <div><dt>Categoria</dt><dd data-bind="category" data-empty="Ainda não informado">{{ dict(form.category.choices).get(form.category.data) if form.category.data else 'Ainda não informado' }}</dd></div>
+            <div><dt>Duração</dt><dd data-bind="duration_minutes" data-empty="Ainda não informado">{{ (form.duration_minutes.data ~ ' min') if form.duration_minutes.data else 'Ainda não informado' }}</dd></div>
+            <div><dt>Preço IDDUN</dt><dd data-bind="price" data-empty="Ainda não informado">{{ ('R$ ' ~ ('%.2f'|format(form.price.data))|replace('.', ',')) if form.price.data is not none else 'Ainda não informado' }}</dd></div>
+          </dl>
+          <p class="service-wizard__preview-note">{{ icon('info') }} {{ 'O status atual é mantido.' if editing else 'Rascunho privado. Você revisa e publica depois.' }}</p>
+        </aside>
+      </div>
+    </form>
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/service-wizard.js') }}" defer></script>
 {% endblock %}
