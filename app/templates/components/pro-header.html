@@ -44,6 +44,8 @@
           <a href="{{ url_for('professional.insights') }}" {% if pro_active == 'insights' %}aria-current="page"{% endif %}>{{ icon('star') }} Insights</a>
           <a href="{{ url_for('professional.schedule') }}" {% if pro_active == 'schedule' %}aria-current="page"{% endif %}>{{ icon('clock') }} Jornada semanal</a>
           <a href="{{ url_for('professional.certifications') }}">{{ icon('award') }} Formação e certificações</a>
+          <a href="{{ url_for('recruitment.jobs') }}">{{ icon('briefcase') }} Vagas</a>
+          <a href="{{ url_for('recruitment.applications') }}">{{ icon('briefcase') }} Minhas candidaturas</a>
           <a href="{{ url_for('professional.edit_profile') }}">{{ icon('edit') }} Editar perfil</a>
           <a href="{{ url_for('public.professional_detail', slug=profile.slug) }}">{{ icon('user') }} Ver perfil público</a>
         </div>

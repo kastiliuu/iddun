@@ -53,6 +53,7 @@ from app.routes.feed import feed_bp
 from app.routes.posts import posts_bp
 from app.routes.notifications import notifications_bp
 from app.routes.public import public_bp
+from app.routes.recruitment import recruitment_bp
 from app.routes.platform import business_bp, professional_bp
 from app.services.api_contract import api_error
 from app.services.media_storage import (
@@ -551,6 +552,7 @@ def create_app(test_config=None):
             return None
 
     app.register_blueprint(public_bp)
+    app.register_blueprint(recruitment_bp)
     app.register_blueprint(api_v1_bp)
     app.register_blueprint(api_account_bp)
     app.register_blueprint(api_availability_bp)

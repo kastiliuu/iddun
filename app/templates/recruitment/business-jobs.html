@@ -1,0 +1,129 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import job_facts, status_chip, field %}
+{#
+  V1-CONV-D05 · vagas do estabelecimento na Web, como no app.
+  - Criar e publicar vaga nova: só com o piloto habilitado pelo IDDUN.
+  - Gerente: só com a permissão dada pela dona (A1-DEC-02).
+  - Vagas que já existiam seguem no ar e editáveis (V1-CONV-D04).
+#}
+{% block title %}Vagas | {{ establishment.name }} | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-jobs-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+{% include 'components/business-nav.html' %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="business-jobs-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <a class="platform-back-link" href="{{ url_for('business.dashboard', slug=establishment.slug) }}">{{ icon('arrow-left') }} Voltar ao painel</a>
+      <span class="platform-kicker">IDDUN BUSINESS · RECRUTAMENTO</span>
+      <h1 id="business-jobs-title">Vagas de {{ establishment.name }}</h1>
+      <p>Publique vagas, acompanhe candidaturas e encerre quando preencher.</p>
+    </header>
+
+    <section class="platform-panel recruit-pilot{% if capability.pilotEnabled %} is-enabled{% endif %}" aria-labelledby="pilot-title">
+      {{ icon('shield-check' if capability.pilotEnabled else 'info') }}
+      <div>
+        <h2 id="pilot-title">{{ 'Recrutamento habilitado' if capability.pilotEnabled else 'Recrutamento ainda não habilitado' }}</h2>
+        {% if capability.pilotEnabled %}
+          <p>Este estabelecimento participa do piloto de recrutamento do IDDUN e pode publicar vagas novas.</p>
+        {% else %}
+          <p>Novas vagas dependem da habilitação feita pela equipe do IDDUN. Vagas que já existiam continuam no ar e podem ser editadas ou encerradas.</p>
+        {% endif %}
+      </div>
+    </section>
+
+    {% if denied %}
+    <section class="platform-panel recruit-empty" role="alert">
+      <h2>Sem permissão de recrutamento</h2>
+      <p>{{ denied }}</p>
+    </section>
+    {% else %}
+
+    {% if capability.canCreate and form %}
+    <section class="platform-panel" aria-labelledby="new-job-title">
+      <h2 id="new-job-title">Nova vaga</h2>
+      <p class="recruit-muted">Salvar cria um rascunho. A vaga só aparece para profissionais depois de publicada.</p>
+      <form method="post" class="platform-form-grid recruit-form" data-once>
+        {{ form.hidden_tag() }}
+        {{ field(form.title) }}
+        {{ field(form.specialty) }}
+        {{ field(form.description, kind='textarea', wide=True) }}
+        {{ field(form.employment_type) }}
+        {{ field(form.compensation_text) }}
+        <div class="platform-field--wide recruit-actions"><button class="btn btn-primary" type="submit">Criar rascunho</button></div>
+      </form>
+    </section>
+    {% endif %}
+
+    <section aria-labelledby="jobs-list-title">
+      <h2 id="jobs-list-title" class="recruit-section-title">Vagas ({{ items|length }})</h2>
+      {% if items %}
+      <ul class="recruit-list">
+        {% for job in items %}
+        {% set submitted = job.applications|selectattr('status', 'equalto', 'submitted')|list|length %}
+        <li class="platform-panel recruit-card recruit-card--static" id="vaga-{{ job.id }}">
+          <span class="recruit-card__meta">{{ status_chip(status_labels.get(job.status, job.status), job.status) }}<span class="recruit-muted">{{ submitted }} {{ 'candidatura' if submitted == 1 else 'candidaturas' }}</span></span>
+          <span class="recruit-card__title">{{ job.title }}</span>
+          {{ job_facts(job) }}
+          <div class="recruit-actions">
+            {% if job.status != JobPostStatus.CLOSED %}<a class="btn btn-outline btn-sm" href="{{ url_for('recruitment.business_job_edit', slug=establishment.slug, job_id=job.id) }}">{{ icon('edit') }} Editar</a>{% endif %}
+            {% if job.status == JobPostStatus.DRAFT %}
+              {% if job.published_at or capability.pilotEnabled %}
+              <form method="post" action="{{ url_for('recruitment.business_job_publish', slug=establishment.slug, job_id=job.id) }}" data-once>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="btn btn-primary btn-sm" type="submit">Publicar</button>
+              </form>
+              {% else %}
+              <span class="recruit-muted">Publicar depende da habilitação do IDDUN.</span>
+              {% endif %}
+            {% endif %}
+            {% if job.status != JobPostStatus.DRAFT %}<a class="btn btn-outline btn-sm" href="{{ url_for('recruitment.business_job_applications', slug=establishment.slug, job_id=job.id) }}">{{ icon('users') }} Candidaturas</a>{% endif %}
+            {% if job.status == JobPostStatus.PUBLISHED %}
+            <form method="post" action="{{ url_for('recruitment.business_job_close', slug=establishment.slug, job_id=job.id) }}" data-confirm-submit="Encerrar esta vaga? Ela sai do ar e as candidaturas ficam guardadas." data-once>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-outline btn-sm" type="submit">Encerrar</button>
+            </form>
+            {% endif %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="platform-panel recruit-empty"><p>Nenhuma vaga criada ainda.</p></div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    {% if capability.isOwner %}
+    <section class="platform-panel" id="gerentes" aria-labelledby="managers-title">
+      <h2 id="managers-title">Gerentes e recrutamento</h2>
+      <p class="recruit-muted">Gerentes só veem e alteram vagas com a sua permissão. Retirar a permissão vale na hora e não muda as outras funções do gerente.</p>
+      {% if managers %}
+      <ul class="recruit-managers">
+        {% for manager in managers %}
+        <li>
+          <span class="recruit-managers__name">{{ manager.user.name }}</span>
+          {{ status_chip('Pode recrutar' if manager.can_recruit else 'Sem permissão', 'published' if manager.can_recruit else 'closed') }}
+          <form method="post" action="{{ url_for('recruitment.business_manager_grant', slug=establishment.slug, access_id=manager.id) }}" data-once{% if manager.can_recruit %} data-confirm-submit="Retirar a permissão de recrutar de {{ manager.user.name }}?"{% endif %}>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="permitir" value="{{ '0' if manager.can_recruit else '1' }}">
+            <button class="btn btn-outline btn-sm" type="submit">{{ 'Retirar permissão' if manager.can_recruit else 'Permitir recrutar' }}<span class="sr-only"> · {{ manager.user.name }}</span></button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p>Este estabelecimento não tem gerentes ativos.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}
+{% from 'components/_bottom_nav.html' import business_bottom_nav with context %}
+{{ business_bottom_nav(establishment, access) }}
+{% endblock %}

@@ -61,7 +61,10 @@ def _user(
     return user
 
 
-def _establishment(slug):
+def _establishment(slug, *, recruitment_enabled=True):
+    # V1-CONV-D05: vaga nova exige o piloto habilitado pelo admin. As
+    # empresas destes testes participam do piloto; as regras de negação
+    # ficam em tests/test_recruitment_pilot.py.
     establishment = Establishment(
         name=f"Studio {slug}",
         slug=slug,
@@ -69,6 +72,7 @@ def _establishment(slug):
         state="PR",
         neighborhood="Batel",
         is_active=True,
+        recruitment_enabled=recruitment_enabled,
     )
     db.session.add(
         establishment

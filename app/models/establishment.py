@@ -55,6 +55,12 @@ class Establishment(db.Model):
     no_show_tolerance_minutes = db.Column(
         db.SmallInteger, nullable=False, default=15, server_default="15"
     )
+    # A1-DEC-01 / V1-CONV-D03/D05: piloto de recrutamento sem cobrança. Só o
+    # admin do IDDUN liga e desliga, com motivo registrado em
+    # recruitment_audit_events. Padrão: desligado.
+    recruitment_enabled = db.Column(
+        db.Boolean, nullable=False, default=False, server_default=db.false()
+    )
     onboarding_completed = db.Column(db.Boolean, nullable=False, default=False)
     published_at = db.Column(db.DateTime(timezone=True), nullable=True)
     phone = db.Column(db.String(32), nullable=True)
@@ -192,6 +198,9 @@ class EstablishmentUserAccess(db.Model):
     )
     role = db.Column(db.String(24), nullable=False, default=EstablishmentAccessRole.MANAGER)
     status = db.Column(db.String(24), nullable=False, default=EstablishmentAccessStatus.ACTIVE)
+    # A1-DEC-02 / V1-CONV-D05: gerente só recruta com concessão expressa da
+    # dona naquele estabelecimento. Padrão: negado. Não vale para a dona.
+    can_recruit = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
 
     user = db.relationship("User", back_populates="establishment_accesses")
@@ -264,3 +273,65 @@ class ProfessionalEstablishmentMembership(db.Model):
             name="uq_membership_professional_establishment",
         ),
     )
+
+
+class RecruitmentAuditAction:
+    PILOT_ENABLED = "pilot_enabled"
+    PILOT_REVOKED = "pilot_revoked"
+    GRANT_GIVEN = "grant_given"
+    GRANT_REVOKED = "grant_revoked"
+
+    VALUES = (PILOT_ENABLED, PILOT_REVOKED, GRANT_GIVEN, GRANT_REVOKED)
+    LABELS = {
+        PILOT_ENABLED: "Recrutamento habilitado",
+        PILOT_REVOKED: "Recrutamento revogado",
+        GRANT_GIVEN: "Permissão de recrutar concedida",
+        GRANT_REVOKED: "Permissão de recrutar retirada",
+    }
+
+
+class RecruitmentAuditEvent(db.Model):
+    """Quem mudou o recrutamento de uma empresa, o quê, quando e por quê.
+
+    V1-CONV-D05 (A1-DEC-01/02): habilitação do piloto pelo admin e concessão
+    de recrutamento a gerente pela dona. Só acrescenta linhas.
+    """
+
+    __tablename__ = "recruitment_audit_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    establishment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("establishments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    actor_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    subject_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    action = db.Column(db.String(24), nullable=False)
+    reason = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
+
+    establishment = db.relationship("Establishment")
+    actor = db.relationship("User", foreign_keys=[actor_user_id])
+    subject = db.relationship("User", foreign_keys=[subject_user_id])
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "action IN ('pilot_enabled', 'pilot_revoked', 'grant_given', 'grant_revoked')",
+            name="ck_recruitment_audit_action",
+        ),
+    )
+
+    @property
+    def action_label(self):
+        return RecruitmentAuditAction.LABELS.get(self.action, self.action)

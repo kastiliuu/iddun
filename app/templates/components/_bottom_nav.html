@@ -11,6 +11,7 @@
     <button type="button" class="mobile-bottom-nav__item nav-more__trigger{% if endpoint == 'business.insights' %} is-active{% endif %}" aria-expanded="false" aria-controls="business-mobile-more-menu" aria-label="Mais opções do estabelecimento" data-disclosure-trigger>{{ icon('menu', 'mobile-bottom-nav__icon') }}<span>Mais</span></button>
     <div id="business-mobile-more-menu" class="feed-account-menu nav-more__menu" hidden data-disclosure-panel>
       <a href="{{ url_for('business.insights', slug=establishment.slug) }}" {% if endpoint == 'business.insights' %}aria-current="page"{% endif %}>{{ icon('star') }} Indicadores</a>
+      <a href="{{ url_for('recruitment.business_jobs', slug=establishment.slug) }}" {% if endpoint.startswith('recruitment.business_') %}aria-current="page"{% endif %}>{{ icon('briefcase') }} Vagas</a>
       <a href="{{ dashboard }}#business-operations">{{ icon('clock') }} Operação de hoje</a>
       <a href="{{ dashboard }}#business-gallery">{{ icon('store') }} Galeria</a>
       {% if access.role == 'owner' %}<a href="{{ url_for('business.edit', slug=establishment.slug) }}">{{ icon('edit') }} Editar empresa</a>{% endif %}

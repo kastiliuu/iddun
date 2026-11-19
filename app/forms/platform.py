@@ -467,3 +467,35 @@ class ProfessionalCertificationForm(IddunForm):
     document_file = FileField("Comprovante", validators=[Optional(), *CERTIFICATE_FILE_VALIDATORS])
     is_public = BooleanField("Exibir no meu perfil público", default=True)
     submit = SubmitField("Adicionar certificação")
+
+
+class JobPostForm(IddunForm):
+    """Vaga do estabelecimento na Web (V1-CONV-D05), mesmos limites da API."""
+
+    title = StringField(
+        "Título da vaga",
+        validators=[DataRequired(message="Informe o título da vaga."), Length(max=160)],
+    )
+    specialty = StringField("Especialidade", validators=[Optional(), Length(max=120)])
+    description = TextAreaField(
+        "Descrição",
+        validators=[DataRequired(message="Descreva a vaga.")],
+    )
+    employment_type = StringField(
+        "Modelo de trabalho",
+        validators=[Optional(), Length(max=40)],
+        description="Ex.: CLT, parceria, comissão.",
+    )
+    compensation_text = StringField(
+        "Remuneração",
+        validators=[Optional(), Length(max=180)],
+        description="Opcional. Como a remuneração funciona.",
+    )
+
+
+class JobApplicationForm(IddunForm):
+    message = TextAreaField(
+        "Mensagem para o estabelecimento",
+        validators=[Optional(), Length(max=1200)],
+        description="Opcional. Conte sua experiência e disponibilidade.",
+    )

@@ -19,6 +19,7 @@ import {
   getManagedJobs,
   publishJob,
   type JobPost,
+  type ManagedJobsResponse,
 } from "@/api/jobs";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
@@ -33,6 +34,12 @@ import {
   useTheme,
 } from "@/theme";
 
+const JOB_STATUS_LABELS: Record<string, string> = {
+  draft: "Rascunho",
+  published: "Publicada",
+  closed: "Encerrada",
+};
+
 export default function ManageJobsScreen() {
   const styles = useStyles();
   const { colors } = useTheme();
@@ -45,6 +52,8 @@ export default function ManageJobsScreen() {
 
   const [items, setItems] =
     useState<JobPost[]>([]);
+  const [recruitment, setRecruitment] =
+    useState<ManagedJobsResponse["recruitment"] | null>(null);
   const [loading, setLoading] =
     useState(true);
   const [saving, setSaving] =
@@ -81,9 +90,11 @@ export default function ManageJobsScreen() {
         );
 
       setItems(response.items);
+      setRecruitment(response.recruitment ?? null);
       setError(null);
     } catch (requestError) {
       setItems([]);
+      setRecruitment(null);
       setError(
         requestError instanceof Error
           ? requestError.message
@@ -264,6 +275,18 @@ export default function ManageJobsScreen() {
           </Text>
         </View>
 
+        {recruitment && !recruitment.canCreate ? (
+          <View style={styles.formCard} accessibilityRole="summary">
+            <Text style={styles.sectionTitle}>
+              Recrutamento ainda não habilitado
+            </Text>
+            <Text style={styles.jobMeta}>
+              Novas vagas dependem da habilitação feita pela equipe do IDDUN. Vagas que já existiam continuam no ar e podem ser encerradas.
+            </Text>
+          </View>
+        ) : null}
+
+        {recruitment?.canCreate ? (
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>
             Nova vaga
@@ -319,6 +342,7 @@ export default function ManageJobsScreen() {
             fullWidth
           />
         </View>
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>
@@ -344,7 +368,11 @@ export default function ManageJobsScreen() {
           ) : items.length === 0 ? (
             <EmptyState
               title="Nenhuma vaga criada"
-              description="Crie o primeiro rascunho usando o formulário acima."
+              description={
+                recruitment?.canCreate
+                  ? "Crie o primeiro rascunho usando o formulário acima."
+                  : "Quando o recrutamento for habilitado, suas vagas aparecem aqui."
+              }
               compact
             />
           ) : (
@@ -363,7 +391,7 @@ export default function ManageJobsScreen() {
                       <Text style={styles.jobMeta}>
                         {job.specialty ||
                           "Sem especialidade"}{" "}
-                        · {job.status}
+                        · {JOB_STATUS_LABELS[job.status] ?? job.status}
                       </Text>
                     </View>
 
@@ -376,7 +404,8 @@ export default function ManageJobsScreen() {
                   </View>
 
                   <View style={styles.actions}>
-                    {job.status === "draft" ? (
+                    {job.status === "draft" &&
+                    (job.publishedAt || recruitment?.pilotEnabled) ? (
                       <Button
                         title="Publicar"
                         compact

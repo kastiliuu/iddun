@@ -15,10 +15,23 @@ from app.services.establishment_team_service import (
     EstablishmentTeamError,
     require_establishment_manager,
 )
+from app.services.recruitment_access_service import (
+    RecruitmentAccessError,
+    require_new_job_allowed,
+    require_recruitment_manager,
+)
 
 
 class JobError(ValueError):
     pass
+
+
+class JobPermissionError(JobError):
+    """Recrutamento negado por regra de acesso (V1-CONV-D05): a API responde 403."""
+
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
 
 
 def _require_active_user(user):
@@ -80,13 +93,39 @@ def _managed_establishment(
     reference,
 ):
     try:
-        return require_establishment_manager(
+        establishment, access = require_establishment_manager(
             user,
             reference,
         )
     except EstablishmentTeamError as exc:
         raise JobError(
             str(exc)
+        ) from exc
+
+    # A1-DEC-02: gerente sem concessão expressa não vê nem altera vagas.
+    try:
+        require_recruitment_manager(access)
+    except RecruitmentAccessError as exc:
+        raise JobPermissionError(
+            str(exc), exc.code
+        ) from exc
+
+    return establishment, access
+
+
+def _require_new_job(
+    establishment,
+    access,
+):
+    # V1-CONV-D04: só vaga nova exige o piloto habilitado.
+    try:
+        require_new_job_allowed(
+            establishment,
+            access,
+        )
+    except RecruitmentAccessError as exc:
+        raise JobPermissionError(
+            str(exc), exc.code
         ) from exc
 
 
@@ -278,11 +317,15 @@ def create_job(
     establishment_reference,
     payload,
 ):
-    establishment, _ = (
+    establishment, access = (
         _managed_establishment(
             user,
             establishment_reference,
         )
+    )
+    _require_new_job(
+        establishment,
+        access,
     )
 
     title = _clean_text(
@@ -496,13 +539,21 @@ def publish_job(
     establishment_reference,
     job_id,
 ):
-    _, _, job = _managed_job(
+    establishment, access, job = _managed_job(
         user=user,
         establishment_reference=(
             establishment_reference
         ),
         job_id=job_id,
     )
+
+    # Rascunho que nunca foi ao ar é vaga nova; a que já foi publicada
+    # antes segue a V1-CONV-D04.
+    if job.published_at is None:
+        _require_new_job(
+            establishment,
+            access,
+        )
 
     if (
         job.status

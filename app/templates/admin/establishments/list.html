@@ -16,7 +16,7 @@
     <td data-label="Região">{{ item.neighborhood or '—' }}{% if item.city %} · {{ item.city }}{% endif %}</td>
     <td data-label="Profissionais">{{ item.memberships|selectattr('status', 'equalto', 'active')|list|length }}</td>
     <td data-label="Status"><span class="admin-status {% if item.is_active %}admin-status--published{% else %}admin-status--archived{% endif %}">{% if item.is_active %}Ativo{% else %}Inativo{% endif %}</span>{% if item.is_verified %}<span class="admin-mini-verified">{{ icon('shield-check') }}</span>{% endif %}</td>
-    <td class="admin-table-action"><div class="admin-table-actions"><a href="{{ url_for('admin.establishment_dashboard', item_id=item.id) }}">{{ icon('home') }} Dashboard</a><a href="{{ url_for('admin.establishment_edit', item_id=item.id) }}">{{ icon('edit') }} Editar</a></div></td>
+    <td class="admin-table-action"><div class="admin-table-actions"><a href="{{ url_for('admin.establishment_dashboard', item_id=item.id) }}">{{ icon('home') }} Dashboard</a><a href="{{ url_for('admin.establishment_edit', item_id=item.id) }}">{{ icon('edit') }} Editar</a><a href="{{ url_for('admin.establishment_recruitment', item_id=item.id) }}">{{ icon('users') }} Recrutamento{% if item.recruitment_enabled %} (habilitado){% endif %}</a></div></td>
   </tr>
   {% endfor %}</tbody></table></div>
   {% else %}<div class="admin-empty"><span>{{ icon('store') }}</span><h3>Nenhum local cadastrado.</h3><p>Adicione um salão ou studio para depois vinculá-lo aos profissionais.</p><a class="btn btn-dark" href="{{ url_for('admin.establishment_create') }}">Cadastrar estabelecimento</a></div>{% endif %}

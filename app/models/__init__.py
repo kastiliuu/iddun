@@ -32,6 +32,8 @@ from app.models.establishment import (
     EstablishmentUserAccess,
     MembershipStatus,
     ProfessionalEstablishmentMembership,
+    RecruitmentAuditAction,
+    RecruitmentAuditEvent,
 )
 from app.models.experience import Experience, ExperienceCategory, ExperienceStatus
 from app.models.plan import (
@@ -99,6 +101,8 @@ __all__ = [
     "EstablishmentAccessRole",
     "EstablishmentAccessStatus",
     "ProfessionalEstablishmentMembership",
+    "RecruitmentAuditAction",
+    "RecruitmentAuditEvent",
     "MembershipStatus",
     "Experience",
     "ExperienceCategory",
