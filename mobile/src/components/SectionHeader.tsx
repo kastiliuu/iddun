@@ -120,7 +120,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   spark: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansSemiBold,
     fontSize: 14,
     lineHeight: 18,
@@ -156,7 +156,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   actionText: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 12,
     lineHeight: 16,

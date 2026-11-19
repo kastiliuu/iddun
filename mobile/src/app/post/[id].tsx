@@ -73,7 +73,7 @@ function formatCurrency(value: number) {
 
 export default function PostDetailScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
   const [report, setReport] =
     useState<ReportTarget | null>(null);
@@ -1190,7 +1190,7 @@ export default function PostDetailScreen() {
       {service ? (
         <View
           style={
-            styles.stickyBar
+            [styles.stickyBar, scheme === "light" && styles.stickyBarLight]
           }
         >
           <View
@@ -1200,7 +1200,7 @@ export default function PostDetailScreen() {
           >
             <Text
               style={
-                styles.stickyLabel
+                [styles.stickyLabel, scheme === "light" && styles.stickyLabelLight]
               }
             >
               {service.name}
@@ -1566,7 +1566,7 @@ const useStyles = makeStyles(
         spacing.sm,
 
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1634,7 +1634,7 @@ const useStyles = makeStyles(
 
     serviceCategory: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1700,7 +1700,7 @@ const useStyles = makeStyles(
       flex: 1,
 
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1794,6 +1794,17 @@ const useStyles = makeStyles(
 
       fontSize: 10,
       lineHeight: 13,
+    },
+
+    // V1 PR 3 · tema claro: a barra fixa deixa de ser tinta escura sobre
+    // fundo claro e passa à superfície do tema, com texto legível (AA).
+    stickyBarLight: {
+      backgroundColor: colors.surfaceSecondary,
+      borderTopColor: colors.border,
+    },
+
+    stickyLabelLight: {
+      color: colors.onSurfaceSecondary,
     },
 
     stickyBar: {

@@ -51,7 +51,7 @@ const filters: {
 
 export default function IDDUNNowScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
 
   const [filter, setFilter] =
@@ -166,9 +166,9 @@ export default function IDDUNNowScreen() {
           </Pressable>
 
           <Image
-            source={require(
-              "../../assets/branding/iddun-logo-white.png",
-            )}
+            source={scheme === "light"
+              ? require("../../assets/branding/iddun-logo-black.png")
+              : require("../../assets/branding/iddun-logo-white.png")}
             style={
               styles.logo
             }
@@ -528,7 +528,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
 
         fontFamily:
           fonts.sansMedium,
@@ -656,7 +656,7 @@ const useStyles =
 
       resultCount: {
         color:
-          colors.plum,
+          colors.link,
 
         fontFamily:
           fonts.sansSemiBold,

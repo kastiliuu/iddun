@@ -13,7 +13,7 @@ import {
 } from "expo-router";
 
 import {
-  StatusBar,
+  setStatusBarStyle,
 } from "expo-status-bar";
 
 import {
@@ -47,6 +47,7 @@ import {
 
 import {
   makeStyles,
+  ThemeScope,
   useTheme,
 } from "@/theme";
 
@@ -142,24 +143,13 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <BottomSheetModalProvider>
           <ToastProvider>
-            <StatusBar
-              style="light"
-            />
-
-            <Stack
-              screenOptions={{
-                headerShown:
-                  false,
-
-                contentStyle: {
-                  backgroundColor:
-                    colors.surface,
-                },
-
-                animation:
-                  "slide_from_right",
-              }}
-            >
+            {/*
+              V1 PR 3 · DS-V1-01-D03: o app inteiro segue a preferência de
+              tema (claro padrão, escuro opcional), não só as abas. O
+              cabeçalho preto continua fixo em cada tela (D01).
+            */}
+            <ThemeScope>
+              <ThemedStack>
               <Stack.Screen
                 name="index"
               />
@@ -303,11 +293,40 @@ export default function RootLayout() {
               <Stack.Screen
                 name="booking/[serviceId]"
               />
-            </Stack>
+              </ThemedStack>
+            </ThemeScope>
           </ToastProvider>
         </BottomSheetModalProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+function ThemedStack({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { colors, scheme } = useTheme();
+
+  // Barra de status legível no fundo do tema; as abas, com cabeçalho
+  // preto, voltam a usar texto claro enquanto estão em foco.
+  useEffect(() => {
+    setStatusBarStyle(scheme === "light" ? "dark" : "light");
+  }, [scheme]);
+
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: {
+          backgroundColor: colors.surface,
+        },
+        animation: "slide_from_right",
+      }}
+    >
+      {children}
+    </Stack>
   );
 }
 

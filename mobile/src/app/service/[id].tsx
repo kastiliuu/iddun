@@ -75,7 +75,7 @@ function formatDuration(minutes: number) {
 
 export default function ServiceDetailScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
 
   const params =
@@ -740,7 +740,7 @@ export default function ServiceDetailScreen() {
 
       <View
         style={
-          styles.stickyBar
+          [styles.stickyBar, scheme === "light" && styles.stickyBarLight]
         }
       >
         <View
@@ -750,7 +750,7 @@ export default function ServiceDetailScreen() {
         >
           <Text
             style={
-              styles.priceLabel
+              [styles.priceLabel, scheme === "light" && styles.priceLabelLight]
             }
           >
             Valor
@@ -921,7 +921,7 @@ const useStyles = makeStyles(
 
     category: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1049,7 +1049,7 @@ const useStyles = makeStyles(
 
     authorEyebrow: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1104,7 +1104,7 @@ const useStyles = makeStyles(
 
     sectionEyebrow: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1259,6 +1259,17 @@ const useStyles = makeStyles(
 
       fontSize: 11,
       lineHeight: 17,
+    },
+
+    // V1 PR 3 · tema claro: a barra fixa deixa de ser tinta escura sobre
+    // fundo claro e passa à superfície do tema, com texto legível (AA).
+    stickyBarLight: {
+      backgroundColor: colors.surfaceSecondary,
+      borderTopColor: colors.border,
+    },
+
+    priceLabelLight: {
+      color: colors.onSurfaceSecondary,
     },
 
     stickyBar: {

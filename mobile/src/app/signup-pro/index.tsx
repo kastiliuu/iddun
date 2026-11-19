@@ -16,14 +16,14 @@ import {
 } from "@/api/onboarding";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { fonts, makeStyles, radius, spacing, touch, useTheme } from "@/theme";
+import { fonts, makeStyles, radius, spacing, touch, typography, useTheme } from "@/theme";
 
 type AccountType = "professional" | "establishment";
 type ProfessionalState = "none" | "draft" | "published" | "locked";
 
 export default function SignupProfessionalScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
 
   const [accountType, setAccountType] = useState<AccountType>("professional");
@@ -92,7 +92,9 @@ export default function SignupProfessionalScreen() {
             <Icon name="arrow-left" size={20} color={colors.onSurface} />
           </Pressable>
           <Image
-            source={require("../../../assets/branding/iddun-logo-white.png")}
+            source={scheme === "light"
+              ? require("../../../assets/branding/iddun-logo-black.png")
+              : require("../../../assets/branding/iddun-logo-white.png")}
             style={styles.logo}
             contentFit="contain"
             accessibilityLabel="IDDUN"
@@ -202,7 +204,7 @@ const useStyles = makeStyles((colors) => ({
   },
   headerPlaceholder: { width: touch.minimum, height: touch.minimum },
   logo: { width: 104, height: 32 },
-  eyebrow: { marginTop: spacing.xl, color: colors.plum, fontFamily: fonts.sansMedium, fontSize: 12, letterSpacing: 1.5 },
+  eyebrow: { marginTop: spacing.xl, color: colors.link, fontFamily: fonts.sansMedium, fontSize: typography.small, letterSpacing: 1.5 },
   title: {
     maxWidth: 350,
     marginTop: spacing.sm,

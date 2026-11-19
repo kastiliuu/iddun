@@ -615,7 +615,7 @@ const useStyles = makeStyles((colors) => ({
   },
   eyebrow: {
     marginTop: spacing.xl,
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 10,
     lineHeight: 14,
@@ -654,7 +654,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.glassBorder,
   },
   inviteSpark: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.display,
     fontSize: 22,
     lineHeight: 26,
@@ -681,7 +681,7 @@ const useStyles = makeStyles((colors) => ({
     gap: spacing.sm,
   },
   inviteActionText: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 12,
   },
@@ -710,7 +710,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.glassBorder,
   },
   roleSpark: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.display,
     fontSize: 10,
   },

@@ -191,7 +191,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   fallbackSpark: {
-    color: colors.plum,
+    color: colors.link,
 
     fontFamily:
       fonts.display,
@@ -226,7 +226,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   spark: {
-    color: colors.plum,
+    color: colors.link,
 
     fontFamily:
       fonts.sansSemiBold,

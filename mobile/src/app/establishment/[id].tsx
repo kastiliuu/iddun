@@ -82,7 +82,7 @@ const tabs: {
 
 export default function EstablishmentProfileScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
 
   const params =
@@ -963,7 +963,7 @@ export default function EstablishmentProfileScreen() {
       {firstService ? (
         <View
           style={
-            styles.stickyBar
+            [styles.stickyBar, scheme === "light" && styles.stickyBarLight]
           }
         >
           <View
@@ -973,7 +973,7 @@ export default function EstablishmentProfileScreen() {
           >
             <Text
               style={
-                styles.stickyLabel
+                [styles.stickyLabel, scheme === "light" && styles.stickyLabelLight]
               }
             >
               Serviços a partir de
@@ -1225,7 +1225,7 @@ const useStyles = makeStyles(
 
     typeBadgeText: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1563,6 +1563,17 @@ const useStyles = makeStyles(
 
 
 
+
+    // V1 PR 3 · tema claro: a barra fixa deixa de ser tinta escura sobre
+    // fundo claro e passa à superfície do tema, com texto legível (AA).
+    stickyBarLight: {
+      backgroundColor: colors.surfaceSecondary,
+      borderTopColor: colors.border,
+    },
+
+    stickyLabelLight: {
+      color: colors.onSurfaceSecondary,
+    },
 
     stickyBar: {
       position: "absolute",

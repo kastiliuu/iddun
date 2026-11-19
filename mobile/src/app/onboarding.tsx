@@ -22,6 +22,7 @@ import { Button } from "@/components/Button";
 import {
   fonts,
   makeStyles,
+  ThemeScope,
   radius,
   spacing,
   SPARK,
@@ -90,7 +91,20 @@ const slides: OnboardingSlide[] = [
   },
 ];
 
+/**
+ * Apresentação inicial com fotografia em tela cheia: continua no tema
+ * escuro fixo nos dois modos (como o cabeçalho preto, DS-V1-01-D01),
+ * para não misturar fundo claro com a barra escura das fotos.
+ */
 export default function OnboardingScreen() {
+  return (
+    <ThemeScope scheme="dark">
+      <OnboardingContent />
+    </ThemeScope>
+  );
+}
+
+function OnboardingContent() {
   const styles = useStyles();
   const { colors } = useTheme();
 
@@ -433,7 +447,7 @@ const useStyles = makeStyles(
 
     brandSpark: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.display,
@@ -467,7 +481,7 @@ const useStyles = makeStyles(
 
     spark: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansSemiBold,

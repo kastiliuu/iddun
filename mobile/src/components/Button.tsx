@@ -78,7 +78,7 @@ export function Button({
         ? colors.onSurface
         : variant === "outline"
           ? colors.onSurface
-          : colors.plum;
+          : colors.link; // ghost: texto de destaque AA nos dois temas
 
   const spinnerColor =
     textColor;

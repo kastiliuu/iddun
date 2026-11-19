@@ -359,7 +359,7 @@ const useStyles = makeStyles((colors) => ({
 
   nowLabel: {
     marginTop: 1,
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 10,
     lineHeight: 13,

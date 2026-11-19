@@ -186,7 +186,7 @@ const useStyles = makeStyles((colors) => ({
   backButton: { width: touch.minimum, height: touch.minimum, alignItems: "center" as const, justifyContent: "center" as const,
     borderRadius: radius.pill, backgroundColor: colors.glassSoft, borderWidth: 1, borderColor: colors.glassBorder },
   headerCopy: { gap: spacing.sm, alignItems: "flex-start" as const },
-  kicker: { color: colors.plum, fontSize: typography.small, fontWeight: "700" as const, letterSpacing: 1, textTransform: "uppercase" as const },
+  kicker: { color: colors.link, fontSize: typography.small, fontWeight: "700" as const, letterSpacing: 1, textTransform: "uppercase" as const },
   title: { color: colors.onSurface, fontSize: typography.title, fontWeight: "700" as const },
   meta: { color: colors.onSurfaceSecondary, fontSize: typography.body },
   status: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },

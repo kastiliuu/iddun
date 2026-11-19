@@ -1042,7 +1042,7 @@ const useStyles =
 
       brandSpark: {
         color:
-          colors.plum,
+          colors.link,
 
         fontFamily:
           fonts.display,

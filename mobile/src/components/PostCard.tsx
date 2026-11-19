@@ -730,7 +730,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   countTextActive: {
-    color: colors.plum,
+    color: colors.link,
   },
 
   mediaCount: {
@@ -985,7 +985,7 @@ const useStyles = makeStyles((colors) => ({
 
   serviceEyebrow: {
     color:
-      colors.plum,
+      colors.link,
 
     fontFamily:
       fonts.sansMedium,
@@ -1048,7 +1048,7 @@ const useStyles = makeStyles((colors) => ({
     flex: 1,
 
     color:
-      colors.plum,
+      colors.link,
 
     fontFamily:
       fonts.sansMedium,

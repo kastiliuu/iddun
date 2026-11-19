@@ -425,7 +425,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   replyBannerText: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 13,
   },

@@ -105,7 +105,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   spark: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansSemiBold,
     fontSize: 20,
     lineHeight: 24,

@@ -124,7 +124,7 @@ export default function CreateScreen() {
   useStoreVersion();
 
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
   const toast = useToast();
 
@@ -187,9 +187,9 @@ export default function CreateScreen() {
       >
         <View style={styles.header}>
           <Image
-            source={require(
-              "../../assets/branding/iddun-logo-white.png",
-            )}
+            source={scheme === "light"
+              ? require("../../assets/branding/iddun-logo-black.png")
+              : require("../../assets/branding/iddun-logo-white.png")}
             style={styles.logo}
             contentFit="contain"
             accessibilityLabel="IDDUN"
@@ -517,13 +517,28 @@ export default function CreateScreen() {
                   }
                 />
 
-                <ActionCard
-                  icon="scissors"
-                  title="Gerenciar serviços"
-                  description="Integração com catálogo real em finalização."
-                  disabled
-                  badge="EM INTEGRAÇÃO"
-                />
+                {/* P-003: o catálogo do profissional já existe no app. A
+                    operação da empresa fica no site neste ciclo (V1-CONV-D01). */}
+                {isEstablishment ? (
+                  <ActionCard
+                    icon="scissors"
+                    title="Serviços da empresa"
+                    description="Neste ciclo, os serviços da empresa são acompanhados pelo site do IDDUN."
+                    disabled
+                    badge="NO SITE"
+                  />
+                ) : (
+                  <ActionCard
+                    icon="scissors"
+                    title="Gerenciar serviços"
+                    description="Crie, publique e abra horários dos seus serviços."
+                    onPress={() =>
+                      router.push(
+                        "/manage-services",
+                      )
+                    }
+                  />
+                )}
 
                 {isEstablishment ? (
                   <ActionCard
@@ -673,7 +688,7 @@ const useStyles = makeStyles(
 
     spark: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansSemiBold,
@@ -684,7 +699,7 @@ const useStyles = makeStyles(
 
     eyebrow: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -961,7 +976,7 @@ const useStyles = makeStyles(
 
     sectionEyebrow: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.sansMedium,
@@ -1089,7 +1104,7 @@ const useStyles = makeStyles(
     },
 
     actionBadgeText: {
-      color: colors.plum,
+      color: colors.link,
       fontFamily: fonts.sansSemiBold,
       fontSize: 8,
       lineHeight: 10,
@@ -1138,7 +1153,7 @@ const useStyles = makeStyles(
 
     tipSpark: {
       color:
-        colors.plum,
+        colors.link,
 
       fontFamily:
         fonts.display,

@@ -32,12 +32,15 @@ import {
   useStoreVersion,
 } from "@/store/local";
 
+import { categoryLabel } from "@/services/serviceWizard";
+
 import {
   fonts,
   makeStyles,
   radius,
   spacing,
   touch,
+  typography,
   useTheme,
 } from "@/theme";
 
@@ -762,9 +765,9 @@ export default function OpenSlotScreen() {
                             styles.serviceCategory
                           }
                         >
-                          {
-                            service.category
-                          }
+                          {categoryLabel(
+                            service.category,
+                          )}
                         </Text>
                       </View>
 
@@ -1278,7 +1281,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 10,
@@ -1317,7 +1320,7 @@ const useStyles =
 
       sectionLabel: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -1396,11 +1399,12 @@ const useStyles =
 
       serviceCategory: {
         marginTop: 2,
+        // V1 PR 3: legível nos dois temas (AA) e no tamanho mínimo da escala.
         color:
-          colors.muted,
+          colors.onSurfaceSecondary,
         fontFamily:
           fonts.sans,
-        fontSize: 10,
+        fontSize: typography.small,
       },
 
       selectedCheck: {
@@ -1686,7 +1690,7 @@ const useStyles =
         marginBottom:
           spacing.sm,
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -1718,7 +1722,7 @@ const useStyles =
 
       previewNow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -1753,7 +1757,7 @@ const useStyles =
 
       previewTime: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansSemiBold,
         fontSize: 11,

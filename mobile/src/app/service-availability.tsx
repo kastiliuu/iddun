@@ -192,7 +192,7 @@ export default function ServiceAvailabilityScreen() {
 const useStyles = makeStyles(colors => ({
   container: { flex: 1, backgroundColor: colors.surface },
   content: { paddingTop: 56, paddingBottom: 48, paddingHorizontal: spacing.lg, gap: spacing.md },
-  link: { color: colors.plum, fontWeight: "600" as const, paddingVertical: spacing.sm },
+  link: { color: colors.link, fontWeight: "600" as const, paddingVertical: spacing.sm },
   heading: { color: colors.onSurface, fontSize: 26, fontWeight: "700" as const },
   section: { color: colors.onSurface, fontSize: 20, fontWeight: "700" as const, marginTop: spacing.lg },
   subtle: { color: colors.muted, fontSize: 14, lineHeight: 21 },

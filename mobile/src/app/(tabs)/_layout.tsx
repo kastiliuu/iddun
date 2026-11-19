@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 
 import {
   Platform,
@@ -6,7 +6,8 @@ import {
   View,
 } from "react-native";
 
-import { Tabs } from "expo-router";
+import { Tabs, useFocusEffect } from "expo-router";
+import { setStatusBarStyle } from "expo-status-bar";
 import { BlurView } from "expo-blur";
 
 import { Icon } from "@/components/Icon";
@@ -20,9 +21,10 @@ import {
 
 
 /**
- * DS-V1-01-D03: as cinco abas do Cliente são a primeira jornada do app
- * que segue a preferência de tema (claro por padrão, escuro opcional).
- * As telas abertas a partir delas continuam escuras até serem conferidas.
+ * DS-V1-01-D03: as cinco abas do Cliente seguem a preferência de tema
+ * (claro por padrão, escuro opcional). Desde a V1 PR 3 o restante do app
+ * também segue (ThemeScope na raiz); este escopo fica para as abas
+ * continuarem certas mesmo se forem montadas fora da raiz.
  */
 export default function TabsLayout() {
   return (
@@ -39,6 +41,15 @@ function ClientTabs() {
 
   const { colors, scheme } =
     useTheme();
+
+  // Cabeçalho preto nas abas: texto claro na barra de status enquanto
+  // elas estão em foco; ao sair, volta ao padrão do tema.
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle("light");
+      return () => setStatusBarStyle(scheme === "light" ? "dark" : "light");
+    }, [scheme]),
+  );
 
   return (
     <Tabs

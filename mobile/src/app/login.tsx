@@ -681,7 +681,7 @@ const useStyles = makeStyles((colors) => ({
     letterSpacing: 2.2,
   },
   brandSpark: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.display,
     fontSize: 11,
   },
@@ -692,7 +692,7 @@ const useStyles = makeStyles((colors) => ({
     marginTop: spacing.xxxl,
   },
   eyebrow: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 10,
     lineHeight: 14,
@@ -876,7 +876,7 @@ const useStyles = makeStyles((colors) => ({
     marginTop: -spacing.xs,
   },
   forgotText: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 11,
   },

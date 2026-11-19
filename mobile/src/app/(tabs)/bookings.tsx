@@ -838,7 +838,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -955,7 +955,7 @@ const useStyles =
 
       statusText: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,

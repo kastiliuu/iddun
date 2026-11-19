@@ -1228,7 +1228,7 @@ const useStyles =
         fontSize: 10,
         letterSpacing: 1.4,
         color:
-          colors.plum,
+          colors.link,
       },
 
       title: {
@@ -1267,7 +1267,7 @@ const useStyles =
         fontSize: 10,
         letterSpacing: 1.3,
         color:
-          colors.plum,
+          colors.link,
       },
 
       preview: {
@@ -1407,7 +1407,7 @@ const useStyles =
           fonts.sansMedium,
         fontSize: 13,
         color:
-          colors.plum,
+          colors.link,
         textDecorationLine:
           "underline",
       },

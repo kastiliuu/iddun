@@ -495,7 +495,7 @@ const useStyles = makeStyles(
       marginTop: spacing.xl,
     },
     eyebrow: {
-      color: colors.plum,
+      color: colors.link,
       fontFamily: fonts.sansMedium,
       fontSize: 10,
       letterSpacing: 1.3,
@@ -600,7 +600,7 @@ const useStyles = makeStyles(
     count: {
       minWidth: 28,
       textAlign: "center",
-      color: colors.plum,
+      color: colors.link,
       fontFamily: fonts.sansSemiBold,
       fontSize: 13,
     },

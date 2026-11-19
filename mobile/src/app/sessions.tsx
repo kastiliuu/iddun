@@ -598,7 +598,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -696,7 +696,7 @@ const useStyles =
 
       currentBadgeText: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 8,
