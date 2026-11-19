@@ -13,7 +13,7 @@
       <span class="platform-kicker">IDDUN · VAGAS</span>
       <h1 id="jobs-title">Vagas em estabelecimentos de beleza</h1>
       <p>Oportunidades publicadas por estabelecimentos do IDDUN. A candidatura usa o seu perfil profissional.</p>
-      {% if current_user.is_authenticated %}<a class="btn btn-outline" href="{{ url_for('recruitment.applications') }}">{{ icon('briefcase') }} Minhas candidaturas</a>{% endif %}
+      {% if current_user.is_authenticated %}<a class="btn btn-outline btn-outline--light" href="{{ url_for('recruitment.applications') }}">{{ icon('briefcase') }} Minhas candidaturas</a>{% endif %}
     </header>
 
     <form class="platform-panel recruit-search" method="get" action="{{ url_for('recruitment.jobs') }}" role="search" aria-label="Buscar vagas">
