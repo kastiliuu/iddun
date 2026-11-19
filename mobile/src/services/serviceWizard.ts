@@ -26,11 +26,12 @@ export const SERVICE_CATEGORIES = [
   ["sobrancelhas", "Sobrancelhas"],
 ] as const;
 
+// V1-CONV-D07: os mesmos rótulos do modelo, usados na Web.
 export const SERVICE_STATUS_LABELS: Record<string, string> = {
   draft: "Rascunho",
-  published: "Publicado",
-  paused: "Pausado",
-  archived: "Arquivado",
+  published: "Publicada",
+  paused: "Pausada",
+  archived: "Arquivada",
 };
 
 export const SLOT_STATUS_LABELS: Record<string, string> = {
@@ -165,4 +166,26 @@ export function buildPayload(values: ServiceWizardValues): ServiceDraftPayload |
     durationMinutes: Number(values.duration),
     establishmentId: values.establishmentId,
   };
+}
+
+export const BATCH_MAX_TIMES = 20;
+
+/**
+ * Mesmas regras do servidor (booking_service.parse_times): separa por
+ * vírgula, ponto e vírgula ou linha; HH:MM; repetidos contam uma vez; ordena.
+ */
+export function parseBatchTimes(text: string): { times: string[] } | { error: string } {
+  const seen = new Set<string>();
+  for (const raw of text.split(/[,;\n]+/)) {
+    const part = raw.trim();
+    if (!part) continue;
+    const match = /^(\d{1,2}):(\d{2})$/.exec(part);
+    if (!match || Number(match[1]) > 23 || Number(match[2]) > 59) {
+      return { error: `Horário inválido: ${part}. Use HH:MM, por exemplo 14:30.` };
+    }
+    seen.add(`${match[1].padStart(2, "0")}:${match[2]}`);
+  }
+  if (!seen.size) return { error: "Informe ao menos um horário." };
+  if (seen.size > BATCH_MAX_TIMES) return { error: `Informe no máximo ${BATCH_MAX_TIMES} horários por vez.` };
+  return { times: [...seen].sort() };
 }

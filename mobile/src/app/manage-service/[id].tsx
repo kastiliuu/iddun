@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { ApiError } from "@/api/client";
@@ -123,6 +123,11 @@ export default function ManageServiceDetailScreen() {
         </View>
       </View>
 
+      {service.imageUrl ? (
+        <Image source={{ uri: service.imageUrl }} accessibilityLabel={`Foto de ${service.name}`}
+          style={styles.cover} resizeMode="cover" />
+      ) : null}
+
       <View style={styles.facts}>
         <View style={styles.fact}><Text style={styles.factLabel}>Preço IDDUN</Text><Text style={styles.factValue}>{formatMoney(service.price)}</Text></View>
         {service.regularPrice !== service.price ? (
@@ -187,6 +192,7 @@ const useStyles = makeStyles((colors) => ({
   status: { paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border },
   statusPublished: { borderColor: colors.success },
   statusText: { color: colors.onSurface, fontSize: typography.small, fontWeight: "600" as const },
+  cover: { width: "100%" as const, aspectRatio: 16 / 9, borderRadius: radius.md, backgroundColor: colors.surfaceSecondary },
   facts: { flexDirection: "row" as const, flexWrap: "wrap" as const, gap: spacing.sm },
   fact: { flexGrow: 1, minWidth: 96, padding: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, gap: spacing.xs },
   factLabel: { color: colors.onSurfaceSecondary, fontSize: typography.small },

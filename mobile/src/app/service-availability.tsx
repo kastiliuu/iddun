@@ -3,13 +3,14 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View 
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
   createProfessionalServiceAvailability,
+  createProfessionalSlotsBatch,
   createProfessionalSlotsFromSchedule,
   changeProfessionalSlotStatus,
   getProfessionalServiceAvailability,
   type ManagedAvailabilitySlot,
 } from "@/api/services";
 import { Button } from "@/components/Button";
-import { SLOT_STATUS_LABELS } from "@/services/serviceWizard";
+import { BATCH_MAX_TIMES, SLOT_STATUS_LABELS, parseBatchTimes } from "@/services/serviceWizard";
 import { makeStyles, spacing, useTheme } from "@/theme";
 
 export default function ServiceAvailabilityScreen() {
@@ -21,6 +22,7 @@ export default function ServiceAvailabilityScreen() {
   const [slots, setSlots] = useState<ManagedAvailabilitySlot[]>([]);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [batchTimes, setBatchTimes] = useState("");
   const [busy, setBusy] = useState(false);
   const [slotBusy, setSlotBusy] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -89,6 +91,32 @@ export default function ServiceAvailabilityScreen() {
     ]);
   };
 
+  // V1-CONV-D06: vários horários num dia, tudo ou nada (como na Web).
+  const submitBatch = async () => {
+    if (!serviceId || busy) return;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      setError("Informe a data no formato AAAA-MM-DD.");
+      return;
+    }
+    const parsed = parseBatchTimes(batchTimes);
+    if ("error" in parsed) {
+      setError(parsed.error);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const { createdCount } = await createProfessionalSlotsBatch(serviceId, date, parsed.times);
+      await refresh();
+      setBatchTimes("");
+      Alert.alert("Horários abertos", `${createdCount} horários disponibilizados para reserva.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Nenhum horário do lote foi criado. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const submit = async () => {
     if (!serviceId) return;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
@@ -128,6 +156,14 @@ export default function ServiceAvailabilityScreen() {
       {error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
       <Button title={busy ? "Salvando..." : "Abrir horário"} fullWidth
         disabled={busy || loading || !serviceId} onPress={() => { void submit(); }} />
+      <Text style={styles.label}>Vários horários na mesma data</Text>
+      <TextInput style={[styles.input, styles.multiline]} value={batchTimes} onChangeText={setBatchTimes}
+        accessibilityLabel="Horários do lote" accessibilityHint={`Separe até ${BATCH_MAX_TIMES} horários por vírgulas ou linhas`}
+        multiline autoCapitalize="none" keyboardType="numbers-and-punctuation"
+        placeholder="09:00, 10:00, 11:00" placeholderTextColor={colors.muted} />
+      <Text style={styles.subtle}>{`Até ${BATCH_MAX_TIMES} horários. Se algum conflitar, nenhum horário do lote é criado.`}</Text>
+      <Button title="Abrir horários em lote" fullWidth variant="secondary"
+        disabled={busy || loading || !serviceId} onPress={() => { void submitBatch(); }} />
       <Button title="Gerar horários da jornada semanal" fullWidth
         variant="secondary" disabled={busy || loading || !serviceId}
         onPress={createFromSchedule} />
@@ -165,6 +201,7 @@ const useStyles = makeStyles(colors => ({
     borderWidth: 1, borderColor: colors.glassBorder, backgroundColor: colors.surfaceSecondary,
     paddingHorizontal: spacing.md },
   error: { color: colors.error, fontSize: 14 },
+  multiline: { minHeight: 88, paddingVertical: spacing.sm, textAlignVertical: "top" as const },
   slot: { padding: spacing.md, borderRadius: 12, borderWidth: 1,
     borderColor: colors.glassBorder, gap: spacing.xs },
 }));

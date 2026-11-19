@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, usePreventRemove, useRouter } from "expo-router";
 
 import { ApiError } from "@/api/client";
@@ -8,8 +8,11 @@ import {
   getProfessionalServiceDetail,
   getProfessionalServiceEstablishments,
   updateProfessionalServiceDraft,
+  uploadProfessionalServiceImage,
   type ServiceEstablishment,
 } from "@/api/services";
+import type { UploadableImage } from "@/api/media";
+import { MediaPermissionError, pickAndPrepareImage } from "@/media/imagePipeline";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import {
@@ -32,8 +35,8 @@ import { makeStyles, radius, spacing, touch, typography, useTheme } from "@/them
 /*
  * P-002 · Wizard A no app: as mesmas cinco etapas da Web, uma por vez.
  * Salvar cria (ou mantém) um rascunho; publicar é feito em Meus serviços.
- * Nada aqui abre horários. A imagem do serviço continua sendo enviada pelo
- * site até o envio pelo app ser aprovado.
+ * Nada aqui abre horários. A foto escolhida só é enviada depois que o
+ * rascunho é salvo (V1-CONV-D06), com as mesmas regras da Web.
  */
 
 const EMPTY_VALUES: ServiceWizardValues = {
@@ -64,6 +67,8 @@ export default function CreateServiceScreen() {
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [establishments, setEstablishments] = useState<ServiceEstablishment[]>([]);
+  const [pendingImage, setPendingImage] = useState<UploadableImage | null>(null);
+  const [currentImageUrl, setCurrentImageUrl] = useState<string | null>(null);
 
   const disablePrevention = usePreventRemove(dirty && !saving, ({ repeat }) => {
     Alert.alert("Descartar alterações?", "O que você preencheu ainda não foi salvo.", [
@@ -103,6 +108,7 @@ export default function CreateServiceScreen() {
         duration: String(service.durationMinutes),
         establishmentId: service.establishmentId,
       });
+      setCurrentImageUrl(service.imageUrl ?? null);
       const canEdit = service.status === "draft" || service.status === "paused";
       setEditable(canEdit);
       if (!canEdit) setError("Somente rascunhos e serviços pausados podem ser editados.");
@@ -131,6 +137,20 @@ export default function CreateServiceScreen() {
     return establishments.find(item => item.id === values.establishmentId)?.name ?? "Estabelecimento vinculado";
   }, [establishments, values.establishmentId]);
 
+  const chooseImage = async () => {
+    try {
+      const image = await pickAndPrepareImage("library", "cover");
+      if (!image) return;
+      setPendingImage(image);
+      setDirty(true);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof MediaPermissionError || cause instanceof Error
+        ? cause.message
+        : "Não foi possível abrir a foto.");
+    }
+  };
+
   const submit = async () => {
     const payload = buildPayload(values);
     if (!payload) {
@@ -141,10 +161,21 @@ export default function CreateServiceScreen() {
     setSaving(true);
     setError(null);
     try {
+      let savedId = serviceId;
       if (serviceId) await updateProfessionalServiceDraft(serviceId, payload);
-      else await createProfessionalServiceDraft(payload);
+      else savedId = (await createProfessionalServiceDraft(payload)).service.id;
       setDirty(false);
       disablePrevention();
+      if (pendingImage && savedId) {
+        try {
+          await uploadProfessionalServiceImage(savedId, pendingImage);
+        } catch (cause) {
+          Alert.alert(
+            "Rascunho salvo, foto não enviada",
+            `${cause instanceof Error ? cause.message : "Tente de novo."} Você pode enviar a foto em Editar serviço.`,
+          );
+        }
+      }
       router.replace("/manage-services");
     } catch (cause) {
       const code = cause instanceof ApiError ? cause.code : undefined;
@@ -282,10 +313,25 @@ export default function CreateServiceScreen() {
         ) : null}
 
         {step === 3 ? (
-          <View style={styles.note}>
-            <Icon name="image" size={20} color={colors.plum} />
-            <Text style={styles.noteText}>Opcional. Por enquanto, a foto do serviço é enviada pelo site, em Meus serviços › Editar serviço. Sem imagem, o serviço aparece com o nome da categoria em destaque, nunca com foto genérica.</Text>
-          </View>
+          <>
+            <Text style={styles.help}>Opcional. Uma foto real do seu trabalho ajuda o cliente a decidir. Sem foto, o serviço aparece com o nome da categoria em destaque, nunca com foto genérica.</Text>
+            {pendingImage || currentImageUrl ? (
+              <Image source={{ uri: pendingImage?.uri ?? currentImageUrl ?? undefined }}
+                accessibilityLabel={pendingImage ? "Prévia da nova foto" : "Foto atual do serviço"}
+                style={styles.imagePreview} resizeMode="cover" />
+            ) : (
+              <View style={styles.imageFallback} accessibilityLabel="Sem foto">
+                <Text style={styles.imageFallbackText}>{categoryLabel(values.category)}</Text>
+              </View>
+            )}
+            <Button title={pendingImage || currentImageUrl ? "Trocar foto" : "Escolher foto"} variant="outline" fullWidth
+              disabled={saving} onPress={() => { void chooseImage(); }} />
+            {pendingImage ? (
+              <Button title="Remover foto escolhida" variant="outline" fullWidth disabled={saving}
+                onPress={() => setPendingImage(null)} />
+            ) : null}
+            <Text style={styles.help}>JPG, PNG ou WEBP até 5 MB. A foto é enviada quando você salva.</Text>
+          </>
         ) : null}
 
         {step === 4 ? (
@@ -297,7 +343,7 @@ export default function CreateServiceScreen() {
             {reviewRow("Preço IDDUN", money(values.price), 1)}
             {reviewRow("Duração", values.duration.trim() ? `${values.duration.trim()} min` : "", 1)}
             {reviewRow("Local", establishmentName, 2)}
-            {reviewRow("Imagem", "Enviada pelo site", 3)}
+            {reviewRow("Foto", pendingImage ? "Nova foto escolhida" : currentImageUrl ? "Foto atual mantida" : "Sem foto", 3)}
           </View>
         ) : null}
       </View>
@@ -356,5 +402,9 @@ const useStyles = makeStyles((colors) => ({
   reviewEdit: { minHeight: touch.minimum, minWidth: touch.minimum, justifyContent: "center" as const, alignItems: "flex-end" as const },
   reviewEditText: { color: colors.plum, fontSize: typography.bodyLarge, fontWeight: "600" as const },
   fieldError: { color: colors.error, fontSize: typography.body },
+  imagePreview: { width: "100%" as const, aspectRatio: 16 / 9, borderRadius: radius.md, backgroundColor: colors.surface },
+  imageFallback: { width: "100%" as const, aspectRatio: 16 / 9, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border,
+    alignItems: "center" as const, justifyContent: "center" as const, backgroundColor: colors.surface },
+  imageFallbackText: { color: colors.onSurfaceSecondary, fontSize: typography.bodyLarge, fontWeight: "600" as const },
   error: { color: colors.error, fontSize: typography.body },
 }));
