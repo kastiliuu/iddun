@@ -1,0 +1,61 @@
+{% extends 'admin/layout.html' %}
+{% from 'components/icon.html' import icon %}
+{#
+  V1-CONV-D03/D05 (A1-DEC-01): o admin do IDDUN habilita ou revoga o piloto
+  de recrutamento por estabelecimento, sempre com motivo. Revogar não tira
+  vagas do ar (V1-CONV-D04); só bloqueia vagas novas.
+#}
+{% block admin_title %}{{ item.name }} · Recrutamento{% endblock %}
+{% block admin_content %}
+<header class="admin-page-head">
+  <div>
+    <a class="admin-back" href="{{ url_for('admin.establishments') }}">{{ icon('arrow-left') }} Estabelecimentos</a>
+    <span class="admin-eyebrow">PILOTO DE RECRUTAMENTO</span>
+    <h1>{{ item.name }}</h1>
+    <p>Habilite ou revogue a publicação de vagas novas por este estabelecimento. Toda mudança exige motivo e fica registrada.</p>
+  </div>
+  <span class="admin-status {% if item.recruitment_enabled %}admin-status--published{% else %}admin-status--archived{% endif %}" data-recruitment-status>{{ 'Habilitado' if item.recruitment_enabled else 'Não habilitado' }}</span>
+</header>
+
+<section class="admin-metric-grid">
+  <article class="admin-metric"><span>{{ icon('users') }}</span><div><strong>{{ job_counts.published }}</strong><small>Vagas publicadas</small></div></article>
+  <article class="admin-metric"><span>{{ icon('edit') }}</span><div><strong>{{ job_counts.draft }}</strong><small>Rascunhos</small></div></article>
+  <article class="admin-metric"><span>{{ icon('clock') }}</span><div><strong>{{ job_counts.closed }}</strong><small>Encerradas</small></div></article>
+  <article class="admin-metric"><span>{{ icon('shield-check') }}</span><div><strong>{{ managers|selectattr('can_recruit')|list|length }} de {{ managers|length }}</strong><small>Gerentes com permissão de recrutar</small></div></article>
+</section>
+
+<div class="admin-dashboard-grid">
+  <section class="admin-panel" aria-labelledby="recruitment-change-title">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">ALTERAR</span><h2 id="recruitment-change-title">{{ 'Revogar recrutamento' if item.recruitment_enabled else 'Habilitar recrutamento' }}</h2></div></div>
+    <form method="post" class="admin-recruitment-form" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="acao" value="{{ 'revogar' if item.recruitment_enabled else 'habilitar' }}">
+      <div class="admin-field admin-field--wide">
+        <label for="recruitment-reason">Motivo</label>
+        <textarea id="recruitment-reason" name="motivo" rows="3" minlength="5" maxlength="255" required aria-describedby="recruitment-reason-help"></textarea>
+        <small id="recruitment-reason-help">{% if item.recruitment_enabled %}Vagas já publicadas continuam no ar e recebendo candidaturas. Novas vagas ficam bloqueadas.{% else %}A dona passa a poder criar e publicar vagas; gerentes só com a permissão concedida por ela.{% endif %}</small>
+      </div>
+      <button class="btn {{ 'admin-btn-ghost' if item.recruitment_enabled else 'btn-primary' }}" type="submit">{{ 'Revogar recrutamento' if item.recruitment_enabled else 'Habilitar recrutamento' }}</button>
+    </form>
+  </section>
+
+  <section class="admin-panel" aria-labelledby="recruitment-audit-title">
+    <div class="admin-panel__head"><div><span class="admin-eyebrow">REGISTRO</span><h2 id="recruitment-audit-title">Histórico</h2></div></div>
+    {% if events %}
+    <div class="admin-activity-list">
+      {% for event in events %}
+      <div class="admin-activity-row">
+        <span class="admin-activity-icon">{{ icon('clock') }}</span>
+        <div>
+          <strong>{{ event.action_label }}{% if event.subject %} · {{ event.subject.name }}{% endif %}</strong>
+          <small>{{ to_local(event.created_at, 'America/Sao_Paulo').strftime('%d/%m/%Y %H:%M') }} · {{ event.actor.name if event.actor else 'Conta removida' }}{% if event.reason %} · {{ event.reason }}{% endif %}</small>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="admin-empty admin-empty--compact"><h3>Nenhuma mudança registrada.</h3><p>Habilitações, revogações e permissões de gerentes aparecem aqui.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -177,7 +177,7 @@ function formatHoldExpiration(
 
 export default function BookingScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
 
   const params =
@@ -1687,7 +1687,7 @@ export default function BookingScreen() {
         0 ? (
         <View
           style={
-            styles.stickyBar
+            [styles.stickyBar, scheme === "light" && styles.stickyBarLight]
           }
         >
           <View
@@ -1697,7 +1697,7 @@ export default function BookingScreen() {
           >
             <Text
               style={
-                styles.stickyLabel
+                [styles.stickyLabel, scheme === "light" && styles.stickyLabelLight]
               }
             >
               Valor
@@ -1905,7 +1905,7 @@ const useStyles =
 
       experienceEyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -1941,7 +1941,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,
@@ -2200,7 +2200,7 @@ const useStyles =
         marginTop:
           spacing.xl,
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.display,
         fontSize: 16,
@@ -2271,7 +2271,7 @@ const useStyles =
         marginTop:
           spacing.sm,
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.display,
         fontSize: 28,
@@ -2284,7 +2284,18 @@ const useStyles =
         gap: spacing.sm,
       },
 
-      stickyBar: {
+      // V1 PR 3 · tema claro: a barra fixa deixa de ser tinta escura sobre
+    // fundo claro e passa à superfície do tema, com texto legível (AA).
+    stickyBarLight: {
+      backgroundColor: colors.surfaceSecondary,
+      borderTopColor: colors.border,
+    },
+
+    stickyLabelLight: {
+      color: colors.onSurfaceSecondary,
+    },
+
+    stickyBar: {
         position:
           "absolute",
         left: 0,

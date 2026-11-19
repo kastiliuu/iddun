@@ -57,6 +57,9 @@ export const colors = {
   graphite: "#2A2A33",
   mist: "#DADDE1",
   plum: "#6B2EFF",
+  // Texto de destaque (kicker, link, etapa): token semântico `link` do DS,
+  // AA nos dois temas. Plum continua para fundos, bordas e ícones.
+  link: "#B199FF", // = semanticPalettes.dark.link (definida abaixo)
   deepViolet: "#1A0F2E",
   white: "#FFFFFF",
   offWhite: "#F7F6F4",
@@ -177,6 +180,7 @@ export const lightColors: ThemeColors = {
 
   brandTertiary: colors.plumSoft,
   onBrandTertiary: semanticPalettes.light.link,
+  link: semanticPalettes.light.link,
 
   error: "#A33149",
 

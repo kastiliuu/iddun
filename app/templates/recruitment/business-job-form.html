@@ -1,0 +1,39 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import field, status_chip %}
+{% block title %}Editar vaga | {{ establishment.name }} | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-jobs-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+{% include 'components/business-nav.html' %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="edit-job-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <a class="platform-back-link" href="{{ url_for('recruitment.business_jobs', slug=establishment.slug) }}#vaga-{{ job.id }}">{{ icon('arrow-left') }} Vagas</a>
+      <span class="platform-kicker">IDDUN BUSINESS · EDITAR VAGA</span>
+      <h1 id="edit-job-title">{{ job.title }}</h1>
+      <p>{{ status_chip(status_labels.get(job.status, job.status), job.status) }} Editar não muda o status da vaga.</p>
+    </header>
+    <section class="platform-panel">
+      <form method="post" class="platform-form-grid recruit-form" data-once>
+        {{ form.hidden_tag() }}
+        {{ field(form.title) }}
+        {{ field(form.specialty) }}
+        {{ field(form.description, kind='textarea', wide=True) }}
+        {{ field(form.employment_type) }}
+        {{ field(form.compensation_text) }}
+        <div class="platform-field--wide recruit-actions">
+          <a class="btn btn-outline" href="{{ url_for('recruitment.business_jobs', slug=establishment.slug) }}#vaga-{{ job.id }}">Cancelar</a>
+          <button class="btn btn-primary" type="submit">Salvar alterações</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}
+{% from 'components/_bottom_nav.html' import business_bottom_nav with context %}
+{{ business_bottom_nav(establishment, access) }}
+{% endblock %}

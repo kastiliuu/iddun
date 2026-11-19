@@ -79,6 +79,13 @@ export type ManagedJobsResponse = {
   accessRole:
     | "owner"
     | "manager";
+  // V1-CONV-D05: vaga nova só com o piloto habilitado pelo IDDUN.
+  recruitment?: {
+    pilotEnabled: boolean;
+    canManage: boolean;
+    canCreate: boolean;
+    isOwner: boolean;
+  };
   items: JobPost[];
 };
 

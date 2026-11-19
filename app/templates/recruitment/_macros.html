@@ -1,0 +1,28 @@
+{% from 'components/icon.html' import icon %}
+{% from 'auth/_macros.html' import field_errors %}
+
+{% macro job_facts(job) -%}
+<ul class="recruit-facts" aria-label="Detalhes da vaga">
+  {% if job.specialty %}<li>{{ icon('scissors') }}<span>{{ job.specialty }}</span></li>{% endif %}
+  {% if job.city or job.neighborhood %}<li>{{ icon('map-pin') }}<span>{{ job.neighborhood ~ ' · ' if job.neighborhood else '' }}{{ job.city or '' }}{% if job.state %}/{{ job.state }}{% endif %}</span></li>{% endif %}
+  {% if job.employment_type %}<li>{{ icon('briefcase') }}<span>{{ job.employment_type }}</span></li>{% endif %}
+  {% if job.compensation_text %}<li>{{ icon('star') }}<span>{{ job.compensation_text }}</span></li>{% endif %}
+</ul>
+{%- endmacro %}
+
+{% macro status_chip(label, kind) -%}
+<span class="recruit-status recruit-status--{{ kind }}">{{ label }}</span>
+{%- endmacro %}
+
+{% macro field(f, kind='input', wide=False) -%}
+<div class="platform-field{% if wide %} platform-field--wide{% endif %}">
+  {{ f.label(class_='platform-label') }}
+  {% if f.description %}
+    {{ f(class_='platform-textarea' if kind == 'textarea' else 'platform-input', **{'aria-describedby': f.id ~ '-help'}) }}
+    <small class="platform-help" id="{{ f.id }}-help">{{ f.description }}</small>
+  {% else %}
+    {{ f(class_='platform-textarea' if kind == 'textarea' else 'platform-input') }}
+  {% endif %}
+  {{ field_errors(f) }}
+</div>
+{%- endmacro %}

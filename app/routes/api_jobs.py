@@ -12,6 +12,7 @@ from app.services.api_contract import (
 )
 from app.services.job_service import (
     JobError,
+    JobPermissionError,
     apply_to_job,
     close_job,
     create_job,
@@ -27,6 +28,7 @@ from app.services.job_service import (
     withdraw_application,
 )
 from app.services.api_csrf import protect_cookie_mutation
+from app.services.recruitment_access_service import recruitment_capability
 
 
 api_jobs_bp = Blueprint(
@@ -395,6 +397,12 @@ def list_managed_jobs(
                 ),
             )
         )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
+        )
     except JobError as exc:
         return api_error(
             "jobs_access_denied",
@@ -415,6 +423,12 @@ def list_managed_jobs(
             },
             "accessRole":
                 access.role,
+            # V1-CONV-D05: o app mostra "criar vaga" só quando pode.
+            "recruitment":
+                recruitment_capability(
+                    establishment,
+                    access,
+                ),
             "items": [
                 serialize_job(
                     item,
@@ -467,6 +481,12 @@ def create_managed_job(
             ),
             payload=payload,
         )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
+        )
     except JobError as exc:
         return api_error(
             "invalid_job",
@@ -518,6 +538,12 @@ def update_managed_job(
             job_id=job_id,
             payload=payload,
         )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
+        )
     except JobError as exc:
         return api_error(
             "job_update_failed",
@@ -561,6 +587,12 @@ def publish_managed_job(
                 establishment_reference
             ),
             job_id=job_id,
+        )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
         )
     except JobError as exc:
         return api_error(
@@ -606,6 +638,12 @@ def close_managed_job(
             ),
             job_id=job_id,
         )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
+        )
     except JobError as exc:
         return api_error(
             "job_close_failed",
@@ -647,6 +685,12 @@ def list_job_applications(
                 ),
                 job_id=job_id,
             )
+        )
+    except JobPermissionError as exc:
+        return api_error(
+            exc.code,
+            str(exc),
+            403,
         )
     except JobError as exc:
         return api_error(

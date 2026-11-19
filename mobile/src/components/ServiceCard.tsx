@@ -278,7 +278,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   category: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: designScale.typography.caption,
     lineHeight: 16,

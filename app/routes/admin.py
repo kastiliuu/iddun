@@ -41,6 +41,13 @@ from app.services.booking_service import (
 )
 from app.services.time_service import to_local, utcnow
 from app.utils.admin import admin_required
+from app.services.recruitment_access_service import (
+    RecruitmentAccessError,
+    establishment_managers,
+    recruitment_audit,
+    set_recruitment_pilot,
+)
+from app.models.job import JobPost, JobPostStatus
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -249,6 +256,49 @@ def establishment_edit(item_id):
         form=form,
         item=item,
         admin_section="establishments",
+    )
+
+
+@admin_bp.route("/estabelecimentos/<int:item_id>/recrutamento", methods=["GET", "POST"])
+@admin_required
+def establishment_recruitment(item_id):
+    """V1-CONV-D03/D05: o admin do IDDUN liga ou desliga o piloto, com motivo."""
+    item = db.session.get(Establishment, item_id) or abort(404)
+    if request.method == "POST":
+        wanted = request.form.get("acao")
+        if wanted not in {"habilitar", "revogar"}:
+            abort(400)
+        try:
+            set_recruitment_pilot(
+                establishment=item,
+                enabled=wanted == "habilitar",
+                reason=request.form.get("motivo"),
+                actor=current_user,
+            )
+        except RecruitmentAccessError as exc:
+            db.session.rollback()
+            flash(str(exc), "error")
+        else:
+            flash(
+                "Recrutamento habilitado para este estabelecimento."
+                if wanted == "habilitar"
+                else "Recrutamento revogado. Vagas já publicadas continuam no ar; novas vagas ficam bloqueadas.",
+                "success",
+            )
+        return redirect(url_for("admin.establishment_recruitment", item_id=item.id))
+
+    jobs = db.session.scalars(select(JobPost).where(JobPost.establishment_id == item.id)).all()
+    return render_template(
+        "admin/establishments/recruitment.html",
+        item=item,
+        events=recruitment_audit(item, limit=50),
+        managers=establishment_managers(item),
+        job_counts={
+            "published": sum(1 for job in jobs if job.status == JobPostStatus.PUBLISHED),
+            "draft": sum(1 for job in jobs if job.status == JobPostStatus.DRAFT),
+            "closed": sum(1 for job in jobs if job.status == JobPostStatus.CLOSED),
+        },
+        to_local=to_local,
     )
 
 

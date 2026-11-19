@@ -290,7 +290,7 @@ const useStyles = makeStyles((colors) => ({
   },
 
   typeText: {
-    color: colors.plum,
+    color: colors.link,
 
     fontFamily:
       fonts.sansMedium,

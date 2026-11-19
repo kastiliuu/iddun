@@ -1068,7 +1068,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 10,

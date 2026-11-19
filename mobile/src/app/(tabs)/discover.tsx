@@ -787,7 +787,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
 
         fontFamily:
           fonts.sansMedium,
@@ -978,7 +978,7 @@ const useStyles =
 
       locationActionText: {
         color:
-          colors.plum,
+          colors.link,
 
         fontFamily:
           fonts.sansMedium,

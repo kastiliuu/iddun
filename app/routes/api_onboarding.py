@@ -10,7 +10,14 @@ from app.models.booking import ExperienceSlot
 from app.models.establishment import ProfessionalEstablishmentMembership, MembershipStatus
 from app.services.slug_service import unique_slug
 from app.services.admin_catalog_service import publish_experience
-from app.services.availability_service import AvailabilityError, create_availability, create_availability_from_working_hours
+from app.services.availability_service import (
+    AvailabilityError,
+    create_availability,
+    create_availability_batch,
+    create_availability_from_working_hours,
+)
+from app.services.media_service import MAX_IMAGE_BYTES, UploadBatch, delete_uploaded_file
+from sqlalchemy.exc import SQLAlchemyError
 from app.services.time_service import utcnow, to_local
 from app.services.professional_schedule_service import schedule_rows, save_weekly_schedule, ScheduleValidationError
 from app.models.booking import SlotStatus
@@ -919,6 +926,7 @@ def list_professional_services():
 
 
 @api_onboarding_bp.post("/professional/services")
+@csrf.exempt
 @limiter.limit("20 per hour")
 def create_professional_service_draft():
     user, error = _authenticated_user()
@@ -1038,10 +1046,12 @@ def get_professional_service_draft(service_id):
         "durationMinutes": item.duration_minutes,
         "status": item.status,
         "establishmentId": item.establishment_id,
+        "imageUrl": resolve_image_url(item.image_url) if item.image_url else None,
     }}, cache_control="private, no-store")
 
 
 @api_onboarding_bp.patch("/professional/services/<int:service_id>")
+@csrf.exempt
 @limiter.limit("30 per hour")
 def update_professional_service_draft(service_id):
     user, error = _authenticated_user()
@@ -1136,6 +1146,7 @@ def update_professional_service_draft(service_id):
 
 
 @api_onboarding_bp.post("/professional/services/<int:service_id>/status")
+@csrf.exempt
 @limiter.limit("30 per hour")
 def change_professional_service_status(service_id):
     user, error = _authenticated_user()
@@ -1212,6 +1223,7 @@ def list_professional_service_establishments():
 
 
 @api_onboarding_bp.route("/professional/services/<int:service_id>/availability", methods=["GET", "POST"])
+@csrf.exempt
 @limiter.limit("60 per hour")
 def professional_service_availability(service_id):
     """Manage own service slots using the same booking safeguards as Web."""
@@ -1266,6 +1278,7 @@ def professional_service_availability(service_id):
 
 
 @api_onboarding_bp.post("/professional/services/<int:service_id>/availability/<int:slot_id>/status")
+@csrf.exempt
 @limiter.limit("30 per hour")
 def change_professional_slot_status(service_id, slot_id):
     user, error = _authenticated_user()
@@ -1308,6 +1321,7 @@ def change_professional_slot_status(service_id, slot_id):
 
 
 @api_onboarding_bp.post("/professional/services/<int:service_id>/availability/from-schedule")
+@csrf.exempt
 @limiter.limit("20 per hour")
 def create_professional_slots_from_schedule(service_id):
     user, error = _authenticated_user()
@@ -1336,7 +1350,111 @@ def create_professional_slots_from_schedule(service_id):
     return api_json({"createdCount": len(created)}, status=201, cache_control="private, no-store")
 
 
+BATCH_MAX_TIMES = 20
+
+
+@api_onboarding_bp.post("/professional/services/<int:service_id>/availability/batch")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def create_professional_slots_batch(service_id):
+    """V1-CONV-D06: vários horários num dia, tudo ou nada, como na Web."""
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience.id).where(
+        Experience.id == service_id, Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    payload, error = _json_body()
+    if error is not None:
+        return error
+    times = payload.get("times")
+    if (
+        set(payload) != {"date", "times"}
+        or not isinstance(payload["date"], str)
+        or not isinstance(times, list)
+        or not times
+        or len(times) > BATCH_MAX_TIMES
+        or not all(isinstance(value, str) and len(value) <= 5 for value in times)
+    ):
+        return api_error(
+            "invalid_fields",
+            f"Informe a data AAAA-MM-DD e de 1 a {BATCH_MAX_TIMES} horários HH:MM.",
+            400,
+        )
+    try:
+        created = create_availability_batch(
+            user=user,
+            experience_reference=str(service_id),
+            slot_date=payload["date"],
+            slot_times=", ".join(times),
+        )
+    except AvailabilityError as exc:
+        db.session.rollback()
+        return api_error("availability_invalid", str(exc), 409)
+    return api_json({"createdCount": len(created)}, status=201, cache_control="private, no-store")
+
+
+SERVICE_IMAGE_MAX_MULTIPART = MAX_IMAGE_BYTES + 512 * 1024
+
+
+@api_onboarding_bp.post("/professional/services/<int:service_id>/image")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def upload_professional_service_image(service_id):
+    """V1-CONV-D06: foto do serviço pelo app, com as regras da Web.
+
+    Só o dono; só rascunho ou pausado (publicado não é editado, como na
+    Web); JPG, PNG ou WEBP até 5 MB, conferidos por save_image.
+    """
+    user, error = _authenticated_user()
+    if error is not None:
+        return error
+    profile = user.professional_profile
+    if profile is None:
+        return api_error("professional_profile_required", "Perfil profissional necessário.", 409)
+    item = db.session.scalar(select(Experience).where(
+        Experience.id == service_id, Experience.professional_id == profile.id,
+    ))
+    if item is None:
+        return api_error("service_not_found", "Serviço não encontrado.", 404)
+    if item.status not in (ExperienceStatus.DRAFT, ExperienceStatus.PAUSED):
+        return api_error("service_not_editable", "Somente rascunhos e serviços pausados podem ser editados.", 409)
+    if request.content_length is not None and request.content_length > SERVICE_IMAGE_MAX_MULTIPART:
+        return api_error("request_too_large", "A imagem deve ter no máximo 5 MB.", 413)
+    if not request.content_type or "multipart/form-data" not in request.content_type.lower():
+        return api_error("multipart_required", "Envie a imagem como multipart/form-data.", 415)
+    file_storage = request.files.get("file")
+    if file_storage is None or not getattr(file_storage, "filename", ""):
+        return api_error("image_required", "Selecione uma imagem.", 400)
+
+    previous = item.image_url
+    try:
+        with UploadBatch() as uploads:
+            stored = uploads.save_image(file_storage, "experiences")
+            item.image_url = stored
+            db.session.commit()
+            uploads.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_error("invalid_image", str(exc), 400)
+    except (OSError, SQLAlchemyError):
+        db.session.rollback()
+        return api_error("media_upload_failed", "Não foi possível salvar a imagem agora.", 503)
+    if previous and previous != stored:
+        delete_uploaded_file(previous)
+    return api_json(
+        {"imageUrl": resolve_image_url(item.image_url)},
+        cache_control="private, no-store",
+    )
+
+
 @api_onboarding_bp.route("/professional/weekly-schedule", methods=["GET", "PUT"])
+@csrf.exempt
 @limiter.limit("20 per hour")
 def professional_weekly_schedule():
     user, error = _authenticated_user()

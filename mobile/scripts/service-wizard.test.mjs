@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  SERVICE_STATUS_LABELS,
   SERVICE_STEPS,
+  parseBatchTimes,
   buildPayload,
   firstReachableStep,
   formatMoney,
@@ -73,4 +75,18 @@ test("server errors send the person back to the right step", () => {
   assert.equal(stepForServerError("establishment_not_allowed"), 2);
   assert.equal(stepForServerError("service_has_slots"), 2);
   assert.equal(stepForServerError("unauthorized"), null);
+});
+
+test("status labels follow the model (V1-CONV-D07)", () => {
+  assert.equal(SERVICE_STATUS_LABELS.published, "Publicada");
+  assert.equal(SERVICE_STATUS_LABELS.paused, "Pausada");
+});
+
+test("batch times follow the server parser", () => {
+  assert.deepEqual(parseBatchTimes("11:00, 9:00;10:30\n9:00"), { times: ["09:00", "10:30", "11:00"] });
+  assert.equal("error" in parseBatchTimes("  ,  "), true);
+  assert.match(parseBatchTimes("9h").error, /Horário inválido: 9h/);
+  assert.match(parseBatchTimes("24:00").error, /Horário inválido/);
+  const many = Array.from({ length: 21 }, (_, i) => `${String(i).padStart(2, "0")}:00`).join(",");
+  assert.match(parseBatchTimes(many).error, /no máximo 20/);
 });

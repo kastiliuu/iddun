@@ -381,7 +381,7 @@ const useStyles =
 
       brandSpark: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.display,
         fontSize: 14,
@@ -399,7 +399,7 @@ const useStyles =
 
       eyebrow: {
         color:
-          colors.plum,
+          colors.link,
         fontFamily:
           fonts.sansMedium,
         fontSize: 9,

@@ -1,0 +1,48 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import status_chip %}
+{% block title %}Minhas candidaturas | IDDUN{% endblock %}
+{% block body_class %}platform-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="applications-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <a class="platform-back-link" href="{{ url_for('recruitment.jobs') }}">{{ icon('arrow-left') }} Vagas</a>
+      <span class="platform-kicker">IDDUN · CANDIDATURAS</span>
+      <h1 id="applications-title">Minhas candidaturas</h1>
+      <p>Acompanhe as vagas em que você se candidatou. O contato acontece direto com o estabelecimento.</p>
+    </header>
+    {% if items %}
+    <ul class="recruit-list">
+      {% for item in items %}
+      {% set job_open = item.job.status == JobPostStatus.PUBLISHED %}
+      <li class="platform-panel recruit-card recruit-card--static">
+        <span class="recruit-card__company">{{ item.job.establishment.name }}</span>
+        <span class="recruit-card__title">{% if job_open %}<a href="{{ url_for('recruitment.job_detail', job_id=item.job.id) }}">{{ item.job.title }}</a>{% else %}{{ item.job.title }}{% endif %}</span>
+        <span class="recruit-card__meta">
+          {{ status_chip(status_labels.get(item.status, item.status), item.status) }}
+          {% if not job_open %}{{ status_chip('Vaga encerrada', 'closed') }}{% endif %}
+          <span class="recruit-muted">Enviada em {{ item.created_at.strftime('%d/%m/%Y') }}</span>
+        </span>
+        {% if item.status == JobApplicationStatus.SUBMITTED %}
+        <form method="post" action="{{ url_for('recruitment.withdraw', job_id=item.job.id) }}" data-confirm-submit="Retirar esta candidatura?" data-once>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="voltar" value="candidaturas">
+          <button class="btn btn-outline btn-sm" type="submit">Retirar candidatura</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <section class="platform-panel recruit-empty">
+      <h2>Nenhuma candidatura ainda</h2>
+      <p>{{ 'Explore as vagas abertas e candidate-se com o seu perfil profissional.' if has_profile else 'Para se candidatar, crie primeiro o seu perfil profissional.' }}</p>
+      <a class="btn btn-primary" href="{{ url_for('recruitment.jobs') if has_profile else url_for('professional.start') }}">{{ 'Ver vagas' if has_profile else 'Criar perfil profissional' }}</a>
+    </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import status_chip %}
+{% block title %}Candidaturas · {{ job.title }} | IDDUN Business{% endblock %}
+{% block body_class %}platform-page business-jobs-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+{% include 'components/business-nav.html' %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="job-applications-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <a class="platform-back-link" href="{{ url_for('recruitment.business_jobs', slug=establishment.slug) }}#vaga-{{ job.id }}">{{ icon('arrow-left') }} Vagas</a>
+      <span class="platform-kicker">IDDUN BUSINESS · CANDIDATURAS</span>
+      <h1 id="job-applications-title">{{ job.title }}</h1>
+      <p>{{ status_chip(status_labels.get(job.status, job.status), job.status) }} {{ items|length }} {{ 'candidatura ativa' if items|length == 1 else 'candidaturas ativas' }}. O contato com cada pessoa acontece fora do IDDUN.</p>
+    </header>
+    {% if items %}
+    <ul class="recruit-list">
+      {% for item in items %}
+      {% set pro = item.professional %}
+      <li class="platform-panel recruit-card recruit-card--static">
+        <span class="recruit-card__title"><a href="{{ url_for('public.professional_detail', slug=pro.slug) }}">{{ pro.display_name }}</a></span>
+        <span class="recruit-muted">{{ pro.primary_specialty or 'Profissional' }}{% if pro.city %} · {{ pro.city }}{% if pro.state %}/{{ pro.state }}{% endif %}{% endif %} · enviada em {{ item.created_at.strftime('%d/%m/%Y') }}</span>
+        {% if item.message %}<p class="recruit-text">{{ item.message }}</p>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="platform-panel recruit-empty"><p>Nenhuma candidatura ativa nesta vaga.</p></div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+
+{% block mobile_bottom_nav %}
+{% from 'components/_bottom_nav.html' import business_bottom_nav with context %}
+{{ business_bottom_nav(establishment, access) }}
+{% endblock %}

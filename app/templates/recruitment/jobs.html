@@ -1,0 +1,58 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import job_facts %}
+{# V1-CONV-D01/D05 · vagas publicadas por estabelecimentos do piloto, as mesmas do app. #}
+{% block title %}Vagas | IDDUN{% endblock %}
+{% block body_class %}platform-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="jobs-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <span class="platform-kicker">IDDUN · VAGAS</span>
+      <h1 id="jobs-title">Vagas em estabelecimentos de beleza</h1>
+      <p>Oportunidades publicadas por estabelecimentos do IDDUN. A candidatura usa o seu perfil profissional.</p>
+      {% if current_user.is_authenticated %}<a class="btn btn-outline btn-outline--light" href="{{ url_for('recruitment.applications') }}">{{ icon('briefcase') }} Minhas candidaturas</a>{% endif %}
+    </header>
+
+    <form class="platform-panel recruit-search" method="get" action="{{ url_for('recruitment.jobs') }}" role="search" aria-label="Buscar vagas">
+      <div class="platform-field">
+        <label class="platform-label" for="jobs-q">Buscar</label>
+        <input class="platform-input" id="jobs-q" name="q" type="search" value="{{ search }}" maxlength="80" placeholder="Função, especialidade ou palavra-chave">
+      </div>
+      <div class="platform-field">
+        <label class="platform-label" for="jobs-city">Cidade</label>
+        <input class="platform-input" id="jobs-city" name="cidade" type="search" value="{{ city }}" maxlength="120" placeholder="Ex.: Curitiba">
+      </div>
+      <button class="btn btn-primary" type="submit">{{ icon('search') }} Buscar</button>
+    </form>
+
+    <p class="recruit-count" aria-live="polite">{{ total }} {{ 'vaga encontrada' if total == 1 else 'vagas encontradas' }}</p>
+
+    {% if items %}
+    <ul class="recruit-list">
+      {% for job in items %}
+      <li>
+        <a class="platform-panel recruit-card" href="{{ url_for('recruitment.job_detail', job_id=job.id) }}">
+          <span class="recruit-card__company">{{ job.establishment.name }}</span>
+          <span class="recruit-card__title">{{ job.title }}</span>
+          {{ job_facts(job) }}
+          <span class="recruit-card__more">Ver vaga {{ icon('chevron-right') }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    <nav class="recruit-pages" aria-label="Paginação">
+      {% if page > 1 %}<a class="btn btn-outline" href="{{ url_for('recruitment.jobs', q=search or None, cidade=city or None, pagina=page - 1) }}">Anteriores</a>{% endif %}
+      {% if has_next %}<a class="btn btn-outline" href="{{ url_for('recruitment.jobs', q=search or None, cidade=city or None, pagina=page + 1) }}">Próximas</a>{% endif %}
+    </nav>
+    {% else %}
+    <section class="platform-panel recruit-empty">
+      <h2>Nenhuma vaga aberta {{ 'para essa busca' if search or city else 'no momento' }}</h2>
+      <p>{{ 'Tente outra palavra ou cidade.' if search or city else 'Quando um estabelecimento publicar uma vaga, ela aparece aqui.' }}</p>
+    </section>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

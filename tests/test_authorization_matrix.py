@@ -176,6 +176,15 @@ def _build_world():
 
     owner_a = _user("dono.alfa@example.com", "Dono Alfa")
     est_a = _establishment("studio-alfa", "Studio Alfa", owner_a)
+    # V1-CONV-D05: gerente do Studio Alfa, sem permissão de recrutar.
+    manager_a = _user("gerente.alfa@example.com", "Gerente Alfa")
+    manager_access = EstablishmentUserAccess(
+        user_id=manager_a.id,
+        establishment_id=est_a.id,
+        role=EstablishmentAccessRole.MANAGER,
+    )
+    db.session.add(manager_access)
+    db.session.flush()
 
     other_owner = _user("dono.gama@example.com", "Dono Gama")
     est_invite = _establishment("studio-gama", "Studio Gama", other_owner)
@@ -322,7 +331,7 @@ def _build_world():
 
     # Toda conta começa como Cliente (contexto mestre, seção 2). Criar o
     # perfil já aqui evita que `ensure_client_profile` conte como mudança.
-    for user in (pro_a_user, owner_a, other_owner, pro_b_user, owner_b):
+    for user in (pro_a_user, owner_a, manager_a, other_owner, pro_b_user, owner_b):
         db.session.add(ClientProfile(user=user))
 
     db.session.commit()
@@ -352,6 +361,7 @@ def _build_world():
         "membership_pending": membership_pending.id,
         "est_slug": est_a.slug,
         "est_id": est_a.id,
+        "manager_access": manager_access.id,
     }
 
     actors = {}
@@ -556,6 +566,13 @@ ROUTES = [
         "/api/v1/onboarding/professional/services/{service}/availability/from-schedule",
         {"days": 7},
     ),
+    # V1-CONV-D06: foto e horários em lote pelo app
+    ("POST", "/api/v1/onboarding/professional/services/{service}/image", None),
+    (
+        "POST",
+        "/api/v1/onboarding/professional/services/{service}/availability/batch",
+        {"date": "2030-01-10", "times": ["10:00", "11:00"]},
+    ),
     ("DELETE", "/api/v1/onboarding/professional/experiences/{work_experience}", None),
     ("DELETE", "/api/v1/media/professional/portfolio/{portfolio}", None),
     # Conteúdo
@@ -579,6 +596,17 @@ ROUTES = [
     ("POST", "/business/{est_slug}/painel", {"name": "Studio sequestrado"}),
     ("POST", "/business/{est_slug}/equipe/{membership_active}/remover", None),
     ("POST", "/business/{est_slug}/galeria/{gallery}/remover", None),
+    # Recrutamento — Web (V1-CONV-D05)
+    ("GET", "/business/{est_slug}/vagas", None),
+    ("POST", "/business/{est_slug}/vagas", {"title": "Vaga forjada", "description": "Forjada."}),
+    ("GET", "/business/{est_slug}/vagas/{job}/editar", None),
+    ("POST", "/business/{est_slug}/vagas/{job}/editar", {"title": "Vaga sequestrada", "description": "x"}),
+    ("POST", "/business/{est_slug}/vagas/{job}/publicar", None),
+    ("POST", "/business/{est_slug}/vagas/{job}/encerrar", None),
+    ("GET", "/business/{est_slug}/vagas/{job}/candidaturas", None),
+    ("POST", "/business/{est_slug}/recrutamento/gerentes/{manager_access}", {"permitir": "1"}),
+    ("GET", "/vagas/{job}", None),
+    ("POST", "/vagas/{job}/candidatar", {"message": "Candidatura a rascunho"}),
     # Business — API (equipe e recrutamento)
     ("GET", "/api/v1/establishments/{est_slug}/team", None),
     ("GET", "/api/v1/establishments/{est_id}/team", None),
@@ -605,6 +633,7 @@ ROUTES = [
 # vítima é rascunho, não por falta de login.
 PUBLIC_READ_ROUTES = {
     ("GET", "/api/v1/posts/{post}"),
+    ("GET", "/vagas/{job}"),
 }
 
 
@@ -693,6 +722,8 @@ OWNER_CONTROLS = [
     ("pro_a", "PUT", "/api/v1/team/invitations/{membership_pending}/reject", None),
     ("dono_a", "POST", "/business/{est_slug}/galeria/{gallery}/remover", None),
     ("dono_a", "PUT", "/api/v1/establishments/{est_slug}/jobs/{job}/close", None),
+    ("dono_a", "POST", "/business/{est_slug}/vagas/{job}/encerrar", None),
+    ("dono_a", "POST", "/business/{est_slug}/recrutamento/gerentes/{manager_access}", {"permitir": "1"}),
 ]
 
 

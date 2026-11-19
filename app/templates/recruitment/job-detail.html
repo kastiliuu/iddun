@@ -1,0 +1,52 @@
+{% extends 'layouts/base.html' %}
+{% from 'components/icon.html' import icon %}
+{% from 'recruitment/_macros.html' import job_facts, field %}
+{% block title %}{{ job.title }} · Vaga | IDDUN{% endblock %}
+{% block body_class %}platform-page recruit-page{% endblock %}
+{% block styles %}<link rel="stylesheet" href="{{ url_for('static', filename='css/platform.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/recruitment.css') }}">{% endblock %}
+
+{% block content %}
+<section class="platform-editor" data-iddun-surface="light" aria-labelledby="job-title">
+  <div class="container platform-editor__layout recruit-layout">
+    <header class="platform-editor__head recruit-head">
+      <a class="platform-back-link" href="{{ url_for('recruitment.jobs') }}">{{ icon('arrow-left') }} Todas as vagas</a>
+      <span class="platform-kicker">VAGA · {{ job.establishment.name|upper }}</span>
+      <h1 id="job-title">{{ job.title }}</h1>
+      {{ job_facts(job) }}
+    </header>
+
+    <div class="recruit-detail">
+      <article class="platform-panel recruit-description" aria-label="Descrição da vaga">
+        <h2>Sobre a vaga</h2>
+        <div class="recruit-text">{{ job.description }}</div>
+        <p class="recruit-muted">Publicada por <a href="{{ url_for('public.establishment_detail', slug=job.establishment.slug) }}">{{ job.establishment.name }}</a>{% if job.published_at %} em {{ job.published_at.strftime('%d/%m/%Y') }}{% endif %}. A conversa e a entrevista acontecem fora do IDDUN.</p>
+      </article>
+
+      <aside class="platform-panel recruit-apply" aria-labelledby="apply-title">
+        <h2 id="apply-title">Candidatura</h2>
+        {% if application and application.status == 'submitted' %}
+          <p class="recruit-state">{{ icon('check') }} Candidatura enviada em {{ application.created_at.strftime('%d/%m/%Y') }}.</p>
+          <form method="post" action="{{ url_for('recruitment.withdraw', job_id=job.id) }}" data-confirm-submit="Retirar sua candidatura? Você pode se candidatar de novo enquanto a vaga estiver aberta." data-once>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-outline" type="submit">Retirar candidatura</button>
+          </form>
+        {% elif not current_user.is_authenticated %}
+          <p>Entre na sua conta para se candidatar com o seu perfil profissional.</p>
+          <a class="btn btn-primary" href="{{ url_for('auth.login', next=request.path) }}">Entrar para se candidatar</a>
+        {% elif not can_apply %}
+          <p>Para se candidatar, você precisa de um perfil profissional ativo no IDDUN.</p>
+          <a class="btn btn-primary" href="{{ url_for('professional.start') }}">Criar perfil profissional</a>
+        {% else %}
+          {% if application and application.status == 'withdrawn' %}<p class="recruit-muted">Você retirou uma candidatura anterior. Pode enviar de novo.</p>{% endif %}
+          <form method="post" action="{{ url_for('recruitment.apply', job_id=job.id) }}" class="recruit-apply__form" data-once>
+            {{ form.hidden_tag() }}
+            {{ field(form.message, kind='textarea', wide=True) }}
+            <p class="recruit-muted">O estabelecimento vê seu nome, especialidade, cidade e perfil profissional.</p>
+            <button class="btn btn-primary" type="submit">Enviar candidatura</button>
+          </form>
+        {% endif %}
+      </aside>
+    </div>
+  </div>
+</section>
+{% endblock %}

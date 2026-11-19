@@ -2353,7 +2353,7 @@ const useStyles =
         fontSize: 11,
         letterSpacing: 1.5,
         color:
-          colors.plum,
+          colors.link,
         fontWeight: "700",
       },
 
@@ -2404,7 +2404,7 @@ const useStyles =
           fonts.display,
         fontSize: 30,
         color:
-          colors.plum,
+          colors.link,
       },
 
       progressTrack: {
@@ -2471,7 +2471,7 @@ const useStyles =
         letterSpacing: 1.35,
         fontWeight: "700",
         color:
-          colors.plum,
+          colors.link,
       },
 
       sectionTitle: {
@@ -2624,7 +2624,7 @@ const useStyles =
           fonts.display,
         fontSize: 30,
         color:
-          colors.plum,
+          colors.link,
       },
 
       coverMediaFrame: {
@@ -2882,7 +2882,7 @@ const useStyles =
           fonts.sans,
         fontSize: 13,
         color:
-          colors.plum,
+          colors.link,
         fontWeight: "700",
       },
 

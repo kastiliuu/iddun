@@ -104,7 +104,7 @@ function isOtherContext(notification: NotificationItem) {
 
 export default function NotificationsScreen() {
   const styles = useStyles();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const router = useRouter();
   const toast = useToast();
 
@@ -335,7 +335,9 @@ export default function NotificationsScreen() {
           </Pressable>
 
           <Image
-            source={require("../../assets/branding/iddun-logo-white.png")}
+            source={scheme === "light"
+              ? require("../../assets/branding/iddun-logo-black.png")
+              : require("../../assets/branding/iddun-logo-white.png")}
             style={styles.logo}
             contentFit="contain"
             accessibilityLabel="IDDUN"
@@ -614,7 +616,7 @@ const useStyles = makeStyles((colors) => ({
     minWidth: 180,
   },
   eyebrow: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: typography.small,
     letterSpacing: 1.4,
@@ -638,7 +640,7 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: "center",
   },
   markAllText: {
-    color: colors.plum,
+    color: colors.link,
     fontFamily: fonts.sansSemiBold,
     fontSize: typography.bodySmall,
   },
