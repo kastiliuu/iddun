@@ -12,6 +12,7 @@ from app.models.booking import BookingStatus
 from app.services.username_service import UsernameError, change_username, next_change_at
 from app.services.profile_service import ensure_client_profile
 from app.services.media_service import save_uploaded_image
+from app.services.personal_media_service import set_personal_avatar
 from app.models.establishment import EstablishmentAccessStatus
 from app.services.time_service import DEFAULT_TIMEZONE, to_local
 from app.services.api_auth import (
@@ -127,7 +128,7 @@ def dashboard():
         profile.city = (form.city.data or "").strip() or None
         profile.state = (form.state.data or "").strip().upper() or None
         if uploaded_avatar:
-            profile.avatar_url = uploaded_avatar
+            set_personal_avatar(current_user, uploaded_avatar)
         profile.recalculate_onboarding()
 
         db.session.commit()

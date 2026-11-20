@@ -13,6 +13,10 @@ from app.services.api_contract import (
     api_error,
     api_json,
 )
+from app.services.personal_media_service import (
+    set_personal_avatar,
+    set_personal_cover,
+)
 from app.services.media_service import (
     MAX_IMAGE_BYTES,
     UploadBatch,
@@ -245,10 +249,7 @@ def upload_professional_avatar():
     if error is not None:
         return error
 
-    replaced_media = (
-        profile.avatar_url
-    )
-
+    # Arquivos legados não são removidos na transição para a mídia canônica.
     try:
         focus_x = _focus_value(
             request.form.get(
@@ -269,9 +270,7 @@ def upload_professional_avatar():
                 )
             )
 
-            profile.avatar_url = (
-                stored_path
-            )
+            set_personal_avatar(profile.user, stored_path)
             profile.avatar_focus_x = (
                 focus_x
             )
@@ -304,15 +303,6 @@ def upload_professional_avatar():
                 "a imagem agora."
             ),
             503,
-        )
-
-    if (
-        replaced_media
-        and replaced_media
-        != stored_path
-    ):
-        delete_uploaded_file(
-            replaced_media
         )
 
     return api_json(
@@ -352,10 +342,7 @@ def upload_professional_cover():
     if error is not None:
         return error
 
-    replaced_media = (
-        profile.cover_url
-    )
-
+    # A mídia legada permanece disponível para rollback durante rollout.
     try:
         focus_x = _focus_value(
             request.form.get(
@@ -376,9 +363,7 @@ def upload_professional_cover():
                 )
             )
 
-            profile.cover_url = (
-                stored_path
-            )
+            set_personal_cover(profile.user, stored_path)
             profile.cover_focus_x = (
                 focus_x
             )
@@ -408,15 +393,6 @@ def upload_professional_cover():
                 "a imagem agora."
             ),
             503,
-        )
-
-    if (
-        replaced_media
-        and replaced_media
-        != stored_path
-    ):
-        delete_uploaded_file(
-            replaced_media
         )
 
     return api_json(
