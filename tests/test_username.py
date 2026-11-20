@@ -231,6 +231,7 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     html = page.get_data(as_text=True)
     assert "<h1>Uma Pessoa</h1>" in html
     assert "personal.webp" in html
+    assert "capa-antiga.webp" in html
     assert "pro-antigo.webp" not in html
     assert "Cidade Privada" not in html
     assert 'href="/profissionais/pessoa-servicos"' in html
@@ -240,6 +241,7 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     person_data = person_api.get_json()
     assert person_data["name"] == "Uma Pessoa"
     assert person_data["avatar"] == "https://media.example/personal.webp"
+    assert person_data["cover"] == "https://media.example/capa-antiga.webp"
     assert person_data["profileUrl"] == "/@uma.pessoa"
     assert person_data["professional"]["slug"] == "pessoa-servicos"
     assert "city" not in person_data
@@ -249,6 +251,7 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     pro_data = pro_api.get_json()["professional"]
     assert pro_data["name"] == person_data["name"]
     assert pro_data["avatar"] == person_data["avatar"]
+    assert pro_data["cover"] == person_data["cover"]
     assert pro_data["routeId"] == "pessoa-servicos"
     assert pro_data["specialty"] == "Nail Designer"
     assert "<h1>Uma Pessoa</h1>" in client.get(

@@ -191,3 +191,28 @@ def test_audit_missing_uses_s3_exists(app, monkeypatch):
     result = app.test_cli_runner().invoke(args=["media", "audit-missing", "--strict"])
     assert result.exit_code != 0
     assert missing in result.output
+
+
+def test_cleanup_protects_canonical_only_user_avatar_and_cover(app):
+    """As novas colunas User entram na lista de mídias referenciadas."""
+    avatar = "uploads/clients/personal-user.jpg"
+    cover = "uploads/professionals/covers/personal-user.jpg"
+    files = (
+        _write_upload(app, "clients/personal-user.jpg"),
+        _write_upload(app, "professionals/covers/personal-user.jpg"),
+    )
+    with app.app_context():
+        user = User(
+            name="Identidade única",
+            email="media-canonical-only@example.com",
+            role=UserRole.CLIENT,
+            avatar_url=avatar,
+            cover_url=cover,
+        )
+        user.set_password("senha-forte-123")
+        db.session.add(user)
+        db.session.commit()
+
+    result = app.test_cli_runner().invoke(args=["cleanup-media", "--delete"])
+    assert result.exit_code == 0, result.output
+    assert all(path.exists() for path in files)

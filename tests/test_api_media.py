@@ -222,6 +222,8 @@ def test_avatar_upload_persists_real_media_and_focus(
                 "avatar"
             ]["storedPath"]
         )
+        assert profile.user.avatar_url == profile.avatar_url
+        assert profile.user.client_profile.avatar_url == profile.avatar_url
         assert (
             profile.avatar_focus_x
             == 37
@@ -277,7 +279,7 @@ def test_invalid_image_content_is_rejected_without_orphan(
         )
 
 
-def test_replacing_cover_deletes_previous_file_after_commit(
+def test_replacing_cover_retains_previous_file_during_rollback_window(
     app,
     client,
 ):
@@ -340,6 +342,7 @@ def test_replacing_cover_deletes_previous_file_after_commit(
             profile.cover_url
             == second_path
         )
+        assert profile.user.cover_url == second_path
 
         root = Path(
             app.config[
@@ -360,9 +363,10 @@ def test_replacing_cover_deletes_previous_file_after_commit(
             )
         )
 
+        # Durante a migração, a mídia antiga permanece para rollback.
         assert (
             first_file.exists()
-            is False
+            is True
         )
         assert (
             second_file.exists()
