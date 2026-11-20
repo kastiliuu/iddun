@@ -13,7 +13,7 @@ from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
 )
-from app.services.beauty_graph_service import follower_count, is_following
+from app.services.beauty_graph_service import follower_count, is_following, person_avatar
 from app.services.feed_service import author_filter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
@@ -39,6 +39,7 @@ from app.services.media_storage import (
     resolve_image_url,
 )
 from app.services.public_eligibility import (
+    professional_is_public,
     public_establishments_query,
     public_professionals_query,
 )
@@ -977,11 +978,12 @@ def _profile_payload(
     )
 
     if kind == "professional":
-        name = item.display_name
+        name = item.user.name if item.user is not None else item.display_name
         route_id = item.slug
         avatar = (
-            item.avatar_url
-            or "img/category-hair.jpg"
+            person_avatar(item.user)
+            if item.user is not None
+            else item.avatar_url or "img/category-hair.jpg"
         )
         cover = item.cover_url
         specialty = (
@@ -1322,9 +1324,9 @@ def professional_profile(
         ),
         "routeId": profile.slug,
         "kind": "professional",
-        "name": profile.display_name,
+        "name": view["name"],
         "avatar": _media(
-            profile.avatar_url
+            view["image"]
             or "img/category-hair.jpg"
         ),
         "cover": _media(
@@ -1646,7 +1648,10 @@ def client_profile(profile_id):
         cursor=request.args.get("cursor"),
         limit=request.args.get("limit", 12, type=int),
     )
-    avatar = profile.avatar_url
+    avatar = person_avatar(profile.user)
+    public_pro = profile.user.professional_profile
+    if not professional_is_public(public_pro):
+        public_pro = None
 
     return api_json(
         {
@@ -1659,6 +1664,15 @@ def client_profile(profile_id):
             "followerCount": follower_count("person", profile.user_id),
             "following": is_following(viewer, "person", profile.user_id),
             "avatar": resolve_image_url(avatar, external=True) if avatar else None,
+            "profileUrl": f"/@{profile.user.username}",
+            "professional": (
+                {
+                    "slug": public_pro.slug,
+                    "specialty": public_pro.primary_specialty,
+                }
+                if public_pro is not None
+                else None
+            ),
             "posts": posts["items"],
             "postsCount": posts["total"],
             "nextCursor": posts["nextCursor"],
