@@ -138,11 +138,14 @@ export default function CreateScreen() {
     user?.role === "establishment";
 
   // Uma conta pode gerir várias empresas: não escolher a primeira ao acaso.
-  const currentBusiness = user?.contexts?.find(
-    (item) =>
-      item.kind === "establishment" &&
-      item.id === user.profileId,
-  );
+  const businessProfileId = user?.profileId;
+  const currentBusiness = businessProfileId
+    ? user?.contexts?.find(
+        (item) =>
+          item.kind === "establishment" &&
+          item.id === businessProfileId,
+      )
+    : undefined;
 
   const canCreate =
     isProfessional ||
