@@ -14,8 +14,8 @@ import {
 } from "@/store/local";
 
 /**
- * Troca de contexto pelo avatar (PR 1; DEC-ID-077, FE-DEC-022). Lista só os
- * contextos que o backend devolve em /auth/me para esta conta.
+ * Áreas da conta pelo avatar (QA-001, 19/11). Contextos de /auth/me
+ * seguem como permissões técnicas, não como identidades Cliente/Pro.
  */
 
 export function contextSubtitle(item: AccountContext) {
@@ -26,7 +26,7 @@ export function contextSubtitle(item: AccountContext) {
       : item.state === "locked"
         ? " · fora do ar"
         : "";
-  if (item.kind === "professional") return `Profissional${state}`;
+  if (item.kind === "professional") return `Painel, agenda e serviços${state}`;
   return `${item.role === "owner" ? "Proprietário" : "Gestão"}${state}`;
 }
 
@@ -36,7 +36,7 @@ export default function ContextsScreen() {
   const user = store.getUser();
 
   useEffect(() => {
-    // Atualiza a lista; uma falha de rede mantém a última conhecida.
+    // Atualiza os vínculos; falha de rede não concede acessos novos.
     getCurrentUser().catch(() => {});
   }, []);
 
@@ -46,16 +46,10 @@ export default function ContextsScreen() {
       : user
         ? [{ kind: "client", name: user.name }]
         : [];
+  const professional = contexts.find((item) => item.kind === "professional");
+  const businesses = contexts.filter((item) => item.kind === "establishment");
 
-  const open = (item: AccountContext) => {
-    if (item.kind === "client") {
-      router.replace("/(tabs)");
-      return;
-    }
-    if (item.kind === "professional") {
-      router.push("/context/professional");
-      return;
-    }
+  const openBusiness = (item: AccountContext) => {
     if (item.id) {
       router.push({
         pathname: "/context/establishment/[id]",
@@ -67,46 +61,55 @@ export default function ContextsScreen() {
   return (
     <ContextScreen
       eyebrow="SUA CONTA"
-      title="Trocar de contexto"
+      title="Minha conta e ferramentas"
       description={user
-        ? `${user.name} · uma conta pessoal. O login começa na experiência Cliente; use as ferramentas profissionais e empresariais conforme seus acessos.`
-        : "Uma conta pessoal. O login começa na experiência Cliente."}
+        ? `${user.name} · uma identidade pessoal para explorar, reservar e publicar. Ferramentas profissionais e páginas de estabelecimentos são recursos desta mesma conta.`
+        : "Uma identidade pessoal para todas as atividades no IDDUN."}
     >
-      <ContextSection label="CONTA PESSOAL E TRABALHO">
-        {contexts.filter((item) => item.kind !== "establishment").map((item) => (
-          <ContextRow
-            key={item.kind}
-            icon={item.kind === "client" ? "compass" : "briefcase"}
-            title={item.kind === "client" ? "Experiência Cliente" : "Painel profissional"}
-            subtitle={contextSubtitle(item)}
-            current={item.kind === "client"}
-            onPress={() => open(item)}
-          />
-        ))}
+      <ContextSection label="CONTA PESSOAL">
+        <ContextRow
+          icon="user"
+          title="Meu feed e perfil"
+          subtitle="Explorar, publicar, seguir e reservar com a mesma identidade"
+          onPress={() => router.replace("/(tabs)")}
+        />
       </ContextSection>
 
-      {contexts.some((item) => item.kind === "establishment") ? (
+      <ContextSection label="FERRAMENTAS DE TRABALHO">
+        {professional ? (
+          <ContextRow
+            icon="briefcase"
+            title="Ferramentas profissionais"
+            subtitle={contextSubtitle(professional)}
+            onPress={() => router.push("/context/professional")}
+          />
+        ) : (
+          <ContextRow
+            icon="briefcase"
+            title="Ativar atuação profissional"
+            subtitle="Adicione recursos de trabalho à sua conta pessoal"
+            onPress={() => router.push("/signup-pro")}
+          />
+        )}
+        <ContextRow
+          icon="home"
+          title="Criar estabelecimento"
+          subtitle="Páginas institucionais com identidade e permissões próprias"
+          onPress={() => router.push("/signup-pro")}
+        />
+      </ContextSection>
+
+      {businesses.length > 0 ? (
         <ContextSection label="MEUS ESTABELECIMENTOS">
-          {contexts.filter((item) => item.kind === "establishment").map((item) => (
+          {businesses.map((item) => (
             <ContextRow
               key={`establishment-${item.id}`}
               icon="home"
               title={item.name}
               subtitle={contextSubtitle(item)}
-              onPress={() => open(item)}
+              onPress={() => openBusiness(item)}
             />
           ))}
-        </ContextSection>
-      ) : null}
-
-      {!contexts.some((item) => item.kind === "professional") ? (
-        <ContextSection label="COMEÇAR">
-          <ContextRow
-            icon="plus"
-            title="Criar perfil profissional ou estabelecimento"
-            subtitle="Cadastro por etapas, publicado só quando você quiser"
-            onPress={() => router.push("/signup-pro")}
-          />
         </ContextSection>
       ) : null}
     </ContextScreen>

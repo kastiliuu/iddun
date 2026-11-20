@@ -9,8 +9,8 @@ import {
 import { store, useStoreVersion } from "@/store/local";
 
 /**
- * Contexto Profissional no app (PR 1, D-SOC-04). O app ainda não tem Painel
- * nem Clientes do Pro; esta tela reúne só as ferramentas que já existem.
+ * Ferramentas Pro da mesma identidade pessoal (QA-001, 19/11).
+ * Painel e carteira de clientes continuam no site nesta etapa.
  */
 export default function ProfessionalContextScreen() {
   useStoreVersion();
@@ -22,9 +22,9 @@ export default function ProfessionalContextScreen() {
 
   return (
     <ContextScreen
-      eyebrow="CONTEXTO PROFISSIONAL"
-      contextLabel="Profissional"
-      title={context?.name ?? "Seu trabalho no IDDUN"}
+      eyebrow="FERRAMENTAS PROFISSIONAIS"
+      contextLabel="Minha conta"
+      title="Seu trabalho no IDDUN"
       description="Perfil, serviços, horários e vínculos. Painel e carteira de clientes estão no site por enquanto."
       notice={
         locked

@@ -17,9 +17,9 @@ import {
 } from "@/theme";
 
 /**
- * DS-V1-01-D02: avatar da pessoa + o contexto ativo escrito (Cliente,
- * Profissional ou o nome do estabelecimento). Tocar abre a troca de
- * contexto de sempre (DEC-ID-077); não cria conta nem muda permissão.
+ * DS-V1-01-D02 + QA-001: avatar pessoal único e área de trabalho atual.
+ * "Minha conta" identifica a pessoa; nomes de empresas identificam páginas.
+ * Tocar abre ferramentas, sem criar conta nem mudar permissão.
  * Nome longo é cortado só na tela: o leitor de tela recebe o nome inteiro.
  */
 export function ContextPill({ label }: { label: string }) {
@@ -36,8 +36,8 @@ export function ContextPill({ label }: { label: string }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Contexto ativo: ${label}`}
-      accessibilityHint="Abre a troca de contexto"
+      accessibilityLabel={`Áreas da conta: ${label}`}
+      accessibilityHint="Abre ferramentas e estabelecimentos autorizados"
       onPress={() => {
         Haptics.selectionAsync().catch(() => {});
         router.push("/contexts");
