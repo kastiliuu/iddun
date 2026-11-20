@@ -40,6 +40,11 @@ class User(UserMixin, db.Model):
         index=True,
     )
 
+    # QA-001: imagens pessoais canônicas; perfis técnicos continuam como
+    # espelhos legados durante a transição e podem ser revertidos.
+    avatar_url = db.Column(db.String(500), nullable=True)
+    cover_url = db.Column(db.String(500), nullable=True)
+
     password_hash = db.Column(
         db.String(255),
         nullable=False
