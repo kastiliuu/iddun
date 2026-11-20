@@ -77,6 +77,14 @@ export default function EstablishmentContextScreen() {
 
       {context.slug ? (
         <ContextSection label="GESTÃO NA WEB">
+          {owner ? (
+            <ContextRow
+              icon="users"
+              title="Permissões de recrutamento"
+              subtitle="Conceder ou retirar acesso dos gestores no site"
+              onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/vagas#gerentes`)}
+            />
+          ) : null}
           <ContextRow
             icon="external-link"
             title="Painel do estabelecimento"

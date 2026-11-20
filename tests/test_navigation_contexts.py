@@ -264,3 +264,8 @@ def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
         assert f'"/<slug>{route}"' in web_routes
     assert 'context.slug ? (' in establishment
     assert "onPress={() => openWebEditor(" in establishment
+    assert 'title="Permissões de recrutamento"' in establishment
+    assert 'vagas#gerentes' in establishment
+    assert '{owner ? (' in establishment
+    recruiting = (root / "app/templates/recruitment/business-jobs.html").read_text(encoding="utf-8")
+    assert 'id="gerentes"' in recruiting
