@@ -796,6 +796,8 @@ def test_personal_media_dual_writes_pro_and_preserves_prior_storage(app, client)
             pro = db.session.get(ProfessionalProfile, pro_id)
             assert getattr(user, kind + "_url") == new_path
             assert getattr(pro, kind + "_url") == new_path
+            assert getattr(pro, kind + "_focus_x") == 50
+            assert getattr(pro, kind + "_focus_y") == 50
             if kind == "avatar":
                 assert user.client_profile.avatar_url == new_path
 

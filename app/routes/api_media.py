@@ -261,8 +261,14 @@ def _upload_personal_image(kind):
             stored_path = uploads.save_image(file_storage, folder)
             if kind == "avatar":
                 set_personal_avatar(user, stored_path)
+                if user.professional_profile is not None:
+                    user.professional_profile.avatar_focus_x = focus_x
+                    user.professional_profile.avatar_focus_y = focus_y
             else:
                 set_personal_cover(user, stored_path)
+                if user.professional_profile is not None:
+                    user.professional_profile.cover_focus_x = focus_x
+                    user.professional_profile.cover_focus_y = focus_y
             db.session.commit()
             uploads.commit()
     except ValueError as exc:
