@@ -269,11 +269,22 @@ export default function CreateScreen() {
         </View>
 
         {!canCreate ? (
-          <View
-            style={
-              styles.becomeProfessionalCard
-            }
-          >
+          <>
+            {user ? (
+              <View style={styles.section}>
+                <ActionCard
+                  icon="image"
+                  title="Nova publicação pessoal"
+                  description="Compartilhe com a sua conta pessoal, sem ativar atuação profissional."
+                  onPress={() => router.push("/create-post")}
+                />
+              </View>
+            ) : null}
+            <View
+              style={
+                styles.becomeProfessionalCard
+              }
+            >
             <View
               style={
                 styles.becomeIcon
@@ -412,6 +423,7 @@ export default function CreateScreen() {
               />
             </View>
           </View>
+          </>
         ) : (
           <>
             <View

@@ -327,3 +327,20 @@ def test_expo_create_shows_cumulative_pro_and_business_tools_from_contexts():
     assert 'user.profileId' not in create
     assert 'title="Abrir um horário"' in create
     assert 'isProfessional ? (' in create
+
+
+def test_client_can_open_personal_composer_without_becoming_professional():
+    """ID-SOC-R1-01: Client creates personal social posts without Pro activation."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    composer = (root / "mobile/src/app/create-post.tsx").read_text(encoding="utf-8")
+
+    assert '{!canCreate ? (' in create
+    assert '{user ? (' in create
+    assert 'title="Nova publicação pessoal"' in create
+    assert 'onPress={() => router.push("/create-post")}' in create
+    assert 'title="Tornar-me profissional"' in create
+    assert 'getCreatorOptions()' in composer
+    assert 'ID-SOC-R1-01' in composer
