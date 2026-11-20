@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import { Button } from "@/components/Button";
 import { Icon, IconName } from "@/components/Icon";
 import { useToast } from "@/components/Toast";
+import { openWebEditor } from "@/components/ProfileSections";
 
 import {
   store,
@@ -135,6 +136,13 @@ export default function CreateScreen() {
 
   const isEstablishment =
     user?.role === "establishment";
+
+  // Uma conta pode gerir várias empresas: não escolher a primeira ao acaso.
+  const currentBusiness = user?.contexts?.find(
+    (item) =>
+      item.kind === "establishment" &&
+      item.id === user.profileId,
+  );
 
   const canCreate =
     isProfessional ||
@@ -523,9 +531,13 @@ export default function CreateScreen() {
                   <ActionCard
                     icon="scissors"
                     title="Serviços da empresa"
-                    description="Neste ciclo, os serviços da empresa são acompanhados pelo site do IDDUN."
-                    disabled
+                    description="Gerencie o catálogo da empresa no site do IDDUN."
                     badge="NO SITE"
+                    onPress={() =>
+                      currentBusiness?.slug
+                        ? openWebEditor(`/business/${encodeURIComponent(currentBusiness.slug)}/servicos`)
+                        : router.push("/contexts")
+                    }
                   />
                 ) : (
                   <ActionCard

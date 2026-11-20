@@ -271,3 +271,18 @@ def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
     assert '{owner ? (' in establishment
     recruiting = (root / "app/templates/recruitment/business-jobs.html").read_text(encoding="utf-8")
     assert 'id="gerentes"' in recruiting
+
+
+def test_expo_create_business_services_has_action_not_disabled_card():
+    """V1-CONV-D01: a gestão Web deve ser acessível do Criar, sem empresa arbitrária."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    assert 'title="Serviços da empresa"' in create
+    assert 'currentBusiness?.slug' in create
+    assert 'item.id === user.profileId' in create
+    assert 'openWebEditor(`/business/${encodeURIComponent(currentBusiness.slug)}/servicos`)' in create
+    assert 'router.push("/contexts")' in create
+    section = create.split('title="Serviços da empresa"', 1)[1].split('</ActionCard>', 1)[0] if '</ActionCard>' in create else create.split('title="Serviços da empresa"', 1)[1].split('/>', 1)[0]
+    assert "disabled" not in section
