@@ -188,14 +188,95 @@ def test_at_route_redirects_current_old_and_unknown_handles(client, app):
         client_page = f"/clientes/{client_only.client_profile.id}"
 
     current = client.get("/@fabi.souza")
-    assert current.status_code == 302 and current.headers["Location"].endswith(client_page)
+    assert current.status_code == 200
+    assert "<h1>Fabi Souza</h1>" in current.get_data(as_text=True)
+    assert "@fabi.souza" in current.get_data(as_text=True)
+    assert client.get(client_page).status_code == 200  # URL legada preservada
     old = client.get("/@fabi")
     assert old.status_code == 301 and old.headers["Location"].endswith("/@fabi.souza")
     upper = client.get("/@Fabi.Souza")
     assert upper.status_code == 301 and upper.headers["Location"].endswith("/@fabi.souza")
     pro = client.get("/@gabi")
-    assert pro.status_code == 302 and pro.headers["Location"].endswith("/profissionais/gabi-unhas")
+    assert pro.status_code == 200
+    assert "<h1>Gabi Pro</h1>" in pro.get_data(as_text=True)
+    assert "Ver serviços e portfólio" in pro.get_data(as_text=True)
+    assert client.get("/profissionais/gabi-unhas").status_code == 200
     assert client.get("/@ninguem").status_code == 404
+
+
+def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, client):
+    """Pessoa e Pro usam nome/foto pessoal; URLs e serviços legados sobrevivem."""
+    with app.app_context():
+        person = _user(
+            "Uma Pessoa", "v1-pr2-person@example.com", username="uma.pessoa"
+        )
+        person.client_profile.avatar_url = "https://media.example/personal.webp"
+        person.client_profile.city = "Cidade Privada"
+        professional = ProfessionalProfile(
+            user_id=person.id,
+            display_name="Outra Pessoa Pro",
+            slug="pessoa-servicos",
+            primary_specialty="Nail Designer",
+            avatar_url="https://media.example/pro-antigo.webp",
+            cover_url="https://media.example/capa-antiga.webp",
+            is_active=True,
+            published_at=datetime.now(timezone.utc),
+        )
+        db.session.add(professional)
+        db.session.commit()
+        profile_id = person.client_profile.id
+
+    page = client.get("/@uma.pessoa")
+    assert page.status_code == 200
+    html = page.get_data(as_text=True)
+    assert "<h1>Uma Pessoa</h1>" in html
+    assert "personal.webp" in html
+    assert "pro-antigo.webp" not in html
+    assert "Cidade Privada" not in html
+    assert 'href="/profissionais/pessoa-servicos"' in html
+
+    person_api = client.get(f"/api/v1/clients/{profile_id}")
+    assert person_api.status_code == 200
+    person_data = person_api.get_json()
+    assert person_data["name"] == "Uma Pessoa"
+    assert person_data["avatar"] == "https://media.example/personal.webp"
+    assert person_data["profileUrl"] == "/@uma.pessoa"
+    assert person_data["professional"]["slug"] == "pessoa-servicos"
+    assert "city" not in person_data
+
+    pro_api = client.get("/api/v1/professionals/pessoa-servicos")
+    assert pro_api.status_code == 200
+    pro_data = pro_api.get_json()["professional"]
+    assert pro_data["name"] == person_data["name"]
+    assert pro_data["avatar"] == person_data["avatar"]
+    assert pro_data["routeId"] == "pessoa-servicos"
+    assert pro_data["specialty"] == "Nail Designer"
+    assert "<h1>Uma Pessoa</h1>" in client.get(
+        "/profissionais/pessoa-servicos"
+    ).get_data(as_text=True)
+
+    with app.app_context():
+        db.session.get(ProfessionalProfile, professional.id).is_active = False
+        db.session.commit()
+    hidden = client.get("/@uma.pessoa")
+    assert hidden.status_code == 200
+    assert "Ver serviços e portfólio" not in hidden.get_data(as_text=True)
+    assert client.get("/api/v1/professionals/pessoa-servicos").status_code == 404
+
+
+def test_mobile_person_author_prefers_personal_route_over_professional_route():
+    """Expo também trata o Pro como capacidade da mesma pessoa."""
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parents[1] / "mobile/src/api/feed.ts"
+    ).read_text(encoding="utf-8")
+    person = src.split('if (author.identity === "person") {', 1)[1].split(
+        "const routeId =", 1
+    )[0]
+    assert person.index("if (author.clientProfileId)") < person.index(
+        "author.professional?.slug"
+    )
 
 
 def test_deleted_account_frees_personal_handle_data_and_followers(app, client):
