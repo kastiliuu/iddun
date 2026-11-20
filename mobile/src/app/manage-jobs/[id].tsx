@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -16,6 +16,7 @@ import {
 import {
   closeJob,
   createJob,
+  updateJob,
   getManagedJobs,
   publishJob,
   type JobPost,
@@ -58,6 +59,9 @@ export default function ManageJobsScreen() {
     useState(true);
   const [saving, setSaving] =
     useState(false);
+  const savingInFlight = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [mutatingJobId, setMutatingJobId] = useState<string | null>(null);
   const [title, setTitle] =
     useState("");
@@ -111,7 +115,29 @@ export default function ManageJobsScreen() {
     }, [load]),
   );
 
-  const handleCreate = async () => {
+  const clearEditor = () => {
+    setEditingJobId(null);
+    setTitle("");
+    setSpecialty("");
+    setDescription("");
+    setEmploymentType("");
+    setCompensationText("");
+  };
+
+  const startEditing = (job: JobPost) => {
+    if (savingInFlight.current || mutatingJobId || job.status === "closed") return;
+    setEditingJobId(job.id);
+    setTitle(job.title);
+    setSpecialty(job.specialty ?? "");
+    setDescription(job.description ?? "");
+    setEmploymentType(job.employmentType ?? "");
+    setCompensationText(job.compensationText ?? "");
+    scrollRef.current?.scrollTo({ y: 160, animated: true });
+  };
+
+  const handleSave = async () => {
+    if (savingInFlight.current || mutatingJobId) return;
+    if (!editingJobId && !recruitment?.canCreate) return;
     if (
       !title.trim() ||
       !description.trim()
@@ -125,51 +151,43 @@ export default function ManageJobsScreen() {
       return;
     }
 
+    savingInFlight.current = true;
     setSaving(true);
 
     try {
-      await createJob(
-        establishmentId,
-        {
-          title: title.trim(),
-          specialty:
-            specialty.trim() || undefined,
-          description:
-            description.trim(),
-          employmentType:
-            employmentType.trim() ||
-            undefined,
-          compensationText:
-            compensationText.trim() ||
-            undefined,
-        },
-      );
-
-      setTitle("");
-      setSpecialty("");
-      setDescription("");
-      setEmploymentType("");
-      setCompensationText("");
-
+      const payload = {
+        title: title.trim(),
+        specialty: specialty.trim(),
+        description: description.trim(),
+        employmentType: employmentType.trim(),
+        compensationText: compensationText.trim(),
+      };
+      if (editingJobId) {
+        await updateJob(establishmentId, editingJobId, payload);
+      } else {
+        await createJob(establishmentId, payload);
+      }
       toast.show({
-        title: "Rascunho criado",
-        body:
-          "Revise a vaga e publique quando estiver pronta.",
+        title: editingJobId ? "Vaga atualizada" : "Rascunho criado",
+        body: editingJobId
+          ? "Suas alterações foram salvas."
+          : "Revise a vaga e publique quando estiver pronta.",
         icon: "check-circle",
       });
-
+      clearEditor();
       await load();
     } catch (requestError) {
       toast.show({
-        title:
-          "Não foi possível criar a vaga",
-        body:
-          requestError instanceof Error
-            ? requestError.message
-            : "Tente novamente.",
+        title: editingJobId
+          ? "Não foi possível atualizar a vaga"
+          : "Não foi possível criar a vaga",
+        body: requestError instanceof Error
+          ? requestError.message
+          : "Tente novamente.",
         icon: "alert-circle",
       });
     } finally {
+      savingInFlight.current = false;
       setSaving(false);
     }
   };
@@ -237,6 +255,7 @@ export default function ManageJobsScreen() {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
@@ -281,15 +300,15 @@ export default function ManageJobsScreen() {
               Recrutamento ainda não habilitado
             </Text>
             <Text style={styles.jobMeta}>
-              Novas vagas dependem da habilitação feita pela equipe do IDDUN. Vagas que já existiam continuam no ar e podem ser encerradas.
+              Novas vagas dependem da habilitação feita pela equipe do IDDUN. Vagas existentes continuam editáveis e podem ser encerradas.
             </Text>
           </View>
         ) : null}
 
-        {recruitment?.canCreate ? (
+        {recruitment?.canCreate || editingJobId !== null ? (
         <View style={styles.formCard}>
           <Text style={styles.sectionTitle}>
-            Nova vaga
+            {editingJobId ? "Editar vaga" : "Nova vaga"}
           </Text>
 
           <TextInput
@@ -334,13 +353,23 @@ export default function ManageJobsScreen() {
           />
 
           <Button
-            title="Criar rascunho"
+            title={editingJobId ? "Salvar alterações" : "Criar rascunho"}
             loading={saving}
+            disabled={saving || mutatingJobId !== null}
             onPress={() => {
-              void handleCreate();
+              void handleSave();
             }}
             fullWidth
           />
+          {editingJobId ? (
+            <Button
+              title="Cancelar edição"
+              variant="outline"
+              disabled={saving || mutatingJobId !== null}
+              onPress={clearEditor}
+              fullWidth
+            />
+          ) : null}
         </View>
         ) : null}
 
@@ -404,8 +433,17 @@ export default function ManageJobsScreen() {
                   </View>
 
                   <View style={styles.actions}>
+                    {job.status !== "closed" ? (
+                      <Button
+                        title="Editar"
+                        variant="outline"
+                        compact
+                        disabled={saving || mutatingJobId !== null}
+                        onPress={() => startEditing(job)}
+                      />
+                    ) : null}
                     {job.status === "draft" &&
-                    (job.publishedAt || recruitment?.pilotEnabled) ? (
+                    (job.publishedAt || recruitment?.canCreate) ? (
                       <Button
                         title="Publicar"
                         compact
