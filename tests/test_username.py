@@ -225,6 +225,7 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
         db.session.add(professional)
         db.session.commit()
         profile_id = person.client_profile.id
+        professional_id = professional.id
 
     page = client.get("/@uma.pessoa")
     assert page.status_code == 200
@@ -259,7 +260,7 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     ).get_data(as_text=True)
 
     with app.app_context():
-        db.session.get(ProfessionalProfile, professional.id).is_active = False
+        db.session.get(ProfessionalProfile, professional_id).is_active = False
         db.session.commit()
     hidden = client.get("/@uma.pessoa")
     assert hidden.status_code == 200

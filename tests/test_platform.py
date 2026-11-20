@@ -150,7 +150,9 @@ def test_professional_onboarding_creates_portfolio_and_public_profile(
     )
 
     assert public_response.status_code == 200
-    assert "Camila Teste" in public_html
+    # QA-001: a pessoa mantém o nome de User; o nome Pro legado não
+    # cria uma segunda identidade pública.
+    assert "Profissional Teste" in public_html
     assert "Trabalhos recentes" in public_html
 
 
