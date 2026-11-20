@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
@@ -21,16 +21,34 @@ export default function ManageServicesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const requestVersion = useRef(0);
+
   const reload = useCallback(() => {
-    let active = true;
+    // Retry ou retorno ao catálogo invalida qualquer leitura anterior.
+    const currentRequest = ++requestVersion.current;
+    setLoading(true);
     setError(null);
     getManagedServices().then(
-      (response) => { if (active) setItems(response.items); },
-      (cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
+      (response) => {
+        if (currentRequest === requestVersion.current) {
+          setItems(response.items);
+        }
       },
-    ).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      (cause) => {
+        if (currentRequest === requestVersion.current) {
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
+        }
+      },
+    ).finally(() => {
+      if (currentRequest === requestVersion.current) {
+        setLoading(false);
+      }
+    });
+    return () => {
+      if (currentRequest === requestVersion.current) {
+        requestVersion.current += 1;
+      }
+    };
   }, []);
 
   // Volta do detalhe ou do cadastro: a lista reflete o que o servidor confirmou.
@@ -64,7 +82,7 @@ export default function ManageServicesScreen() {
           title="Não foi possível carregar seus serviços"
           description={error}
           actionLabel="Tentar novamente"
-          onActionPress={() => { setLoading(true); reload(); }}
+          onActionPress={() => { reload(); }}
         />
       ) : items.length === 0 ? (
         <EmptyState
