@@ -38,3 +38,11 @@ test("limpeza de uma leitura antiga não invalida o retry atual", () => {
   gate.invalidate(current);
   assert.equal(gate.isCurrent(current), false);
 });
+
+test("sair da tela após retry invalida também a leitura nova", () => {
+  const gate = createLatestRequestGate();
+  gate.begin(); // leitura iniciada ao abrir o catálogo
+  const retry = gate.begin(); // usuário tenta novamente
+  gate.invalidateAll(); // limpeza do foco deve cancelar ambas
+  assert.equal(gate.isCurrent(retry), false);
+});
