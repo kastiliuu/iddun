@@ -97,6 +97,9 @@ def test_delete_account_anonymizes_identity_and_revokes_session(
         )
         profile.city = "Curitiba"
         profile.state = "PR"
+        user.avatar_url = "https://media.example.com/avatar.jpg"
+        user.cover_url = "https://media.example.com/cover.jpg"
+        profile.avatar_url = user.avatar_url
         db.session.commit()
 
         user_id = user.id
@@ -150,6 +153,8 @@ def test_delete_account_anonymizes_identity_and_revokes_session(
             user.email_verified_at
             is None
         )
+        assert user.avatar_url is None
+        assert user.cover_url is None
 
         profile = (
             user.client_profile

@@ -2,6 +2,8 @@ from datetime import date
 from io import BytesIO
 import re
 
+from PIL import Image
+
 from sqlalchemy import select
 
 from app.extensions import db
@@ -80,6 +82,29 @@ def test_account_profile_can_be_updated(app, client):
         assert user.client_profile.city == "Curitiba"
         assert user.client_profile.state == "PR"
         assert user.client_profile.onboarding_completed is True
+
+
+def test_web_account_avatar_updates_canonical_and_legacy_mirror(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    content = BytesIO()
+    Image.new("RGB", (32, 32), (110, 70, 150)).save(content, format="JPEG")
+    content.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "avatar_file": (content, "foto.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.avatar_url.startswith("uploads/clients/")
+        assert user.client_profile.avatar_url == user.avatar_url
 
 
 def test_account_completion_uses_every_field_shown_on_the_page(app, client):
