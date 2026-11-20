@@ -12,6 +12,8 @@ from flask_login import (
 from app.services.beauty_graph_service import (
     following_page,
     saved_items,
+    person_avatar,
+    person_cover,
 )
 from app.services.client_feed_service import (
     client_feed_context,
@@ -62,6 +64,8 @@ def home():
         composer=composer,
         composer_author=composer_author,
         composer_open=composer_author is not composer["authors"][0],
+        person_avatar_url=person_avatar(current_user),
+        person_cover_url=person_cover(current_user),
         report_categories=ReportCategory.LABELS,
         **context,
     )

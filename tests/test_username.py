@@ -268,6 +268,9 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     hidden = client.get("/@uma.pessoa")
     assert hidden.status_code == 200
     assert "Ver serviços e portfólio" not in hidden.get_data(as_text=True)
+    hidden_api = client.get(f"/api/v1/clients/{profile_id}")
+    assert hidden_api.status_code == 200
+    assert hidden_api.get_json()["professional"] is None
     assert client.get("/api/v1/professionals/pessoa-servicos").status_code == 404
 
 

@@ -41,7 +41,6 @@ from app.services.media_storage import (
     resolve_image_url,
 )
 from app.services.public_eligibility import (
-    professional_is_public,
     public_establishments_query,
     public_professionals_query,
 )
@@ -1652,9 +1651,12 @@ def client_profile(profile_id):
     )
     avatar = person_avatar(profile.user)
     cover = person_cover(profile.user)
-    public_pro = profile.user.professional_profile
-    if not professional_is_public(public_pro):
-        public_pro = None
+    # A página Web e a API usam a mesma regra SQL de visibilidade.
+    public_pro = db.session.scalar(
+        public_professionals_query().where(
+            ProfessionalProfile.user_id == profile.user_id
+        )
+    )
 
     return api_json(
         {
