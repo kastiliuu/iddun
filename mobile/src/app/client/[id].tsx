@@ -15,6 +15,7 @@ import {
   useRouter,
 } from "expo-router";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { Image } from "expo-image";
 
 import {
   getClientProfile,
@@ -206,6 +207,15 @@ export default function ClientProfileScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>{backButton}</View>
 
+        {profile.cover ? (
+          <Image
+            source={{ uri: profile.cover }}
+            style={styles.cover}
+            contentFit="cover"
+            accessibilityLabel={`Capa de ${profile.name}`}
+          />
+        ) : null}
+
         <View style={styles.hero}>
           <Avatar name={profile.name} uri={profile.avatar} size={88} />
           <Text style={styles.name} accessibilityRole="header">
@@ -346,6 +356,13 @@ const useStyles = makeStyles((colors) => ({
     borderRadius: radius.pill,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  cover: {
+    width: "100%",
+    aspectRatio: 16 / 5,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surfaceSecondary,
   },
 
   hero: {

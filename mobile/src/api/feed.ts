@@ -443,6 +443,8 @@ export type ClientPublicProfile = {
   kind: "client";
   name: string;
   avatar: string | null;
+  /** Capa pessoal canônica; ausente quando não foi enviada. */
+  cover?: string | null;
   /** ID-SOC-R1-02: identidade social pública. */
   username?: string;
   /** Conta da pessoa: alvo de Seguir ("person"). */

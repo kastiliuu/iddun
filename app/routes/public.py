@@ -850,7 +850,7 @@ def professional_posts(slug):
 
 def _render_public_person(profile, *, page_url):
     """Página social pessoal: Pro é ferramenta adicional, não outra conta."""
-    from app.services.beauty_graph_service import person_avatar
+    from app.services.beauty_graph_service import person_avatar, person_cover
     from app.services.public_eligibility import professional_is_public
 
     professional = profile.user.professional_profile
@@ -862,6 +862,7 @@ def _render_public_person(profile, *, page_url):
         "public/client-detail.html",
         client=profile,
         person_avatar_url=person_avatar(profile.user),
+        person_cover_url=person_cover(profile.user),
         professional=professional,
         page_url=page_url,
         posts=author_posts_page(

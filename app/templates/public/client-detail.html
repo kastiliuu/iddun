@@ -18,6 +18,11 @@
 {# D-SOC-15: a própria Cliente vê o atalho para editar nome e foto. #}
 {% if graph_owns('client', client.id) %}{{ owner_banner('Você está vendo seu perfil como o público vê.', url_for('account.edit')) }}{% endif %}
 <div class="container profile-posts">
+  {% if person_cover_url %}
+  <div class="client-profile-cover">
+    <img src="{{ person_cover_url|media_url }}" alt="Capa de {{ client.user.name }}" loading="lazy">
+  </div>
+  {% endif %}
   <header class="client-profile-head">
     <span class="feed-avatar client-profile-head__avatar{% if person_avatar_url %} has-image{% endif %}" {% if person_avatar_url %}style="background-image:url('{{ person_avatar_url|media_url }}')"{% endif %} aria-hidden="true">
       {% if not person_avatar_url %}{{ client.user.name|initials }}{% endif %}
