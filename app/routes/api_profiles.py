@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.models.establishment import Establishment
 from app.models.professional import ProfessionalProfile
+from app.models.user import User
 from app.models.experience import Experience
 from app.models.work_post import (
     WorkPost,
@@ -1062,6 +1063,7 @@ def _list_profiles(
         model = ProfessionalProfile
         query = (
             public_professionals_query()
+            .outerjoin(User, model.user_id == User.id)
             .options(
                 selectinload(
                     ProfessionalProfile
@@ -1069,7 +1071,10 @@ def _list_profiles(
                 )
             )
         )
+        # O nome canônico da pessoa é User.name; catálogo sem User
+        # continua pesquisável pelo display_name Pro histórico.
         searchable = [
+            User.name,
             model.display_name,
             model.primary_specialty,
             model.specialties_text,

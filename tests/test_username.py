@@ -237,6 +237,27 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     assert "Cidade Privada" not in html
     assert 'href="/profissionais/pessoa-servicos"' in html
 
+    # Descoberta Web e Expo localiza a pessoa pelo nome único, não apenas
+    # pelo apelido de atuação profissional armazenado no legado.
+    by_person = client.get("/api/v1/search?q=Uma%20Pessoa")
+    assert by_person.status_code == 200
+    assert any(
+        item["routeId"] == "pessoa-servicos"
+        for item in by_person.get_json()["sections"]["professionals"]
+    )
+    by_pro = client.get("/api/v1/professionals?search=Uma%20Pessoa")
+    assert by_pro.status_code == 200
+    assert any(
+        item["routeId"] == "pessoa-servicos"
+        for item in by_pro.get_json()["items"]
+    )
+    in_discovery = client.get("/api/v1/discovery?search=Uma%20Pessoa")
+    assert in_discovery.status_code == 200
+    assert any(
+        item["routeId"] == "pessoa-servicos"
+        for item in in_discovery.get_json()["professionals"]
+    )
+
     person_api = client.get(f"/api/v1/clients/{profile_id}")
     assert person_api.status_code == 200
     person_data = person_api.get_json()

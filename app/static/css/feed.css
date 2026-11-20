@@ -668,6 +668,13 @@
     );
 }
 
+.feed-profile-card__cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .feed-profile-card__spark {
   position: absolute;
   right: 16px;
