@@ -358,3 +358,22 @@ def test_expo_professional_context_requires_authorized_pro_context():
     assert 'title="Ferramentas indisponíveis"' in professional
     assert 'router.replace("/contexts")' in professional
     assert 'if (!context?.id) {' in establishment
+
+
+def test_expo_services_refresh_ignores_stale_responses_after_retry_or_blur():
+    """P-003: resposta antiga não pode substituir lista ou erro mais recentes."""
+    from pathlib import Path
+
+    screen = (
+        Path(__file__).resolve().parents[1]
+        / "mobile/src/app/manage-services.tsx"
+    ).read_text(encoding="utf-8")
+
+    assert "useRef" in screen
+    assert "const requestVersion = useRef(0)" in screen
+    assert "const currentRequest = ++requestVersion.current" in screen
+    assert "currentRequest === requestVersion.current" in screen
+    assert "if (currentRequest === requestVersion.current) {" in screen
+    assert "requestVersion.current += 1" in screen
+    assert "setLoading(true)" in screen
+    assert 'actionLabel="Tentar novamente"' in screen
