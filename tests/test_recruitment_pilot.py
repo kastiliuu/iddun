@@ -405,5 +405,6 @@ def test_professional_applies_withdraws_and_reapplies_on_the_web(client, world):
 
     _login(client, world["owner"])
     listing = client.get(f"/business/studio-piloto/vagas/{world['legacy']}/candidaturas").get_data(as_text=True)
-    assert "pro-recruta" in listing and "Voltei." in listing
-    assert 'href="/@pro-recruta"' in listing
+    assert "Pro-Recruta" in listing and "Voltei." in listing
+    username = db.session.get(User, world["pro"]).username
+    assert f'href="/@{username}"' in listing
