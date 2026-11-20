@@ -19,21 +19,20 @@
 {% if graph_owns('client', client.id) %}{{ owner_banner('Você está vendo seu perfil como o público vê.', url_for('account.edit')) }}{% endif %}
 <div class="container profile-posts">
   <header class="client-profile-head">
-    <span class="feed-avatar client-profile-head__avatar{% if client.avatar_url %} has-image{% endif %}" {% if client.avatar_url %}style="background-image:url('{{ client.avatar_url|media_url }}')"{% endif %} aria-hidden="true">
-      {% if not client.avatar_url %}{{ client.user.name|initials }}{% endif %}
+    <span class="feed-avatar client-profile-head__avatar{% if person_avatar_url %} has-image{% endif %}" {% if person_avatar_url %}style="background-image:url('{{ person_avatar_url|media_url }}')"{% endif %} aria-hidden="true">
+      {% if not person_avatar_url %}{{ client.user.name|initials }}{% endif %}
     </span>
     <div>
       <h1>{{ client.user.name }}</h1>
       <p>@{{ client.user.username }} · {{ posts.total }} publicaç{{ 'ão' if posts.total == 1 else 'ões' }} · {{ follower_count('person', client.user_id) }}</p>
-      {% set pro = client.user.professional_profile %}
-      {% if pro and pro.is_active %}<p><a href="{{ url_for('public.professional_detail', slug=pro.slug) }}">Ver atuação profissional</a></p>{% endif %}
+      {% if professional %}<p><a href="{{ url_for('public.professional_detail', slug=professional.slug) }}">Ver serviços e portfólio</a></p>{% endif %}
       {{ follow_button('person', client.user_id, client.user.name) }}
     </div>
   </header>
 
   <section aria-labelledby="client-posts-title">
     <h2 id="client-posts-title" class="profile-posts__title">Publicações</h2>
-    {% set page_url = url_for('public.client_detail', profile_id=client.id) %}
+    {# A paginação permanece no @ ou na URL numérica usada pelo visitante. #}
     {% set empty_text = 'Ainda não há publicações.' %}
     {% include 'posts/_post_list.html' %}
   </section>
