@@ -94,6 +94,12 @@ export default function EstablishmentContextScreen() {
           {!draft ? (
             <>
               <ContextRow
+                icon="scissors"
+                title="Serviços do estabelecimento"
+                subtitle="Catálogo e gestão dos serviços no site"
+                onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/servicos`)}
+              />
+              <ContextRow
                 icon="calendar"
                 title="Reservas da empresa"
                 subtitle="Acompanhe atendimentos no site"

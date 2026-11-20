@@ -259,7 +259,7 @@ def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
     assert 'openWebEditor("/pro/painel")' in professional
     assert 'openWebEditor("/pro/clientes")' in professional
     assert '"/painel"' in web_routes and '"/clientes"' in web_routes
-    for route in ("/painel", "/reservas", "/indicadores"):
+    for route in ("/painel", "/servicos", "/reservas", "/indicadores"):
         assert f"${{encodeURIComponent(context.slug as string)}}{route}" in establishment
         assert f'"/<slug>{route}"' in web_routes
     assert 'context.slug ? (' in establishment
