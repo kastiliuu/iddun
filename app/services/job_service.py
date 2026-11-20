@@ -12,6 +12,7 @@ from app.models.professional import (
     ProfessionalProfile,
 )
 from app.services.beauty_graph_service import person_avatar
+from app.services.media_storage import resolve_image_url
 from app.services.establishment_team_service import (
     EstablishmentTeamError,
     require_establishment_manager,
@@ -919,7 +920,10 @@ def serialize_application(
             "clientProfileId": str(client.id) if client is not None else None,
             "name": person.name if person is not None else professional.display_name,
             "specialty": professional.primary_specialty,
-            "avatar": person_avatar(person) if person is not None else professional.avatar_url,
+            "avatar": resolve_image_url(
+                person_avatar(person) if person is not None else professional.avatar_url,
+                external=True,
+            ),
             "city": professional.city,
             "state": professional.state,
         }

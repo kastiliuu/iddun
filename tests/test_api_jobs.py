@@ -530,7 +530,7 @@ def test_owner_can_view_submitted_applications_and_close_job(
     candidate = items[0]["professional"]
     assert candidate["routeId"].startswith("job-pro-")
     assert candidate["name"] == "Pessoa Candidata"
-    assert candidate["avatar"] == "uploads/clients/avatar-unico.jpg"
+    assert candidate["avatar"].endswith("/uploads/clients/avatar-unico.jpg")
     assert candidate["clientProfileId"] is not None
 
     closed = client.put(
