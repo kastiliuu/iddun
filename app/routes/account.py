@@ -34,7 +34,7 @@ def _profile_completion(user, profile):
     fields = {
         "nome": user.name,
         "e-mail": user.email,
-        "foto": profile.avatar_url,
+        "foto": user.avatar_url or profile.avatar_url,
         "telefone": profile.phone,
         "data de nascimento": profile.birth_date,
         "cidade": profile.city,

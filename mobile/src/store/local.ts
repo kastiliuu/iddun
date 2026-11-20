@@ -40,7 +40,8 @@ export type CurrentUser =
       email: string;
       /** ID-SOC-R1-02: @username público. */
       username?: string;
-      avatar?: string;
+      avatar?: string | null;
+      cover?: string | null;
 
       /**
        * ID do perfil profissional/estabelecimento correspondente
