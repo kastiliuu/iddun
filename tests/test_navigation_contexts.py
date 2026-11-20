@@ -344,3 +344,17 @@ def test_client_can_open_personal_composer_without_becoming_professional():
     assert 'title="Tornar-me profissional"' in create
     assert 'getCreatorOptions()' in composer
     assert 'ID-SOC-R1-01' in composer
+
+
+def test_expo_professional_context_requires_authorized_pro_context():
+    """QA-001: link direto não pode apresentar ferramentas Pro sem contexto."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    professional = (root / "mobile/src/app/context/professional.tsx").read_text(encoding="utf-8")
+    establishment = (root / "mobile/src/app/context/establishment/[id].tsx").read_text(encoding="utf-8")
+
+    assert 'if (!context?.id) {' in professional
+    assert 'title="Ferramentas indisponíveis"' in professional
+    assert 'router.replace("/contexts")' in professional
+    assert 'if (!context?.id) {' in establishment
