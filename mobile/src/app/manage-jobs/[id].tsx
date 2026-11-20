@@ -455,10 +455,8 @@ export default function ManageJobsScreen() {
                       />
                     ) : null}
 
-                    {job.status ===
-                    "published" ? (
-                      <>
-                        <Button
+                    {(job.status === "published" || job.status === "closed") ? (
+                      <Button
                           title="Candidatos"
                           variant="secondary"
                           compact
@@ -469,7 +467,9 @@ export default function ManageJobsScreen() {
                             )
                           }
                         />
+                    ) : null}
 
+                    {job.status === "published" ? (
                         <Button
                           title="Encerrar"
                           variant="outline"
@@ -480,7 +480,6 @@ export default function ManageJobsScreen() {
                             void handleClose(job);
                           }}
                         />
-                      </>
                     ) : null}
                   </View>
                 </View>

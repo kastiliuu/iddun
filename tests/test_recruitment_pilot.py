@@ -145,6 +145,26 @@ def test_existing_job_remains_editable_after_pilot_revocation_but_not_when_close
     assert blocked.status_code == 400
 
 
+def test_closed_job_applications_remain_available_to_owner(client, world):
+    _login(client, world["owner"])
+    job_id = world["legacy"]
+    assert client.put(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}/close",
+    ).status_code == 200
+    listing = client.get(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}/applications",
+    )
+    assert listing.status_code == 200
+    assert listing.get_json()["job"]["status"] == "closed"
+    # A interface Expo não deve ocultar candidatos de vagas encerradas.
+    from pathlib import Path
+    screen = (
+        Path(__file__).resolve().parents[1]
+        / "mobile/src/app/manage-jobs/[id].tsx"
+    ).read_text(encoding="utf-8")
+    assert 'job.status === "published" || job.status === "closed"' in screen
+
+
 def test_expo_business_jobs_can_edit_existing_jobs_without_enabling_new_jobs():
     from pathlib import Path
 
