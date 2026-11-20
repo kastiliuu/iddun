@@ -229,6 +229,79 @@ def _deactivate_if_incomplete(
         profile.published_at = None
 
 
+# E-MEDIA-01: avatar e capa pertencem à User, nunca a um
+# segundo perfil social. O token determina a dona, sem ids no corpo.
+def _upload_personal_image(kind):
+    user = _bearer_user()
+    if user is None:
+        return api_error(
+            "authentication_required",
+            "Entre na sua conta para continuar.",
+            401,
+        )
+
+    file_storage, error = _multipart_file()
+    if error is not None:
+        return error
+
+    # Não aceitar seleção arbitrária de conta/tenant ou dados de foco fora
+    # do contrato pessoal. O pipeline Expo já prepara o recorte localmente.
+    if any(key in request.form for key in ("user_id", "profile_id", "tenant_id")):
+        return api_error(
+            "invalid_image",
+            "Parâmetro não permitido.",
+            400,
+        )
+
+    folder = "clients" if kind == "avatar" else "clients/covers"
+    try:
+        focus_x = _focus_value(request.form.get("focusX"))
+        focus_y = _focus_value(request.form.get("focusY"))
+        with UploadBatch() as uploads:
+            stored_path = uploads.save_image(file_storage, folder)
+            if kind == "avatar":
+                set_personal_avatar(user, stored_path)
+            else:
+                set_personal_cover(user, stored_path)
+            db.session.commit()
+            uploads.commit()
+    except ValueError as exc:
+        db.session.rollback()
+        return api_error("invalid_image", str(exc), 400)
+    except (OSError, SQLAlchemyError):
+        db.session.rollback()
+        return api_error(
+            "media_upload_failed",
+            "Não foi possível salvar a imagem agora.",
+            503,
+        )
+
+    return api_json(
+        {
+            kind: _image_payload(
+                stored_path,
+                focus_x=focus_x,
+                focus_y=focus_y,
+            ),
+        },
+        cache_control="no-store",
+    )
+
+
+@api_media_bp.post("/personal/avatar")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def upload_personal_avatar():
+    return _upload_personal_image("avatar")
+
+
+@api_media_bp.post("/personal/cover")
+@csrf.exempt
+@limiter.limit("30 per hour")
+def upload_personal_cover():
+    return _upload_personal_image("cover")
+
+
 @api_media_bp.post(
     "/professional/avatar"
 )

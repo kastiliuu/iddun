@@ -132,7 +132,10 @@ def _profile_recommendation(
             ),
             # D11 / D-VIS-04: no stock image as a real person's avatar.
             "avatar": (
-                resolve_image_url(person_avatar(item.user) or item.avatar_url)
+                resolve_image_url(
+                    (person_avatar(item.user) if item.user is not None else None)
+                    or item.avatar_url
+                )
                 if item.user is not None or item.avatar_url
                 else None
             ),

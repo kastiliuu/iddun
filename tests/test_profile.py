@@ -203,7 +203,7 @@ def test_avatar_upload_error_preserves_completion_and_business_contexts(app, cli
     def fail_upload(*_args, **_kwargs):
         raise ValueError("Falha controlada no upload.")
 
-    monkeypatch.setattr("app.routes.account.save_uploaded_image", fail_upload)
+    monkeypatch.setattr("app.services.media_service.save_uploaded_image", fail_upload)
 
     response = client.post(
         "/minha-conta",

@@ -768,3 +768,103 @@ def test_portfolio_rejects_ninth_image(
         ]["code"]
         == "portfolio_limit_reached"
     )
+
+
+# E-MEDIA-01 — mídia só da própria pessoa com Bearer; Pro opcional.
+def _personal_user(app, email):
+    with app.app_context():
+        user = User(name="Pessoa Media", email=email, role=UserRole.CLIENT)
+        user.set_password("senha-forte-123")
+        db.session.add(user)
+        db.session.flush()
+        db.session.add(ClientProfile(user=user))
+        db.session.commit()
+        tokens = issue_session(user)
+        return user.id, {"Authorization": f"Bearer {tokens.access_token}"}
+
+
+def test_personal_media_bearer_and_no_profile_required(app, client):
+    url = "/api/v1/media/personal/avatar"
+    unauth = client.post(url, data=_multipart(), content_type="multipart/form-data")
+    assert unauth.status_code == 401
+
+    user_id, headers = _personal_user(app, "personal-media-1@example.com")
+    uploaded = client.post(
+        url, headers=headers, data=_multipart(), content_type="multipart/form-data"
+    )
+    assert uploaded.status_code == 200, uploaded.get_json()
+    avatar = uploaded.get_json()["avatar"]
+    assert avatar["storedPath"].startswith("uploads/clients/")
+    assert avatar["url"]
+    assert uploaded.headers["Cache-Control"] == "no-store"
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.professional_profile is None
+        assert user.avatar_url == avatar["storedPath"]
+        assert user.client_profile.avatar_url == avatar["storedPath"]
+
+    cover = client.post(
+        "/api/v1/media/personal/cover",
+        headers=headers, data=_multipart(), content_type="multipart/form-data",
+    )
+    assert cover.status_code == 200, cover.get_json()
+    path = cover.get_json()["cover"]["storedPath"]
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.cover_url == path
+    me = client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.get_json()["avatar"] == avatar["url"]
+    assert me.get_json()["cover"] == cover.get_json()["cover"]["url"]
+
+
+def test_personal_media_rejects_bad_requests_without_side_effects(app, client):
+    user_id, headers = _personal_user(app, "personal-media-2@example.com")
+    url = "/api/v1/media/personal/avatar"
+    assert client.post(url, headers=headers, json={}).status_code == 415
+    assert client.post(
+        url, headers=headers, data={}, content_type="multipart/form-data"
+    ).status_code == 400
+    assert client.post(
+        url, headers=headers, data=_multipart(filename="bad.gif"),
+        content_type="multipart/form-data"
+    ).status_code == 400
+    assert client.post(
+        url, headers=headers,
+        data={**_multipart(), "user_id": "1000"},
+        content_type="multipart/form-data"
+    ).status_code == 400
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.avatar_url is None
+        assert user.client_profile.avatar_url is None
+
+
+def test_personal_media_cannot_write_other_person(app, client):
+    first, headers = _personal_user(app, "personal-media-3@example.com")
+    second, _ = _personal_user(app, "personal-media-4@example.com")
+    response = client.post(
+        "/api/v1/media/personal/cover", headers=headers,
+        data=_multipart(), content_type="multipart/form-data"
+    )
+    assert response.status_code == 200
+    with app.app_context():
+        assert db.session.get(User, first).cover_url
+        assert db.session.get(User, second).cover_url is None
+
+
+def test_personal_media_rolls_back_saved_file_on_database_error(app, client, monkeypatch):
+    from sqlalchemy.exc import OperationalError
+
+    user_id, headers = _personal_user(app, "personal-media-5@example.com")
+    before = _upload_files(app)
+    def failed_commit():
+        raise OperationalError("UPDATE", {}, Exception("db unavailable"))
+    monkeypatch.setattr(db.session, "commit", failed_commit)
+    response = client.post(
+        "/api/v1/media/personal/avatar", headers=headers,
+        data=_multipart(), content_type="multipart/form-data"
+    )
+    assert response.status_code == 503
+    assert _upload_files(app) == before
+
