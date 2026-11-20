@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -129,6 +129,8 @@ export default function ProfileScreen() {
   const router = useRouter();
   const toast = useToast();
   const [loggingOut, setLoggingOut] = useState(false);
+  // A ref impede dois envios no mesmo frame, antes do React renderizar.
+  const mediaRequestBusy = useRef(false);
   const [uploadingImage, setUploadingImage] = useState<"avatar" | "cover" | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
 
@@ -158,7 +160,8 @@ export default function ProfileScreen() {
           : "Conta pessoal";
 
   const updatePersonalImage = async (kind: "avatar" | "cover") => {
-    if (uploadingImage || !user) return;
+    if (mediaRequestBusy.current || !user) return;
+    mediaRequestBusy.current = true;
     setUploadingImage(kind);
     setImageError(null);
     try {
@@ -182,6 +185,7 @@ export default function ProfileScreen() {
         );
       }
     } finally {
+      mediaRequestBusy.current = false;
       setUploadingImage(null);
     }
   };

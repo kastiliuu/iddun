@@ -89,7 +89,7 @@ async function selectAsset(
   );
 
   const allowsEditing =
-    kind === "avatar";
+    kind === "avatar" || kind === "cover";
 
   const options:
     ImagePickerOptions = {
@@ -99,7 +99,9 @@ async function selectAsset(
     aspect:
       kind === "avatar"
         ? [1, 1] as [number, number]
-        : undefined,
+        : kind === "cover"
+          ? [16, 9] as [number, number]
+          : undefined,
     quality: 1,
     exif: false,
     base64: false,
