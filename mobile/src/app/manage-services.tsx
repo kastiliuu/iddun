@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { getManagedServices, type ManagedService } from "@/api/services";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
+import { createLatestRequestGate } from "@/services/latestRequestGate";
 import { SERVICE_STATUS_LABELS, categoryLabel, formatMoney } from "@/services/serviceWizard";
 import { makeStyles, radius, spacing, touch, typography, useTheme } from "@/theme";
 
@@ -21,32 +22,32 @@ export default function ManageServicesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const requestVersion = useRef(0);
+  const requestGate = useRef(createLatestRequestGate());
 
   const reload = useCallback(() => {
     // Retry ou retorno ao catálogo invalida qualquer leitura anterior.
-    const currentRequest = ++requestVersion.current;
+    const currentRequest = requestGate.current.begin();
     setLoading(true);
     setError(null);
     getManagedServices().then(
       (response) => {
-        if (currentRequest === requestVersion.current) {
+        if (requestGate.current.isCurrent(currentRequest)) {
           setItems(response.items);
         }
       },
       (cause) => {
-        if (currentRequest === requestVersion.current) {
+        if (requestGate.current.isCurrent(currentRequest)) {
           setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
         }
       },
     ).finally(() => {
-      if (currentRequest === requestVersion.current) {
+      if (requestGate.current.isCurrent(currentRequest)) {
         setLoading(false);
       }
     });
     return () => {
-      if (currentRequest === requestVersion.current) {
-        requestVersion.current += 1;
+      if (requestGate.current.isCurrent(currentRequest)) {
+        requestGate.current.invalidate(currentRequest);
       }
     };
   }, []);
