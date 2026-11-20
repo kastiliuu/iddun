@@ -15,5 +15,9 @@ export function createLatestRequestGate() {
     invalidate(request: number): void {
       if (request === version) version += 1;
     },
+    // O blur invalida inclusive um retry feito após a leitura inicial.
+    invalidateAll(): void {
+      version += 1;
+    },
   };
 }
