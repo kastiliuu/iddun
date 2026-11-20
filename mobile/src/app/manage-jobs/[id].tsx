@@ -60,7 +60,7 @@ export default function ManageJobsScreen() {
   const [saving, setSaving] =
     useState(false);
   const savingInFlight = useRef(false);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [mutatingJobId, setMutatingJobId] = useState<string | null>(null);
   const [title, setTitle] =
