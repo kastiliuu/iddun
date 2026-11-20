@@ -457,10 +457,12 @@ def test_owner_can_view_submitted_applications_and_close_job(
             owner,
             establishment,
         )
+        # A imagem remota é válida sem arquivo local: o contrato de
+        # recrutamento deve preservar o avatar pessoal, não o Pro legado.
         professional.name = "Pessoa Candidata"
-        professional.avatar_url = "uploads/clients/avatar-unico.jpg"
+        professional.avatar_url = "https://example.com/avatar-unico.jpg"
         professional.professional_profile.display_name = "Marca legada"
-        professional.professional_profile.avatar_url = "uploads/professionals/avatar-legado.jpg"
+        professional.professional_profile.avatar_url = "https://example.com/avatar-legado.jpg"
         db.session.add(ClientProfile(user=professional))
         db.session.commit()
 
@@ -530,7 +532,7 @@ def test_owner_can_view_submitted_applications_and_close_job(
     candidate = items[0]["professional"]
     assert candidate["routeId"].startswith("job-pro-")
     assert candidate["name"] == "Pessoa Candidata"
-    assert candidate["avatar"].endswith("/uploads/clients/avatar-unico.jpg")
+    assert candidate["avatar"] == "https://example.com/avatar-unico.jpg"
     assert candidate["clientProfileId"] is not None
 
     closed = client.put(
