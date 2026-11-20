@@ -51,6 +51,7 @@ export type JobApplication = {
   professional?: {
     id: string;
     routeId: string;
+    clientProfileId?: string | null;
     name: string;
     specialty?: string | null;
     avatar?: string | null;

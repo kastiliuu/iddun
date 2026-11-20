@@ -11,6 +11,7 @@ from app.models.job import (
 from app.models.professional import (
     ProfessionalProfile,
 )
+from app.services.beauty_graph_service import person_avatar
 from app.services.establishment_team_service import (
     EstablishmentTeamError,
     require_establishment_manager,
@@ -909,27 +910,18 @@ def serialize_application(
     }
 
     if include_professional:
-        professional = (
-            application.professional
-        )
-        payload[
-            "professional"
-        ] = {
-            "id": str(
-                professional.id
-            ),
-            "routeId":
-                professional.slug,
-            "name":
-                professional.display_name,
-            "specialty":
-                professional.primary_specialty,
-            "avatar":
-                professional.avatar_url,
-            "city":
-                professional.city,
-            "state":
-                professional.state,
+        professional = application.professional
+        person = professional.user
+        client = person.client_profile if person is not None else None
+        payload["professional"] = {
+            "id": str(professional.id),
+            "routeId": professional.slug,
+            "clientProfileId": str(client.id) if client is not None else None,
+            "name": person.name if person is not None else professional.display_name,
+            "specialty": professional.primary_specialty,
+            "avatar": person_avatar(person) if person is not None else professional.avatar_url,
+            "city": professional.city,
+            "state": professional.state,
         }
 
     return payload
