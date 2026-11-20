@@ -14,6 +14,7 @@ from app.models.professional import (
     ProfessionalProfile,
 )
 from app.models.profile import ClientProfile
+from app.models.user import User
 from app.models.work_post import WorkPost, WorkPostMedia
 from app.services.media_storage import (
     get_media_storage,
@@ -22,6 +23,8 @@ from app.services.media_storage import (
 
 
 MEDIA_COLUMNS = (
+    User.avatar_url,
+    User.cover_url,
     ClientProfile.avatar_url,
     ProfessionalProfile.avatar_url,
     ProfessionalProfile.cover_url,

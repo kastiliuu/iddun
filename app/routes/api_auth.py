@@ -8,6 +8,8 @@ from sqlalchemy.exc import IntegrityError
 from app.extensions import csrf, db, limiter
 from app.models.profile import ClientProfile
 from app.models.user import User, UserRole
+from app.services.beauty_graph_service import person_avatar, person_cover
+from app.services.media_storage import resolve_media_url
 from app.services.api_auth import (
     current_session_id,
     get_user_by_access_token,
@@ -143,6 +145,9 @@ def _user_payload(user):
         "email": user.email,
         # ID-SOC-R1-02: identidade social pública única.
         "username": user.username,
+        # A identidade enviada ao Expo é a mesma do perfil público.
+        "avatar": resolve_media_url(person_avatar(user), external=True),
+        "cover": resolve_media_url(person_cover(user), external=True),
         "role": mobile_role,
         "accountRole": user.role,
         "emailVerified": (

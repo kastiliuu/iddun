@@ -22,7 +22,7 @@ from app.models.work_post import (
 )
 from app.services.media_storage import resolve_image_url
 from app.services.public_eligibility import (
-    professional_is_public,
+    public_professionals_query,
     public_experiences_query,
 )
 
@@ -206,11 +206,11 @@ def _person_author_payload(user, *, legacy_kind, legacy_id, legacy_route):
     """
     from app.services.beauty_graph_service import person_avatar
 
-    professional = user.professional_profile
-    public_pro = (
-        professional
-        if professional is not None and professional_is_public(professional)
-        else None
+    # Nunca anunciar ferramentas Pro desativadas a partir de cache ORM.
+    public_pro = db.session.scalar(
+        public_professionals_query().where(
+            ProfessionalProfile.user_id == user.id
+        )
     )
     rating, reviews_count = (
         _review_summary(public_pro) if public_pro is not None else (None, 0)

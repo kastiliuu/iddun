@@ -132,6 +132,21 @@ export async function imageFormData(
 }
 
 
+/** E-MEDIA-01: User é dona das mídias, independentemente do contexto Pro. */
+export function uploadPersonalImage(
+  image: UploadableImage,
+  kind: "avatar" | "cover",
+) {
+  return withAuthenticatedRequest(async (token) => {
+    const body = await imageFormData(image);
+    return api.post<{ avatar?: ProfessionalMediaImage; cover?: ProfessionalMediaImage }>(
+      `/api/v1/media/personal/${kind}`,
+      body,
+      { token },
+    );
+  });
+}
+
 export function uploadProfessionalAvatar(
   image: UploadableImage,
   focus: {

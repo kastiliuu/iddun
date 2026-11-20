@@ -13,6 +13,14 @@ class ClientProfileForm(IddunForm):
             FileSize(max_size=5 * 1024 * 1024, message="A imagem deve ter no máximo 5 MB."),
         ],
     )
+    cover_file = FileField(
+        "Capa do perfil",
+        validators=[
+            Optional(),
+            FileAllowed(["jpg", "jpeg", "png", "webp"], "Use JPG, PNG ou WEBP."),
+            FileSize(max_size=5 * 1024 * 1024, message="A imagem deve ter no máximo 5 MB."),
+        ],
+    )
     name = StringField("Nome", validators=[Length(min=2, max=120)])
     # ID-SOC-R1-02: troca do @, no máximo 1 vez a cada 14 dias.
     username = StringField("Seu @ no IDDUN", validators=[Optional(), Length(max=31)])

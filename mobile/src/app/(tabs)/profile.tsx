@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -9,7 +9,10 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
-import { logout } from "@/api/auth";
+import { getCurrentUser, logout } from "@/api/auth";
+import { ApiError } from "@/api/client";
+import { uploadPersonalImage } from "@/api/media";
+import { pickAndPrepareImage } from "@/media/imagePipeline";
 import { chooseTheme } from "@/store/themePreference";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
@@ -126,6 +129,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const toast = useToast();
   const [loggingOut, setLoggingOut] = useState(false);
+  // A ref impede dois envios no mesmo frame, antes do React renderizar.
+  const mediaRequestBusy = useRef(false);
+  const [uploadingImage, setUploadingImage] = useState<"avatar" | "cover" | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+
 
   const user = store.getUser();
   const graphState = store.graphState();
@@ -150,6 +158,37 @@ export default function ProfileScreen() {
         : professionalContext?.state === "locked"
           ? "Atuação profissional indisponível"
           : "Conta pessoal";
+
+  const updatePersonalImage = async (kind: "avatar" | "cover") => {
+    if (mediaRequestBusy.current || !user) return;
+    mediaRequestBusy.current = true;
+    setUploadingImage(kind);
+    setImageError(null);
+    try {
+      const image = await pickAndPrepareImage("library", kind);
+      if (!image) return;
+      await uploadPersonalImage(image, kind);
+      // /auth/me é a fonte de verdade: atualiza foto/capa no avatar global.
+      const refreshed = await getCurrentUser();
+      if (!refreshed) throw new ApiError("Sessão expirada.", 401);
+      toast.show({
+        title: kind === "avatar" ? "Foto atualizada" : "Capa atualizada",
+        body: "Sua conta única foi atualizada em todo o IDDUN.",
+        icon: "check-circle",
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        router.push("/login");
+      } else {
+        setImageError(
+          error instanceof Error ? error.message : "Não foi possível enviar a imagem.",
+        );
+      }
+    } finally {
+      mediaRequestBusy.current = false;
+      setUploadingImage(null);
+    }
+  };
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -308,6 +347,14 @@ export default function ProfileScreen() {
         />
 
         <View style={styles.profileHeader}>
+          {user.cover ? (
+            <Image
+              source={{ uri: user.cover }}
+              style={styles.personalCover}
+              contentFit="cover"
+              accessibilityLabel="Capa da sua conta"
+            />
+          ) : null}
           <Avatar
             name={user.name}
             uri={user.avatar}
@@ -318,6 +365,28 @@ export default function ProfileScreen() {
           <Text style={styles.name}>
             {user.name}
           </Text>
+
+          <View style={styles.personalMediaActions}>
+            <Button
+              title="Alterar foto"
+              variant="outline"
+              loading={uploadingImage === "avatar"}
+              onPress={() => void updatePersonalImage("avatar")}
+              disabled={uploadingImage !== null}
+            />
+            <Button
+              title="Alterar capa"
+              variant="outline"
+              loading={uploadingImage === "cover"}
+              onPress={() => void updatePersonalImage("cover")}
+              disabled={uploadingImage !== null}
+            />
+          </View>
+          {imageError ? (
+            <Text accessibilityRole="alert" style={styles.mediaError}>
+              {imageError}
+            </Text>
+          ) : null}
 
           <View style={styles.roleBadge}>
             <Text
@@ -405,12 +474,12 @@ export default function ProfileScreen() {
           </Text>
 
           <View style={styles.menuCard}>
-            {/* D-SOC-17: nome e foto da Cliente se editam no site até
-                existir o endpoint do app. */}
+            {/* E-MEDIA-01: foto e capa são nativas; nome, @ e cidade
+                continuam no editor Web atual. */}
             <MenuItem
               icon="user"
               title="Editar perfil"
-              subtitle="Nome, foto e cidade · abre no site"
+              subtitle="Nome, @ e cidade · abre no site"
               onPress={() => openWebEditor("/minha-conta/editar")}
             />
 
@@ -665,6 +734,22 @@ const useStyles = makeStyles((colors) => ({
     color: colors.link,
     fontFamily: fonts.sansMedium,
     fontSize: 12,
+  },
+  personalCover: {
+    width: "100%",
+    height: spacing.xxxl * 3,
+    borderRadius: radius.lg,
+    marginBottom: spacing.md,
+  },
+  personalMediaActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  mediaError: {
+    marginTop: spacing.sm,
+    color: colors.error,
+    fontFamily: fonts.sans,
   },
   profileHeader: {
     marginTop: spacing.xl,

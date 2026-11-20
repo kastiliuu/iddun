@@ -11,7 +11,8 @@ from app.forms.profile import ClientProfileForm
 from app.models.booking import BookingStatus
 from app.services.username_service import UsernameError, change_username, next_change_at
 from app.services.profile_service import ensure_client_profile
-from app.services.media_service import save_uploaded_image
+from app.services.media_service import UploadBatch
+from app.services.personal_media_service import set_personal_avatar, set_personal_cover
 from app.models.establishment import EstablishmentAccessStatus
 from app.services.time_service import DEFAULT_TIMEZONE, to_local
 from app.services.api_auth import (
@@ -33,7 +34,7 @@ def _profile_completion(user, profile):
     fields = {
         "nome": user.name,
         "e-mail": user.email,
-        "foto": profile.avatar_url,
+        "foto": user.avatar_url or profile.avatar_url,
         "telefone": profile.phone,
         "data de nascimento": profile.birth_date,
         "cidade": profile.city,
@@ -106,31 +107,47 @@ def dashboard():
         form.username.data = current_user.username
 
     if form.validate_on_submit():
-        try:
-            uploaded_avatar = save_uploaded_image(form.avatar_file.data, "clients")
-        except ValueError as exc:
-            form.avatar_file.errors.append(str(exc))
-            uploaded_avatar = None
-        if form.avatar_file.errors:
-            return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
-        requested = (form.username.data or "").strip()
-        if requested:
+        with UploadBatch() as uploads:
             try:
-                change_username(current_user, requested)
-            except UsernameError as exc:
-                form.username.errors.append(str(exc))
-                db.session.rollback()
-                return render_template("account/dashboard.html", editing=editing, **_dashboard_context(form, profile))
-        current_user.name = form.name.data.strip()
-        profile.phone = (form.phone.data or "").strip() or None
-        profile.birth_date = form.birth_date.data
-        profile.city = (form.city.data or "").strip() or None
-        profile.state = (form.state.data or "").strip().upper() or None
-        if uploaded_avatar:
-            profile.avatar_url = uploaded_avatar
-        profile.recalculate_onboarding()
+                avatar = uploads.save_image(form.avatar_file.data, "clients")
+            except ValueError as exc:
+                form.avatar_file.errors.append(str(exc))
+                return render_template(
+                    "account/dashboard.html",
+                    editing=editing, **_dashboard_context(form, profile),
+                )
+            try:
+                cover = uploads.save_image(form.cover_file.data, "clients/covers")
+            except ValueError as exc:
+                form.cover_file.errors.append(str(exc))
+                return render_template(
+                    "account/dashboard.html",
+                    editing=editing, **_dashboard_context(form, profile),
+                )
+            requested = (form.username.data or "").strip()
+            if requested:
+                try:
+                    change_username(current_user, requested)
+                except UsernameError as exc:
+                    form.username.errors.append(str(exc))
+                    db.session.rollback()
+                    return render_template(
+                        "account/dashboard.html",
+                        editing=editing, **_dashboard_context(form, profile),
+                    )
+            current_user.name = form.name.data.strip()
+            profile.phone = (form.phone.data or "").strip() or None
+            profile.birth_date = form.birth_date.data
+            profile.city = (form.city.data or "").strip() or None
+            profile.state = (form.state.data or "").strip().upper() or None
+            if avatar:
+                set_personal_avatar(current_user, avatar)
+            if cover:
+                set_personal_cover(current_user, cover)
+            profile.recalculate_onboarding()
 
-        db.session.commit()
+            db.session.commit()
+            uploads.commit()
         flash("Perfil atualizado com sucesso.", "success")
         return redirect(url_for("account.dashboard"))
 

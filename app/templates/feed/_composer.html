@@ -14,8 +14,8 @@
 {% set services = composer.experiences|selectattr('authorType', 'equalto', composer_author.type)|selectattr('authorId', 'equalto', composer_author.id)|list %}
 <details class="post-composer" id="post-composer" data-composer {% if composer_open %}open{% endif %}>
   <summary class="post-composer__summary">
-    <span class="feed-avatar{% if personal and profile.avatar_url %} has-image{% endif %}" {% if personal and profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %} aria-hidden="true">
-      {% if not (personal and profile.avatar_url) %}{{ composer_author.name|initials }}{% endif %}
+    <span class="feed-avatar{% if personal and person_avatar_url %} has-image{% endif %}" {% if personal and person_avatar_url %}style="background-image:url('{{ person_avatar_url|media_url }}')"{% endif %} aria-hidden="true">
+      {% if not (personal and person_avatar_url) %}{{ composer_author.name|initials }}{% endif %}
     </span>
     <span>{% if personal %}Compartilhe algo, {{ first_name }}…{% else %}Publicar como {{ composer_author.name }}…{% endif %}</span>
   </summary>

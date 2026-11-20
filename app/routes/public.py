@@ -848,13 +848,45 @@ def professional_posts(slug):
     )
 
 
+def _render_public_person(profile, *, page_url):
+    """Página social pessoal: Pro é ferramenta adicional, não outra conta."""
+    from app.extensions import db
+    from app.models.professional import ProfessionalProfile
+    from app.services.beauty_graph_service import person_avatar, person_cover
+    from app.services.public_eligibility import public_professionals_query
+
+    # Filtra na consulta SQL para não divulgar ferramentas de um perfil
+    # desativado mesmo quando o relacionamento ORM foi carregado antes.
+    professional = db.session.scalar(
+        public_professionals_query().where(
+            ProfessionalProfile.user_id == profile.user_id
+        )
+    )
+    viewer = current_user if current_user.is_authenticated else None
+    followed_keys, saved_keys = card_keys(current_user)
+    return render_template(
+        "public/client-detail.html",
+        client=profile,
+        person_avatar_url=person_avatar(profile.user),
+        person_cover_url=person_cover(profile.user),
+        professional=professional,
+        page_url=page_url,
+        posts=author_posts_page(
+            "client", profile.id, viewer=viewer, cursor=request.args.get("cursor")
+        ),
+        followed_keys=followed_keys,
+        saved_keys=saved_keys,
+        report_categories=ReportCategory.LABELS,
+        current_page="feed",
+    )
+
+
 @public_bp.get("/@<username>")
 def person_by_username(username):
-    """/@username leva à página da pessoa (ID-SOC-R1-02).
+    """O @ canônico rende uma única página pessoal, também para Pro.
 
-    Um @ antigo redireciona (301) para o atual; desconhecido, inativo ou
-    excluído dá 404. Com perfil Pro publicado, a página é a profissional;
-    sem ele, a pessoal.
+    Aliases antigos redirecionam ao @ atual; inativos/excluídos não aparecem.
+    URLs Pro/Cliente legadas permanecem acessíveis para compatibilidade.
     """
     from sqlalchemy import select
 
@@ -872,41 +904,26 @@ def person_by_username(username):
     ) is None:
         abort(404)
     if not is_current or username != user.username:
-        return redirect(url_for("public.person_by_username", username=user.username), code=301)
+        return redirect(
+            url_for("public.person_by_username", username=user.username), code=301
+        )
 
-    professional = user.professional_profile
-    if professional is not None and professional.is_active:
-        return redirect(url_for("public.professional_detail", slug=professional.slug))
     client = user.client_profile
     if client is None:
         abort(404)
-    return redirect(url_for("public.client_detail", profile_id=client.id))
+    return _render_public_person(
+        client, page_url=url_for("public.person_by_username", username=user.username)
+    )
 
 
-@public_bp.get(
-    "/clientes/<int:profile_id>"
-)
+@public_bp.get("/clientes/<int:profile_id>")
 def client_detail(profile_id):
-    """
-    Perfil mínimo da Cliente (PR 4; D-SOC-03, 13): foto, nome e publicações
-    públicas. Sem publicação pública ou com conta inativa, 404.
-    """
+    """A antiga URL numérica continua disponível para links publicados."""
     profile = public_client_profile(profile_id)
     if profile is None:
         abort(404)
-
-    viewer = current_user if current_user.is_authenticated else None
-    followed_keys, saved_keys = card_keys(current_user)
-    return render_template(
-        "public/client-detail.html",
-        client=profile,
-        posts=author_posts_page(
-            "client", profile.id, viewer=viewer, cursor=request.args.get("cursor")
-        ),
-        followed_keys=followed_keys,
-        saved_keys=saved_keys,
-        report_categories=ReportCategory.LABELS,
-        current_page="feed",
+    return _render_public_person(
+        profile, page_url=url_for("public.client_detail", profile_id=profile.id)
     )
 
 

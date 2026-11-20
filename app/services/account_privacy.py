@@ -295,7 +295,11 @@ def anonymize_account(
     current_time = _now(
         now
     )
-    media_paths = []
+    # A identidade pessoal pertence à conta, mesmo sem perfil Pro.
+    # Os caminhos legados permanecem na lista para exclusão da conta.
+    media_paths = [user.avatar_url, user.cover_url]
+    user.avatar_url = None
+    user.cover_url = None
 
     profile = (
         user.client_profile

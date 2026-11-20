@@ -23,7 +23,11 @@
         href="{{ url_for('account.dashboard') }}"
         aria-label="Abrir minha conta"
       >
+        {% if person_cover_url %}
+        <img src="{{ person_cover_url|media_url }}" alt="" loading="lazy">
+        {% else %}
         <span class="feed-profile-card__spark">✦</span>
+        {% endif %}
       </a>
 
       <a
@@ -31,10 +35,10 @@
         href="{{ url_for('account.dashboard') }}"
       >
         <span
-          class="feed-avatar feed-avatar--profile{% if profile.avatar_url %} has-image{% endif %}"
-          {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+          class="feed-avatar feed-avatar--profile{% if person_avatar_url %} has-image{% endif %}"
+          {% if person_avatar_url %}style="background-image:url('{{ person_avatar_url|media_url }}')"{% endif %}
         >
-          {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+          {% if not person_avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
         </span>
         <strong>{{ current_user.name }}</strong>
         <span>
@@ -46,7 +50,7 @@
             Localização não informada
           {% endif %}
         </span>
-        <small>Cliente IDDUN</small>
+        <small>@{{ current_user.username }}</small>
       </a>
 
       <div class="feed-profile-stats">
@@ -114,9 +118,9 @@
 
     <section class="feed-context-card">
       {% if current_user.professional_profile %}
-      <span class="feed-context-card__eyebrow">SEU CONTEXTO PROFISSIONAL</span>
-      <h2>{{ current_user.professional_profile.display_name }}</h2>
-      <p>Gerencie sua presença profissional sem misturar com a experiência de cliente.</p>
+      <span class="feed-context-card__eyebrow">SUAS FERRAMENTAS PROFISSIONAIS</span>
+      <h2>{{ current_user.name }}</h2>
+      <p>Gerencie seus serviços e portfólio mantendo a mesma conta pessoal.</p>
       <a href="{{ url_for('professional.dashboard') }}">
         Abrir IDDUN Pro {{ icon('chevron-right') }}
       </a>

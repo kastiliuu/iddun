@@ -8,12 +8,15 @@ from sqlalchemy.orm import selectinload
 from app.extensions import db
 from app.models.establishment import Establishment
 from app.models.professional import ProfessionalProfile
+from app.models.user import User
 from app.models.experience import Experience
 from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
 )
-from app.services.beauty_graph_service import follower_count, is_following
+from app.services.beauty_graph_service import (
+    follower_count, is_following, person_avatar, person_cover,
+)
 from app.services.feed_service import author_filter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
@@ -977,13 +980,14 @@ def _profile_payload(
     )
 
     if kind == "professional":
-        name = item.display_name
+        name = item.user.name if item.user is not None else item.display_name
         route_id = item.slug
         avatar = (
-            item.avatar_url
-            or "img/category-hair.jpg"
+            person_avatar(item.user)
+            if item.user is not None
+            else item.avatar_url or "img/category-hair.jpg"
         )
-        cover = item.cover_url
+        cover = person_cover(item.user) if item.user is not None else item.cover_url
         specialty = (
             item.primary_specialty
             or "Profissional de beleza"
@@ -1059,6 +1063,7 @@ def _list_profiles(
         model = ProfessionalProfile
         query = (
             public_professionals_query()
+            .outerjoin(User, model.user_id == User.id)
             .options(
                 selectinload(
                     ProfessionalProfile
@@ -1066,7 +1071,10 @@ def _list_profiles(
                 )
             )
         )
+        # O nome canônico da pessoa é User.name; catálogo sem User
+        # continua pesquisável pelo display_name Pro histórico.
         searchable = [
+            User.name,
             model.display_name,
             model.primary_specialty,
             model.specialties_text,
@@ -1322,9 +1330,9 @@ def professional_profile(
         ),
         "routeId": profile.slug,
         "kind": "professional",
-        "name": profile.display_name,
+        "name": view["name"],
         "avatar": _media(
-            profile.avatar_url
+            view["image"]
             or "img/category-hair.jpg"
         ),
         "cover": _media(
@@ -1646,7 +1654,14 @@ def client_profile(profile_id):
         cursor=request.args.get("cursor"),
         limit=request.args.get("limit", 12, type=int),
     )
-    avatar = profile.avatar_url
+    avatar = person_avatar(profile.user)
+    cover = person_cover(profile.user)
+    # A página Web e a API usam a mesma regra SQL de visibilidade.
+    public_pro = db.session.scalar(
+        public_professionals_query().where(
+            ProfessionalProfile.user_id == profile.user_id
+        )
+    )
 
     return api_json(
         {
@@ -1659,6 +1674,16 @@ def client_profile(profile_id):
             "followerCount": follower_count("person", profile.user_id),
             "following": is_following(viewer, "person", profile.user_id),
             "avatar": resolve_image_url(avatar, external=True) if avatar else None,
+            "cover": _media(cover),
+            "profileUrl": f"/@{profile.user.username}",
+            "professional": (
+                {
+                    "slug": public_pro.slug,
+                    "specialty": public_pro.primary_specialty,
+                }
+                if public_pro is not None
+                else None
+            ),
             "posts": posts["items"],
             "postsCount": posts["total"],
             "nextCursor": posts["nextCursor"],

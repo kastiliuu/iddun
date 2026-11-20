@@ -59,7 +59,7 @@ def test_client_name_in_the_feed_opens_her_page(page: Page):
     assert href == "/@cliente.perfil.publico", href
     link.click()
 
-    expect(page).to_have_url(re.compile(r"/clientes/\d+$"))
+    expect(page).to_have_url(re.compile(r"/@cliente\.perfil\.publico$"))
     expect(page.get_by_role("heading", level=1)).to_have_text("Cliente Perfil Público")
     # ID-SOC-R1-02/04: a página pessoal mostra o @ e os seguidores.
     expect(page.locator(".client-profile-head")).to_contain_text("@cliente.perfil.publico · 1 publicação · 0 seguidores")

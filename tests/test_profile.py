@@ -1,6 +1,9 @@
 from datetime import date
 from io import BytesIO
+from pathlib import Path
 import re
+
+from PIL import Image
 
 from sqlalchemy import select
 
@@ -82,6 +85,81 @@ def test_account_profile_can_be_updated(app, client):
         assert user.client_profile.onboarding_completed is True
 
 
+def test_web_account_avatar_updates_canonical_and_legacy_mirror(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    content = BytesIO()
+    Image.new("RGB", (32, 32), (110, 70, 150)).save(content, format="JPEG")
+    content.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "avatar_file": (content, "foto.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.avatar_url.startswith("uploads/clients/")
+        assert user.client_profile.avatar_url == user.avatar_url
+
+
+def test_web_account_cover_works_without_professional_profile(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    content = BytesIO()
+    Image.new("RGB", (64, 32), (120, 90, 160)).save(content, format="JPEG")
+    content.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "cover_file": (content, "capa.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.professional_profile is None
+        assert user.cover_url.startswith("uploads/clients/covers/")
+        cover_path = user.cover_url
+    html = client.get("/minha-conta").get_data(as_text=True)
+    assert cover_path in html
+
+
+def test_invalid_cover_rolls_back_avatar_and_does_not_leave_orphan(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+    avatar = BytesIO()
+    Image.new("RGB", (32, 32), (100, 80, 150)).save(avatar, format="JPEG")
+    avatar.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "avatar_file": (avatar, "foto.jpg"),
+            "cover_file": (BytesIO(b"not a valid image"), "capa.jpg"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    assert "não é uma imagem válida" in response.get_data(as_text=True)
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.avatar_url is None
+        assert user.cover_url is None
+        assert user.client_profile.avatar_url is None
+    upload_root = Path(app.config["UPLOAD_FOLDER"])
+    assert list(upload_root.rglob("*.jpg")) == []
+
+
 def test_account_completion_uses_every_field_shown_on_the_page(app, client):
     user_id = _create_user_without_profile(app)
     _login_session(client, user_id)
@@ -125,7 +203,7 @@ def test_avatar_upload_error_preserves_completion_and_business_contexts(app, cli
     def fail_upload(*_args, **_kwargs):
         raise ValueError("Falha controlada no upload.")
 
-    monkeypatch.setattr("app.routes.account.save_uploaded_image", fail_upload)
+    monkeypatch.setattr("app.services.media_service.save_uploaded_image", fail_upload)
 
     response = client.post(
         "/minha-conta",

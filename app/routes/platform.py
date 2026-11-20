@@ -81,6 +81,10 @@ from app.services.booking_service import (
 from app.services.google_calendar_service import (
     delete_booking_event,
 )
+from app.services.personal_media_service import (
+    set_personal_avatar,
+    set_personal_cover,
+)
 from app.services.media_service import (
     UploadBatch,
     delete_uploaded_file,
@@ -526,11 +530,9 @@ def _save_pro_personalize_step(form, profile):
             profile.cover_focus_x = _focus_value(form.cover_focus_x.data)
             profile.cover_focus_y = _focus_value(form.cover_focus_y.data)
             if avatar_url:
-                replaced_media.append(profile.avatar_url)
-                profile.avatar_url = avatar_url
+                set_personal_avatar(profile.user, avatar_url)
             if cover_url:
-                replaced_media.append(profile.cover_url)
-                profile.cover_url = cover_url
+                set_personal_cover(profile.user, cover_url)
             start_order = len(profile.portfolio_items)
             for offset, image_url in enumerate(new_portfolio):
                 db.session.add(ProfessionalPortfolioItem(
@@ -1621,16 +1623,10 @@ def edit_profile():
                     profile.cover_focus_y = _focus_value(form.cover_focus_y.data)
 
                 if avatar_url:
-                    replaced_media.append(
-                        profile.avatar_url
-                    )
-                    profile.avatar_url = avatar_url
+                    set_personal_avatar(profile.user, avatar_url)
 
                 if cover_url:
-                    replaced_media.append(
-                        profile.cover_url
-                    )
-                    profile.cover_url = cover_url
+                    set_personal_cover(profile.user, cover_url)
 
                 start_order = len(
                     profile.portfolio_items

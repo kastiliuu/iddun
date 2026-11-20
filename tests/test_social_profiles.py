@@ -136,7 +136,9 @@ def test_feed_and_comments_link_to_the_client_page(app, client):
     # ID-SOC-R1-01: o autor leva a /@username, que chega à página da pessoa.
     assert f'href="/@{username}"' in feed
     at = client.get(f"/@{username}")
-    assert at.status_code == 302 and at.headers["Location"].endswith(f"/clientes/{author_profile}")
+    assert at.status_code == 200
+    assert f"@{username}" in at.get_data(as_text=True)
+    assert client.get(f"/clientes/{author_profile}").status_code == 200
     detail = _html(client, f"/publicacoes/{post_id}")
     assert f'class="post-comment__author" href="/clientes/{author_profile}"' in detail
 

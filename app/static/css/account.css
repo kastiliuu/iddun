@@ -41,6 +41,14 @@
     linear-gradient(118deg, var(--color-ink) 0%, var(--color-deep-violet) 64%, #331272 100%);
 }
 
+.account-cover__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .account-cover::after {
   position: absolute;
   inset: 0;

@@ -102,6 +102,30 @@ def test_feed_requires_login(
     ]
 
 
+def test_feed_and_composer_use_one_canonical_avatar_and_cover(app, client):
+    catalog = _catalog(app)
+    with app.app_context():
+        user = db.session.get(User, catalog["user_id"])
+        user.avatar_url = "https://media.example/avatar-pessoal.webp"
+        user.cover_url = "https://media.example/capa-pessoal.webp"
+        user.client_profile.avatar_url = "https://media.example/avatar-antigo.webp"
+        pro = db.session.get(ProfessionalProfile, catalog["professional_id"])
+        pro.user_id = user.id
+        pro.display_name = "Marca antiga diferente da conta"
+        db.session.commit()
+
+    _login(client, catalog["user_id"])
+    response = client.get("/feed")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    # O compositor, cartão de perfil e cabeçalho compartilham a mesma pessoa.
+    assert html.count("avatar-pessoal.webp") >= 2
+    assert "capa-pessoal.webp" in html
+    assert "SUAS FERRAMENTAS PROFISSIONAIS" in html
+    assert "Gerencie seus serviços e portfólio mantendo a mesma conta pessoal." in html
+    assert "Marca antiga diferente da conta" not in html
+
+
 def test_authenticated_feed_uses_real_work_posts(
     app,
     client,

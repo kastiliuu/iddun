@@ -416,12 +416,15 @@ export function authorRoute(
       routeId?: string | null;
     },
 ): Href | null {
-  // ID-SOC-R1-01: a pessoa abre no perfil Pro publicado ou na página pessoal.
+  // QA-001: autoria pessoal abre a pessoa, não uma identidade Pro paralela.
+  // Fallback profissional só para payloads legados sem perfil pessoal.
   if (author.identity === "person") {
-    if (author.professional?.slug) {
-      return `/professional/${author.professional.slug}`;
+    if (author.clientProfileId) {
+      return `/client/${author.clientProfileId}`;
     }
-    return author.clientProfileId ? `/client/${author.clientProfileId}` : null;
+    return author.professional?.slug
+      ? `/professional/${author.professional.slug}`
+      : null;
   }
   const routeId = author.routeId ?? (author.kind === "client" ? null : author.id);
   if (!routeId) {
@@ -440,6 +443,8 @@ export type ClientPublicProfile = {
   kind: "client";
   name: string;
   avatar: string | null;
+  /** Capa pessoal canônica; ausente quando não foi enviada. */
+  cover?: string | null;
   /** ID-SOC-R1-02: identidade social pública. */
   username?: string;
   /** Conta da pessoa: alvo de Seguir ("person"). */
@@ -449,6 +454,13 @@ export type ClientPublicProfile = {
   posts: WorkPost[];
   postsCount: number;
   nextCursor: string | null;
+  /** URL canônica Web; o app mantém rota pessoal legada por id. */
+  profileUrl?: string;
+  /** Serviços da mesma pessoa, nunca segunda identidade social. */
+  professional?: {
+    slug: string;
+    specialty?: string | null;
+  } | null;
   /** A conta é a dona desta página (D-SOC-15). */
   mine?: boolean;
 };

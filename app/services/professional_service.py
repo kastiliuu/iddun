@@ -22,6 +22,19 @@ from app.services.public_eligibility import (
 from app.services.reputation_service import reputation_summary
 
 
+def _person_identity(profile):
+    """Nome/avatar públicos da pessoa vinculada; catálogo legado preservado.
+
+    Usa a mesma fonte de leitura já utilizada pelos autores do Feed.
+    Não muda editores, modelo nem a persistência de imagens.
+    """
+    if profile.user is None:
+        return profile.display_name, profile.avatar_url
+    from app.services.beauty_graph_service import person_avatar
+
+    return profile.user.name, person_avatar(profile.user)
+
+
 def _db_item(profile):
     primary = next(
         (
@@ -40,15 +53,16 @@ def _db_item(profile):
         location_parts.append(primary.establishment.city)
 
     reputation = reputation_summary(profile.reviews_received)
+    person_name, person_image = _person_identity(profile)
     return {
         "id": profile.id,
         "slug": profile.slug,
-        "name": profile.display_name,
+        "name": person_name,
         "role": profile.primary_specialty.strip().capitalize() if profile.primary_specialty and profile.primary_specialty.strip() else "Profissional de beleza",
         "rating": reputation["average_label"],
         "reviews": str(reputation["count"]),
         "location": " · ".join(location_parts) or "Brasil",
-        "image": profile.avatar_url,
+        "image": person_image,
         "image_position": f"{50 if profile.avatar_focus_x is None else profile.avatar_focus_x}% {50 if profile.avatar_focus_y is None else profile.avatar_focus_y}%",
         "specialties": profile.specialties or ["Curadoria IDDUN"],
         "verified": profile.is_verified,
@@ -119,11 +133,12 @@ def get_professional_public_view(slug):
             .order_by(Experience.is_featured.desc(), Experience.created_at.desc())
         ).all()
         reputation = reputation_summary(profile.reviews_received)
+        person_name, person_image = _person_identity(profile)
         return {
             "source": "database",
             "profile": profile,
             "slug": profile.slug,
-            "name": profile.display_name,
+            "name": person_name,
             "role": profile.primary_specialty.strip().capitalize() if profile.primary_specialty and profile.primary_specialty.strip() else "Profissional de beleza",
             "headline": profile.headline,
             "bio": profile.bio,
@@ -131,8 +146,12 @@ def get_professional_public_view(slug):
             "reviews": str(reputation["count"]),
             "reputation": reputation,
             "location": " · ".join(part for part in [profile.city, profile.state] if part) or "Brasil",
-            "image": profile.avatar_url,
-            "cover": profile.cover_url,
+            "image": person_image,
+            "cover": (
+                (profile.user.cover_url or profile.cover_url)
+                if profile.user is not None
+                else profile.cover_url
+            ),
             "avatar_position": f"{profile.avatar_focus_x}% {profile.avatar_focus_y}%",
             "cover_position": f"{profile.cover_focus_x}% {profile.cover_focus_y}%",
             "specialties": profile.specialties,

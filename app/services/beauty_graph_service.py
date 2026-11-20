@@ -1169,7 +1169,9 @@ def _location(*parts):
 
 
 def person_avatar(user):
-    """Avatar da identidade pessoal: o do perfil pessoal; sem ele, o do Pro."""
+    """Avatar pessoal canônico; fallback compatível com dados legados."""
+    if user.avatar_url:
+        return user.avatar_url
     client = user.client_profile
     if client is not None and client.avatar_url:
         return client.avatar_url
@@ -1177,6 +1179,14 @@ def person_avatar(user):
     if professional is not None and professional.avatar_url:
         return professional.avatar_url
     return None
+
+
+def person_cover(user):
+    """Capa pessoal canônica; usa a capa Pro legada só na transição."""
+    if user.cover_url:
+        return user.cover_url
+    professional = user.professional_profile
+    return professional.cover_url if professional is not None else None
 
 
 def following_payload(follow):
