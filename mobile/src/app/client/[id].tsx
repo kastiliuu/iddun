@@ -233,6 +233,15 @@ export default function ClientProfileScreen() {
               accessibilityLabel={`${profile.following ? "Deixar de seguir" : "Seguir"} ${profile.name}`}
             />
           ) : null}
+          {profile.professional?.slug ? (
+            <Button
+              title="Ver serviços e portfólio"
+              variant="outline"
+              onPress={() =>
+                router.push(`/professional/${profile.professional!.slug}`)
+              }
+            />
+          ) : null}
           {followError ? (
             <Text style={styles.meta} accessibilityRole="alert">
               {followError}

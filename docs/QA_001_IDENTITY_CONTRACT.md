@@ -36,3 +36,18 @@ O backend calcula os mesmos contextos para a conta e retorna `contexts` à API. 
 A PR A pode ser mergeada após suíte completa pytest, PostgreSQL, Playwright, Node/tsc/lint e segurança verdes. Testes específicos asseguram 401 de bearer inválido/ausente, transição de contextos, múltiplos negócios e revogação de grant; casos 403/409 de mutações permanecem na suíte já existente e exigem rastreio posterior por jornada. **Não declara cobertura total de 401/403/409 ou de concorrência**. Sem migração, dependência, alteração de autenticação, contrato de produção, perfis, slots, reserva, UI ou design tokens.
 
 **Próximo ciclo:** detalhar PR B Web + Expo sob revisão Claude/Notion; PR C perfil público, autoria/reputação e compatibilidade legada com plano específico. Não finalizar QA-001 apenas com a PR A.
+
+
+---
+
+## V1 PR 2/4 — apresentação pública pessoal e compatibilidade (20/11/2026)
+
+**Estado:** incremento inicial de uma macro-PR em desenvolvimento; não equivale à conclusão da identidade ou da convergência V1. Normas: Notion 08, QA-001-UX-01 e ID-SOC-R1-01–05.
+
+- **URL social pessoal:** /@username renderiza a mesma página da pessoa, independentemente de atuação Pro; @ antigo continua com redirect 301; conta excluída/inativa continua 404.
+- **URLs legadas preservadas:** /clientes/:id e /profissionais/:slug permanecem acessíveis. Perfil Pro continua destino de serviços e portfólio, nunca uma segunda conta.
+- **Foto/nome na leitura pública:** User.name e person_avatar(user) são a identidade pessoal compartilhada no feed, perfil, descoberta e API Pro. Conta Pro sem User preserva o perfil de catálogo legado.
+- **API aditiva:** /api/v1/clients/:id acrescenta profileUrl e professional (slug/especialidade quando publicável). Não remove campos existentes; o Expo usa clientProfileId como destino pessoal prioritário e mantém fallback Pro para payload antigo.
+- **Persistência BLOQUEADA:** ClientProfile.avatar_url e ProfessionalProfile.avatar_url/cover_url continuam separados. Leitura usa foto Cliente, ou foto Pro legada como fallback; alterações nos editores, gravação canônica, capa pessoal sem Pro, migrations e backfill exigem plano de compatibilidade, rollback e OK específico.
+- **Não tocados neste incremento:** schema, autenticação, autorização tenant, slots/reservas, pagamento, rate limiting, upload, dependências e novas telas normativas.
+- **Pendente na PR 2/4:** auditoria completa de gravadores e media crop, paridade de capa/página pública no aplicativo, feed/descoberta e QA integrado. Não registrar como concluída até verificação real.
