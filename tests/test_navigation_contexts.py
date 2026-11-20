@@ -236,6 +236,7 @@ def test_qa001_web_and_expo_show_single_person_and_separate_tools():
     assert 'title="Minha conta e ferramentas"' in expo
     assert 'title="Meu feed e perfil"' in expo
     assert 'title="Ferramentas profissionais"' in expo
+    assert 'params: { accountType: "establishment" }' in expo
     assert 'label="MEUS ESTABELECIMENTOS"' in expo
     assert 'title={item.name}' in expo
     assert "Experiência Cliente" not in expo

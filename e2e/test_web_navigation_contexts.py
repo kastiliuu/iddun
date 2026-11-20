@@ -110,7 +110,7 @@ def test_professional_tools_and_business_are_destinations_of_one_account(page: P
     expect(page.locator("#pro-more-menu").get_by_role("link", name="Insights")).to_be_focused()
     _readable(page, "#pro-more-menu")
     page.keyboard.press("Escape")
-    expect(page.locator("#pro-more-menu").to_be_hidden()
+    expect(page.locator("#pro-more-menu")).to_be_hidden()
     expect(more).to_be_focused()
 
     page.locator("[data-account-menu-trigger]").click()

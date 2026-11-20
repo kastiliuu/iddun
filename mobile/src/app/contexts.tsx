@@ -95,7 +95,10 @@ export default function ContextsScreen() {
           icon="home"
           title="Criar estabelecimento"
           subtitle="Páginas institucionais com identidade e permissões próprias"
-          onPress={() => router.push("/signup-pro")}
+          onPress={() => router.push({
+            pathname: "/signup-pro",
+            params: { accountType: "establishment" },
+          })}
         />
       </ContextSection>
 

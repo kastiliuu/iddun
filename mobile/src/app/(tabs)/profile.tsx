@@ -138,10 +138,18 @@ export default function ProfileScreen() {
     store.favorites("services").length +
     graphState.saves.length;
 
-  const hasProfessional = !!user?.contexts?.some(
+  const professionalContext = user?.contexts?.find(
     (item) => item.kind === "professional",
   );
-  const roleLabel = hasProfessional ? "Atuação profissional ativa" : "Conta pessoal";
+  const hasProfessional = !!professionalContext;
+  const roleLabel =
+    professionalContext?.state === "published"
+      ? "Atuação profissional ativa"
+      : professionalContext?.state === "draft"
+        ? "Atuação profissional em cadastro"
+        : professionalContext?.state === "locked"
+          ? "Atuação profissional indisponível"
+          : "Conta pessoal";
 
   const handleLogout = async () => {
     if (loggingOut) return;
