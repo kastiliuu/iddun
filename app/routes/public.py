@@ -850,12 +850,18 @@ def professional_posts(slug):
 
 def _render_public_person(profile, *, page_url):
     """Página social pessoal: Pro é ferramenta adicional, não outra conta."""
+    from app.extensions import db
+    from app.models.professional import ProfessionalProfile
     from app.services.beauty_graph_service import person_avatar, person_cover
-    from app.services.public_eligibility import professional_is_public
+    from app.services.public_eligibility import public_professionals_query
 
-    professional = profile.user.professional_profile
-    if not professional_is_public(professional):
-        professional = None
+    # Filtra na consulta SQL para não divulgar ferramentas de um perfil
+    # desativado mesmo quando o relacionamento ORM foi carregado antes.
+    professional = db.session.scalar(
+        public_professionals_query().where(
+            ProfessionalProfile.user_id == profile.user_id
+        )
+    )
     viewer = current_user if current_user.is_authenticated else None
     followed_keys, saved_keys = card_keys(current_user)
     return render_template(
