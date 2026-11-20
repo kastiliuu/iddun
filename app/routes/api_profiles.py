@@ -13,7 +13,9 @@ from app.models.work_post import (
     WorkPost,
     WorkPostStatus,
 )
-from app.services.beauty_graph_service import follower_count, is_following, person_avatar
+from app.services.beauty_graph_service import (
+    follower_count, is_following, person_avatar, person_cover,
+)
 from app.services.feed_service import author_filter
 from app.services.api_auth import get_user_by_access_token
 from app.services.api_contract import (
@@ -985,7 +987,7 @@ def _profile_payload(
             if item.user is not None
             else item.avatar_url or "img/category-hair.jpg"
         )
-        cover = item.cover_url
+        cover = person_cover(item.user) if item.user is not None else item.cover_url
         specialty = (
             item.primary_specialty
             or "Profissional de beleza"
@@ -1649,6 +1651,7 @@ def client_profile(profile_id):
         limit=request.args.get("limit", 12, type=int),
     )
     avatar = person_avatar(profile.user)
+    cover = person_cover(profile.user)
     public_pro = profile.user.professional_profile
     if not professional_is_public(public_pro):
         public_pro = None
@@ -1664,6 +1667,7 @@ def client_profile(profile_id):
             "followerCount": follower_count("person", profile.user_id),
             "following": is_following(viewer, "person", profile.user_id),
             "avatar": resolve_image_url(avatar, external=True) if avatar else None,
+            "cover": _media(cover),
             "profileUrl": f"/@{profile.user.username}",
             "professional": (
                 {

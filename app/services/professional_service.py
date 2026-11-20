@@ -147,7 +147,11 @@ def get_professional_public_view(slug):
             "reputation": reputation,
             "location": " · ".join(part for part in [profile.city, profile.state] if part) or "Brasil",
             "image": person_image,
-            "cover": profile.cover_url,
+            "cover": (
+                (profile.user.cover_url or profile.cover_url)
+                if profile.user is not None
+                else profile.cover_url
+            ),
             "avatar_position": f"{profile.avatar_focus_x}% {profile.avatar_focus_y}%",
             "cover_position": f"{profile.cover_focus_x}% {profile.cover_focus_y}%",
             "specialties": profile.specialties,
