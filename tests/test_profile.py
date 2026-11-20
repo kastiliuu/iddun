@@ -1,5 +1,6 @@
 from datetime import date
 from io import BytesIO
+from pathlib import Path
 import re
 
 from PIL import Image
@@ -131,6 +132,32 @@ def test_web_account_cover_works_without_professional_profile(app, client):
         cover_path = user.cover_url
     html = client.get("/minha-conta").get_data(as_text=True)
     assert cover_path in html
+
+
+def test_invalid_cover_rolls_back_avatar_and_does_not_leave_orphan(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+    avatar = BytesIO()
+    Image.new("RGB", (32, 32), (100, 80, 150)).save(avatar, format="JPEG")
+    avatar.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "avatar_file": (avatar, "foto.jpg"),
+            "cover_file": (BytesIO(b"not a valid image"), "capa.jpg"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    assert "não é uma imagem válida" in response.get_data(as_text=True)
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.avatar_url is None
+        assert user.cover_url is None
+        assert user.client_profile.avatar_url is None
+    upload_root = Path(app.config["UPLOAD_FOLDER"])
+    assert list(upload_root.rglob("*.jpg")) == []
 
 
 def test_account_completion_uses_every_field_shown_on_the_page(app, client):
