@@ -27,8 +27,8 @@ export default function EstablishmentContextScreen() {
       <ContextScreen eyebrow="ESTABELECIMENTO" title="Contexto indisponível">
         <EmptyState
           title="Você não tem acesso a este estabelecimento."
-          description="Volte e escolha um dos contextos da sua conta."
-          actionLabel="Trocar de contexto"
+          description="Volte às áreas da sua conta e selecione uma página autorizada."
+          actionLabel="Ver meus estabelecimentos"
           onActionPress={() => router.replace("/contexts")}
         />
       </ContextScreen>

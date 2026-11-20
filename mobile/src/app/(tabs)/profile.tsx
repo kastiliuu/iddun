@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import {
   Pressable,
   ScrollView,
@@ -138,19 +138,18 @@ export default function ProfileScreen() {
     store.favorites("services").length +
     graphState.saves.length;
 
-  const roleLabel = useMemo(() => {
-    if (!user) return null;
-
-    switch (user.role) {
-      case "professional":
-        return "Profissional";
-      case "establishment":
-        return "Estabelecimento";
-      case "client":
-      default:
-        return "Cliente";
-    }
-  }, [user]);
+  const professionalContext = user?.contexts?.find(
+    (item) => item.kind === "professional",
+  );
+  const hasProfessional = !!professionalContext;
+  const roleLabel =
+    professionalContext?.state === "published"
+      ? "Atuação profissional ativa"
+      : professionalContext?.state === "draft"
+        ? "Atuação profissional em cadastro"
+        : professionalContext?.state === "locked"
+          ? "Atuação profissional indisponível"
+          : "Conta pessoal";
 
   const handleLogout = async () => {
     if (loggingOut) return;
@@ -317,7 +316,7 @@ export default function ProfileScreen() {
           />
 
           <Text style={styles.name}>
-            {user.businessName ?? user.name}
+            {user.name}
           </Text>
 
           <View style={styles.roleBadge}>
@@ -450,58 +449,40 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {user.role === "client" ? (
+        {!hasProfessional ? (
           <View style={styles.professionalSection}>
-            <Text style={styles.sectionLabel}>
-              PROFISSIONAL
-            </Text>
-
+            <Text style={styles.sectionLabel}>PROFISSIONAL</Text>
             <View style={styles.upgradeCard}>
               <View style={styles.upgradeIcon}>
-                <Icon
-                  name="briefcase"
-                  size={21}
-                  color={colors.plum}
-                />
+                <Icon name="briefcase" size={21} color={colors.plum} />
               </View>
-
               <Text style={styles.upgradeTitle}>
                 Leve seu trabalho para o IDDUN
               </Text>
-
               <Text style={styles.upgradeDescription}>
-                Crie um perfil profissional ou de
-                estabelecimento e comece a publicar seus
-                trabalhos.
+                Ative ferramentas profissionais sem criar outra conta.
               </Text>
-
               <Button
-                title="Tornar-me profissional"
+                title="Ativar atuação profissional"
                 variant="secondary"
                 onPress={handleBecomeProfessional}
                 fullWidth
               />
             </View>
           </View>
-        ) : (
-          <View style={styles.menuSection}>
-            <Text style={styles.sectionLabel}>
-              MEU NEGÓCIO
-            </Text>
+        ) : null}
 
-            <View style={styles.menuCard}>
-              {/* PR 1 (D-SOC-04): ferramentas de trabalho ficam na troca de contexto. */}
-              <MenuItem
-                icon="repeat"
-                title="Trocar de contexto"
-                subtitle="Profissional e estabelecimentos da sua conta"
-                onPress={() =>
-                  router.push("/contexts")
-                }
-              />
-            </View>
+        <View style={styles.menuSection}>
+          <Text style={styles.sectionLabel}>MINHAS FERRAMENTAS</Text>
+          <View style={styles.menuCard}>
+            <MenuItem
+              icon="briefcase"
+              title="Minha conta e ferramentas"
+              subtitle="Recursos profissionais e estabelecimentos autorizados"
+              onPress={() => router.push("/contexts")}
+            />
           </View>
-        )}
+        </View>
 
         <View style={styles.menuSection}>
           <Text style={styles.sectionLabel}>

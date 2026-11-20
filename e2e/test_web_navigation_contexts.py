@@ -69,39 +69,35 @@ def test_active_destination_and_explore_tabs(page: Page):
     expect(page.get_by_role("navigation", name="Explorar").locator('[aria-current="page"]')).to_have_text("Profissionais")
 
 
-def test_client_menu_shows_only_the_client_context(page: Page):
-    # Conta nova: outras specs criam rascunhos para o cliente semeado.
+def test_client_menu_has_one_identity_and_no_foreign_company(page: Page):
     _register(page, name="Cliente Contextos")
     page.goto("/minha-conta")
     page.locator("[data-account-menu-trigger]").click()
-    contexts = page.locator("[data-account-contexts] a")
-    expect(contexts).to_have_count(1)
-    expect(contexts.first).to_have_attribute("aria-current", "true")
     menu = page.locator("[data-account-menu]")
-    expect(menu.get_by_role("link", name="Ativar perfil profissional")).to_be_visible()
+    expect(menu.get_by_role("link", name="Meu feed")).to_be_visible()
+    expect(menu.get_by_role("link", name="Ativar atuação profissional")).to_be_visible()
     expect(menu.get_by_role("link", name="Criar e gerir estabelecimentos")).to_be_visible()
+    expect(menu.locator("[data-account-contexts] a")).to_have_count(0)
+    expect(menu.get_by_text("Estabelecimentos", exact=True)).to_have_count(0)
+    expect(menu.locator("[data-context-kind='client']")).to_have_count(0)
+    expect(menu.locator("[data-context-kind='professional']")).to_have_count(0)
     _readable(page, "[data-account-menu]")
     page.keyboard.press("Escape")
-    expect(page.locator("[data-account-menu]")).to_be_hidden()
+    expect(menu).to_be_hidden()
 
 
-def test_professional_switches_context_and_uses_the_pro_and_business_bars(page: Page):
+def test_professional_tools_and_business_are_destinations_of_one_account(page: Page):
     _login(page, E2E_PRO_EMAIL)
     page.locator("[data-account-menu-trigger]").click()
-    contexts = page.locator("[data-account-contexts] a")
-    expect(contexts).to_have_count(3)
-    expect(contexts.nth(1)).to_contain_text("Profissional")
-    expect(contexts.nth(2)).to_contain_text("Espaço QA Navegador")
     menu = page.locator("[data-account-menu]")
-    # QA-001: a identidade pessoal aparece apenas no cabeçalho;
-    # Cliente e Pro são ferramentas da mesma pessoa, não novos perfis.
+    businesses = menu.locator("[data-account-contexts] a")
+    expect(businesses).to_have_count(1)
+    expect(businesses.first).to_contain_text("Espaço QA Navegador")
     expect(menu.locator(".feed-account-menu__identity strong")).to_have_count(1)
-    expect(contexts.nth(0).locator("strong")).to_have_text("Experiência Cliente")
-    expect(contexts.nth(1).locator("strong")).to_have_text("Painel profissional")
-    assert all("Navegador Pro" not in label for label in contexts.locator("strong").all_text_contents())
-
-
-    contexts.nth(1).click()
+    expect(menu.locator("[data-context-kind='client']")).to_have_count(0)
+    expect(menu.locator("[data-context-kind='professional']")).to_have_count(0)
+    expect(menu.get_by_role("link", name="Meu feed")).to_be_visible()
+    menu.get_by_role("link", name="Ferramentas profissionais").click()
     expect(page).to_have_url(re.compile(r"/pro/painel$"))
     page.wait_for_load_state()
     pro_nav = page.get_by_role("navigation", name="Navegação IDDUN Pro")
@@ -119,7 +115,7 @@ def test_professional_switches_context_and_uses_the_pro_and_business_bars(page: 
     expect(more).to_be_focused()
 
     page.locator("[data-account-menu-trigger]").click()
-    page.locator("[data-account-contexts] a").nth(2).click()
+    page.locator("[data-account-contexts] a").first.click()
     expect(page).to_have_url(re.compile(rf"/business/{E2E_BUSINESS_SLUG}/painel$"))
     page.wait_for_load_state()
     business_nav = page.get_by_role("navigation", name="Seções do painel Business")
@@ -174,21 +170,22 @@ def test_cookie_json_calls_need_the_csrf_token(page: Page):
     "path",
     ["/feed", f"/business/{E2E_BUSINESS_SLUG}/painel"],
 )
-def test_phone_avatar_opens_shared_context_menu(page: Page, path):
-    """NAV-W4: avatar não deve sair da página para abrir Minha Conta."""
+def test_phone_avatar_opens_account_tools_and_business_menu(page: Page, path):
+    """NAV-W4: avatar abre ferramentas sem trocar identidade pessoal."""
     page.set_viewport_size({"width": 390, "height": 844})
     _login(page, E2E_PRO_EMAIL)
     page.goto(path)
-    avatar = page.get_by_role("button", name="Eu: conta e troca de contexto")
+    avatar = page.get_by_role("button", name="Eu: conta e ferramentas")
     expect(avatar).to_be_visible()
     expect(avatar).to_have_attribute("aria-controls", "mobile-account-menu")
     avatar.click()
     expect(avatar).to_have_attribute("aria-expanded", "true")
     menu = page.locator("#mobile-account-menu")
     expect(menu).to_be_visible()
-    expect(menu.get_by_text("Trocar de contexto")).to_be_visible()
-    expect(menu.locator("[data-context-kind='client']")).to_have_count(1)
-    expect(menu.locator("[data-context-kind='professional']")).to_have_count(1)
+    expect(menu.get_by_text("Estabelecimentos", exact=True)).to_be_visible()
+    expect(menu.get_by_role("link", name="Ferramentas profissionais")).to_be_visible()
+    expect(menu.locator("[data-context-kind='client']")).to_have_count(0)
+    expect(menu.locator("[data-context-kind='professional']")).to_have_count(0)
     expect(menu.locator("[data-context-kind='establishment']")).to_have_count(1)
     assert page.evaluate("document.documentElement.scrollWidth - window.innerWidth") <= 0
     page.keyboard.press("Escape")
@@ -197,19 +194,21 @@ def test_phone_avatar_opens_shared_context_menu(page: Page, path):
     expect(avatar).to_be_focused()
     avatar.press("Enter")
     expect(menu).to_be_visible()
-    menu.locator("[data-context-kind='client']").click()
+    menu.get_by_role("link", name="Meu feed").click()
     expect(page).to_have_url(re.compile(r"/feed$"))
 
 
-def test_phone_avatar_new_client_has_no_foreign_context(page: Page):
+def test_phone_avatar_new_client_has_no_foreign_business(page: Page):
     page.set_viewport_size({"width": 390, "height": 844})
     _register(page, name="Cliente Mobile Isolado")
     page.goto("/minha-conta")
-    avatar = page.get_by_role("button", name="Eu: conta e troca de contexto")
+    avatar = page.get_by_role("button", name="Eu: conta e ferramentas")
     avatar.click()
-    contexts = page.locator("#mobile-account-menu [data-mobile-account-contexts] a")
-    expect(contexts).to_have_count(1)
-    expect(contexts.first).to_have_attribute("aria-current", "true")
+    menu = page.locator("#mobile-account-menu")
+    expect(menu.locator("[data-mobile-account-contexts] a")).to_have_count(0)
+    expect(menu.get_by_text("Estabelecimentos", exact=True)).to_have_count(0)
+    expect(menu.get_by_role("link", name="Meu feed")).to_be_visible()
+    expect(menu.get_by_role("link", name="Ativar atuação profissional")).to_be_visible()
 
 
 @pytest.mark.parametrize("path", ["/feed", "/minha-conta", "/minhas-reservas"])

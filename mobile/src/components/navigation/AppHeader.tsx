@@ -44,8 +44,8 @@ type AppHeaderProps = {
 /**
  * Cabeçalho único das telas logadas do app (DS-V1-01-D01 e D02): faixa
  * preta com a marca ou o título, uma ação da tela, o sino e, abaixo, o
- * avatar com o contexto ativo. É preto nos dois temas; o resto da tela
- * segue o tema. Não cria rota: o sino e a troca de contexto são os de antes.
+ * avatar com a área atual. É preto nos dois temas; o resto da tela
+ * segue o tema. A conta pessoal é a mesma nas ferramentas profissionais.
  */
 export function AppHeader(props: AppHeaderProps) {
   return (
@@ -59,7 +59,7 @@ function HeaderBar({
   title,
   action,
   unreadCount = 0,
-  contextLabel = "Cliente",
+  contextLabel = "Minha conta",
   bleed = 0,
 }: AppHeaderProps) {
   useStoreVersion();

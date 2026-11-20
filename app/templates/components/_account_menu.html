@@ -1,8 +1,8 @@
 {% from 'components/icon.html' import icon %}
 {#
-  Menu Eu com a troca de contexto (PR 1; DEC-ID-077, FE-DEC-022).
-  Mesmo conteúdo no cabeçalho único e no cabeçalho Pro. Escolher um
-  contexto só leva ao painel dele: cada rota confere a permissão.
+  Menu Eu: uma identidade pessoal e ferramentas profissionais (QA-001).
+  Estabelecimentos preservam identidade institucional e autorização
+  por vínculo, conferida no servidor.
 #}
 
 {% macro context_href(item) -%}
@@ -34,7 +34,6 @@
   da foto ou None.
 #}
 {% macro account_menu(contexts, active_kind='client', active_id=None, avatar=None, menu_id='feed-account-menu', contexts_label_id='feed-account-contexts-title') %}
-{% set active_name = {'client': 'Cliente', 'professional': 'Profissional', 'establishment': 'Estabelecimento'}[active_kind] %}
 {% set has_professional = contexts | selectattr('kind', 'equalto', 'professional') | list %}
 {% set business_contexts = contexts | selectattr('kind', 'equalto', 'establishment') | list %}
 <div
@@ -52,25 +51,13 @@
     </span>
     <span>
       <strong>{{ current_user.name }}</strong>
-      <small>Conta pessoal{% if has_professional %} · atuação profissional habilitada{% endif %} · agora em {{ active_name }}</small>
+      <small>Conta pessoal{% if has_professional %} · atuação profissional habilitada{% endif %}</small>
     </span>
   </div>
 
-  <p class="feed-account-menu__group-label" id="{{ contexts_label_id }}">Trocar de contexto</p>
+  {% if business_contexts %}
+  <p class="feed-account-menu__group-label" id="{{ contexts_label_id }}">Estabelecimentos</p>
   <ul class="feed-account-menu__contexts" aria-labelledby="{{ contexts_label_id }}" {% if menu_id == 'feed-account-menu' %}data-account-contexts{% else %}data-mobile-account-contexts{% endif %}>
-    {% for item in contexts if item.kind != 'establishment' %}
-    {% set current = is_active_context(item, active_kind, active_id) %}
-    <li>
-      <a href="{{ context_href(item) }}" {% if current %}aria-current="true"{% endif %} data-context-kind="{{ item.kind }}">
-        {{ icon('compass' if item.kind == 'client' else 'briefcase') }}
-        <span>
-          <strong>{{ 'Experiência Cliente' if item.kind == 'client' else 'Painel profissional' }}</strong>
-          <small>{{ 'Feed, reservas e favoritos' if item.kind == 'client' else context_note(item) }}</small>
-        </span>
-        {% if current %}{{ icon('check') }}{% endif %}
-      </a>
-    </li>
-    {% endfor %}
     {% for item in business_contexts[:3] %}
     {% set current = is_active_context(item, active_kind, active_id) %}
     <li>
@@ -82,6 +69,7 @@
     </li>
     {% endfor %}
   </ul>
+  {% endif %}
   {% if business_contexts|length > 3 %}
   <a href="{{ url_for('account.dashboard') }}#meus-estabelecimentos">
     {{ icon('chevron-right') }} Ver todos os estabelecimentos
@@ -89,17 +77,24 @@
   {% endif %}
 
   <p class="feed-account-menu__group-label">Trabalho</p>
-  {% if not has_professional %}
-  <a href="{{ url_for('professional.onboarding') }}">
-    {{ icon('briefcase') }} Ativar perfil profissional
+  {% if has_professional %}
+  <a href="{{ context_href(has_professional[0]) }}" {% if active_kind == 'professional' %}aria-current="page"{% endif %}>
+    {{ icon('briefcase') }} Ferramentas profissionais{% if has_professional[0].state == 'draft' %} · continuar cadastro{% elif has_professional[0].state == 'locked' %} · fora do ar{% endif %}
   </a>
-  <p class="feed-account-menu__hint">Na mesma conta; você continua cliente.</p>
+  {% else %}
+  <a href="{{ url_for('professional.onboarding') }}">
+    {{ icon('briefcase') }} Ativar atuação profissional
+  </a>
+  <p class="feed-account-menu__hint">Sua identidade pessoal continua a mesma.</p>
   {% endif %}
   <a href="{{ url_for('account.dashboard') }}#meus-estabelecimentos">
     {{ icon('store') }} Criar e gerir estabelecimentos
   </a>
 
   <p class="feed-account-menu__group-label">Conta</p>
+  <a href="{{ url_for('feed.home') }}">
+    {{ icon('home') }} Meu feed
+  </a>
   <a href="{{ url_for('account.dashboard') }}">
     {{ icon('user') }} Minha conta
   </a>

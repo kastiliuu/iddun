@@ -6,7 +6,7 @@
 import React, { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 
 import {
@@ -25,8 +25,11 @@ export default function SignupProfessionalScreen() {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
   const router = useRouter();
+  const params = useLocalSearchParams<{ accountType?: string }>();
 
-  const [accountType, setAccountType] = useState<AccountType>("professional");
+  const [accountType, setAccountType] = useState<AccountType>(
+    params.accountType === "establishment" ? "establishment" : "professional",
+  );
   const [professional, setProfessional] = useState<ProfessionalState>("none");
   const [drafts, setDrafts] = useState<EstablishmentDraft[]>([]);
 
