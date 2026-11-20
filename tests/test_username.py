@@ -262,6 +262,9 @@ def test_personal_identity_is_shared_by_web_profile_and_two_public_apis(app, cli
     with app.app_context():
         db.session.get(ProfessionalProfile, professional_id).is_active = False
         db.session.commit()
+        # O fixture mantém um app_context único: expira o grafo em cache
+        # para que a requisição seguinte consulte o estado persistido.
+        db.session.expire_all()
     hidden = client.get("/@uma.pessoa")
     assert hidden.status_code == 200
     assert "Ver serviços e portfólio" not in hidden.get_data(as_text=True)

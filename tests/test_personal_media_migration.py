@@ -40,7 +40,9 @@ def test_additive_migration_backfills_without_erasing_old_profiles(tmp_path):
             (3, None),
         ):
             conn.execute(
-                "INSERT INTO client_profiles (id, user_id, avatar_url) VALUES (?, ?, ?)",
+                "INSERT INTO client_profiles "
+                "(id, user_id, avatar_url, onboarding_completed, created_at, updated_at) "
+                f"VALUES (?, ?, ?, 0, {NOW}, {NOW})",
                 (number, number, avatar),
             )
         for number, user_id, avatar, cover in (
@@ -51,8 +53,12 @@ def test_additive_migration_backfills_without_erasing_old_profiles(tmp_path):
             conn.execute(
                 "INSERT INTO professional_profiles "
                 "(id, user_id, display_name, slug, avatar_url, cover_url, "
-                "is_verified, is_active, created_at, updated_at) "
-                f"VALUES (?, ?, ?, ?, ?, ?, 0, 1, {NOW}, {NOW})",
+                "whatsapp_enabled, avatar_focus_x, avatar_focus_y, "
+                "cover_focus_x, cover_focus_y, visual_theme, plan_tier, "
+                "onboarding_completed, is_verified, is_active, timezone, "
+                "default_booking_cutoff_minutes, created_at, updated_at) "
+                f"VALUES (?, ?, ?, ?, ?, ?, 1, 50, 50, 50, 50, "
+                f"'beauty', 'free', 0, 0, 1, 'America/Sao_Paulo', 60, {NOW}, {NOW})",
                 (number, user_id, f"Pro {number}", f"pro-{number}", avatar, cover),
             )
 
