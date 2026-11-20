@@ -308,6 +308,13 @@ def test_mobile_person_author_prefers_personal_route_over_professional_route():
     assert person.index("if (author.clientProfileId)") < person.index(
         "author.professional?.slug"
     )
+    # O perfil pessoal não pode descartar o ID da pessoa ao repassar posts
+    # ao card, pois isso reabriria a página Pro pelo kind legado.
+    profile_screen = (
+        Path(__file__).resolve().parents[1] / "mobile/src/app/client/[id].tsx"
+    ).read_text(encoding="utf-8")
+    assert "clientProfileId: post.author.clientProfileId" in profile_screen
+    assert "identity: post.author.identity" in profile_screen
 
 
 def test_deleted_account_frees_personal_handle_data_and_followers(app, client):

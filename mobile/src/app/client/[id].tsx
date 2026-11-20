@@ -279,6 +279,12 @@ export default function ClientProfileScreen() {
                 name: post.author.name,
                 avatar: post.author.avatar,
                 kind: post.author.kind,
+                // Repassar identidade pessoal ao PostCard: ao tocar no
+                // autor de um post Pro legado, abrir /client/:id.
+                identity: post.author.identity,
+                username: post.author.username,
+                clientProfileId: post.author.clientProfileId,
+                professional: post.author.professional,
               }}
               image={post.image}
               media={post.media}
