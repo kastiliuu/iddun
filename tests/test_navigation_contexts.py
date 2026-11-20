@@ -281,8 +281,8 @@ def test_expo_create_business_services_has_action_not_disabled_card():
     create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
     assert 'title="Serviços da empresa"' in create
     assert 'currentBusiness?.slug' in create
-    assert 'item.id === businessProfileId' in create
-    assert 'const currentBusiness = businessProfileId' in create
+    assert 'businessContexts.length === 1 ? businessContexts[0] : undefined' in create
+    assert 'item.kind === "establishment"' in create
     assert 'openWebEditor(`/business/${encodeURIComponent(currentBusiness.slug)}/servicos`)' in create
     assert 'router.push("/contexts")' in create
     section = create.split('title="Serviços da empresa"', 1)[1].split('</ActionCard>', 1)[0] if '</ActionCard>' in create else create.split('title="Serviços da empresa"', 1)[1].split('/>', 1)[0]
@@ -315,7 +315,7 @@ def test_expo_create_shows_cumulative_pro_and_business_tools_from_contexts():
     assert 'title="Gerenciar equipe"' in create
     assert 'isProfessional ? (' in create
     assert 'isEstablishment ? (' in create
-    assert 'isEstablishment ? (\n                  <ActionCard' in create
+    assert 'title="Serviços da empresa"' in create
     assert '{user?.name}' in create
     assert 'user?.businessName ??' not in create
 
@@ -325,3 +325,5 @@ def test_expo_create_shows_cumulative_pro_and_business_tools_from_contexts():
     assert 'currentBusiness?.id' in create
     assert 'router.push("/contexts")' in create
     assert 'user.profileId' not in create
+    assert 'title="Abrir um horário"' in create
+    assert 'isProfessional ? (' in create
