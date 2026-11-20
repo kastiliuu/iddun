@@ -770,6 +770,36 @@ def test_portfolio_rejects_ninth_image(
     )
 
 
+
+def test_personal_media_dual_writes_pro_and_preserves_prior_storage(app, client):
+    user_id, pro_id, headers = _authenticated_professional(
+        app, email="personal-media-with-pro@example.com",
+    )
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        user.avatar_url = "uploads/clients/avatar-old.jpg"
+        user.cover_url = "uploads/clients/covers/cover-old.jpg"
+        user.client_profile.avatar_url = user.avatar_url
+        user.professional_profile.avatar_url = user.avatar_url
+        user.professional_profile.cover_url = user.cover_url
+        db.session.commit()
+
+    for kind in ("avatar", "cover"):
+        response = client.post(
+            f"/api/v1/media/personal/{kind}",
+            headers=headers, data=_multipart(), content_type="multipart/form-data",
+        )
+        assert response.status_code == 200, response.get_json()
+        new_path = response.get_json()[kind]["storedPath"]
+        with app.app_context():
+            user = db.session.get(User, user_id)
+            pro = db.session.get(ProfessionalProfile, pro_id)
+            assert getattr(user, kind + "_url") == new_path
+            assert getattr(pro, kind + "_url") == new_path
+            if kind == "avatar":
+                assert user.client_profile.avatar_url == new_path
+
+
 # E-MEDIA-01 — mídia só da própria pessoa com Bearer; Pro opcional.
 def _personal_user(app, email):
     with app.app_context():
