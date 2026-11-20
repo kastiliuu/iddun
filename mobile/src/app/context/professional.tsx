@@ -7,6 +7,7 @@ import {
   ContextSection,
 } from "@/components/navigation/ContextScreen";
 import { store, useStoreVersion } from "@/store/local";
+import { openWebEditor } from "@/components/ProfileSections";
 
 /**
  * Ferramentas Pro da mesma identidade pessoal (QA-001, 19/11).
@@ -78,6 +79,21 @@ export default function ProfessionalContextScreen() {
           icon="image"
           title="Publicar um trabalho"
           onPress={() => router.push("/create-post")}
+        />
+      </ContextSection>
+
+      <ContextSection label="GESTÃO NA WEB">
+        <ContextRow
+          icon="external-link"
+          title="Painel profissional"
+          subtitle="Atendimentos e indicadores, abre no site"
+          onPress={() => openWebEditor("/pro/painel")}
+        />
+        <ContextRow
+          icon="users"
+          title="Carteira de clientes"
+          subtitle="Relacionamento e histórico, abre no site"
+          onPress={() => openWebEditor("/pro/clientes")}
         />
       </ContextSection>
 

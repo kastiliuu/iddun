@@ -245,3 +245,22 @@ def test_qa001_web_and_expo_show_single_person_and_separate_tools():
     assert "{user.name}" in mobile_profile
     assert "{user.businessName ?? user.name}" not in mobile_profile
     assert 'contextLabel = "Minha conta"' in mobile_header
+
+
+def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
+    """V1-CONV-D01: tarefas exclusivamente Web precisam de acesso direto no Expo."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    professional = (root / "mobile/src/app/context/professional.tsx").read_text(encoding="utf-8")
+    establishment = (root / "mobile/src/app/context/establishment/[id].tsx").read_text(encoding="utf-8")
+    web_routes = (root / "app/routes/platform.py").read_text(encoding="utf-8")
+
+    assert 'openWebEditor("/pro/painel")' in professional
+    assert 'openWebEditor("/pro/clientes")' in professional
+    assert '"/painel"' in web_routes and '"/clientes"' in web_routes
+    for route in ("/painel", "/reservas", "/indicadores"):
+        assert f"${{encodeURIComponent(context.slug as string)}}{route}" in establishment
+        assert f'"/<slug>{route}"' in web_routes
+    assert 'context.slug ? (' in establishment
+    assert "onPress={() => openWebEditor(" in establishment
