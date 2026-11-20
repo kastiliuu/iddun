@@ -6,7 +6,9 @@ import {
   ContextScreen,
   ContextSection,
 } from "@/components/navigation/ContextScreen";
+import { EmptyState } from "@/components/EmptyState";
 import { store, useStoreVersion } from "@/store/local";
+import { openWebEditor } from "@/components/ProfileSections";
 
 /**
  * Ferramentas Pro da mesma identidade pessoal (QA-001, 19/11).
@@ -17,7 +19,21 @@ export default function ProfessionalContextScreen() {
   const router = useRouter();
   const user = store.getUser();
   const context = user?.contexts?.find((item) => item.kind === "professional");
-  const draft = context?.state === "draft";
+
+  if (!context?.id) {
+    return (
+      <ContextScreen eyebrow="PROFISSIONAL" title="Ferramentas indisponíveis">
+        <EmptyState
+          title="Você ainda não tem ferramentas profissionais ativas."
+          description="Volte às áreas da sua conta para ativar ou selecionar as ferramentas disponíveis."
+          actionLabel="Ver minha conta"
+          onActionPress={() => router.replace("/contexts")}
+        />
+      </ContextScreen>
+    );
+  }
+
+  const draft = context.state === "draft";
   const locked = context?.state === "locked";
 
   return (
@@ -53,10 +69,12 @@ export default function ProfessionalContextScreen() {
             icon="user"
             title="Ver perfil público"
             onPress={() =>
-              router.push({
-                pathname: "/professional/[id]",
-                params: { id: context.slug as string },
-              })
+              user?.username
+                ? openWebEditor(`/@${encodeURIComponent(user.username)}`)
+                : router.push({
+                    pathname: "/professional/[id]",
+                    params: { id: context.slug as string },
+                  })
             }
           />
         ) : null}
@@ -78,6 +96,21 @@ export default function ProfessionalContextScreen() {
           icon="image"
           title="Publicar um trabalho"
           onPress={() => router.push("/create-post")}
+        />
+      </ContextSection>
+
+      <ContextSection label="GESTÃO NA WEB">
+        <ContextRow
+          icon="external-link"
+          title="Painel profissional"
+          subtitle="Atendimentos e indicadores, abre no site"
+          onPress={() => openWebEditor("/pro/painel")}
+        />
+        <ContextRow
+          icon="users"
+          title="Carteira de clientes"
+          subtitle="Relacionamento e histórico, abre no site"
+          onPress={() => openWebEditor("/pro/clientes")}
         />
       </ContextSection>
 

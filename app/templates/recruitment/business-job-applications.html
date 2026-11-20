@@ -20,7 +20,13 @@
       {% for item in items %}
       {% set pro = item.professional %}
       <li class="platform-panel recruit-card recruit-card--static">
-        <span class="recruit-card__title"><a href="{{ url_for('public.professional_detail', slug=pro.slug) }}">{{ pro.display_name }}</a></span>
+        <span class="recruit-card__title">
+          {% if pro.user %}
+          <a href="{{ url_for('public.person_by_username', username=pro.user.username) }}">{{ pro.user.name }}</a>
+          {% else %}
+          <a href="{{ url_for('public.professional_detail', slug=pro.slug) }}">{{ pro.display_name }}</a>
+          {% endif %}
+        </span>
         <span class="recruit-muted">{{ pro.primary_specialty or 'Profissional' }}{% if pro.city %} · {{ pro.city }}{% if pro.state %}/{{ pro.state }}{% endif %}{% endif %} · enviada em {{ item.created_at.strftime('%d/%m/%Y') }}</span>
         {% if item.message %}<p class="recruit-text">{{ item.message }}</p>{% endif %}
       </li>

@@ -8,6 +8,7 @@ import {
 } from "@/components/navigation/ContextScreen";
 import { EmptyState } from "@/components/EmptyState";
 import { store, useStoreVersion } from "@/store/local";
+import { openWebEditor } from "@/components/ProfileSections";
 
 /**
  * Contexto de um estabelecimento no app (PR 1, D-SOC-04). Mostra as
@@ -73,6 +74,47 @@ export default function EstablishmentContextScreen() {
           onPress={() => router.push(`/manage-jobs/${id}`)}
         />
       </ContextSection>
+
+      {context.slug ? (
+        <ContextSection label="GESTÃO NA WEB">
+          {owner ? (
+            <ContextRow
+              icon="users"
+              title="Permissões de recrutamento"
+              subtitle="Conceder ou retirar acesso dos gestores no site"
+              onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/vagas#gerentes`)}
+            />
+          ) : null}
+          <ContextRow
+            icon="external-link"
+            title="Painel do estabelecimento"
+            subtitle="Gestão completa no site"
+            onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/painel`)}
+          />
+          {!draft ? (
+            <>
+              <ContextRow
+                icon="scissors"
+                title="Serviços do estabelecimento"
+                subtitle="Catálogo e gestão dos serviços no site"
+                onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/servicos`)}
+              />
+              <ContextRow
+                icon="calendar"
+                title="Reservas da empresa"
+                subtitle="Acompanhe atendimentos no site"
+                onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/reservas`)}
+              />
+              <ContextRow
+                icon="bar-chart-2"
+                title="Indicadores do estabelecimento"
+                subtitle="Métricas reais no site"
+                onPress={() => openWebEditor(`/business/${encodeURIComponent(context.slug as string)}/indicadores`)}
+              />
+            </>
+          ) : null}
+        </ContextSection>
+      ) : null}
 
       {!draft ? (
         <ContextSection label="PRESENÇA">

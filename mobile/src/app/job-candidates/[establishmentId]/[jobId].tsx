@@ -18,6 +18,7 @@ import {
   type JobPost,
 } from "@/api/jobs";
 import { EmptyState } from "@/components/EmptyState";
+import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import {
   fonts,
@@ -165,7 +166,9 @@ export default function JobCandidatesScreen() {
                   }
                   onPress={() =>
                     router.push(
-                      `/professional/${professional.routeId}`,
+                      professional.clientProfileId
+                        ? `/client/${professional.clientProfileId}`
+                        : `/professional/${professional.routeId}`,
                     )
                   }
                   style={({ pressed }) => [
@@ -175,11 +178,7 @@ export default function JobCandidatesScreen() {
                   ]}
                 >
                   <View style={styles.iconWrap}>
-                    <Icon
-                      name="user"
-                      size={18}
-                      color={colors.plum}
-                    />
+                    <Avatar name={professional.name} uri={professional.avatar} size={44} />
                   </View>
 
                   <View style={styles.copy}>

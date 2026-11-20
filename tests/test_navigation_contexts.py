@@ -245,3 +245,116 @@ def test_qa001_web_and_expo_show_single_person_and_separate_tools():
     assert "{user.name}" in mobile_profile
     assert "{user.businessName ?? user.name}" not in mobile_profile
     assert 'contextLabel = "Minha conta"' in mobile_header
+
+
+def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
+    """V1-CONV-D01: tarefas exclusivamente Web precisam de acesso direto no Expo."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    professional = (root / "mobile/src/app/context/professional.tsx").read_text(encoding="utf-8")
+    establishment = (root / "mobile/src/app/context/establishment/[id].tsx").read_text(encoding="utf-8")
+    web_routes = (root / "app/routes/platform.py").read_text(encoding="utf-8")
+
+    assert 'openWebEditor("/pro/painel")' in professional
+    assert 'openWebEditor("/pro/clientes")' in professional
+    assert 'openWebEditor(`/@${encodeURIComponent(user.username)}`)' in professional
+    assert 'pathname: "/professional/[id]"' in professional  # fallback legado
+    assert '"/painel"' in web_routes and '"/clientes"' in web_routes
+    for route in ("/painel", "/servicos", "/reservas", "/indicadores"):
+        assert f"${{encodeURIComponent(context.slug as string)}}{route}" in establishment
+        assert f'"/<slug>{route}"' in web_routes
+    assert 'context.slug ? (' in establishment
+    assert "onPress={() => openWebEditor(" in establishment
+    assert 'title="Permissões de recrutamento"' in establishment
+    assert 'vagas#gerentes' in establishment
+    assert '{owner ? (' in establishment
+    recruiting = (root / "app/templates/recruitment/business-jobs.html").read_text(encoding="utf-8")
+    assert 'id="gerentes"' in recruiting
+
+
+def test_expo_create_business_services_has_action_not_disabled_card():
+    """V1-CONV-D01: a gestão Web deve ser acessível do Criar, sem empresa arbitrária."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    assert 'title="Serviços da empresa"' in create
+    assert 'currentBusiness?.slug' in create
+    assert 'businessContexts.length === 1 ? businessContexts[0] : undefined' in create
+    assert 'item.kind === "establishment"' in create
+    assert 'openWebEditor(`/business/${encodeURIComponent(currentBusiness.slug)}/servicos`)' in create
+    assert 'router.push("/contexts")' in create
+    section = create.split('title="Serviços da empresa"', 1)[1].split('</ActionCard>', 1)[0] if '</ActionCard>' in create else create.split('title="Serviços da empresa"', 1)[1].split('/>', 1)[0]
+    assert "disabled" not in section
+
+
+def test_expo_create_shows_cumulative_pro_and_business_tools_from_contexts():
+    """IDDUN identity: legacy role must not hide business tools from a Pro owner."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    server = (root / "app/routes/api_auth.py").read_text(encoding="utf-8")
+
+    # Role stays "professional" for Pro+Business on /auth/me, while
+    # the authorized account contexts include both capabilities.
+    assert 'if professional is not None:' in server
+    assert 'mobile_role = "professional"' in server
+    assert 'payload["contexts"] = contexts_payload(account_contexts(user))' in server
+    assert 'contexts.some(' in create
+    assert 'item.kind === "professional"' in create
+    assert 'businessContexts = contexts.filter(' in create
+    assert 'item.kind === "establishment"' in create
+    assert 'const canCreate =' in create
+    assert 'isProfessional ||' in create and 'isEstablishment;' in create
+
+    # Both sets of tools appear together, never as exclusive branches.
+    assert 'title="Gerenciar serviços"' in create
+    assert 'title="Serviços da empresa"' in create
+    assert 'title="Gerenciar equipe"' in create
+    assert 'isProfessional ? (' in create
+    assert 'isEstablishment ? (' in create
+    assert 'title="Serviços da empresa"' in create
+    assert '{user?.name}' in create
+    assert 'user?.businessName ??' not in create
+
+    # One company is unambiguous. Multiple sites require explicit selection.
+    assert 'businessContexts.length === 1 ? businessContexts[0] : undefined' in create
+    assert 'currentBusiness?.slug' in create
+    assert 'currentBusiness?.id' in create
+    assert 'router.push("/contexts")' in create
+    assert 'user.profileId' not in create
+    assert 'title="Abrir um horário"' in create
+    assert 'isProfessional ? (' in create
+
+
+def test_client_can_open_personal_composer_without_becoming_professional():
+    """ID-SOC-R1-01: Client creates personal social posts without Pro activation."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    composer = (root / "mobile/src/app/create-post.tsx").read_text(encoding="utf-8")
+
+    assert '{!canCreate ? (' in create
+    assert '{user ? (' in create
+    assert 'title="Nova publicação pessoal"' in create
+    assert 'onPress={() => router.push("/create-post")}' in create
+    assert 'title="Tornar-me profissional"' in create
+    assert 'getCreatorOptions()' in composer
+    assert 'ID-SOC-R1-01' in composer
+
+
+def test_expo_professional_context_requires_authorized_pro_context():
+    """QA-001: link direto não pode apresentar ferramentas Pro sem contexto."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    professional = (root / "mobile/src/app/context/professional.tsx").read_text(encoding="utf-8")
+    establishment = (root / "mobile/src/app/context/establishment/[id].tsx").read_text(encoding="utf-8")
+
+    assert 'if (!context?.id) {' in professional
+    assert 'title="Ferramentas indisponíveis"' in professional
+    assert 'router.replace("/contexts")' in professional
+    assert 'if (!context?.id) {' in establishment

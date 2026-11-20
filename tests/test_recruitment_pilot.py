@@ -125,6 +125,60 @@ def test_new_job_needs_the_pilot_but_legacy_jobs_keep_working(client, world):
     assert db.session.scalar(select(func.count(JobPost.id))) == 2
 
 
+def test_existing_job_remains_editable_after_pilot_revocation_but_not_when_closed(client, world):
+    _login(client, world["owner"])
+    job_id = world["legacy"]
+    updated = client.put(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}",
+        json={"title": "Vaga histórica revisada no app"},
+    )
+    assert updated.status_code == 200
+    assert updated.get_json()["job"]["title"] == "Vaga histórica revisada no app"
+    closed = client.put(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}/close",
+    )
+    assert closed.status_code == 200
+    blocked = client.put(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}",
+        json={"title": "Tentativa não autorizada"},
+    )
+    assert blocked.status_code == 400
+
+
+def test_closed_job_applications_remain_available_to_owner(client, world):
+    _login(client, world["owner"])
+    job_id = world["legacy"]
+    assert client.put(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}/close",
+    ).status_code == 200
+    listing = client.get(
+        f"/api/v1/establishments/studio-piloto/jobs/{job_id}/applications",
+    )
+    assert listing.status_code == 200
+    assert listing.get_json()["job"]["status"] == "closed"
+    # A interface Expo não deve ocultar candidatos de vagas encerradas.
+    from pathlib import Path
+    screen = (
+        Path(__file__).resolve().parents[1]
+        / "mobile/src/app/manage-jobs/[id].tsx"
+    ).read_text(encoding="utf-8")
+    assert 'job.status === "published" || job.status === "closed"' in screen
+
+
+def test_expo_business_jobs_can_edit_existing_jobs_without_enabling_new_jobs():
+    from pathlib import Path
+
+    screen = (
+        Path(__file__).resolve().parents[1]
+        / "mobile/src/app/manage-jobs/[id].tsx"
+    ).read_text(encoding="utf-8")
+    assert 'updateJob,' in screen
+    assert 'job.status !== "closed"' in screen
+    assert 'recruitment?.canCreate || editingJobId !== null' in screen
+    assert 'savingInFlight.current' in screen
+    assert 'title="Cancelar edição"' in screen
+
+
 def test_enabling_the_pilot_unlocks_new_jobs_and_revoking_does_not_take_jobs_down(client, world):
     _enable(world)
     _login(client, world["owner"])
@@ -351,4 +405,6 @@ def test_professional_applies_withdraws_and_reapplies_on_the_web(client, world):
 
     _login(client, world["owner"])
     listing = client.get(f"/business/studio-piloto/vagas/{world['legacy']}/candidaturas").get_data(as_text=True)
-    assert "Pro Recruta" in listing and "Voltei." in listing
+    assert "Pro-Recruta" in listing and "Voltei." in listing
+    username = db.session.get(User, world["pro"]).username
+    assert f'href="/@{username}"' in listing
