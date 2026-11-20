@@ -11,7 +11,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "start:local": "node scripts/start-local.cjs",
-    "test:local": "node --test scripts/start-local.test.cjs && node --experimental-strip-types --no-warnings --test scripts/service-wizard.test.mjs"
+    "test:local": "node --test scripts/start-local.test.cjs && node --experimental-strip-types --no-warnings --test scripts/service-wizard.test.mjs scripts/request-gate.test.mjs"
   },
   "dependencies": {
     "@expo/ui": "~58.0.29",
