@@ -290,7 +290,8 @@ def test_qa001_account_menu_limits_business_contexts_and_preserves_personal_iden
     page = client.get("/minha-conta")
     assert page.status_code == 200
     html = page.get_data(as_text=True)
-    assert "Conta pessoal · agora em Cliente" in html
+    assert "Conta pessoal" in html
+    assert "agora em Cliente" not in html
     for selector in ("data-account-contexts", "data-mobile-account-contexts"):
         menu_contexts = _context_list_html(html, selector)
         assert menu_contexts.count('data-context-kind="establishment"') == 3
