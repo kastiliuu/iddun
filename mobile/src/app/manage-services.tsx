@@ -46,9 +46,8 @@ export default function ManageServicesScreen() {
       }
     });
     return () => {
-      if (requestGate.current.isCurrent(currentRequest)) {
-        requestGate.current.invalidate(currentRequest);
-      }
+      // Blur ou desmontagem invalidam também retries iniciados nesta tela.
+      requestGate.current.invalidateAll();
     };
   }, []);
 
