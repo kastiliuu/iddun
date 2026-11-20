@@ -107,6 +107,32 @@ def test_web_account_avatar_updates_canonical_and_legacy_mirror(app, client):
         assert user.client_profile.avatar_url == user.avatar_url
 
 
+def test_web_account_cover_works_without_professional_profile(app, client):
+    user_id = _create_user_without_profile(app)
+    _login_session(client, user_id)
+
+    content = BytesIO()
+    Image.new("RGB", (64, 32), (120, 90, 160)).save(content, format="JPEG")
+    content.seek(0)
+    response = client.post(
+        "/minha-conta/editar",
+        data={
+            "name": "Legacy User",
+            "cover_file": (content, "capa.jpg"),
+        },
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        user = db.session.get(User, user_id)
+        assert user.professional_profile is None
+        assert user.cover_url.startswith("uploads/clients/covers/")
+        cover_path = user.cover_url
+    html = client.get("/minha-conta").get_data(as_text=True)
+    assert cover_path in html
+
+
 def test_account_completion_uses_every_field_shown_on_the_page(app, client):
     user_id = _create_user_without_profile(app)
     _login_session(client, user_id)

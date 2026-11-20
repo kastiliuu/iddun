@@ -12,20 +12,24 @@
 {% block content %}
 <section class="account-profile-hero">
   <div class="account-cover" aria-hidden="true">
+    {% if current_user.cover_url %}
+    <img class="account-cover__image" src="{{ current_user.cover_url|media_url }}" alt="">
+    {% else %}
     <span class="account-cover__orb account-cover__orb--one"></span>
     <span class="account-cover__orb account-cover__orb--two"></span>
     <span class="account-cover__mark">✦</span>
+    {% endif %}
   </div>
 
   <div class="container account-profile-hero__content" data-reveal>
     <div class="account-avatar-shell">
       <div
-        class="account-avatar {% if profile.avatar_url %}account-avatar--photo{% endif %}"
-        {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+        class="account-avatar {% if current_user.avatar_url or profile.avatar_url %}account-avatar--photo{% endif %}"
+        {% if current_user.avatar_url or profile.avatar_url %}style="background-image:url('{{ (current_user.avatar_url or profile.avatar_url)|media_url }}')"{% endif %}
         data-account-hero-avatar
         aria-label="Foto de perfil de {{ current_user.name }}"
       >
-        {% if not profile.avatar_url %}{{ current_user.name[:1]|upper }}{% endif %}
+        {% if not (current_user.avatar_url or profile.avatar_url) %}{{ current_user.name[:1]|upper }}{% endif %}
       </div>
       {% if editing %}
       <button
@@ -222,13 +226,26 @@
               <label class="account-upload" data-client-image-upload>
                 {{ form.avatar_file(class_='account-file-input', accept='image/jpeg,image/png,image/webp', data_client_image_input='') }}
                 <span
-                  class="account-upload__preview {% if profile.avatar_url %}has-image{% endif %}"
+                  class="account-upload__preview {% if current_user.avatar_url or profile.avatar_url %}has-image{% endif %}"
                   data-client-image-preview
-                  {% if profile.avatar_url %}style="background-image:url('{{ profile.avatar_url|media_url }}')"{% endif %}
+                  {% if current_user.avatar_url or profile.avatar_url %}style="background-image:url('{{ (current_user.avatar_url or profile.avatar_url)|media_url }}')"{% endif %}
                 >{{ icon('upload') }}</span>
                 <span><strong>Escolher foto</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
               </label>
               {{ field_errors(form.avatar_file) }}
+            </div>
+
+            <div class="account-field account-field--wide">
+              {{ form.cover_file.label(class_='account-label') }}
+              <label class="account-upload">
+                {{ form.cover_file(class_='account-file-input', accept='image/jpeg,image/png,image/webp') }}
+                <span class="account-upload__preview {% if current_user.cover_url %}has-image{% endif %}"
+                  {% if current_user.cover_url %}style="background-image:url('{{ current_user.cover_url|media_url }}')"{% endif %}>
+                  {{ icon('image') }}
+                </span>
+                <span><strong>Escolher capa</strong><small>JPG, PNG ou WEBP · até 5 MB</small></span>
+              </label>
+              {{ field_errors(form.cover_file) }}
             </div>
 
             <div class="account-field account-field--wide">
