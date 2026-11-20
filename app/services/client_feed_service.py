@@ -15,6 +15,7 @@ from app.services.availability_service import (
 )
 from app.services.beauty_graph_service import (
     graph_state,
+    person_avatar,
 )
 from app.services.feed_service import feed_page
 from app.services.media_storage import resolve_image_url
@@ -101,6 +102,11 @@ def _location_label(
     )
 
 
+def _professional_name(item):
+    # O catálogo sem User mantém o nome de vitrine legado.
+    return item.user.name if item.user is not None else item.display_name
+
+
 def _profile_recommendation(
     item,
     *,
@@ -115,7 +121,7 @@ def _profile_recommendation(
             "id": item.id,
             "kind": kind,
             "slug": item.slug,
-            "name": item.display_name,
+            "name": _professional_name(item),
             "specialty": (
                 item.primary_specialty
                 or "Profissional de beleza"
@@ -126,8 +132,8 @@ def _profile_recommendation(
             ),
             # D11 / D-VIS-04: no stock image as a real person's avatar.
             "avatar": (
-                resolve_image_url(item.avatar_url)
-                if item.avatar_url
+                resolve_image_url(person_avatar(item.user) or item.avatar_url)
+                if item.user is not None or item.avatar_url
                 else None
             ),
             "rating": reputation[
@@ -394,7 +400,7 @@ class _RecommendationReasons:
                 membership.professional_id in self.followed_professionals
                 and membership.professional.is_active
             ):
-                return f"{membership.professional.display_name} atende aqui"
+                return f"{_professional_name(membership.professional)} atende aqui"
 
         category = item.category
         if category and self._key(category) in self._followed_categories():
@@ -432,7 +438,7 @@ def _iddun_now_payload(slot):
             slot.experience.title
         ),
         "professionalName": (
-            slot.professional.display_name
+            _professional_name(slot.professional)
         ),
         "professionalSlug": (
             slot.professional.slug
