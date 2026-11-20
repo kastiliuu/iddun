@@ -6,6 +6,7 @@ import {
   ContextScreen,
   ContextSection,
 } from "@/components/navigation/ContextScreen";
+import { EmptyState } from "@/components/EmptyState";
 import { store, useStoreVersion } from "@/store/local";
 import { openWebEditor } from "@/components/ProfileSections";
 
@@ -18,7 +19,21 @@ export default function ProfessionalContextScreen() {
   const router = useRouter();
   const user = store.getUser();
   const context = user?.contexts?.find((item) => item.kind === "professional");
-  const draft = context?.state === "draft";
+
+  if (!context?.id) {
+    return (
+      <ContextScreen eyebrow="PROFISSIONAL" title="Ferramentas indisponíveis">
+        <EmptyState
+          title="Você ainda não tem ferramentas profissionais ativas."
+          description="Volte às áreas da sua conta para ativar ou selecionar as ferramentas disponíveis."
+          actionLabel="Ver minha conta"
+          onActionPress={() => router.replace("/contexts")}
+        />
+      </ContextScreen>
+    );
+  }
+
+  const draft = context.state === "draft";
   const locked = context?.state === "locked";
 
   return (
