@@ -258,6 +258,8 @@ def test_expo_pro_and_business_site_only_tools_offer_real_web_destinations():
 
     assert 'openWebEditor("/pro/painel")' in professional
     assert 'openWebEditor("/pro/clientes")' in professional
+    assert 'openWebEditor(`/@${encodeURIComponent(user.username)}`)' in professional
+    assert 'pathname: "/professional/[id]"' in professional  # fallback legado
     assert '"/painel"' in web_routes and '"/clientes"' in web_routes
     for route in ("/painel", "/servicos", "/reservas", "/indicadores"):
         assert f"${{encodeURIComponent(context.slug as string)}}{route}" in establishment

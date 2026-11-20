@@ -54,10 +54,12 @@ export default function ProfessionalContextScreen() {
             icon="user"
             title="Ver perfil público"
             onPress={() =>
-              router.push({
-                pathname: "/professional/[id]",
-                params: { id: context.slug as string },
-              })
+              user?.username
+                ? openWebEditor(`/@${encodeURIComponent(user.username)}`)
+                : router.push({
+                    pathname: "/professional/[id]",
+                    params: { id: context.slug as string },
+                  })
             }
           />
         ) : null}
