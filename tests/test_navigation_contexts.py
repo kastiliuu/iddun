@@ -373,7 +373,7 @@ def test_expo_services_refresh_ignores_stale_responses_after_retry_or_blur():
     assert "const requestGate = useRef(createLatestRequestGate())" in screen
     assert "const currentRequest = requestGate.current.begin()" in screen
     assert "requestGate.current.isCurrent(currentRequest)" in screen
-    assert "requestGate.current.invalidate(currentRequest)" in screen
+    assert "requestGate.current.invalidateAll()" in screen
     assert 'from "@/services/latestRequestGate"' in screen
     assert "setLoading(true)" in screen
     assert 'actionLabel="Tentar novamente"' in screen
