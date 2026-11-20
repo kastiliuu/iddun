@@ -78,6 +78,7 @@ def test_client_menu_has_one_identity_and_no_foreign_company(page: Page):
     expect(menu.get_by_role("link", name="Ativar atuação profissional")).to_be_visible()
     expect(menu.get_by_role("link", name="Criar e gerir estabelecimentos")).to_be_visible()
     expect(menu.locator("[data-account-contexts] a")).to_have_count(0)
+    expect(menu.get_by_text("Estabelecimentos", exact=True)).to_have_count(0)
     expect(menu.locator("[data-context-kind='client']")).to_have_count(0)
     expect(menu.locator("[data-context-kind='professional']")).to_have_count(0)
     _readable(page, "[data-account-menu]")
@@ -205,6 +206,7 @@ def test_phone_avatar_new_client_has_no_foreign_business(page: Page):
     avatar.click()
     menu = page.locator("#mobile-account-menu")
     expect(menu.locator("[data-mobile-account-contexts] a")).to_have_count(0)
+    expect(menu.get_by_text("Estabelecimentos", exact=True)).to_have_count(0)
     expect(menu.get_by_role("link", name="Meu feed")).to_be_visible()
     expect(menu.get_by_role("link", name="Ativar atuação profissional")).to_be_visible()
 

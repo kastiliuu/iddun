@@ -55,6 +55,7 @@
     </span>
   </div>
 
+  {% if business_contexts %}
   <p class="feed-account-menu__group-label" id="{{ contexts_label_id }}">Estabelecimentos</p>
   <ul class="feed-account-menu__contexts" aria-labelledby="{{ contexts_label_id }}" {% if menu_id == 'feed-account-menu' %}data-account-contexts{% else %}data-mobile-account-contexts{% endif %}>
     {% for item in business_contexts[:3] %}
@@ -68,6 +69,7 @@
     </li>
     {% endfor %}
   </ul>
+  {% endif %}
   {% if business_contexts|length > 3 %}
   <a href="{{ url_for('account.dashboard') }}#meus-estabelecimentos">
     {{ icon('chevron-right') }} Ver todos os estabelecimentos
