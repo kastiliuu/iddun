@@ -287,3 +287,41 @@ def test_expo_create_business_services_has_action_not_disabled_card():
     assert 'router.push("/contexts")' in create
     section = create.split('title="Serviços da empresa"', 1)[1].split('</ActionCard>', 1)[0] if '</ActionCard>' in create else create.split('title="Serviços da empresa"', 1)[1].split('/>', 1)[0]
     assert "disabled" not in section
+
+
+def test_expo_create_shows_cumulative_pro_and_business_tools_from_contexts():
+    """IDDUN identity: legacy role must not hide business tools from a Pro owner."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    create = (root / "mobile/src/app/create.tsx").read_text(encoding="utf-8")
+    server = (root / "app/routes/api_auth.py").read_text(encoding="utf-8")
+
+    # Role stays "professional" for Pro+Business on /auth/me, while
+    # the authorized account contexts include both capabilities.
+    assert 'if professional is not None:' in server
+    assert 'mobile_role = "professional"' in server
+    assert 'payload["contexts"] = contexts_payload(account_contexts(user))' in server
+    assert 'contexts.some(' in create
+    assert 'item.kind === "professional"' in create
+    assert 'businessContexts = contexts.filter(' in create
+    assert 'item.kind === "establishment"' in create
+    assert 'const canCreate =' in create
+    assert 'isProfessional ||' in create and 'isEstablishment;' in create
+
+    # Both sets of tools appear together, never as exclusive branches.
+    assert 'title="Gerenciar serviços"' in create
+    assert 'title="Serviços da empresa"' in create
+    assert 'title="Gerenciar equipe"' in create
+    assert 'isProfessional ? (' in create
+    assert 'isEstablishment ? (' in create
+    assert 'isEstablishment ? (\n                  <ActionCard' in create
+    assert '{user?.name}' in create
+    assert 'user?.businessName ??' not in create
+
+    # One company is unambiguous. Multiple sites require explicit selection.
+    assert 'businessContexts.length === 1 ? businessContexts[0] : undefined' in create
+    assert 'currentBusiness?.slug' in create
+    assert 'currentBusiness?.id' in create
+    assert 'router.push("/contexts")' in create
+    assert 'user.profileId' not in create

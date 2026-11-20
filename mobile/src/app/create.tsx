@@ -13,7 +13,6 @@ import * as Haptics from "expo-haptics";
 
 import { Button } from "@/components/Button";
 import { Icon, IconName } from "@/components/Icon";
-import { useToast } from "@/components/Toast";
 import { openWebEditor } from "@/components/ProfileSections";
 
 import {
@@ -127,37 +126,42 @@ export default function CreateScreen() {
   const styles = useStyles();
   const { colors, scheme } = useTheme();
   const router = useRouter();
-  const toast = useToast();
 
   const user = store.getUser();
 
-  const isProfessional =
-    user?.role === "professional";
-
+  // Contextos são recursos da mesma pessoa: o papel legado não é
+  // exclusivo e não pode esconder uma empresa de quem também atua Pro.
+  const contexts = user?.contexts ?? [];
+  const businessContexts = contexts.filter(
+    (item) => item.kind === "establishment",
+  );
+  const isProfessional = contexts.some(
+    (item) => item.kind === "professional",
+  ) || (!user?.contexts && user?.role === "professional");
   const isEstablishment =
-    user?.role === "establishment";
+    businessContexts.length > 0 ||
+    (!user?.contexts && user?.role === "establishment");
 
-  // Uma conta pode gerir várias empresas: não escolher a primeira ao acaso.
-  const businessProfileId = user?.profileId;
-  const currentBusiness = businessProfileId
-    ? user?.contexts?.find(
-        (item) =>
-          item.kind === "establishment" &&
-          item.id === businessProfileId,
-      )
-    : undefined;
+  // Selecionar uma empresa só se for a única autorizada no menu.
+  // Com múltiplas empresas, a pessoa escolhe em /contexts.
+  const currentBusiness =
+    businessContexts.length === 1 ? businessContexts[0] : undefined;
 
   const canCreate =
     isProfessional ||
     isEstablishment;
 
   const profileLabel = useMemo(() => {
+    if (isProfessional && isEstablishment) {
+      return "FERRAMENTAS PROFISSIONAIS E EMPRESARIAIS";
+    }
+
     if (isEstablishment) {
-      return "ESTABELECIMENTO";
+      return "ESTABELECIMENTOS";
     }
 
     if (isProfessional) {
-      return "PROFISSIONAL";
+      return "FERRAMENTAS PROFISSIONAIS";
     }
 
     return "IDDUN PARA PROFISSIONAIS";
@@ -444,8 +448,7 @@ export default function CreateScreen() {
                   }
                   numberOfLines={1}
                 >
-                  {user?.businessName ??
-                    user?.name}
+                  {user?.name}
                 </Text>
 
                 <Text
@@ -453,9 +456,11 @@ export default function CreateScreen() {
                     styles.profileSummaryRole
                   }
                 >
-                  {isEstablishment
-                    ? "Estabelecimento"
-                    : "Profissional"}
+                  {isProfessional && isEstablishment
+                    ? "Profissional e gestão de empresas"
+                    : isEstablishment
+                      ? "Gestão de estabelecimentos"
+                      : "Profissional"}
                 </Text>
               </View>
 
@@ -517,19 +522,28 @@ export default function CreateScreen() {
                   }
                 />
 
-                <ActionCard
-                  icon="clock"
-                  title="Abrir um horário"
-                  description="Publique uma disponibilidade real no IDDUN Now."
-                  onPress={() =>
-                    router.push(
-                      "/open-slot",
-                    )
-                  }
-                />
+                {isProfessional ? (
+                  <ActionCard
+                    icon="clock"
+                    title="Abrir um horário"
+                    description="Publique uma disponibilidade real no IDDUN Now."
+                    onPress={() =>
+                      router.push("/open-slot")
+                    }
+                  />
+                ) : null}
 
                 {/* P-003: o catálogo do profissional já existe no app. A
                     operação da empresa fica no site neste ciclo (V1-CONV-D01). */}
+                {isProfessional ? (
+                  <ActionCard
+                    icon="scissors"
+                    title="Gerenciar serviços"
+                    description="Crie, publique e abra horários dos seus serviços."
+                    onPress={() => router.push("/manage-services")}
+                  />
+                ) : null}
+
                 {isEstablishment ? (
                   <ActionCard
                     icon="scissors"
@@ -542,39 +556,18 @@ export default function CreateScreen() {
                         : router.push("/contexts")
                     }
                   />
-                ) : (
-                  <ActionCard
-                    icon="scissors"
-                    title="Gerenciar serviços"
-                    description="Crie, publique e abra horários dos seus serviços."
-                    onPress={() =>
-                      router.push(
-                        "/manage-services",
-                      )
-                    }
-                  />
-                )}
+                ) : null}
 
                 {isEstablishment ? (
                   <ActionCard
                     icon="users"
                     title="Gerenciar equipe"
                     description="Organize profissionais vinculados ao estabelecimento."
-                    onPress={() => {
-                      if (!user?.profileId) {
-                        toast.show({
-                          title: "Estabelecimento não identificado",
-                          body:
-                            "Atualize seu perfil antes de gerenciar a equipe.",
-                          icon: "alert-circle" as IconName,
-                        });
-                        return;
-                      }
-
-                      router.push(
-                        `/establishment-team/${user.profileId}`,
-                      );
-                    }}
+                    onPress={() =>
+                      currentBusiness?.id
+                        ? router.push(`/establishment-team/${currentBusiness.id}`)
+                        : router.push("/contexts")
+                    }
                   />
                 ) : null}
               </View>
