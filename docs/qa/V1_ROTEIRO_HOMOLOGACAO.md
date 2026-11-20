@@ -87,6 +87,7 @@ Cada passo traz o resultado esperado. Marque **OK**, **Falhou** (com print e hor
 | --- | --- | --- | --- | --- | --- |
 | PR4-SRV-01 | Expo Android/iOS | Abrir Meus serviços, sair da tela com rede lenta e retornar | Só a leitura mais recente altera lista/erro/loading; sem atualização de tela fora de foco | `request-gate.test.mjs` + contrato em `test_navigation_contexts.py` | Não executado |
 | PR4-SRV-02 | Expo Android/iOS | Falhar carregamento, tocar Tentar novamente e receber resposta antiga após a nova | Lista atual prevalece; erro antigo não substitui sucesso recente | `request-gate.test.mjs` | Não executado |
+| PR4-SRV-02B | Expo Android/iOS | Tocar Tentar novamente e sair imediatamente para outra tela | Retry fica invalidado; resposta tardia não altera o catálogo fora de foco | `request-gate.test.mjs` (teste vermelho antes, verde após correção) | Não executado |
 | PR4-SRV-03 | Web/Expo | Criar/editar um serviço pela Web e voltar ao catálogo do app | Nome, preço, duração, estado e categoria coincidem com os dados do backend | API e testes existentes | Não executado |
 | PR4-SRV-04 | Expo Android/iOS | Desligar rede e voltar para Meus serviços; reativar e tentar novamente | Erro com ação útil, loading coerente e recarga válida | Testes estáticos e Node (parciais) | Não executado |
 | PR4-SRV-05 | Expo Android/iOS | Abrir serviços após alternar contas Pro diferentes | Nunca exibir dados privados da conta anterior | Autorização backend existente; device não verificado | Não executado |
