@@ -1,6 +1,6 @@
 # IDDUN V1 — Roteiro de homologação
 
-**Base:** `main` depois das PRs #248, #249 e da PR 3 (branch `be/v1-conv-pr3-closure`).
+**Base auditada:** `main@809e9afa` (merge da PR #253). **Entrega em revisão:** PR #254 (4/4), branch `be/v1-pr4-mobile-services-refresh`; não considerar concluída antes de CI e homologação.
 **Ambiente:** homologação (nunca produção), com contas e dados de teste.
 **Decisões:** Notion 08, V1-CONV-D01 a D07, DS-V1-01-D01 a D03, D-NV07-01/02/03, A1-DEC-01 a 03.
 
@@ -77,3 +77,19 @@ Cada passo traz o resultado esperado. Marque **OK**, **Falhou** (com print e hor
 - Ícones em cinza ficam abaixo de 3:1 no tema escuro do app (texto está AA).
 - Textos sobre fotos (IDDUN Now, cartões) foram conferidos só por captura.
 - O app não foi testado em aparelho real pelo agente; os passos de app desta lista são obrigatórios na homologação.
+
+
+## 7. PR #254 — recuperação do catálogo de serviços Expo (P-003)
+
+**Status dos casos abaixo: NÃO EXECUTADOS em dispositivo.** O teste Node `mobile/scripts/request-gate.test.mjs` verifica o versionamento de leituras, mas não substitui a homologação da tela nem a conferência do catálogo real. A Web continua consumindo os serviços do backend; o app deve reproduzir seus dados e estados sem sobrescrita por resposta antiga.
+
+| ID | Plataforma | Procedimento | Resultado esperado | Automático | Manual |
+| --- | --- | --- | --- | --- | --- |
+| PR4-SRV-01 | Expo Android/iOS | Abrir Meus serviços, sair da tela com rede lenta e retornar | Só a leitura mais recente altera lista/erro/loading; sem atualização de tela fora de foco | `request-gate.test.mjs` + contrato em `test_navigation_contexts.py` | Não executado |
+| PR4-SRV-02 | Expo Android/iOS | Falhar carregamento, tocar Tentar novamente e receber resposta antiga após a nova | Lista atual prevalece; erro antigo não substitui sucesso recente | `request-gate.test.mjs` | Não executado |
+| PR4-SRV-02B | Expo Android/iOS | Tocar Tentar novamente e sair imediatamente para outra tela | Retry fica invalidado; resposta tardia não altera o catálogo fora de foco | `request-gate.test.mjs` (teste vermelho antes, verde após correção) | Não executado |
+| PR4-SRV-03 | Web/Expo | Criar/editar um serviço pela Web e voltar ao catálogo do app | Nome, preço, duração, estado e categoria coincidem com os dados do backend | API e testes existentes | Não executado |
+| PR4-SRV-04 | Expo Android/iOS | Desligar rede e voltar para Meus serviços; reativar e tentar novamente | Erro com ação útil, loading coerente e recarga válida | Testes estáticos e Node (parciais) | Não executado |
+| PR4-SRV-05 | Expo Android/iOS | Abrir serviços após alternar contas Pro diferentes | Nunca exibir dados privados da conta anterior | Autorização backend existente; device não verificado | Não executado |
+
+**Bloqueio de aceite do release:** homologação real dos casos acima, fluxos de reserva e jornadas de autorização em iOS/Android, checklist de acessibilidade e evidências associadas às matrizes Notion 79/89. **RECRUIT-A2:** dependente da aprovação separada do contrato da página 113; não foi incorporada nesta PR.

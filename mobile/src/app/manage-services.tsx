@@ -1,10 +1,11 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import { getManagedServices, type ManagedService } from "@/api/services";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
+import { createLatestRequestGate } from "@/services/latestRequestGate";
 import { SERVICE_STATUS_LABELS, categoryLabel, formatMoney } from "@/services/serviceWizard";
 import { makeStyles, radius, spacing, touch, typography, useTheme } from "@/theme";
 
@@ -21,16 +22,33 @@ export default function ManageServicesScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const requestGate = useRef(createLatestRequestGate());
+
   const reload = useCallback(() => {
-    let active = true;
+    // Retry ou retorno ao catálogo invalida qualquer leitura anterior.
+    const currentRequest = requestGate.current.begin();
+    setLoading(true);
     setError(null);
     getManagedServices().then(
-      (response) => { if (active) setItems(response.items); },
-      (cause) => {
-        if (active) setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
+      (response) => {
+        if (requestGate.current.isCurrent(currentRequest)) {
+          setItems(response.items);
+        }
       },
-    ).finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      (cause) => {
+        if (requestGate.current.isCurrent(currentRequest)) {
+          setError(cause instanceof Error ? cause.message : "Não foi possível carregar seus serviços.");
+        }
+      },
+    ).finally(() => {
+      if (requestGate.current.isCurrent(currentRequest)) {
+        setLoading(false);
+      }
+    });
+    return () => {
+      // Blur ou desmontagem invalidam também retries iniciados nesta tela.
+      requestGate.current.invalidateAll();
+    };
   }, []);
 
   // Volta do detalhe ou do cadastro: a lista reflete o que o servidor confirmou.
@@ -64,7 +82,7 @@ export default function ManageServicesScreen() {
           title="Não foi possível carregar seus serviços"
           description={error}
           actionLabel="Tentar novamente"
-          onActionPress={() => { setLoading(true); reload(); }}
+          onActionPress={() => { reload(); }}
         />
       ) : items.length === 0 ? (
         <EmptyState
